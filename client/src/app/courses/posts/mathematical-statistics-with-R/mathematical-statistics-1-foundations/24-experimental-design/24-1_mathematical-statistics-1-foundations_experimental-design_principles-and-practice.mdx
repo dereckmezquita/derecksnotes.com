@@ -1,0 +1,257 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 24: Experimental Design"
+part: "Part 1: Principles and Practice"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, experimental-design, randomisation, power-analysis, sample-size, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 24 -- Experimental Design
+
+## Part 1: Principles and Practice
+
+All the statistical methods in this book -- from $t$-tests to Bayesian regression -- depend on how the data were collected. A flawed study design cannot be rescued by clever analysis. In this chapter we examine the principles that make an experiment valid: **randomisation**, **blocking**, **replication**, and **blinding**. We revisit sample size and power calculations with a design perspective, and we study the most common pitfalls that invalidate conclusions.
+
+---
+
+## 24.1 Observational Studies vs Experiments
+
+### 24.1.1 The Key Distinction
+
+An **observational study** records data without intervening. A **randomised experiment** assigns treatments to units under the investigator's control.
+
+| Feature | Observational | Experimental |
+|:--------|:-------------|:-------------|
+| **Treatment assignment** | Nature / the subject | Investigator (random) |
+| **Confounding** | Always a threat | Controlled by randomisation |
+| **Causal inference** | Association only (in general) | Causation (if well-designed) |
+| **Ethics** | Sometimes the only option | Requires equipoise |
+| **Examples** | NHANES, cohort studies | Lind's scurvy trial, RCTs |
+
+### 24.1.2 Simpson's Paradox and Confounding
+
+Confounding occurs when a third variable is associated with both the treatment and the outcome. The classic example: a treatment appears harmful overall but is beneficial within every subgroup, because sicker patients receive the treatment more often.
+
+
+``` r
+set.seed(42)
+n_per <- 100
+
+group_a <- data.table$data.table(
+  x = rnorm(n_per, 2, 1),
+  group = "A"
+)
+group_a[, y := 10 - 0.8 * x + rnorm(n_per, 0, 0.5)]
+
+group_b <- data.table$data.table(
+  x = rnorm(n_per, 5, 1),
+  group = "B"
+)
+group_b[, y := 15 - 0.8 * x + rnorm(n_per, 0, 0.5)]
+
+group_c <- data.table$data.table(
+  x = rnorm(n_per, 8, 1),
+  group = "C"
+)
+group_c[, y := 20 - 0.8 * x + rnorm(n_per, 0, 0.5)]
+
+simpson_dt <- data.table$rbindlist(list(group_a, group_b, group_c))
+
+ggplot2$ggplot(simpson_dt, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_point(ggplot2$aes(colour = group), alpha = 0.5) +
+  ggplot2$geom_smooth(method = "lm", se = FALSE, linetype = "dashed", colour = "black") +
+  ggplot2$geom_smooth(ggplot2$aes(colour = group), method = "lm", se = FALSE) +
+  ggplot2$labs(
+    x = "Treatment dose", y = "Outcome",
+    title = "Simpson's paradox: overall positive trend masks within-group negative trends"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="simpsons-paradox-1.png" alt="Simpson&#39;s paradox: the overall trend (dashed) is positive, but within each group the trend is negative. Ignoring the confounding group variable reverses the apparent effect.">
+	Simpson's paradox: the overall trend (dashed) is positive, but within each group the trend is negative. Ignoring the confounding group variable reverses the apparent effect.
+</Figure>
+
+---
+
+## 24.2 Randomisation: Why It Works
+
+### 24.2.1 The Mathematical Foundation
+
+Randomisation balances **all** covariates -- measured and unmeasured -- in expectation. If we randomly assign $n$ subjects to treatment or control, then for any covariate $X$:
+
+$$E[\bar{X}_{\text{treat}}] = E[\bar{X}_{\text{control}}]$$
+
+More formally, randomisation makes the treatment assignment **independent** of potential outcomes (the Rubin causal model):
+
+$$(Y(0), Y(1)) \perp\!\!\!\perp Z$$
+
+where $Y(0)$ and $Y(1)$ are potential outcomes and $Z$ is the treatment indicator. This is the foundation of causal inference.
+
+### 24.2.2 Simple Randomisation
+
+Each subject is independently assigned to treatment with probability $1/2$.
+
+
+``` r
+set.seed(42)
+n_subjects <- 100
+assignments <- sample(c("Treatment", "Control"), n_subjects, replace = TRUE)
+table(assignments)
+```
+
+```
+assignments
+  Control Treatment 
+       56        44 
+```
+
+Simple randomisation can produce unbalanced groups by chance. With 100 subjects, the probability of a split worse than 60/40 is:
+
+
+``` r
+p_imbalance <- 2 * pbinom(39, 100, 0.5)
+sprintf("P(|n_treat - 50| > 10) = %.4f", p_imbalance)
+```
+
+```
+[1] "P(|n_treat - 50| > 10) = 0.0352"
+```
+
+### 24.2.3 Blocked Randomisation
+
+To ensure equal group sizes, use **permuted blocks**. Within each block of size $2k$, exactly $k$ are assigned to treatment.
+
+
+``` r
+set.seed(42)
+block_size <- 4
+n_blocks <- 25
+n_total <- block_size * n_blocks
+
+blocked <- unlist(lapply(1:n_blocks, function(b) {
+  block <- rep(c("Treatment", "Control"), each = block_size / 2)
+  sample(block)
+}))
+
+table(blocked)
+sprintf("Perfect balance: %d treatment, %d control", sum(blocked == "Treatment"), sum(blocked == "Control"))
+```
+
+```
+blocked
+  Control Treatment 
+       50        50 
+[1] "Perfect balance: 50 treatment, 50 control"
+```
+
+---
+
+## 24.3 Stratified Randomisation
+
+When a known covariate (e.g., disease severity, sex) strongly affects the outcome, we **stratify**: perform separate blocked randomisation within each stratum. This guarantees balance on that covariate.
+
+
+``` r
+set.seed(42)
+strata <- c(rep("Mild", 40), rep("Moderate", 40), rep("Severe", 20))
+
+stratified_assign <- function(stratum_labels) {
+  dt <- data.table$data.table(id = seq_along(stratum_labels), stratum = stratum_labels)
+  dt[, treatment := {
+    n <- .N
+    block <- rep(c("Treatment", "Control"), length.out = n)
+    sample(block)
+  }, by = stratum]
+  dt
+}
+
+strat_dt <- stratified_assign(strata)
+strat_dt[, .N, by = .(stratum, treatment)]
+```
+
+```
+    stratum treatment     N
+     <char>    <char> <int>
+1:     Mild Treatment    20
+2:     Mild   Control    20
+3: Moderate Treatment    20
+4: Moderate   Control    20
+5:   Severe   Control    10
+6:   Severe Treatment    10
+```
+
+---
+
+## 24.4 Blinding
+
+**Single-blind:** the subject does not know which treatment they receive.
+**Double-blind:** neither the subject nor the assessor knows.
+
+Blinding prevents:
+
+- **Placebo effect:** subjects improve because they expect to.
+- **Observer bias:** assessors unconsciously rate treated subjects more favourably.
+- **Differential attrition:** subjects in the control group drop out more often.
+
+---
+
+## 24.5 Sample Size and Power Revisited
+
+### 24.5.1 The Design Perspective
+
+In Chapter 10 we introduced power ($1 - \beta$) and Type II error. At the design stage, we solve for the **sample size** needed to detect a meaningful effect with adequate power.
+
+For a two-sample $t$-test with equal groups:
+
+$$n = \frac{2(z_{\alpha/2} + z_\beta)^2 \sigma^2}{\delta^2}$$
+
+where $\delta = \mu_1 - \mu_2$ is the minimum clinically important difference and $\sigma^2$ is the common variance.
+
+### 24.5.2 Power Calculations with `pwr`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

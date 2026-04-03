@@ -1,0 +1,219 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 19: GLM Framework"
+part: "Part 2: Link Functions and IRLS"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, glm, link-functions, irls, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 19 -- GLM Framework
+
+## Part 2: Link Functions and IRLS
+
+In Part 1 we showed that the Normal, Bernoulli, Poisson, and Gamma distributions all belong to the exponential family, and that the mean and variance of any member are encoded in the log-partition function $A(\theta)$. We are now ready to assemble the three components of a Generalised Linear Model and derive the algorithm that fits it.
+
+---
+
+## 19.3 The Three Components of a GLM
+
+A GLM is specified by three ingredients:
+
+### 19.3.1 Random Component
+
+Each observation $Y_i$ follows a distribution from the exponential family with mean $\mu_i = E[Y_i]$. The observations are independent (or conditionally independent given the covariates).
+
+### 19.3.2 Systematic Component
+
+The covariates enter through a **linear predictor**:
+
+$$\eta_i = \mathbf{x}_i^\top \boldsymbol{\beta} = \beta_0 + \beta_1 x_{i1} + \cdots + \beta_p x_{ip}$$
+
+This is the familiar linear combination from ordinary regression. The GLM does not change the systematic component -- it changes how the linear predictor *connects* to the mean.
+
+### 19.3.3 Link Function
+
+A monotone, differentiable function $g$ connects the mean to the linear predictor:
+
+$$g(\mu_i) = \eta_i$$
+
+or equivalently $\mu_i = g^{-1}(\eta_i)$.
+
+The link function is the conceptual breakthrough of the GLM: instead of modelling $\mu$ directly as a linear function of the covariates (which may produce nonsensical values), we model a *transformation* of $\mu$ that maps the natural domain of $\mu$ onto the entire real line.
+
+---
+
+## 19.4 Canonical Links
+
+The **canonical link** sets $g(\mu) = \theta$, the natural parameter. This choice simplifies the mathematics considerably because the sufficient statistic for $\boldsymbol{\beta}$ is $\mathbf{X}^\top \mathbf{y}$.
+
+
+``` r
+links_df <- data.frame(
+  Distribution = c("Normal", "Bernoulli", "Poisson", "Gamma"),
+  Domain_of_mu = c("(-Inf, Inf)", "(0, 1)", "(0, Inf)", "(0, Inf)"),
+  Canonical_link = c("Identity: g(mu) = mu",
+                     "Logit: g(mu) = log(mu/(1-mu))",
+                     "Log: g(mu) = log(mu)",
+                     "Reciprocal: g(mu) = 1/mu"),
+  Inverse_link = c("mu = eta",
+                    "mu = exp(eta)/(1+exp(eta))",
+                    "mu = exp(eta)",
+                    "mu = 1/eta")
+)
+
+knitr::kable(links_df, col.names = c("Distribution", "Domain of mu", "Canonical link", "Inverse link"),
+             caption = "Canonical link functions for common exponential family distributions.")
+```
+
+
+
+Table: Canonical link functions for common exponential family distributions.
+
+|Distribution |Domain of mu |Canonical link                |Inverse link               |
+|:------------|:------------|:-----------------------------|:--------------------------|
+|Normal       |(-Inf, Inf)  |Identity: g(mu) = mu          |mu = eta                   |
+|Bernoulli    |(0, 1)       |Logit: g(mu) = log(mu/(1-mu)) |mu = exp(eta)/(1+exp(eta)) |
+|Poisson      |(0, Inf)     |Log: g(mu) = log(mu)          |mu = exp(eta)              |
+|Gamma        |(0, Inf)     |Reciprocal: g(mu) = 1/mu      |mu = 1/eta                 |
+
+### 19.4.1 Why Canonical Links Are Special
+
+When the canonical link is used, the score equations take the form:
+
+$$\mathbf{X}^\top \mathbf{y} = \mathbf{X}^\top \hat{\boldsymbol{\mu}}$$
+
+This means the sufficient statistic $\mathbf{X}^\top \mathbf{y}$ appears directly in the estimating equations. The canonical link also guarantees:
+
+- The log-likelihood is concave in $\boldsymbol{\beta}$ (unique MLE if it exists).
+- The observed and expected information matrices coincide.
+
+### 19.4.2 Non-Canonical Links
+
+One is not obliged to use the canonical link. For example, the **probit link** $g(\mu) = \Phi^{-1}(\mu)$ is sometimes used for binary data, and the **complementary log-log** link $g(\mu) = \log(-\log(1 - \mu))$ is appropriate when the response represents a "time to first event" probability.
+
+---
+
+## 19.5 Visualising Link Functions
+
+
+``` r
+mu_grid <- seq(0.001, 0.999, length.out = 500)
+
+link_dt <- data.table$rbindlist(list(
+  data.table$data.table(mu = mu_grid, eta = log(mu_grid / (1 - mu_grid)), link = "Logit"),
+  data.table$data.table(mu = mu_grid, eta = qnorm(mu_grid), link = "Probit"),
+  data.table$data.table(mu = mu_grid, eta = log(-log(1 - mu_grid)), link = "Complementary log-log")
+))
+
+ggplot2$ggplot(link_dt, ggplot2$aes(x = mu, y = eta, colour = link)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = expression(mu ~ "(probability)"),
+    y = expression(eta ~ "(linear predictor)"),
+    colour = "Link function",
+    title = "Link functions for binary data"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="link-functions-plot-1.png" alt="Three link functions for binary data. All three map the probability domain (0, 1) onto the real line, but they differ in the tails.">
+	Three link functions for binary data. All three map the probability domain (0, 1) onto the real line, but they differ in the tails.
+</Figure>
+
+The logit and probit are nearly identical in the centre and differ mainly in the tails. The complementary log-log is asymmetric -- it approaches $-\infty$ more slowly than $+\infty$. The choice of link matters most when there is substantial data in the tails.
+
+---
+
+## 19.6 The GLM Log-Likelihood
+
+For independent observations $y_1, \ldots, y_n$ from an exponential dispersion family with dispersion $\phi$, the log-likelihood is:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \frac{y_i \theta_i - A(\theta_i)}{\phi} + c(y_i, \phi)$$
+
+where $\theta_i = \theta(\mu_i)$ and $\mu_i = g^{-1}(\mathbf{x}_i^\top \boldsymbol{\beta})$.
+
+The score equations are:
+
+$$\frac{\partial \ell}{\partial \beta_j} = \sum_{i=1}^n \frac{(y_i - \mu_i) x_{ij}}{\phi\, V(\mu_i)\, g'(\mu_i)} = 0, \quad j = 0, 1, \ldots, p$$
+
+where $V(\mu_i) = A''(\theta_i)$ is the **variance function**. These equations are generally nonlinear in $\boldsymbol{\beta}$ and cannot be solved in closed form. We need an iterative algorithm.
+
+---
+
+## 19.7 Fisher Scoring and IRLS
+
+### 19.7.1 Newton-Raphson for GLMs
+
+Newton-Raphson updates are:
+
+$$\boldsymbol{\beta}^{(t+1)} = \boldsymbol{\beta}^{(t)} - \left[\frac{\partial^2 \ell}{\partial \boldsymbol{\beta} \partial \boldsymbol{\beta}^\top}\right]^{-1} \frac{\partial \ell}{\partial \boldsymbol{\beta}}$$
+
+**Fisher scoring** replaces the observed Hessian with its expectation -- the Fisher information matrix:
+
+$$\boldsymbol{\beta}^{(t+1)} = \boldsymbol{\beta}^{(t)} + \mathcal{I}(\boldsymbol{\beta}^{(t)})^{-1} \mathbf{U}(\boldsymbol{\beta}^{(t)})$$
+
+where $\mathbf{U} = \partial \ell / \partial \boldsymbol{\beta}$ is the score vector and $\mathcal{I} = \mathbf{X}^\top \mathbf{W} \mathbf{X}$ with $\mathbf{W} = \text{diag}(w_1, \ldots, w_n)$ and:
+
+$$w_i = \frac{1}{V(\mu_i) [g'(\mu_i)]^2}$$
+
+### 19.7.2 Rewriting as Weighted Least Squares
+
+After algebraic manipulation, the Fisher scoring update can be written as:
+
+$$\boldsymbol{\beta}^{(t+1)} = (\mathbf{X}^\top \mathbf{W}^{(t)} \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{W}^{(t)} \mathbf{z}^{(t)}$$
+
+where $\mathbf{z}^{(t)}$ is the **working response** (or **adjusted dependent variable**):
+
+$$z_i^{(t)} = \eta_i^{(t)} + (y_i - \mu_i^{(t)}) g'(\mu_i^{(t)})$$
+
+This is exactly the formula for **weighted least squares** with weights $\mathbf{W}^{(t)}$ and response $\mathbf{z}^{(t)}$. Hence the name: **Iteratively Reweighted Least Squares (IRLS)**.
+
+At each iteration we:
+
+1. Compute $\eta_i = \mathbf{x}_i^\top \boldsymbol{\beta}$ and $\mu_i = g^{-1}(\eta_i)$.
+2. Compute the working weights $w_i$ and working response $z_i$.
+3. Solve the weighted least squares problem to get updated $\boldsymbol{\beta}$.
+
+Repeat until convergence.
+
+---
+
+## 19.8 IRLS from Scratch
+
+Let us implement IRLS for a logistic regression (Bernoulli response, logit link) entirely from scratch, then compare with R's `glm()`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,481 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 8: Point Estimation"
+part: "Part 3: Fisher Information, Cramér-Rao, and Sufficiency"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, estimation, fisher-information, sufficiency, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 8 -- Point Estimation
+
+## Part 3: Fisher Information, Cramér--Rao, and Sufficiency
+
+Parts 1 and 2 gave us *methods* for producing estimators (MOM and MLE) and *criteria* for judging them (bias, consistency, efficiency). But a fundamental question remains: **how good can an estimator possibly be?** Is there a floor below which no unbiased estimator's variance can sink?
+
+The answer is yes, and it is given by the **Cramér--Rao lower bound (CRLB)**. The key quantity in this bound is the **Fisher information**, which measures how much a sample tells us about the unknown parameter. We then study **sufficiency** -- the idea that certain statistics capture *all* the information in the sample -- and the **Rao--Blackwell theorem**, which shows how sufficient statistics can improve estimators.
+
+This part is more theoretical than the previous two, but the rewards are substantial: you will understand *why* MLE is efficient and *what* makes a good statistic.
+
+---
+
+## 8.9 Fisher Information
+
+### 8.9.1 The Score Function
+
+Let $f(x;\theta)$ be the density (or PMF) of a single observation. The **score function** is:
+
+$$s(x;\theta) = \frac{\partial}{\partial\theta}\log f(x;\theta).$$
+
+The score measures the sensitivity of the log-density to changes in $\theta$. Under regularity conditions (we can interchange differentiation and integration):
+
+$$E[s(X;\theta)] = \int \frac{\partial}{\partial\theta}\log f(x;\theta)\cdot f(x;\theta)\,dx = \int \frac{f'(x;\theta)}{f(x;\theta)}\cdot f(x;\theta)\,dx = \frac{\partial}{\partial\theta}\int f(x;\theta)\,dx = 0.$$
+
+The score has mean zero. Its *variance* is what matters.
+
+### 8.9.2 Definition of Fisher Information
+
+The **Fisher information** in a single observation is:
+
+$$I(\theta) = \text{Var}_\theta[s(X;\theta)] = E_\theta\!\left[\left(\frac{\partial}{\partial\theta}\log f(X;\theta)\right)^{\!2}\right].$$
+
+Under an additional regularity condition (interchange of differentiation and integration for the second derivative):
+
+$$I(\theta) = -E_\theta\!\left[\frac{\partial^2}{\partial\theta^2}\log f(X;\theta)\right].$$
+
+This second form is often easier to compute. It says: Fisher information equals the expected *curvature* of the log-likelihood. A sharply curved log-likelihood means the data are very informative about $\theta$.
+
+For a sample of $n$ iid observations, the total Fisher information is $nI(\theta)$.
+
+### 8.9.3 Computing Fisher Information: Normal($\mu$, $\sigma^2$ known)
+
+Let $X \sim N(\mu, \sigma^2)$ with $\sigma^2$ known. The log-density is:
+
+$$\log f(x;\mu) = -\frac{1}{2}\log(2\pi\sigma^2) - \frac{(x-\mu)^2}{2\sigma^2}.$$
+
+**Score:** $s(x;\mu) = \frac{x - \mu}{\sigma^2}$.
+
+**Second derivative:** $\frac{\partial^2}{\partial\mu^2}\log f = -\frac{1}{\sigma^2}$.
+
+Hence $I(\mu) = \frac{1}{\sigma^2}$. The Fisher information does not depend on $\mu$ here. More spread (larger $\sigma^2$) means less information per observation.
+
+### 8.9.4 Computing Fisher Information: Exponential($\lambda$)
+
+Let $X \sim \text{Exp}(\lambda)$ with density $f(x;\lambda) = \lambda e^{-\lambda x}$.
+
+**Log-density:** $\log f = \log\lambda - \lambda x$.
+
+**Score:** $s(x;\lambda) = \frac{1}{\lambda} - x$.
+
+**Second derivative:** $\frac{\partial^2}{\partial\lambda^2}\log f = -\frac{1}{\lambda^2}$.
+
+Hence $I(\lambda) = \frac{1}{\lambda^2}$.
+
+### 8.9.5 Computing Fisher Information: Poisson($\lambda$)
+
+Let $X \sim \text{Poisson}(\lambda)$ with PMF $f(x;\lambda) = e^{-\lambda}\lambda^x/x!$.
+
+**Log-PMF:** $\log f = -\lambda + x\log\lambda - \log(x!)$.
+
+**Second derivative:** $\frac{\partial^2}{\partial\lambda^2}\log f = -\frac{x}{\lambda^2}$.
+
+Hence $I(\lambda) = E[X/\lambda^2] = \lambda/\lambda^2 = \frac{1}{\lambda}$.
+
+### 8.9.6 Summary Table
+
+| Distribution | Parameter | $I(\theta)$ |
+|:-------------|:----------|:------------|
+| Normal($\mu$, $\sigma^2$ known) | $\mu$ | $1/\sigma^2$ |
+| Normal($\mu$ known, $\sigma^2$) | $\sigma^2$ | $1/(2\sigma^4)$ |
+| Exponential($\lambda$) | $\lambda$ | $1/\lambda^2$ |
+| Poisson($\lambda$) | $\lambda$ | $1/\lambda$ |
+| Bernoulli($p$) | $p$ | $1/[p(1-p)]$ |
+
+---
+
+## 8.10 The Cramér--Rao Lower Bound
+
+### 8.10.1 Statement
+
+**Theorem (Cramér--Rao).** Let $X_1, \ldots, X_n$ be iid with density $f(x;\theta)$ satisfying regularity conditions. If $\hat\theta$ is any unbiased estimator of $\theta$, then:
+
+$$\text{Var}(\hat\theta) \ge \frac{1}{nI(\theta)}.$$
+
+The right-hand side is the **Cramér--Rao lower bound (CRLB)**. An unbiased estimator that achieves this bound is called **efficient** (or a **minimum-variance unbiased estimator**, MVUE).
+
+### 8.10.2 Proof of the Cramér--Rao Lower Bound
+
+*Proof.* Let $T = \hat\theta(X_1, \ldots, X_n)$ be unbiased, so $E[T] = \theta$ for all $\theta$. Let $S = \sum_{i=1}^n s(X_i; \theta)$ denote the total score. We established that $E[S] = 0$ and $\text{Var}(S) = nI(\theta)$.
+
+**Step 1.** Differentiate $E[T] = \theta$ with respect to $\theta$:
+
+$$\frac{d}{d\theta}E[T] = \frac{d}{d\theta}\int \cdots \int T(x_1,\ldots,x_n)\prod_{i=1}^n f(x_i;\theta)\,dx_1\cdots dx_n = 1.$$
+
+Interchanging differentiation and integration (regularity condition), the right side becomes:
+
+$$\int \cdots \int T \cdot \frac{\partial}{\partial\theta}\prod_{i=1}^n f(x_i;\theta)\,dx_1\cdots dx_n.$$
+
+Now observe:
+
+$$\frac{\partial}{\partial\theta}\prod_{i=1}^n f(x_i;\theta) = \prod_{i=1}^n f(x_i;\theta) \cdot \sum_{i=1}^n \frac{f'(x_i;\theta)}{f(x_i;\theta)} = \prod_{i=1}^n f(x_i;\theta) \cdot S.$$
+
+Hence:
+
+$$1 = E[T \cdot S].$$
+
+Since $E[S] = 0$ and $E[T] = \theta$, this gives $\text{Cov}(T, S) = E[TS] - E[T]E[S] = 1$.
+
+**Step 2.** Apply the **Cauchy--Schwarz inequality**:
+
+$$[\text{Cov}(T, S)]^2 \le \text{Var}(T) \cdot \text{Var}(S).$$
+
+Substituting:
+
+$$1 \le \text{Var}(T) \cdot nI(\theta).$$
+
+Therefore:
+
+$$\text{Var}(T) \ge \frac{1}{nI(\theta)}. \quad \square$$
+
+### 8.10.3 When Is the Bound Achieved?
+
+The Cauchy--Schwarz inequality becomes an equality when $T$ and $S$ are linearly related: $T = a + bS$ for constants $a$ and $b$. This happens precisely when the score can be written as:
+
+$$S = nI(\theta)(T - \theta),$$
+
+which occurs for exponential-family distributions. For example, $\bar X$ achieves the CRLB for the Normal mean.
+
+### 8.10.4 Simulation: Comparing Estimator Variance to the CRLB
+
+
+``` r
+set.seed(42)
+true_mu <- 10
+true_sigma <- 4
+sample_sizes <- seq(5, 200, by = 5)
+n_reps <- 10000
+
+observed_var <- sapply(sample_sizes, function(n) {
+  means <- replicate(n_reps, mean(rnorm(n, true_mu, true_sigma)))
+  var(means)
+})
+
+crlb <- true_sigma^2 / sample_sizes
+
+crlb_dt <- data.table$data.table(
+  n = rep(sample_sizes, 2),
+  variance = c(observed_var, crlb),
+  type = rep(c("Observed Var(Xbar)", "CRLB = sigma^2/n"), each = length(sample_sizes))
+)
+
+ggplot2$ggplot(crlb_dt, ggplot2$aes(x = n, y = variance, colour = type)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_point(size = 1.5) +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "Sample size n",
+    y = "Variance",
+    colour = "",
+    title = "Sample mean variance vs. Cramer-Rao lower bound (Normal mean)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/crlb-simulation-1.png" alt="Variance of the sample mean as an estimator of the Normal mean, compared to the Cramer-Rao lower bound. The sample mean achieves the bound exactly, confirming it is efficient.">
+	Variance of the sample mean as an estimator of the Normal mean, compared to the Cramer-Rao lower bound. The sample mean achieves the bound exactly, confirming it is efficient.
+</Figure>
+
+The two lines coincide -- the sample mean is an *efficient* estimator of the Normal mean.
+
+### 8.10.5 Example: An Inefficient Estimator
+
+The sample median is unbiased for $\mu$ under Normality but its asymptotic variance is $\pi\sigma^2/(2n)$, which exceeds $\sigma^2/n$ by a factor of $\pi/2 \approx 1.57$. It does *not* achieve the CRLB.
+
+
+``` r
+observed_var_median <- sapply(sample_sizes, function(n) {
+  medians <- replicate(n_reps, median(rnorm(n, true_mu, true_sigma)))
+  var(medians)
+})
+
+crlb_med_dt <- data.table$data.table(
+  n = rep(sample_sizes, 3),
+  variance = c(observed_var, observed_var_median, crlb),
+  type = rep(c("Var(Xbar)", "Var(Median)", "CRLB"), each = length(sample_sizes))
+)
+
+ggplot2$ggplot(crlb_med_dt, ggplot2$aes(x = n, y = variance, colour = type)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2", "#009E73")) +
+  ggplot2$labs(
+    x = "Sample size n",
+    y = "Variance",
+    colour = "",
+    title = "Mean, median, and CRLB for the Normal mean"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/crlb-median-1.png" alt="Variance of the sample mean and sample median compared to the CRLB. The median&#39;s variance exceeds the bound by a factor of approximately pi/2.">
+	Variance of the sample mean and sample median compared to the CRLB. The median's variance exceeds the bound by a factor of approximately pi/2.
+</Figure>
+
+---
+
+## 8.11 Sufficiency
+
+> *This section is optional on a first reading, but the ideas are important for deeper study.*
+
+### 8.11.1 Motivation
+
+Consider estimating $\mu$ from $X_1, \ldots, X_n \sim N(\mu, \sigma^2)$. Once we compute $\bar X$, the individual observations $X_1, \ldots, X_n$ contain no further information about $\mu$. The statistic $\bar X$ **summarises** the data without losing anything relevant to the parameter. Such a statistic is called **sufficient**.
+
+### 8.11.2 Definition
+
+A statistic $T = T(X_1, \ldots, X_n)$ is **sufficient** for $\theta$ if the conditional distribution of the sample $(X_1, \ldots, X_n)$ given $T = t$ does not depend on $\theta$.
+
+Intuitively: once you know $T$, learning the individual data values gives you no additional information about $\theta$.
+
+### 8.11.3 The Factorisation Theorem (Neyman--Fisher)
+
+**Theorem.** $T(X_1, \ldots, X_n)$ is sufficient for $\theta$ if and only if the joint density (or PMF) can be written as:
+
+$$f(x_1, \ldots, x_n; \theta) = g(T(x_1, \ldots, x_n), \theta) \cdot h(x_1, \ldots, x_n),$$
+
+where $g$ depends on the data only through $T$, and $h$ does not depend on $\theta$.
+
+### 8.11.4 Proof of the Factorisation Theorem (Discrete Case)
+
+*Proof.* We prove both directions for the discrete case.
+
+**($\Rightarrow$)** Suppose $T$ is sufficient, so $P(X = x \mid T = t)$ does not depend on $\theta$. Write:
+
+$$P(X = x; \theta) = P(X = x \mid T(x) = t) \cdot P(T = t; \theta).$$
+
+Here $P(T = t; \theta)$ depends on $x$ only through $T(x)$, so set $g(t, \theta) = P(T = t; \theta)$ and $h(x) = P(X = x \mid T(x) = T(x))$. The factorisation holds.
+
+**($\Leftarrow$)** Suppose $f(x;\theta) = g(T(x), \theta)\cdot h(x)$. Then for any $x$ with $T(x) = t$:
+
+$$P(X = x \mid T = t) = \frac{P(X = x; \theta)}{P(T = t; \theta)} = \frac{g(t, \theta)\cdot h(x)}{\sum_{y: T(y) = t} g(t, \theta)\cdot h(y)} = \frac{h(x)}{\sum_{y: T(y) = t} h(y)},$$
+
+which does not depend on $\theta$. Hence $T$ is sufficient. $\square$
+
+### 8.11.5 Examples of Sufficient Statistics
+
+**Normal:** For $X_1, \ldots, X_n \sim N(\mu, \sigma^2)$ with $\sigma^2$ known, the joint density is:
+
+$$\prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma}\exp\!\left(-\frac{(x_i - \mu)^2}{2\sigma^2}\right) = \underbrace{\frac{1}{(2\pi\sigma^2)^{n/2}}\exp\!\left(-\frac{n\bar x^2 - 2\mu n\bar x + n\mu^2}{2\sigma^2}\right)}_{g(\bar x, \mu)} \cdot \underbrace{\exp\!\left(-\frac{\sum x_i^2 - n\bar x^2}{2\sigma^2}\right)}_{h(x_1,\ldots,x_n)}.$$
+
+So $\bar X$ is sufficient for $\mu$.
+
+**Poisson:** For $X_1, \ldots, X_n \sim \text{Poisson}(\lambda)$:
+
+$$\prod_{i=1}^n \frac{e^{-\lambda}\lambda^{x_i}}{x_i!} = \underbrace{e^{-n\lambda}\lambda^{\sum x_i}}_{g(\sum x_i, \lambda)} \cdot \underbrace{\frac{1}{\prod x_i!}}_{h(x_1,\ldots,x_n)}.$$
+
+So $\sum X_i$ (equivalently $\bar X$) is sufficient for $\lambda$.
+
+**Bernoulli:** For $X_1, \ldots, X_n \sim \text{Bernoulli}(p)$:
+
+$$\prod_{i=1}^n p^{x_i}(1-p)^{1-x_i} = p^{\sum x_i}(1-p)^{n - \sum x_i} \cdot 1.$$
+
+So $\sum X_i$ is sufficient for $p$.
+
+---
+
+## 8.12 The Rao--Blackwell Theorem
+
+### 8.12.1 Statement
+
+**Theorem (Rao--Blackwell).** Let $\hat\theta$ be any unbiased estimator of $\theta$ and let $T$ be a sufficient statistic. Define:
+
+$$\tilde\theta = E[\hat\theta \mid T].$$
+
+Then:
+
+1. $\tilde\theta$ is unbiased: $E[\tilde\theta] = \theta$.
+2. $\tilde\theta$ has variance no greater than $\hat\theta$: $\text{Var}(\tilde\theta) \le \text{Var}(\hat\theta)$.
+3. $\tilde\theta$ is a function of $T$ alone (it does not depend on $\theta$, by sufficiency).
+
+### 8.12.2 Proof
+
+*Proof.*
+
+**(1) Unbiasedness.** By the tower property of conditional expectation:
+
+$$E[\tilde\theta] = E\big[E[\hat\theta \mid T]\big] = E[\hat\theta] = \theta.$$
+
+**(2) Variance reduction.** By the law of total variance:
+
+$$\text{Var}(\hat\theta) = E[\text{Var}(\hat\theta \mid T)] + \text{Var}(E[\hat\theta \mid T]) = E[\text{Var}(\hat\theta \mid T)] + \text{Var}(\tilde\theta).$$
+
+Since $E[\text{Var}(\hat\theta \mid T)] \ge 0$:
+
+$$\text{Var}(\hat\theta) \ge \text{Var}(\tilde\theta),$$
+
+with equality iff $\text{Var}(\hat\theta \mid T) = 0$ a.s., i.e., $\hat\theta$ is already a function of $T$. $\square$
+
+### 8.12.3 Interpretation
+
+The Rao--Blackwell theorem tells us: if you have any unbiased estimator, you can always improve it (or at least not make it worse) by conditioning on a sufficient statistic. The improved estimator $\tilde\theta$ uses the data more efficiently because the sufficient statistic has already captured all the relevant information.
+
+### 8.12.4 Example: Improving an Estimator for $p$
+
+Suppose $X_1, \ldots, X_n \sim \text{Bernoulli}(p)$. A trivial unbiased estimator of $p$ is $\hat p = X_1$ (just look at the first observation). This is unbiased but terrible -- it ignores $n-1$ observations.
+
+The sufficient statistic is $T = \sum_{i=1}^n X_i$. By Rao--Blackwell:
+
+$$\tilde p = E[X_1 \mid T] = \frac{T}{n} = \bar X.$$
+
+(Since $X_1, \ldots, X_n$ are exchangeable given $T$, each $X_i$ has conditional expectation $T/n$.)
+
+Thus $\bar X$ is the Rao--Blackwellised version of $X_1$, and it has much smaller variance.
+
+### 8.12.5 Simulation: Rao--Blackwell in Action
+
+
+``` r
+set.seed(42)
+n <- 30
+true_p <- 0.3
+n_reps <- 10000
+
+naive <- numeric(n_reps)
+rb <- numeric(n_reps)
+
+for (i in seq_len(n_reps)) {
+  x <- rbinom(n, 1, true_p)
+  naive[i] <- x[1]
+  rb[i] <- mean(x)
+}
+
+rb_dt <- data.table$data.table(
+  value = c(naive, rb),
+  estimator = rep(c("X1 (naive)", "Xbar (Rao-Blackwell)"), each = n_reps)
+)
+
+ggplot2$ggplot(rb_dt, ggplot2$aes(x = value, fill = estimator)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, alpha = 0.5, position = "identity") +
+  ggplot2$geom_vline(xintercept = true_p, linetype = "dashed",
+    colour = "red", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Estimate of p",
+    y = "Density",
+    fill = "Estimator",
+    title = sprintf("Naive vs. Rao-Blackwell estimator (p = %.1f, n = %d)", true_p, n)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/rao-blackwell-1.png" alt="Sampling distributions of X1 (naive estimator) and Xbar (Rao-Blackwellised estimator) for estimating p = 0.3. Both are unbiased, but Xbar concentrates far more tightly around the truth.">
+	Sampling distributions of X1 (naive estimator) and Xbar (Rao-Blackwellised estimator) for estimating p = 0.3. Both are unbiased, but Xbar concentrates far more tightly around the truth.
+</Figure>
+
+
+``` r
+data.frame(
+  estimator = c("X1 (naive)", "Xbar (Rao-Blackwell)"),
+  mean = round(c(mean(naive), mean(rb)), 4),
+  variance = round(c(var(naive), var(rb)), 5),
+  theoretical_var = round(c(true_p * (1 - true_p), true_p * (1 - true_p) / n), 5)
+)
+```
+
+```
+             estimator   mean variance theoretical_var
+1           X1 (naive) 0.3055  0.21219           0.210
+2 Xbar (Rao-Blackwell) 0.3005  0.00685           0.007
+```
+
+The variance reduction is dramatic: from $p(1-p) = 0.21$ to $p(1-p)/n = 0.007$, a 30-fold improvement.
+
+---
+
+## 8.13 Putting It All Together
+
+The ideas in this part form a coherent story:
+
+1. **Fisher information** quantifies how much data tell us about the parameter.
+2. The **Cramér--Rao lower bound** sets a floor for the variance of any unbiased estimator.
+3. **Sufficient statistics** capture all the information without loss.
+4. The **Rao--Blackwell theorem** shows that conditioning on a sufficient statistic can only improve an estimator.
+5. The **MLE** (from Part 2) achieves the CRLB asymptotically, which is why it is the dominant estimation method.
+
+<Figure src="/courses/mathematical-statistics-1-foundations/big-picture-1.png" alt="Conceptual map of estimation theory. Fisher information underpins the CRLB, which sets the efficiency benchmark. Sufficient statistics and the Rao-Blackwell theorem provide tools for constructing efficient estimators. The MLE sits at the intersection of all these ideas.">
+	Conceptual map of estimation theory. Fisher information underpins the CRLB, which sets the efficiency benchmark. Sufficient statistics and the Rao-Blackwell theorem provide tools for constructing efficient estimators. The MLE sits at the intersection of all these ideas.
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+- Replace "Fisher information" with "the precision of our measurement method." More informative data means more precise estimates.
+- Explain the Cramér--Rao bound as: "There is a theoretical limit to how precise any method can be. Our chosen method is close to that limit, so we can be confident we are not leaving precision on the table."
+- Sufficiency can be communicated as: "We have distilled the entire data set into a single summary number without losing anything that matters for our question."
+- The Rao--Blackwell theorem translates to: "By using a smarter summary of the data, we can improve the precision of our estimate without collecting any new data."
+
+---
+
+## Quick Reference
+
+| Concept | Formula / Description |
+|:--------|:----------------------|
+| **Score** | $s(x;\theta) = \frac{\partial}{\partial\theta}\log f(x;\theta)$, has $E[s] = 0$ |
+| **Fisher information** | $I(\theta) = E[s^2] = -E[\ell''(\theta)]$ |
+| **CRLB** | $\text{Var}(\hat\theta) \ge \frac{1}{nI(\theta)}$ for unbiased $\hat\theta$ |
+| **Efficient estimator** | Achieves the CRLB |
+| **Sufficient statistic** | $T$ such that $f(x;\theta) = g(T(x),\theta)\cdot h(x)$ |
+| **Rao--Blackwell** | $\tilde\theta = E[\hat\theta \mid T]$ has $\text{Var}(\tilde\theta) \le \text{Var}(\hat\theta)$ |
+
+| Distribution | Sufficient statistic | Fisher information |
+|:-------------|:--------------------|:-------------------|
+| Normal($\mu$, $\sigma^2$ known) | $\bar X$ | $1/\sigma^2$ |
+| Exponential($\lambda$) | $\sum X_i$ | $1/\lambda^2$ |
+| Poisson($\lambda$) | $\sum X_i$ | $1/\lambda$ |
+| Bernoulli($p$) | $\sum X_i$ | $1/[p(1-p)]$ |
+
+---
+
+## Exercises
+
+**Conceptual**
+
+1. In your own words, explain why the Fisher information measures the "curvature" of the log-likelihood. What does high curvature mean for estimation?
+
+2. A flat log-likelihood implies low Fisher information. What does this mean practically for trying to estimate the parameter?
+
+3. Give an intuitive explanation of sufficiency using the bag-of-marbles analogy: you have a bag containing red and blue marbles, and you draw $n$ with replacement.
+
+4. Can a biased estimator have variance below the CRLB? Why or why not? (Careful -- the CRLB applies only to unbiased estimators.)
+
+**Proofs and Derivations**
+
+5. Compute the Fisher information for $p$ in the Bernoulli distribution and verify that $\text{Var}(\bar X) = p(1-p)/n$ equals the CRLB.
+
+6. Show that $\sum X_i^2$ is **not** sufficient for $\mu$ in the Normal distribution (with $\sigma^2$ known). (Hint: attempt the factorisation and show it fails.)
+
+7. Use the Rao--Blackwell theorem to improve the estimator $\hat\lambda = 1/X_1$ for the Exponential rate parameter. What is $E[1/X_1 \mid \sum X_i]$? (This is harder; a direct computation via the conditional distribution is needed.)
+
+8. Prove that the MLE achieves the CRLB for the Bernoulli distribution by showing that $\text{Var}(\bar X) = 1/(nI(p))$.
+
+**Computational**
+
+9. Simulate 10,000 samples of size $n = 25$ from an $\text{Exp}(\lambda = 2)$ distribution. For each sample, compute $\hat\lambda = 1/\bar X$. Compare the observed variance of the MLE to the CRLB ($\lambda^2/n$). Is the MLE efficient for finite $n$?
+
+10. Using the NHANES data, fit a Normal to BMI and compute the observed Fisher information matrix (the Hessian of the log-likelihood at the MLE). Use this to construct approximate 95% confidence intervals for $\mu$ and $\sigma$.
+
+11. Generate Bernoulli(0.4) data with $n = 50$. Compare the variance of $X_1$ (naive estimator) and $\bar X$ (Rao--Blackwellised) across 10,000 replications. Verify the theoretical variance ratio is $n$.

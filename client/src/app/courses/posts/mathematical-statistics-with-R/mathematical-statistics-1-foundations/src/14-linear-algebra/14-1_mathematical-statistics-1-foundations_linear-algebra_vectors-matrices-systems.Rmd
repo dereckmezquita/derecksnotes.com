@@ -1,0 +1,588 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 14: Linear Algebra for Statistics"
+part: "Part 1: Vectors, Matrices, and Systems"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, linear-algebra, matrices, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r dt-helpers, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 14 -- Linear Algebra for Statistics
+
+## Part 1: Vectors, Matrices, and Systems
+
+Linear algebra is the language of modern statistics. Every time you fit a regression, compute a covariance matrix, or run a principal component analysis, you are performing linear algebra -- whether you know it or not. This chapter develops the essential machinery, always connecting the abstract operations to their statistical meaning.
+
+We begin with vectors and matrices in plain English, then formalise, then implement everything in R.
+
+---
+
+## 14.1 Vectors
+
+### 14.1.1 Plain English First
+
+A **vector** is an ordered list of numbers. In statistics, a vector typically represents:
+
+- A single observation: $(x_1, x_2, \ldots, x_p)$ -- the $p$ measurements taken on one individual.
+- A single variable: $(x_1, x_2, \ldots, x_n)^T$ -- the $n$ values of one variable across all observations.
+- A set of model coefficients: $(\beta_0, \beta_1, \ldots, \beta_p)^T$.
+
+We write vectors as column vectors by convention:
+
+$$\mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{pmatrix}.$$
+
+### 14.1.2 Vector Operations
+
+**Addition.** Two vectors of the same length are added element by element:
+
+$$\mathbf{x} + \mathbf{y} = \begin{pmatrix} x_1 + y_1 \\ x_2 + y_2 \\ \vdots \\ x_n + y_n \end{pmatrix}.$$
+
+**Scalar multiplication.** Multiplying by a scalar $c$ scales every entry:
+
+$$c \mathbf{x} = \begin{pmatrix} cx_1 \\ cx_2 \\ \vdots \\ cx_n \end{pmatrix}.$$
+
+**Dot product (inner product).** The dot product of $\mathbf{x}$ and $\mathbf{y}$ is a single number:
+
+$$\mathbf{x}^T \mathbf{y} = \sum_{i=1}^{n} x_i y_i.$$
+
+The dot product measures how "aligned" two vectors are. In statistics, the sample covariance is (up to a scaling factor) the dot product of centred vectors.
+
+**Norm (length).** The Euclidean norm of $\mathbf{x}$ is:
+
+$$\|\mathbf{x}\| = \sqrt{\mathbf{x}^T \mathbf{x}} = \sqrt{\sum_{i=1}^{n} x_i^2}.$$
+
+### 14.1.3 R Implementation
+
+```{r load-packages}
+box::use(data.table)
+box::use(ggplot2)
+
+set.seed(42)
+```
+
+```{r vectors-in-r}
+# Vectors in R are just numeric vectors
+x <- c(3, 1, 4, 1, 5)
+y <- c(2, 7, 1, 8, 2)
+
+# Addition
+x + y
+
+# Scalar multiplication
+3 * x
+
+# Dot product -- use %*% (matrix multiplication)
+# For two vectors, x %*% y computes the dot product
+t(x) %*% y
+# Or equivalently:
+sum(x * y)
+
+# Norm
+sqrt(sum(x^2))
+sqrt(t(x) %*% x)
+```
+
+### 14.1.4 Statistical Connection: Sample Mean as a Dot Product
+
+The sample mean $\bar{x} = \frac{1}{n} \sum_i x_i$ can be written as a dot product:
+
+$$\bar{x} = \frac{1}{n} \mathbf{1}^T \mathbf{x},$$
+
+where $\mathbf{1} = (1, 1, \ldots, 1)^T$ is the vector of ones.
+
+```{r mean-as-dot}
+n <- length(x)
+ones <- rep(1, n)
+
+# Mean via dot product
+(1 / n) * (t(ones) %*% x)
+mean(x)
+```
+
+---
+
+## 14.2 Vector Spaces
+
+### 14.2.1 Plain English
+
+A **vector space** is a collection of vectors that is "closed" under addition and scalar multiplication. If you add any two vectors in the space, you stay in the space. If you multiply any vector in the space by any scalar, you stay in the space. The most familiar example is $\mathbb{R}^n$ -- the set of all vectors of length $n$.
+
+### 14.2.2 Formal Definition
+
+A **vector space** $V$ over $\mathbb{R}$ is a set equipped with two operations:
+
+1. **Addition:** for every $\mathbf{u}, \mathbf{v} \in V$, the sum $\mathbf{u} + \mathbf{v} \in V$.
+2. **Scalar multiplication:** for every $\mathbf{u} \in V$ and $c \in \mathbb{R}$, the product $c\mathbf{u} \in V$.
+
+These operations must satisfy the usual axioms: commutativity and associativity of addition, existence of a zero vector and additive inverses, and distributivity of scalar multiplication.
+
+### 14.2.3 Subspaces, Span, and Basis
+
+A **subspace** is a subset of a vector space that is itself a vector space. The most important subspace in statistics is the **column space** of a matrix $\mathbf{X}$: the set of all vectors that can be written as $\mathbf{X}\boldsymbol{\beta}$ for some $\boldsymbol{\beta}$.
+
+The **span** of vectors $\mathbf{v}_1, \ldots, \mathbf{v}_k$ is the set of all linear combinations:
+
+$$\text{span}(\mathbf{v}_1, \ldots, \mathbf{v}_k) = \left\{ c_1\mathbf{v}_1 + \cdots + c_k\mathbf{v}_k : c_1, \ldots, c_k \in \mathbb{R} \right\}.$$
+
+A **basis** for a subspace is a set of linearly independent vectors that spans it. The number of basis vectors is the **dimension** of the subspace.
+
+### 14.2.4 Linear Independence
+
+Vectors $\mathbf{v}_1, \ldots, \mathbf{v}_k$ are **linearly independent** if the only solution to:
+
+$$c_1 \mathbf{v}_1 + c_2 \mathbf{v}_2 + \cdots + c_k \mathbf{v}_k = \mathbf{0}$$
+
+is $c_1 = c_2 = \cdots = c_k = 0$. In statistics, linear independence of columns means no predictor is a perfect linear function of the others -- a requirement for unique OLS estimates.
+
+```{r linear-independence}
+# These two vectors are linearly independent
+v1 <- c(1, 0, 2)
+v2 <- c(0, 1, 3)
+
+# This vector is a linear combination of v1 and v2
+v3 <- 2 * v1 + 3 * v2
+v3
+
+# Check rank -- if rank < number of columns, vectors are dependent
+M <- cbind(v1, v2, v3)
+qr(M)$rank  # Should be 2, not 3
+```
+
+---
+
+## 14.3 Matrices
+
+### 14.3.1 What Is a Matrix?
+
+A **matrix** is a rectangular array of numbers. An $m \times n$ matrix has $m$ rows and $n$ columns. In statistics:
+
+- The **design matrix** $\mathbf{X}$ is $n \times p$ -- each row is an observation, each column is a variable.
+- The **covariance matrix** $\boldsymbol{\Sigma}$ is $p \times p$ -- entry $(i,j)$ is $\text{Cov}(X_i, X_j)$.
+- The **hat matrix** $\mathbf{H}$ is $n \times n$ -- it projects observed responses onto fitted values.
+
+### 14.3.2 Special Matrices
+
+$$\mathbf{I}_n = \begin{pmatrix} 1 & 0 & \cdots & 0 \\ 0 & 1 & \cdots & 0 \\ \vdots & & \ddots & \vdots \\ 0 & 0 & \cdots & 1 \end{pmatrix} \quad \text{(identity matrix)}$$
+
+$$\mathbf{0}_{m \times n} \quad \text{(zero matrix -- all entries 0)}$$
+
+$$\text{Diagonal matrix: } \text{diag}(d_1, \ldots, d_n) \text{ -- diagonal entries } d_i, \text{ off-diagonals 0.}$$
+
+```{r special-matrices}
+# Identity matrix
+diag(4)
+
+# Diagonal matrix
+diag(c(2, 5, 3))
+
+# Zero matrix
+matrix(0, nrow = 3, ncol = 4)
+```
+
+---
+
+## 14.4 Matrix Operations
+
+### 14.4.1 Transpose
+
+The **transpose** $\mathbf{A}^T$ of an $m \times n$ matrix $\mathbf{A}$ is the $n \times m$ matrix obtained by swapping rows and columns: $(\mathbf{A}^T)_{ij} = A_{ji}$.
+
+Key properties:
+
+- $(\mathbf{A}^T)^T = \mathbf{A}$
+- $(\mathbf{A} + \mathbf{B})^T = \mathbf{A}^T + \mathbf{B}^T$
+- $(\mathbf{AB})^T = \mathbf{B}^T \mathbf{A}^T$ (note the reversal!)
+
+```{r transpose}
+A <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 2, ncol = 3)
+A
+t(A)
+
+# Verify (AB)' = B'A'
+B <- matrix(c(7, 8, 9, 10, 11, 12), nrow = 3, ncol = 2)
+t(A %*% B)
+t(B) %*% t(A)
+```
+
+### 14.4.2 Matrix Multiplication
+
+If $\mathbf{A}$ is $m \times n$ and $\mathbf{B}$ is $n \times p$, their product $\mathbf{C} = \mathbf{AB}$ is $m \times p$ with entries:
+
+$$C_{ij} = \sum_{k=1}^{n} A_{ik} B_{kj}.$$
+
+The inner dimensions must match: $(\underbrace{m \times n}_{\mathbf{A}})(\underbrace{n \times p}_{\mathbf{B}}) = (\underbrace{m \times p}_{\mathbf{C}})$.
+
+Matrix multiplication is **not commutative**: $\mathbf{AB} \ne \mathbf{BA}$ in general.
+
+```{r matrix-multiplication}
+A <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 2, ncol = 3)
+B <- matrix(c(7, 8, 9, 10, 11, 12), nrow = 3, ncol = 2)
+
+# In R: %*% is matrix multiplication
+A %*% B  # 2x3 times 3x2 = 2x2
+
+# Element-wise multiplication (NOT matrix multiplication)
+# Use * for this -- a different operation entirely
+```
+
+```{r matmul-from-scratch}
+#' Matrix multiplication -- implemented from scratch
+#' @param A matrix (m x n)
+#' @param B matrix (n x p)
+#' @return matrix (m x p)
+my_matmul <- function(A, B) {
+  m <- nrow(A)
+  n <- ncol(A)
+  p <- ncol(B)
+  stopifnot(n == nrow(B))
+
+  C <- matrix(0, nrow = m, ncol = p)
+  for (i in seq_len(m)) {
+    for (j in seq_len(p)) {
+      for (k in seq_len(n)) {
+        C[i, j] <- C[i, j] + A[i, k] * B[k, j]
+      }
+    }
+  }
+  C
+}
+
+# Verify
+my_matmul(A, B)
+A %*% B
+```
+
+### 14.4.3 Trace
+
+The **trace** of a square matrix $\mathbf{A}$ is the sum of its diagonal entries:
+
+$$\text{tr}(\mathbf{A}) = \sum_{i=1}^{n} A_{ii}.$$
+
+Key properties:
+
+- $\text{tr}(\mathbf{A} + \mathbf{B}) = \text{tr}(\mathbf{A}) + \text{tr}(\mathbf{B})$
+- $\text{tr}(c\mathbf{A}) = c \cdot \text{tr}(\mathbf{A})$
+- **Cyclic property:** $\text{tr}(\mathbf{ABC}) = \text{tr}(\mathbf{BCA}) = \text{tr}(\mathbf{CAB})$. This is extremely useful in statistical derivations.
+- $\text{tr}(\mathbf{A}^T \mathbf{A}) = \sum_{i,j} A_{ij}^2$ (the sum of all squared entries).
+
+```{r trace}
+M <- matrix(c(1, 2, 3, 4, 5, 6, 7, 8, 9), nrow = 3)
+M
+
+# Trace
+sum(diag(M))
+
+# Cyclic property demonstration
+P <- matrix(rnorm(6), 2, 3)
+Q <- matrix(rnorm(6), 3, 2)
+
+sum(diag(P %*% Q))  # tr(PQ)
+sum(diag(Q %*% P))  # tr(QP) -- same!
+```
+
+### 14.4.4 Statistical Connection: $\mathbf{X}^T\mathbf{X}$ and the Gram Matrix
+
+For a design matrix $\mathbf{X}$ ($n \times p$), the matrix $\mathbf{X}^T\mathbf{X}$ is $p \times p$ and its entries are:
+
+$$(\mathbf{X}^T\mathbf{X})_{jk} = \sum_{i=1}^{n} X_{ij} X_{ik}.$$
+
+This is (up to a factor of $n-1$) the matrix of uncorrected sums of squares and cross-products. The sample covariance matrix is:
+
+$$\mathbf{S} = \frac{1}{n-1}(\mathbf{X} - \bar{\mathbf{X}})^T(\mathbf{X} - \bar{\mathbf{X}}).$$
+
+```{r xtx-demo}
+data_dir <- "../../../data"
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+
+pen <- penguins[
+  !is.na(body_mass_g) & !is.na(flipper_length_mm) & !is.na(bill_length_mm),
+  .(body_mass_g, flipper_length_mm, bill_length_mm)
+]
+
+X <- as.matrix(pen)
+
+# X'X
+crossprod(X)  # Equivalent to t(X) %*% X but faster
+t(X) %*% X   # Same thing, slower
+
+# Sample covariance via matrix operations
+n <- nrow(X)
+X_centred <- scale(X, center = TRUE, scale = FALSE)
+S <- (1 / (n - 1)) * crossprod(X_centred)
+S
+
+# Compare with cov()
+cov(X)
+```
+
+---
+
+## 14.5 Matrix Inverse
+
+### 14.5.1 Definition
+
+A square matrix $\mathbf{A}$ ($n \times n$) is **invertible** (or nonsingular) if there exists a matrix $\mathbf{A}^{-1}$ such that:
+
+$$\mathbf{A}\mathbf{A}^{-1} = \mathbf{A}^{-1}\mathbf{A} = \mathbf{I}_n.$$
+
+Not all matrices are invertible. $\mathbf{A}$ is invertible if and only if its columns are linearly independent, which is equivalent to $\det(\mathbf{A}) \ne 0$.
+
+### 14.5.2 Properties
+
+- $(\mathbf{A}^{-1})^{-1} = \mathbf{A}$
+- $(\mathbf{AB})^{-1} = \mathbf{B}^{-1}\mathbf{A}^{-1}$ (reversal, like transpose)
+- $(\mathbf{A}^T)^{-1} = (\mathbf{A}^{-1})^T$
+
+### 14.5.3 The 2x2 Case
+
+For a $2 \times 2$ matrix $\mathbf{A} = \begin{pmatrix} a & b \\ c & d \end{pmatrix}$:
+
+$$\mathbf{A}^{-1} = \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix},$$
+
+provided $ad - bc \ne 0$ (the determinant is nonzero).
+
+```{r inverse-2x2}
+#' 2x2 matrix inverse -- from scratch
+#' @param A 2x2 matrix
+#' @return 2x2 inverse matrix
+my_inv_2x2 <- function(A) {
+  det_A <- A[1, 1] * A[2, 2] - A[1, 2] * A[2, 1]
+  stopifnot(abs(det_A) > 1e-12)
+  (1 / det_A) * matrix(
+    c(A[2, 2], -A[2, 1], -A[1, 2], A[1, 1]),
+    nrow = 2
+  )
+}
+
+A <- matrix(c(4, 2, 7, 6), nrow = 2)
+A
+my_inv_2x2(A)
+
+# Verify: A * A_inv = I
+A %*% my_inv_2x2(A)
+```
+
+### 14.5.4 General Inverse in R: `solve()`
+
+```{r solve-demo}
+# General matrix inverse
+M <- matrix(c(1, 2, 3, 0, 1, 4, 5, 6, 0), nrow = 3)
+M
+
+M_inv <- solve(M)
+M_inv
+
+# Verify
+round(M %*% M_inv, 10)
+```
+
+### 14.5.5 Why We Almost Never Compute $\mathbf{A}^{-1}$ Directly
+
+In statistical computing, we rarely form $\mathbf{A}^{-1}$ explicitly. Instead, we solve the system $\mathbf{Ax} = \mathbf{b}$ directly using `solve(A, b)`. This is faster, more numerically stable, and uses less memory.
+
+```{r solve-system}
+A <- matrix(c(2, 1, 5, 3), nrow = 2)
+b <- c(11, 13)
+
+# BAD: compute inverse, then multiply
+x_bad <- solve(A) %*% b
+x_bad
+
+# GOOD: solve the system directly
+x_good <- solve(A, b)
+x_good
+```
+
+---
+
+## 14.6 Solving Systems of Linear Equations
+
+### 14.6.1 The Problem
+
+A system of $m$ linear equations in $n$ unknowns can be written:
+
+$$\mathbf{Ax} = \mathbf{b},$$
+
+where $\mathbf{A}$ is $m \times n$, $\mathbf{x}$ is $n \times 1$ (unknowns), and $\mathbf{b}$ is $m \times 1$ (known).
+
+Three cases:
+
+1. **Unique solution** ($m = n$, $\mathbf{A}$ invertible): $\mathbf{x} = \mathbf{A}^{-1}\mathbf{b}$.
+2. **Overdetermined** ($m > n$): more equations than unknowns. Typically no exact solution; we find the **least-squares** solution (this is OLS!).
+3. **Underdetermined** ($m < n$): infinitely many solutions.
+
+### 14.6.2 Gaussian Elimination (Sketch)
+
+The standard algorithm for solving $\mathbf{Ax} = \mathbf{b}$:
+
+1. Form the augmented matrix $[\mathbf{A} | \mathbf{b}]$.
+2. Use row operations to reduce to row-echelon form.
+3. Back-substitute to find $\mathbf{x}$.
+
+R's `solve()` uses a more sophisticated LU decomposition internally, but the idea is the same.
+
+```{r gaussian-elimination}
+# System: 2x + y = 5, x + 3y = 7
+A <- matrix(c(2, 1, 1, 3), nrow = 2)
+b <- c(5, 7)
+
+# Solve
+x <- solve(A, b)
+x
+
+# Verify
+A %*% x
+```
+
+### 14.6.3 The Least-Squares Connection
+
+When $\mathbf{Ax} = \mathbf{b}$ has no exact solution (overdetermined case), the least-squares solution minimises:
+
+$$\|\mathbf{Ax} - \mathbf{b}\|^2 = (\mathbf{Ax} - \mathbf{b})^T(\mathbf{Ax} - \mathbf{b}).$$
+
+Setting the derivative to zero yields the **normal equations**:
+
+$$\mathbf{A}^T\mathbf{A}\hat{\mathbf{x}} = \mathbf{A}^T\mathbf{b}.$$
+
+If $\mathbf{A}^T\mathbf{A}$ is invertible:
+
+$$\hat{\mathbf{x}} = (\mathbf{A}^T\mathbf{A})^{-1}\mathbf{A}^T\mathbf{b}.$$
+
+This is exactly the OLS estimator $\hat{\boldsymbol{\beta}}$. We will develop this fully in Chapter 15.
+
+```{r least-squares-preview}
+# Overdetermined system: 3 equations, 2 unknowns
+A <- matrix(c(1, 1, 1, 1, 2, 3), nrow = 3)
+b <- c(1, 2.1, 2.9)
+
+# No exact solution exists
+# Least-squares solution via normal equations
+x_ls <- solve(crossprod(A), crossprod(A, b))
+x_ls
+
+# Same thing via lm (treating columns of A as predictors)
+df <- data.frame(y = b, x1 = A[, 1], x2 = A[, 2])
+coef(lm(y ~ x1 + x2 - 1, data = df))
+```
+
+---
+
+## 14.7 The Determinant
+
+### 14.7.1 Definition and Intuition
+
+The **determinant** of a square matrix $\mathbf{A}$ is a scalar that encodes several properties:
+
+- $\det(\mathbf{A}) = 0$ if and only if $\mathbf{A}$ is singular (not invertible).
+- $|\det(\mathbf{A})|$ measures the "volume scaling factor" of the linear transformation represented by $\mathbf{A}$.
+- In statistics, the determinant appears in the multivariate normal density: $f(\mathbf{x}) \propto |\boldsymbol{\Sigma}|^{-1/2} \exp\left(-\frac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}-\boldsymbol{\mu})\right)$.
+
+### 14.7.2 Computation in R
+
+```{r determinant}
+M <- matrix(c(1, 2, 3, 0, 1, 4, 5, 6, 0), nrow = 3)
+det(M)
+
+# Singular matrix (linearly dependent columns)
+S <- matrix(c(1, 2, 3, 2, 4, 6, 0, 1, 0), nrow = 3)
+det(S)  # Should be 0 (or very close)
+
+# For the covariance matrix
+S_cov <- cov(X)
+det(S_cov)
+```
+
+### 14.7.3 Log-Determinant
+
+In practice, determinants of large matrices can overflow or underflow. We use the **log-determinant** instead. R provides `determinant()` which returns the log:
+
+```{r log-determinant}
+determinant(S_cov, logarithm = TRUE)
+```
+
+---
+
+## 14.8 Communicating to Stakeholders
+
+Linear algebra is rarely explained to non-technical audiences directly. Instead, we use the *results* of linear algebra and explain them in plain terms:
+
+1. **Covariance matrix:** "This table shows how each pair of variables moves together. A large positive entry means they tend to increase together; a negative entry means one tends to decrease when the other increases."
+2. **Invertibility:** "The model can only produce unique predictions when no predictor is a perfect copy or combination of the others."
+3. **Least squares:** "We found the line (or surface) that minimises the total squared distance between predictions and observations -- this is the best fit in a precise mathematical sense."
+4. **Design matrix:** "We organised the data into a spreadsheet where each row is a patient and each column is a measurement. The regression formula then operates on this spreadsheet using matrix arithmetic."
+
+---
+
+## 14.9 Quick Reference
+
+| Operation | Mathematical notation | R code |
+|:---|:---|:---|
+| Transpose | $\mathbf{A}^T$ | `t(A)` |
+| Matrix multiply | $\mathbf{AB}$ | `A %*% B` |
+| Element-wise multiply | $A_{ij} B_{ij}$ | `A * B` |
+| Cross product | $\mathbf{A}^T\mathbf{A}$ | `crossprod(A)` |
+| $\mathbf{A}^T\mathbf{B}$ | $\mathbf{A}^T\mathbf{B}$ | `crossprod(A, B)` |
+| $\mathbf{A}\mathbf{B}^T$ | $\mathbf{A}\mathbf{B}^T$ | `tcrossprod(A, B)` |
+| Inverse | $\mathbf{A}^{-1}$ | `solve(A)` |
+| Solve system | $\mathbf{A}^{-1}\mathbf{b}$ | `solve(A, b)` |
+| Determinant | $\det(\mathbf{A})$ | `det(A)` |
+| Trace | $\text{tr}(\mathbf{A})$ | `sum(diag(A))` |
+| Identity | $\mathbf{I}_n$ | `diag(n)` |
+| Rank | $\text{rank}(\mathbf{A})$ | `qr(A)$rank` |
+| Diagonal | $\text{diag}(\mathbf{A})$ | `diag(A)` |
+
+**Performance tip:** Prefer `crossprod(X)` over `t(X) %*% X` -- it is roughly twice as fast because it exploits symmetry.
+
+---
+
+## 14.10 Exercises
+
+### Conceptual
+
+1. Why does the OLS estimator require $\mathbf{X}^T\mathbf{X}$ to be invertible? What happens statistically when it is not? Give an example of a data set where this fails.
+2. Explain the cyclic property of the trace in one sentence. Why is it useful when deriving the expected value of a quadratic form?
+3. The determinant of the covariance matrix is sometimes called the **generalised variance**. What does a large determinant mean geometrically about the scatter of data points?
+
+### Computational
+
+4. Create a $3 \times 3$ matrix and verify by hand (and in R) that $(\mathbf{AB})^T = \mathbf{B}^T\mathbf{A}^T$ and $(\mathbf{AB})^{-1} = \mathbf{B}^{-1}\mathbf{A}^{-1}$.
+5. Write a function `my_solve_upper(U, b)` that solves $\mathbf{Ux} = \mathbf{b}$ by back-substitution when $\mathbf{U}$ is upper triangular. Test it on a $4 \times 4$ system.
+6. Using the penguins data, construct the design matrix for the model `body_mass_g ~ flipper_length_mm + bill_length_mm` (including an intercept column of ones). Compute $\hat{\boldsymbol{\beta}} = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T\mathbf{y}$ and verify it matches the output of `lm()`.
+
+### Extension
+
+7. Investigate the condition number of $\mathbf{X}^T\mathbf{X}$ (using `kappa()`) when one predictor is nearly collinear with another. Generate data where `x2 = x1 + epsilon` for decreasing values of `sd(epsilon)` and plot the condition number. At what point do the OLS estimates become numerically unstable?
+8. Implement LU decomposition from scratch for a $3 \times 3$ matrix (Doolittle's method). Use it to solve a system $\mathbf{Ax} = \mathbf{b}$.

@@ -1,0 +1,492 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 12: Multiple Testing"
+part: "Part 1: FWER and Bonferroni"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, multiple-testing, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+# Chapter 12 -- Multiple Testing
+
+## Part 1: Family-Wise Error Rate and Bonferroni
+
+In Chapter 11 we learnt to test a single hypothesis at significance level $\alpha$. When we test only one hypothesis, the probability of a false positive (Type I error) is controlled at $\alpha$ -- typically 0.05. But in modern practice we rarely test just one hypothesis. A genomics study may test 20,000 genes; a clinical trial may examine dozens of outcome variables; a psychology experiment may compare many subgroups. When we test many hypotheses simultaneously, false positives accumulate at an alarming rate.
+
+This chapter develops the theory and practice of **multiple testing corrections** -- procedures that restore error control when we conduct many tests at once.
+
+---
+
+## 12.1 The Multiple Testing Problem
+
+### 12.1.1 Why One-at-a-Time Testing Fails
+
+Suppose we conduct $m$ independent hypothesis tests, each at significance level $\alpha$. For each test, the null hypothesis is true, so the probability of correctly *not* rejecting is $1 - \alpha$. The probability that *all* $m$ tests correctly yield non-significant results is:
+
+$$P(\text{no false positives among } m \text{ tests}) = (1 - \alpha)^m.$$
+
+Therefore, the probability of **at least one** false positive is:
+
+$$\boxed{P(\text{at least one false positive}) = 1 - (1 - \alpha)^m.}$$
+
+**Proof.** Let $A_i$ be the event that test $i$ produces a false positive ($i = 1, \ldots, m$). Since all nulls are true, $P(A_i) = \alpha$ for each $i$. By independence:
+
+$$P\!\left(\bigcap_{i=1}^m A_i^c\right) = \prod_{i=1}^m P(A_i^c) = \prod_{i=1}^m (1 - \alpha) = (1 - \alpha)^m.$$
+
+Taking the complement:
+
+$$P\!\left(\bigcup_{i=1}^m A_i\right) = 1 - (1 - \alpha)^m. \quad \square$$
+
+For $\alpha = 0.05$:
+
+| $m$ (number of tests) | $P(\ge 1 \text{ false positive})$ |
+|:-:|:-:|
+| 1 | 0.050 |
+| 5 | 0.226 |
+| 10 | 0.401 |
+| 20 | 0.642 |
+| 50 | 0.923 |
+| 100 | 0.994 |
+
+With 20 tests, we have about a 64% chance of at least one false positive. With 100 tests, it is virtually certain.
+
+### 12.1.2 Simulation: Watching False Positives Accumulate
+
+
+``` r
+set.seed(42)
+box::use(data.table)
+
+m_values <- c(1, 2, 5, 10, 20, 50, 100)
+n_sims <- 10000
+alpha <- 0.05
+
+#' Simulate false positives under the global null
+#' @param m number of independent tests
+#' @param n_sims number of simulation runs
+#' @param alpha significance level
+#' @return proportion of runs with at least one false positive
+sim_fpr <- function(m, n_sims, alpha) {
+  any_fp <- vapply(seq_len(n_sims), function(i) {
+    # Each test: draw p-value from Uniform(0,1) under H0
+    p_vals <- runif(m)
+    any(p_vals < alpha)
+  }, logical(1))
+  mean(any_fp)
+}
+
+results <- data.table$data.table(
+  m = m_values,
+  theoretical = 1 - (1 - alpha)^m_values,
+  simulated = vapply(m_values, sim_fpr, numeric(1),
+                     n_sims = n_sims, alpha = alpha)
+)
+
+results
+```
+
+```
+       m theoretical simulated
+   <num>       <num>     <num>
+1:     1   0.0500000    0.0532
+2:     2   0.0975000    0.1053
+3:     5   0.2262191    0.2243
+4:    10   0.4012631    0.4030
+5:    20   0.6415141    0.6476
+6:    50   0.9230550    0.9262
+7:   100   0.9940795    0.9942
+```
+
+The simulated and theoretical values align closely, confirming our formula.
+
+### 12.1.3 Visualising the Problem
+
+
+``` r
+box::use(ggplot2)
+
+m_seq <- seq(1, 100, by = 1)
+fp_dt <- data.table$data.table(
+  m = m_seq,
+  prob = 1 - (1 - alpha)^m_seq
+)
+
+ggplot2$ggplot(fp_dt, ggplot2$aes(x = m, y = prob)) +
+  ggplot2$geom_line(colour = "#D55E00", linewidth = 1.2) +
+  ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_hline(yintercept = 0.50, linetype = "dotted", colour = "grey50") +
+  ggplot2$annotate("text", x = 80, y = 0.10,
+                   label = "alpha == 0.05", parse = TRUE,
+                   colour = "grey40", size = 4) +
+  ggplot2$annotate("text", x = 80, y = 0.55,
+                   label = "50% chance", colour = "grey40", size = 4) +
+  ggplot2$scale_y_continuous(labels = scales::percent_format(),
+                             breaks = seq(0, 1, 0.1)) +
+  ggplot2$labs(
+    x = "Number of independent tests (m)",
+    y = "P(at least one false positive)",
+    title = "False positive accumulation under the global null"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="fp-accumulation-1.png" alt="Probability of at least one false positive as a function of the number of tests. Even at alpha = 0.05 per test, the family-wise error rate quickly exceeds 50% and approaches certainty.">
+	Probability of at least one false positive as a function of the number of tests. Even at alpha = 0.05 per test, the family-wise error rate quickly exceeds 50% and approaches certainty.
+</Figure>
+
+### 12.1.4 "Significant by Chance" Demonstration
+
+
+``` r
+set.seed(42)
+m <- 20
+n_per_group <- 30
+
+# Generate pure noise: two groups per test, both from N(0,1)
+p_values <- vapply(seq_len(m), function(i) {
+  grp_a <- rnorm(n_per_group)
+  grp_b <- rnorm(n_per_group)
+  t.test(grp_a, grp_b)$p.value
+}, numeric(1))
+
+sig_dt <- data.table$data.table(
+  test = factor(seq_len(m)),
+  p_value = p_values,
+  significant = p_values < alpha
+)
+
+ggplot2$ggplot(sig_dt, ggplot2$aes(x = test, y = p_value, fill = significant)) +
+  ggplot2$geom_col(width = 0.7) +
+  ggplot2$geom_hline(yintercept = alpha, linetype = "dashed",
+                     colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$scale_fill_manual(
+    values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00"),
+    labels = c("Not significant", "Significant (p < 0.05)")
+  ) +
+  ggplot2$annotate("text", x = 18, y = alpha + 0.03,
+                   label = "alpha == 0.05", parse = TRUE,
+                   colour = "#D55E00", size = 4) +
+  ggplot2$labs(
+    x = "Test number", y = "p-value",
+    title = "20 tests on pure noise: 'significant' results are false positives",
+    fill = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="sig-by-chance-1.png" alt="Twenty independent t-tests on pure-noise data. Each group was drawn from the same N(0,1) distribution. Highlighted bars show tests that are &#39;significant&#39; at alpha = 0.05 purely by chance.">
+	Twenty independent t-tests on pure-noise data. Each group was drawn from the same N(0,1) distribution. Highlighted bars show tests that are 'significant' at alpha = 0.05 purely by chance.
+</Figure>
+
+
+``` r
+sum(sig_dt$significant)
+```
+
+```
+[1] 0
+```
+
+Even though every null hypothesis is true, we observe false positives. The expected number is $m \times \alpha = 20 \times 0.05 = 1$, but random variation means we may see zero, one, two, or more.
+
+---
+
+## 12.2 Family-Wise Error Rate (FWER)
+
+### 12.2.1 Definition
+
+The **family-wise error rate** (FWER) is the probability of making at least one Type I error among a family of hypothesis tests:
+
+$$\text{FWER} = P\!\left(\bigcup_{i \in \mathcal{I}_0} \{H_i \text{ rejected}\}\right),$$
+
+where $\mathcal{I}_0$ is the index set of true null hypotheses. A procedure **controls FWER at level $\alpha$** if $\text{FWER} \le \alpha$.
+
+### 12.2.2 Strong vs Weak Control
+
+- **Weak FWER control:** $\text{FWER} \le \alpha$ when *all* nulls are true (global null).
+- **Strong FWER control:** $\text{FWER} \le \alpha$ regardless of which and how many nulls are true.
+
+Strong control is the standard requirement. All methods we present here provide strong control.
+
+---
+
+## 12.3 The Bonferroni Correction
+
+### 12.3.1 The Union Bound (Boole's Inequality)
+
+**Theorem (Union Bound).** For any events $A_1, \ldots, A_m$:
+
+$$P\!\left(\bigcup_{i=1}^m A_i\right) \le \sum_{i=1}^m P(A_i).$$
+
+**Proof.** We proceed by induction. For $m = 1$, the result is trivially $P(A_1) \le P(A_1)$.
+
+For $m = 2$, the inclusion-exclusion formula gives:
+
+$$P(A_1 \cup A_2) = P(A_1) + P(A_2) - P(A_1 \cap A_2) \le P(A_1) + P(A_2),$$
+
+since $P(A_1 \cap A_2) \ge 0$.
+
+Suppose the result holds for $m - 1$ events. Then:
+
+$$P\!\left(\bigcup_{i=1}^m A_i\right) = P\!\left(\bigcup_{i=1}^{m-1} A_i \cup A_m\right) \le P\!\left(\bigcup_{i=1}^{m-1} A_i\right) + P(A_m) \le \sum_{i=1}^{m-1} P(A_i) + P(A_m) = \sum_{i=1}^m P(A_i).$$
+
+This completes the induction. $\square$
+
+### 12.3.2 The Bonferroni Procedure
+
+The Bonferroni correction applies the union bound directly. Given $m$ tests with p-values $p_1, \ldots, p_m$, reject $H_i$ if and only if:
+
+$$p_i \le \frac{\alpha}{m}.$$
+
+**Proof of FWER control.** Let $\mathcal{I}_0$ denote the set of indices for which $H_i$ is true. Then:
+
+$$\text{FWER} = P\!\left(\bigcup_{i \in \mathcal{I}_0} \{p_i \le \alpha/m\}\right) \le \sum_{i \in \mathcal{I}_0} P(p_i \le \alpha/m) = \sum_{i \in \mathcal{I}_0} \frac{\alpha}{m} = |\mathcal{I}_0| \cdot \frac{\alpha}{m} \le m \cdot \frac{\alpha}{m} = \alpha. \quad \square$$
+
+Note that we used the fact that under $H_i$ true, the p-value $p_i$ is uniformly distributed on $[0, 1]$, so $P(p_i \le \alpha/m) = \alpha/m$.
+
+### 12.3.3 Implementation from Scratch
+
+
+``` r
+#' Bonferroni correction -- implemented from scratch
+#' @param p numeric vector of raw p-values
+#' @param alpha family-wise significance level
+#' @return data.table with original p-values, adjusted p-values, and decisions
+my_bonferroni <- function(p, alpha = 0.05) {
+  box::use(data.table)
+  m <- length(p)
+  adj_p <- pmin(p * m, 1)  # adjusted p-values, capped at 1
+  data.table$data.table(
+    test = seq_len(m),
+    p_raw = p,
+    p_adj = adj_p,
+    reject = adj_p <= alpha
+  )
+}
+
+# Test with our 20-test pure-noise example
+bonf_results <- my_bonferroni(p_values)
+bonf_results
+```
+
+```
+     test     p_raw p_adj reject
+    <int>     <num> <num> <lgcl>
+ 1:     1 0.5263073     1  FALSE
+ 2:     2 0.3791865     1  FALSE
+ 3:     3 0.2839387     1  FALSE
+ 4:     4 0.5718398     1  FALSE
+ 5:     5 0.6829621     1  FALSE
+ 6:     6 0.6679765     1  FALSE
+ 7:     7 0.2166813     1  FALSE
+ 8:     8 0.8497903     1  FALSE
+ 9:     9 0.2522867     1  FALSE
+10:    10 0.3518833     1  FALSE
+11:    11 0.1868112     1  FALSE
+12:    12 0.1057736     1  FALSE
+13:    13 0.7020598     1  FALSE
+14:    14 0.6828943     1  FALSE
+15:    15 0.2121114     1  FALSE
+16:    16 0.9144237     1  FALSE
+17:    17 0.2696237     1  FALSE
+18:    18 0.8483530     1  FALSE
+19:    19 0.3621428     1  FALSE
+20:    20 0.7686142     1  FALSE
+     test     p_raw p_adj reject
+    <int>     <num> <num> <lgcl>
+```
+
+
+``` r
+# Verify against R's built-in p.adjust()
+all.equal(
+  bonf_results$p_adj,
+  p.adjust(p_values, method = "bonferroni")
+)
+```
+
+```
+[1] TRUE
+```
+
+After Bonferroni correction, the adjusted p-values are $p_i \times m$. No test survives correction on pure-noise data -- exactly as we would hope.
+
+---
+
+## 12.4 Holm's Step-Down Procedure
+
+### 12.4.1 Motivation
+
+The Bonferroni correction is conservative: it uses the threshold $\alpha/m$ for *every* test, regardless of other p-values. **Holm's procedure** (1979) is uniformly more powerful -- it rejects everything Bonferroni rejects, and sometimes more -- while still controlling FWER at level $\alpha$.
+
+### 12.4.2 The Algorithm
+
+1. Order the p-values: $p_{(1)} \le p_{(2)} \le \cdots \le p_{(m)}$.
+2. For $k = 1, 2, \ldots, m$: compare $p_{(k)}$ to $\alpha / (m - k + 1)$.
+3. Let $k^*$ be the smallest index such that $p_{(k^*)} > \alpha / (m - k^* + 1)$.
+4. Reject all hypotheses with indices $1, \ldots, k^* - 1$ (in the sorted order). If no such $k^*$ exists, reject all.
+
+The thresholds progress: $\alpha/m, \; \alpha/(m-1), \; \alpha/(m-2), \; \ldots, \; \alpha/1$. Each subsequent test uses a less strict threshold -- hence "step-down."
+
+### 12.4.3 Why Holm Dominates Bonferroni
+
+Holm's first threshold is $\alpha/m$ -- identical to Bonferroni. If the smallest p-value passes this hurdle, Holm proceeds with the relaxed threshold $\alpha/(m-1)$. Bonferroni would still use $\alpha/m$. Therefore Holm rejects at least as many hypotheses as Bonferroni, and often more.
+
+### 12.4.4 Implementation from Scratch
+
+
+``` r
+#' Holm's step-down procedure -- implemented from scratch
+#' @param p numeric vector of raw p-values
+#' @param alpha family-wise significance level
+#' @return data.table with original p-values, adjusted p-values, and decisions
+my_holm <- function(p, alpha = 0.05) {
+  box::use(data.table)
+  m <- length(p)
+  ord <- order(p)
+  p_sorted <- p[ord]
+
+  # Adjusted p-values: cumulative max of p_(k) * (m - k + 1)
+  adj_sorted <- numeric(m)
+  for (k in seq_len(m)) {
+    adj_sorted[k] <- p_sorted[k] * (m - k + 1)
+  }
+  # Enforce monotonicity: adjusted p-values must be non-decreasing
+  adj_sorted <- cummax(adj_sorted)
+  adj_sorted <- pmin(adj_sorted, 1)
+
+  # Map back to original order
+  adj_p <- numeric(m)
+  adj_p[ord] <- adj_sorted
+
+  data.table$data.table(
+    test = seq_len(m),
+    p_raw = p,
+    p_adj = adj_p,
+    reject = adj_p <= alpha
+  )
+}
+
+holm_results <- my_holm(p_values)
+holm_results
+```
+
+```
+     test     p_raw p_adj reject
+    <int>     <num> <num> <lgcl>
+ 1:     1 0.5263073     1  FALSE
+ 2:     2 0.3791865     1  FALSE
+ 3:     3 0.2839387     1  FALSE
+ 4:     4 0.5718398     1  FALSE
+ 5:     5 0.6829621     1  FALSE
+ 6:     6 0.6679765     1  FALSE
+ 7:     7 0.2166813     1  FALSE
+ 8:     8 0.8497903     1  FALSE
+ 9:     9 0.2522867     1  FALSE
+10:    10 0.3518833     1  FALSE
+11:    11 0.1868112     1  FALSE
+12:    12 0.1057736     1  FALSE
+13:    13 0.7020598     1  FALSE
+14:    14 0.6828943     1  FALSE
+15:    15 0.2121114     1  FALSE
+16:    16 0.9144237     1  FALSE
+17:    17 0.2696237     1  FALSE
+18:    18 0.8483530     1  FALSE
+19:    19 0.3621428     1  FALSE
+20:    20 0.7686142     1  FALSE
+     test     p_raw p_adj reject
+    <int>     <num> <num> <lgcl>
+```
+
+
+``` r
+# Verify against R's built-in p.adjust()
+all.equal(
+  holm_results$p_adj,
+  p.adjust(p_values, method = "holm")
+)
+```
+
+```
+[1] TRUE
+```
+
+### 12.4.5 Comparison on Pure-Noise Data
+
+
+``` r
+data.table$data.table(
+  test = seq_len(m),
+  p_raw = round(p_values, 4),
+  bonf_adj = round(bonf_results$p_adj, 4),
+  holm_adj = round(holm_results$p_adj, 4),
+  bonf_reject = bonf_results$reject,
+  holm_reject = holm_results$reject
+)
+```
+
+```
+     test  p_raw bonf_adj holm_adj bonf_reject holm_reject
+    <int>  <num>    <num>    <num>      <lgcl>      <lgcl>
+ 1:     1 0.5263        1        1       FALSE       FALSE
+ 2:     2 0.3792        1        1       FALSE       FALSE
+ 3:     3 0.2839        1        1       FALSE       FALSE
+ 4:     4 0.5718        1        1       FALSE       FALSE
+ 5:     5 0.6830        1        1       FALSE       FALSE
+ 6:     6 0.6680        1        1       FALSE       FALSE
+ 7:     7 0.2167        1        1       FALSE       FALSE
+ 8:     8 0.8498        1        1       FALSE       FALSE
+ 9:     9 0.2523        1        1       FALSE       FALSE
+10:    10 0.3519        1        1       FALSE       FALSE
+11:    11 0.1868        1        1       FALSE       FALSE
+12:    12 0.1058        1        1       FALSE       FALSE
+13:    13 0.7021        1        1       FALSE       FALSE
+14:    14 0.6829        1        1       FALSE       FALSE
+15:    15 0.2121        1        1       FALSE       FALSE
+16:    16 0.9144        1        1       FALSE       FALSE
+17:    17 0.2696        1        1       FALSE       FALSE
+18:    18 0.8484        1        1       FALSE       FALSE
+19:    19 0.3621        1        1       FALSE       FALSE
+20:    20 0.7686        1        1       FALSE       FALSE
+     test  p_raw bonf_adj holm_adj bonf_reject holm_reject
+    <int>  <num>    <num>    <num>      <lgcl>      <lgcl>
+```
+
+On pure-noise data both methods correctly reject nothing (or very little). The advantage of Holm becomes apparent when some signals are real.
+
+---
+
+## 12.5 Applied Example: NHANES Health Outcomes
+
+To demonstrate the multiple testing problem on real data, we test whether 20 health-related variables differ between two age groups in the NHANES dataset.
+
+
+``` r
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Define age groups: young adults (18-39) vs middle-aged adults (40-64)
+nhanes_adults <- nhanes[Age >= 18 & Age <= 64]
+nhanes_adults[, age_group := ifelse(Age < 40, "young", "middle")]
+nhanes_adults[, age_group := factor(age_group, levels = c("young", "middle"))]
+```
+
+
+
+
+
+
+
+
+

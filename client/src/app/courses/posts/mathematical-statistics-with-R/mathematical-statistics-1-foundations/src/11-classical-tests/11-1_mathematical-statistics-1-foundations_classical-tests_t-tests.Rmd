@@ -1,0 +1,478 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 11: Classical Tests"
+part: "Part 1: t-Tests"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, hypothesis-testing, t-test, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+```{r data-path, include=FALSE}
+data_dir <- "../../../data"
+```
+
+# Chapter 11 -- Classical Tests
+
+## Part 1: t-Tests
+
+In Chapter 10 we built the general framework for hypothesis testing: null and alternative hypotheses, test statistics, rejection regions, p-values, and the interplay between Type I and Type II errors. Every classical test is a *specific instantiation* of that framework -- a particular choice of test statistic whose null distribution we can derive.
+
+We begin with the most widely used family of tests in all of applied statistics: the **t-tests**. These arise whenever we want to make inferences about population means using samples of moderate size, and they follow directly from the sampling theory we developed in earlier chapters.
+
+The key result that underpins everything here is this: if $X_1, \ldots, X_n \stackrel{\text{iid}}{\sim} N(\mu, \sigma^2)$, then the quantity
+
+$$T = \frac{\bar{X} - \mu}{S / \sqrt{n}}$$
+
+follows a $t_{n-1}$ distribution. We proved this in Chapter 5 when we showed that the ratio of a standard normal to the square root of an independent chi-squared divided by its degrees of freedom produces a $t$-distribution. Every t-test in this chapter is a direct application of that theorem.
+
+---
+
+## 11.1 The One-Sample t-Test
+
+### 11.1.1 The Problem
+
+We observe a sample $X_1, \ldots, X_n$ from a population with unknown mean $\mu$ and unknown variance $\sigma^2$. We wish to test whether the population mean equals some hypothesised value $\mu_0$:
+
+$$H_0: \mu = \mu_0 \quad \text{vs} \quad H_1: \mu \neq \mu_0$$
+
+(or the one-sided variants $H_1: \mu > \mu_0$ or $H_1: \mu < \mu_0$).
+
+### 11.1.2 Derivation of the Test Statistic
+
+**Step 1.** Under $H_0$, the population mean is $\mu_0$. If we knew $\sigma$, the natural test statistic would be the z-score:
+
+$$Z = \frac{\bar{X} - \mu_0}{\sigma / \sqrt{n}} \sim N(0, 1).$$
+
+**Step 2.** In practice we do not know $\sigma$. We replace it with the sample standard deviation $S = \sqrt{\frac{1}{n-1}\sum_{i=1}^n (X_i - \bar{X})^2}$.
+
+**Step 3.** From Chapter 5, we know that $\bar{X}$ and $S^2$ are independent when sampling from a normal distribution (this is a consequence of the Cochran theorem). Furthermore, $(n-1)S^2/\sigma^2 \sim \chi^2_{n-1}$.
+
+**Step 4.** Write the test statistic as:
+
+$$T = \frac{\bar{X} - \mu_0}{S / \sqrt{n}} = \frac{(\bar{X} - \mu_0) / (\sigma/\sqrt{n})}{S/\sigma} = \frac{Z}{\sqrt{(n-1)S^2/\sigma^2 \,/\, (n-1)}} = \frac{Z}{\sqrt{V/(n-1)}}$$
+
+where $Z \sim N(0,1)$ and $V = (n-1)S^2/\sigma^2 \sim \chi^2_{n-1}$ are independent. By the definition of the $t$-distribution:
+
+$$\boxed{T = \frac{\bar{X} - \mu_0}{S/\sqrt{n}} \sim t_{n-1} \quad \text{under } H_0.}$$
+
+### 11.1.3 The Decision Rule
+
+Using the framework from Chapter 10:
+
+- **Two-sided test** ($H_1: \mu \neq \mu_0$): Reject $H_0$ if $|T| > t_{n-1, \alpha/2}$.
+- **Right-tailed test** ($H_1: \mu > \mu_0$): Reject $H_0$ if $T > t_{n-1, \alpha}$.
+- **Left-tailed test** ($H_1: \mu < \mu_0$): Reject $H_0$ if $T < -t_{n-1, \alpha}$.
+
+The **p-value** is the probability, under $H_0$, of observing a test statistic as extreme as or more extreme than the one computed from the data.
+
+### 11.1.4 Implementation from Scratch
+
+```{r one-sample-t-scratch}
+set.seed(42)
+
+# Generate data: suppose body temperatures are actually N(36.8, 0.4^2)
+# and we test H0: mu = 37.0 (the "textbook normal")
+n <- 25
+temps <- rnorm(n, mean = 36.8, sd = 0.4)
+
+# Manual one-sample t-test
+x_bar <- mean(temps)
+s <- sd(temps)
+mu_0 <- 37.0
+t_stat <- (x_bar - mu_0) / (s / sqrt(n))
+df <- n - 1
+p_value <- 2 * pt(abs(t_stat), df = df, lower.tail = FALSE)
+
+data.frame(
+  x_bar = round(x_bar, 4),
+  s = round(s, 4),
+  t_stat = round(t_stat, 4),
+  df = df,
+  p_value = round(p_value, 6)
+)
+```
+
+### 11.1.5 Verification with `t.test()`
+
+```{r one-sample-t-builtin}
+t.test(temps, mu = 37.0)
+```
+
+The results agree exactly. The built-in function is simply automating the derivation above.
+
+### 11.1.6 Visualising the Test
+
+```{r one-sample-t-plot, fig.cap="One-sample t-test: the observed test statistic against the null t-distribution. The shaded tails represent the p-value."}
+t_grid <- seq(-4.5, 4.5, length.out = 500)
+t_dens <- dt(t_grid, df = df)
+
+dt_plot <- data.table::data.table(t = t_grid, density = t_dens)
+dt_tails <- dt_plot[abs(t) >= abs(t_stat)]
+
+ggplot2$ggplot(dt_plot, ggplot2$aes(x = t, y = density)) +
+  ggplot2$geom_line(linewidth = 0.8) +
+  ggplot2$geom_area(
+    data = dt_tails,
+    ggplot2$aes(x = t, y = density),
+    fill = "#e74c3c", alpha = 0.4
+  ) +
+  ggplot2$geom_vline(
+    xintercept = c(-abs(t_stat), abs(t_stat)),
+    linetype = "dashed", colour = "#e74c3c"
+  ) +
+  ggplot2$labs(
+    x = "t", y = "Density",
+    title = "One-Sample t-Test",
+    subtitle = paste0(
+      "t = ", round(t_stat, 3),
+      ", df = ", df,
+      ", p = ", round(p_value, 4)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+---
+
+## 11.2 The Two-Sample t-Test
+
+### 11.2.1 The Problem
+
+We have two independent samples:
+
+$$X_1, \ldots, X_{n_1} \sim N(\mu_1, \sigma_1^2), \quad Y_1, \ldots, Y_{n_2} \sim N(\mu_2, \sigma_2^2).$$
+
+We wish to test $H_0: \mu_1 = \mu_2$ (equivalently, $H_0: \mu_1 - \mu_2 = 0$).
+
+### 11.2.2 Case 1: Equal Variances (Pooled t-Test)
+
+**Assumption:** $\sigma_1^2 = \sigma_2^2 = \sigma^2$ (unknown).
+
+**Step 1.** Under $H_0$, the difference $\bar{X} - \bar{Y}$ has mean zero and variance $\sigma^2(1/n_1 + 1/n_2)$.
+
+**Step 2.** We estimate $\sigma^2$ with the **pooled sample variance**:
+
+$$S_p^2 = \frac{(n_1 - 1)S_1^2 + (n_2 - 1)S_2^2}{n_1 + n_2 - 2}.$$
+
+This is a weighted average of the two sample variances, where the weights are the respective degrees of freedom. Because $(n_1-1)S_1^2/\sigma^2 \sim \chi^2_{n_1-1}$ and $(n_2-1)S_2^2/\sigma^2 \sim \chi^2_{n_2-1}$ independently, their sum is $\chi^2_{n_1+n_2-2}$.
+
+**Step 3.** The test statistic is:
+
+$$T = \frac{\bar{X} - \bar{Y}}{S_p\sqrt{1/n_1 + 1/n_2}} \sim t_{n_1 + n_2 - 2} \quad \text{under } H_0.$$
+
+The derivation follows the same pattern as the one-sample case: the numerator is standard normal (after standardisation by the true $\sigma$), the denominator involves the square root of an independent chi-squared divided by its degrees of freedom.
+
+### 11.2.3 Case 2: Unequal Variances (Welch's t-Test)
+
+When $\sigma_1^2 \neq \sigma_2^2$, the pooled estimator is no longer appropriate. Welch's approach uses:
+
+$$T = \frac{\bar{X} - \bar{Y}}{\sqrt{S_1^2/n_1 + S_2^2/n_2}}$$
+
+The distribution of $T$ under $H_0$ is approximately $t_\nu$ where the **Welch--Satterthwaite** degrees of freedom are:
+
+$$\nu = \frac{\left(\frac{S_1^2}{n_1} + \frac{S_2^2}{n_2}\right)^2}{\frac{(S_1^2/n_1)^2}{n_1 - 1} + \frac{(S_2^2/n_2)^2}{n_2 - 1}}.$$
+
+This is not an exact result -- the ratio does not follow a $t$-distribution precisely -- but the Welch--Satterthwaite approximation is remarkably accurate in practice. This is why R uses Welch's test as the default in `t.test()`.
+
+### 11.2.4 Penguins: Adelie vs Gentoo Flipper Length
+
+```{r penguins-load}
+penguins <- data.table::fread(file.path(data_dir, "penguins.csv"))
+penguins <- penguins[!is.na(flipper_length_mm)]
+
+# Subset to the two species of interest
+two_sp <- penguins[species %in% c("Adelie", "Gentoo")]
+```
+
+```{r penguins-summary}
+two_sp[, .(
+  n = .N,
+  mean_flipper = round(mean(flipper_length_mm), 2),
+  sd_flipper = round(sd(flipper_length_mm), 2)
+), by = species]
+```
+
+```{r penguins-boxplot, fig.cap="Flipper length distributions for Adelie and Gentoo penguins. The difference in means is visually striking."}
+ggplot2$ggplot(two_sp, ggplot2$aes(x = species, y = flipper_length_mm, fill = species)) +
+  ggplot2$geom_boxplot(alpha = 0.7, outlier.shape = 21) +
+  ggplot2$geom_jitter(width = 0.15, alpha = 0.3, size = 1.2) +
+  ggplot2$scale_fill_manual(values = c("Adelie" = "#3498db", "Gentoo" = "#e67e22")) +
+  ggplot2$labs(
+    x = "Species", y = "Flipper length (mm)",
+    title = "Flipper Length: Adelie vs Gentoo"
+  ) +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
+```
+
+```{r penguins-manual-welch}
+# Manual Welch's t-test
+adelie <- two_sp[species == "Adelie", flipper_length_mm]
+gentoo <- two_sp[species == "Gentoo", flipper_length_mm]
+
+n1 <- length(adelie); n2 <- length(gentoo)
+xbar1 <- mean(adelie); xbar2 <- mean(gentoo)
+s1 <- sd(adelie); s2 <- sd(gentoo)
+
+se <- sqrt(s1^2 / n1 + s2^2 / n2)
+t_stat_welch <- (xbar1 - xbar2) / se
+
+# Welch-Satterthwaite degrees of freedom
+nu <- (s1^2/n1 + s2^2/n2)^2 /
+  ((s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1))
+
+p_welch <- 2 * pt(abs(t_stat_welch), df = nu, lower.tail = FALSE)
+
+data.frame(
+  t_stat = round(t_stat_welch, 4),
+  df = round(nu, 2),
+  p_value = format(p_welch, scientific = TRUE, digits = 4)
+)
+```
+
+```{r penguins-builtin-welch}
+# Verify with built-in (Welch is the default)
+t.test(adelie, gentoo)
+```
+
+The difference is enormous -- well beyond anything attributable to sampling variability. In a real scientific report, you would state the effect size alongside the p-value.
+
+### 11.2.5 Effect Size: Cohen's d
+
+A p-value tells us *whether* the effect is statistically significant; **Cohen's d** tells us *how large* it is:
+
+$$d = \frac{\bar{X} - \bar{Y}}{S_p}$$
+
+where $S_p$ is the pooled standard deviation. Conventional benchmarks: $|d| \approx 0.2$ (small), $0.5$ (medium), $0.8$ (large).
+
+```{r cohens-d}
+s_pooled <- sqrt(((n1-1)*s1^2 + (n2-1)*s2^2) / (n1 + n2 - 2))
+d <- (xbar1 - xbar2) / s_pooled
+
+data.frame(
+  cohens_d = round(d, 3),
+  interpretation = ifelse(abs(d) > 0.8, "large",
+    ifelse(abs(d) > 0.5, "medium", "small"))
+)
+```
+
+---
+
+## 11.3 The Paired t-Test
+
+### 11.3.1 Why Pairing Matters
+
+Sometimes the two "samples" are not independent -- they are measurements on the *same* subjects under two conditions (before/after treatment, left/right eye, etc.). In this case, the two-sample t-test is inappropriate because it ignores the within-subject correlation.
+
+The solution is elegant: take the **differences** $D_i = X_i - Y_i$ and apply a **one-sample t-test** to the differences with $\mu_0 = 0$.
+
+### 11.3.2 Derivation
+
+If $D_1, \ldots, D_n \stackrel{\text{iid}}{\sim} N(\mu_D, \sigma_D^2)$, then under $H_0: \mu_D = 0$:
+
+$$T = \frac{\bar{D}}{S_D / \sqrt{n}} \sim t_{n-1}.$$
+
+This is precisely the one-sample t-test from Section 11.1, applied to the $D_i$. The paired t-test is *not* a new test -- it is a repackaging of an old one. Understanding this connection is more valuable than memorising it as a separate formula.
+
+### 11.3.3 Simulated Example: Blood Pressure Before and After Treatment
+
+```{r paired-t-sim}
+set.seed(42)
+n_patients <- 20
+
+# Simulate systolic BP: pre-treatment around 145, treatment lowers by ~8 mmHg
+bp_before <- rnorm(n_patients, mean = 145, sd = 12)
+bp_after <- bp_before + rnorm(n_patients, mean = -8, sd = 6)
+
+differences <- bp_after - bp_before
+
+# Manual paired t-test
+d_bar <- mean(differences)
+s_d <- sd(differences)
+t_paired <- d_bar / (s_d / sqrt(n_patients))
+p_paired <- 2 * pt(abs(t_paired), df = n_patients - 1, lower.tail = FALSE)
+
+data.frame(
+  mean_diff = round(d_bar, 3),
+  sd_diff = round(s_d, 3),
+  t_stat = round(t_paired, 3),
+  df = n_patients - 1,
+  p_value = round(p_paired, 6)
+)
+```
+
+```{r paired-t-builtin}
+# Verify
+t.test(bp_after, bp_before, paired = TRUE)
+```
+
+### 11.3.4 Why Not Use a Two-Sample Test?
+
+```{r paired-vs-unpaired}
+# Incorrect: treating as independent samples
+wrong_test <- t.test(bp_after, bp_before, paired = FALSE)
+
+# Correct: paired test
+right_test <- t.test(bp_after, bp_before, paired = TRUE)
+
+data.frame(
+  method = c("Unpaired (WRONG)", "Paired (CORRECT)"),
+  t_stat = round(c(wrong_test$statistic, right_test$statistic), 3),
+  p_value = c(
+    format(wrong_test$p.value, digits = 4),
+    format(right_test$p.value, digits = 4)
+  )
+)
+```
+
+The paired test has *much* more power here because it eliminates the between-subject variability. Patient A might have a baseline BP of 130 and patient B might have 160, but both might drop by about 8 mmHg. The paired test focuses on the drops; the unpaired test sees two overlapping clouds of numbers.
+
+### 11.3.5 Visualising Paired Data
+
+```{r paired-plot, fig.cap="Paired blood pressure measurements before and after treatment. Lines connect the same patient, making the consistent decrease visible."}
+bp_dt <- data.table::data.table(
+  patient = rep(1:n_patients, 2),
+  time = rep(c("Before", "After"), each = n_patients),
+  bp = c(bp_before, bp_after)
+)
+bp_dt[, time := factor(time, levels = c("Before", "After"))]
+
+ggplot2$ggplot(bp_dt, ggplot2$aes(x = time, y = bp, group = patient)) +
+  ggplot2$geom_line(alpha = 0.4, colour = "grey50") +
+  ggplot2$geom_point(ggplot2$aes(colour = time), size = 2.5) +
+  ggplot2$scale_colour_manual(values = c("Before" = "#e74c3c", "After" = "#27ae60")) +
+  ggplot2$labs(
+    x = "", y = "Systolic BP (mmHg)",
+    title = "Paired Blood Pressure: Before vs After Treatment"
+  ) +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 11.4 NHANES Example: BMI by Smoking Status
+
+Real data rarely arrive as neatly as our simulations. Let us apply the two-sample t-test to a question with genuine public-health relevance.
+
+```{r nhanes-load}
+nhanes <- data.table::fread(file.path(data_dir, "nhanes.csv"))
+nhanes_bmi <- nhanes[
+  !is.na(BMI) & !is.na(SmokeNow) & Age >= 20,
+  .(BMI, SmokeNow)
+]
+```
+
+```{r nhanes-bmi-summary}
+nhanes_bmi[, .(
+  n = .N,
+  mean_bmi = round(mean(BMI), 2),
+  sd_bmi = round(sd(BMI), 2)
+), by = SmokeNow]
+```
+
+```{r nhanes-bmi-hist, fig.cap="BMI distributions for current smokers and non-smokers in the NHANES data. Both distributions are right-skewed, raising questions about the normality assumption."}
+ggplot2$ggplot(nhanes_bmi, ggplot2$aes(x = BMI, fill = SmokeNow)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, alpha = 0.6, position = "identity"
+  ) +
+  ggplot2$facet_wrap(~ SmokeNow, ncol = 1, labeller = ggplot2$labeller(
+    SmokeNow = c("No" = "Non-smoker", "Yes" = "Current smoker")
+  )) +
+  ggplot2$scale_fill_manual(values = c("No" = "#3498db", "Yes" = "#e74c3c")) +
+  ggplot2$labs(
+    x = "BMI", y = "Density",
+    title = "BMI Distribution by Smoking Status (NHANES)"
+  ) +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
+```
+
+```{r nhanes-bmi-test}
+smokers <- nhanes_bmi[SmokeNow == "Yes", BMI]
+nonsmokers <- nhanes_bmi[SmokeNow == "No", BMI]
+
+t.test(nonsmokers, smokers)
+```
+
+The data are clearly non-normal (right-skewed), yet the t-test remains valid here because the sample sizes are large -- the CLT ensures that $\bar{X}$ is approximately normal regardless of the parent distribution. This is the *robustness* of the t-test: for large samples, moderate departures from normality have little effect on the Type I error rate. We shall examine when this robustness breaks down in Part 3 of this chapter.
+
+---
+
+## Communicating to Stakeholders
+
+When reporting a t-test to a non-technical audience:
+
+1. **State the question** in plain language: "We asked whether Gentoo penguins have longer flippers than Adelie penguins."
+2. **Give the effect size** first: "On average, Gentoo flippers are 27 mm longer (217 mm vs 190 mm)."
+3. **Follow with the uncertainty statement**: "This difference is far too large to be explained by chance alone (t = -30.7, p < 0.001)."
+4. **Contextualise**: "A difference of 27 mm is roughly 14% of the average flipper length, which is biologically substantial."
+5. **Avoid jargon**: say "the difference is unlikely to be due to chance" rather than "we reject the null hypothesis at the 5% significance level."
+
+---
+
+## Quick Reference
+
+| Test | Null hypothesis | Test statistic | Null distribution | R function |
+|---|---|---|---|---|
+| One-sample t | $\mu = \mu_0$ | $T = \frac{\bar{X} - \mu_0}{S/\sqrt{n}}$ | $t_{n-1}$ | `t.test(x, mu=)` |
+| Two-sample (pooled) | $\mu_1 = \mu_2$ | $T = \frac{\bar{X} - \bar{Y}}{S_p\sqrt{1/n_1+1/n_2}}$ | $t_{n_1+n_2-2}$ | `t.test(x, y, var.equal=TRUE)` |
+| Welch | $\mu_1 = \mu_2$ | $T = \frac{\bar{X} - \bar{Y}}{\sqrt{S_1^2/n_1+S_2^2/n_2}}$ | $\approx t_\nu$ | `t.test(x, y)` |
+| Paired t | $\mu_D = 0$ | $T = \frac{\bar{D}}{S_D/\sqrt{n}}$ | $t_{n-1}$ | `t.test(x, y, paired=TRUE)` |
+
+---
+
+## Exercises
+
+**Exercise 11.1.** A manufacturer claims that their energy bars contain an average of 250 kcal. You measure 15 bars and find $\bar{x} = 243$ kcal with $s = 12$ kcal. Conduct a two-sided one-sample t-test at $\alpha = 0.05$. State your conclusion.
+
+**Exercise 11.2.** Show algebraically that the paired t-statistic is identical to the one-sample t-statistic applied to the differences $D_i = X_i - Y_i$. That is, show that
+
+$$\frac{\bar{X} - \bar{Y}}{S_D / \sqrt{n}} = \frac{\bar{D}}{S_D / \sqrt{n}}.$$
+
+**Exercise 11.3.** Simulate the following: draw 10,000 samples of size $n=10$ from a standard normal distribution and compute the one-sample t-statistic (testing $\mu=0$) each time. Plot a histogram of the 10,000 t-statistics overlaid with the $t_9$ density. What happens when you repeat the exercise drawing from an exponential distribution?
+
+**Exercise 11.4.** Using the penguins data, test whether the mean body mass of Chinstrap penguins differs from that of Adelie penguins. Report the test statistic, degrees of freedom, p-value, and Cohen's d. Interpret all four quantities in context.
+
+**Exercise 11.5.** Two instructors each teach a section of the same course. Instructor A's 30 students have a mean exam score of 74.2 with $s = 9.1$. Instructor B's 28 students have a mean of 78.6 with $s = 10.3$. Is there evidence of a difference between the two sections? Which variant of the two-sample t-test should you use, and why?
+
+**Exercise 11.6.** A study measures reaction times of 12 participants before and after consuming caffeine. Explain why a paired test is appropriate. Then propose a scenario with two groups of 12 participants each where an *unpaired* test would be correct. What is the key design difference?

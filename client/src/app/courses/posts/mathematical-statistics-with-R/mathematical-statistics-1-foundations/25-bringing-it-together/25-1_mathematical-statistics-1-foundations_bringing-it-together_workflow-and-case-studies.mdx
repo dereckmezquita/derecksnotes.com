@@ -1,0 +1,308 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 25: Bringing It Together"
+part: "Part 1: Workflow and Case Studies"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, workflow, case-study, nhanes, logistic-regression, bayesian, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 25 -- Bringing It Together
+
+## Part 1: Workflow and Case Studies
+
+We have covered a great deal of ground: from descriptive statistics (Chapter 1) through probability, estimation, testing, regression, GLMs, and Bayesian methods. But these tools are not meant to be used in isolation. A real statistical analysis follows a **workflow** -- a structured sequence of decisions, each informed by the previous step.
+
+In this final chapter we codify the statistical workflow, then apply the full pipeline to two extended case studies that draw on methods from across the book.
+
+---
+
+## 25.1 The Statistical Workflow
+
+Every good analysis follows seven stages:
+
+$$\text{Question} \to \text{Design} \to \text{Collect} \to \text{Explore} \to \text{Model} \to \text{Check} \to \text{Interpret}$$
+
+### Stage 1: Question
+
+State the scientific question precisely. A vague question ("Is X related to Y?") produces a vague analysis. A precise question ("Does smoking during pregnancy reduce birthweight by more than 200 grams, after adjusting for maternal Age, Weight, and race?") dictates the model, the outcome, and the measure of effect.
+
+### Stage 2: Design
+
+Choose the study type (Chapter 24). Calculate the required sample size. Specify the primary outcome and the analysis plan **before** looking at data.
+
+### Stage 3: Collect
+
+Gather data according to the design. Document the process -- missing data, measurement protocols, deviations from the plan.
+
+### Stage 4: Explore
+
+Chapters 1-3 in action: compute summary statistics, visualise distributions, check for outliers, examine missingness patterns. **Never skip this step.** Exploration often reveals data quality issues that invalidate downstream models.
+
+### Stage 5: Model
+
+Select and fit a model appropriate for the data type and question. This may be a $t$-test (Chapter 11), a linear regression (Chapters 15-17), a GLM (Chapters 19-21), or a Bayesian model (Chapters 22-23).
+
+### Stage 6: Check
+
+Diagnose the model (Chapter 17): residual plots, influence measures, goodness-of-fit tests. If diagnostics reveal violations, return to Stage 5 and modify the model.
+
+### Stage 7: Interpret
+
+Translate statistical results into answers to the original question. Report effect sizes, confidence or credible intervals, and caveats. Communicate findings clearly to the intended audience.
+
+---
+
+## 25.2 Case Study 1: NHANES Full Analysis
+
+### 25.2.1 Question
+
+**Does systolic blood pressure depend on Age, BMI, and Gender in US adults, and how strong is the association?**
+
+### 25.2.2 Data Loading and Exploration
+
+
+``` r
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+cols_needed <- c("BPSysAve", "Age", "BMI", "Gender", "Height", "Weight", "Diabetes")
+nhanes_bp <- nhanes[complete.cases(nhanes[, ..cols_needed])]
+nhanes_bp <- nhanes_bp[Age >= 18]
+
+sprintf("Complete cases (adults): %d", nrow(nhanes_bp))
+```
+
+```
+[1] "Complete cases (adults): 7150"
+```
+
+
+``` r
+summary(nhanes_bp[, .(BPSysAve, Age, BMI)])
+nhanes_bp[, .N, by = Gender]
+```
+
+```
+    BPSysAve          Age             BMI       
+ Min.   : 78.0   Min.   :18.00   Min.   :15.02  
+ 1st Qu.:109.0   1st Qu.:31.00   1st Qu.:23.94  
+ Median :118.0   Median :45.00   Median :27.62  
+ Mean   :120.7   Mean   :46.23   Mean   :28.69  
+ 3rd Qu.:129.0   3rd Qu.:59.00   3rd Qu.:32.10  
+ Max.   :226.0   Max.   :80.00   Max.   :81.25  
+   Gender     N
+   <char> <int>
+1:   male  3549
+2: female  3601
+```
+
+
+``` r
+ggplot2$ggplot(nhanes_bp, ggplot2$aes(x = BPSysAve, fill = Gender)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, alpha = 0.6, colour = "white", position = "identity"
+  ) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$labs(
+    x = "Systolic blood pressure (mmHg)", y = "Density",
+    title = "Distribution of systolic blood pressure by gender (NHANES)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="nhanes-eda-1-1.png" alt="Distribution of systolic blood pressure by gender. Both distributions are right-skewed with a few high values.">
+	Distribution of systolic blood pressure by gender. Both distributions are right-skewed with a few high values.
+</Figure>
+
+
+``` r
+eda_long <- data.table$melt(
+  nhanes_bp[, .(BPSysAve, Age, BMI)],
+  id.vars = "BPSysAve",
+  variable.name = "predictor",
+  value.name = "value"
+)
+
+ggplot2$ggplot(eda_long, ggplot2$aes(x = value, y = BPSysAve)) +
+  ggplot2$geom_point(alpha = 0.1, colour = "#0072B2", size = 0.5) +
+  ggplot2$geom_smooth(method = "loess", colour = "#D55E00", linewidth = 1) +
+  ggplot2$facet_wrap(~ predictor, scales = "free_x") +
+  ggplot2$labs(
+    x = "Predictor value", y = "Systolic BP (mmHg)",
+    title = "Systolic blood pressure vs Age and BMI"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="nhanes-eda-2-1.png" alt="Scatterplots of systolic blood pressure against Age and BMI. Both show positive associations.">
+	Scatterplots of systolic blood pressure against Age and BMI. Both show positive associations.
+</Figure>
+
+### 25.2.3 Model Fitting
+
+
+``` r
+fit_bp <- lm(BPSysAve ~ Age + BMI + Gender, data = nhanes_bp)
+summary(fit_bp)
+```
+
+```
+
+Call:
+lm(formula = BPSysAve ~ Age + BMI + Gender, data = nhanes_bp)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-56.067  -9.333  -1.043   7.914 103.097 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept) 91.73131    0.91896   99.82   <2e-16 ***
+Age          0.40608    0.01037   39.16   <2e-16 ***
+BMI          0.27634    0.02681   10.31   <2e-16 ***
+Gendermale   4.58875    0.35967   12.76   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 15.19 on 7146 degrees of freedom
+Multiple R-squared:  0.2027,	Adjusted R-squared:  0.2024 
+F-statistic: 605.7 on 3 and 7146 DF,  p-value: < 2.2e-16
+```
+
+
+``` r
+anova(fit_bp)
+```
+
+```
+Analysis of Variance Table
+
+Response: BPSysAve
+            Df  Sum Sq Mean Sq F value    Pr(>F)    
+Age          1  356743  356743 1546.60 < 2.2e-16 ***
+BMI          1   24843   24843  107.70 < 2.2e-16 ***
+Gender       1   37545   37545  162.77 < 2.2e-16 ***
+Residuals 7146 1648320     231                      
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+### 25.2.4 Diagnostics
+
+
+``` r
+diag_dt <- data.table$data.table(
+  fitted = fitted(fit_bp),
+  residuals = residuals(fit_bp),
+  std_resid = rstandard(fit_bp)
+)
+
+p1 <- ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = residuals)) +
+  ggplot2$geom_point(alpha = 0.1, colour = "#0072B2", size = 0.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$geom_smooth(method = "loess", colour = "#009E73", se = FALSE) +
+  ggplot2$labs(x = "Fitted values", y = "Residuals", title = "Residuals vs Fitted") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p2 <- ggplot2$ggplot(diag_dt, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(alpha = 0.1, colour = "#0072B2", size = 0.5) +
+  ggplot2$geom_qq_line(colour = "#D55E00") +
+  ggplot2$labs(x = "Theoretical quantiles", y = "Standardised residuals", title = "Normal Q-Q") +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="nhanes-diag-1.png" alt="Regression diagnostics for the blood pressure model. Residuals are approximately normal with mild heteroscedasticity at high fitted values.">
+	Regression diagnostics for the blood pressure model. Residuals are approximately normal with mild heteroscedasticity at high fitted values.
+</Figure>
+
+### 25.2.5 Interpretation
+
+
+``` r
+coef_ci <- cbind(Estimate = coef(fit_bp), confint(fit_bp))
+knitr::kable(round(coef_ci, 3),
+             caption = "Coefficients and 95% confidence intervals for the blood pressure model.")
+```
+
+
+
+Table: Coefficients and 95% confidence intervals for the blood pressure model.
+
+|            | Estimate|  2.5 %| 97.5 %|
+|:-----------|--------:|------:|------:|
+|(Intercept) |   91.731| 89.930| 93.533|
+|Age         |    0.406|  0.386|  0.426|
+|BMI         |    0.276|  0.224|  0.329|
+|Gendermale  |    4.589|  3.884|  5.294|
+
+
+``` r
+r2 <- summary(fit_bp)$r.squared
+adj_r2 <- summary(fit_bp)$adj.r.squared
+sprintf("R-squared: %.4f, Adjusted R-squared: %.4f", r2, adj_r2)
+```
+
+```
+[1] "R-squared: 0.2027, Adjusted R-squared: 0.2024"
+```
+
+**Key findings:**
+
+- Each additional year of Age is associated with an increase of approximately 0.41 mmHg in systolic BP ($p < 0.001$).
+- Each unit increase in BMI is associated with an increase of approximately 0.28 mmHg.
+- Males have higher systolic BP than females by approximately 4.6 mmHg.
+- The model explains about 20.3% of the variation in systolic BP. Much remains unexplained -- blood pressure depends on many factors not in our model (genetics, medication, diet, physical activity).
+
+---
+
+## 25.3 Case Study 2: Birthweight -- Frequentist, ROC, and Bayesian
+
+### 25.3.1 Question
+
+**Can we predict low birthweight from maternal characteristics, and does a Bayesian analysis add value?**
+
+### 25.3.2 Data Preparation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,122 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 23: Computational Bayesian Methods"
+part: "Part 2: Diagnostics and Practice"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, mcmc-diagnostics, rstanarm, brms, bayesian-regression, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 23 -- Computational Bayesian Methods
+
+## Part 2: Diagnostics and Practice
+
+In Part 1 we built MCMC algorithms from scratch. But how do we know the chain has converged? A chain that has not converged gives misleading results -- the posterior summaries are wrong. In this part we develop diagnostic tools, learn to recognise good and bad convergence, and then graduate to production-quality Bayesian software with `rstanarm` and `brms`.
+
+---
+
+## 23.5 Convergence Diagnostics
+
+### 23.5.1 The Fundamental Problem
+
+MCMC theory guarantees convergence **in the limit**. In practice we run a finite chain and must decide: has it converged *enough*? There is no definitive test, but several diagnostics help.
+
+### 23.5.2 Trace Plots
+
+The simplest diagnostic: plot the chain against iteration. A well-mixed chain looks like a "fat, hairy caterpillar" -- stationary, with no trends or long excursions.
+
+
+``` r
+set.seed(42)
+
+log_posterior <- function(mu, y_bar, n, sigma) {
+  -n / (2 * sigma^2) * (mu - y_bar)^2 + dt(mu, df = 1, log = TRUE)
+}
+
+mh_chain <- function(n_iter, sigma_prop, start, y_bar, n, sigma) {
+  chain <- numeric(n_iter)
+  chain[1] <- start
+  for (t in 2:n_iter) {
+    proposal <- rnorm(1, chain[t - 1], sigma_prop)
+    log_alpha <- log_posterior(proposal, y_bar, n, sigma) -
+                 log_posterior(chain[t - 1], y_bar, n, sigma)
+    if (log(runif(1)) < log_alpha) chain[t] <- proposal
+    else chain[t] <- chain[t - 1]
+  }
+  chain
+}
+
+y_obs <- rnorm(30, 5, 2)
+good_chain <- mh_chain(5000, 1.5, 0, mean(y_obs), 30, 2)
+bad_chain <- mh_chain(5000, 0.05, -10, mean(y_obs), 30, 2)
+
+trace_dt <- data.table$data.table(
+  iteration = rep(1:5000, 2),
+  mu = c(good_chain, bad_chain),
+  quality = rep(c("Good mixing (sigma=1.5)", "Poor mixing (sigma=0.05, bad start)"), each = 5000)
+)
+
+ggplot2$ggplot(trace_dt, ggplot2$aes(x = iteration, y = mu)) +
+  ggplot2$geom_line(alpha = 0.5, colour = "#0072B2") +
+  ggplot2$geom_hline(yintercept = mean(y_obs), linetype = "dashed", colour = "#D55E00") +
+  ggplot2$facet_wrap(~ quality, ncol = 1, scales = "free_y") +
+  ggplot2$labs(x = "Iteration", y = expression(mu), title = "Trace plots: good vs poor mixing") +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+<Figure src="trace-examples-1.png" alt="Good vs bad mixing. Left: a well-mixed chain oscillates rapidly around the posterior mean. Right: a poorly-mixed chain drifts and gets stuck.">
+	Good vs bad mixing. Left: a well-mixed chain oscillates rapidly around the posterior mean. Right: a poorly-mixed chain drifts and gets stuck.
+</Figure>
+
+### 23.5.3 The Gelman-Rubin Statistic ($\hat{R}$)
+
+Run $M$ chains from **dispersed starting points**. If they have all converged to the same distribution, the between-chain variance $B$ should be small relative to the within-chain variance $W$.
+
+$$\hat{R} = \sqrt{\frac{\hat{V}}{W}}$$
+
+where $\hat{V} = \frac{n-1}{n} W + \frac{1}{n} B$ is the pooled variance estimate.
+
+- $\hat{R} \approx 1$ indicates convergence.
+- $\hat{R} > 1.1$ suggests the chains have not mixed.
+- Modern recommendations use $\hat{R} < 1.01$.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

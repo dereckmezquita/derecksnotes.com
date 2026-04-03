@@ -27,7 +27,7 @@ knitr::knit_hooks$set(optipng = knitr::hook_optipng)
 knitr::opts_chunk$set(
   dpi = 300,
   fig.width = 10,
-  fig.height = 7,
+  fig.Height = 7,
   comment = "",
   warning = FALSE,
   collapse = FALSE,
@@ -206,11 +206,11 @@ Let us see this effect with real data. The NHANES dataset contains household inc
 box::use(ggplot2)
 
 # BMI data from NHANES -- right-skewed
-bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
 
-my_mean(bmi)
-median(bmi)
-my_mean(bmi) - median(bmi)
+my_mean(BMI)
+median(BMI)
+my_mean(BMI) - median(BMI)
 ```
 
 The mean BMI is slightly larger than the median, which is characteristic of right-skewed data. The long right tail (very high BMI values) pulls the mean upward.
@@ -306,20 +306,20 @@ fl_mean <- my_mean(fl)
 fl_median <- my_median(fl)
 
 # Right-skewed: NHANES BMI
-bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
-bmi_mean <- my_mean(bmi)
-bmi_median <- my_median(bmi)
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
+bmi_mean <- my_mean(BMI)
+bmi_median <- my_median(BMI)
 
 # Estimate mode from density
 fl_dens <- density(fl)
 fl_mode <- fl_dens$x[which.max(fl_dens$y)]
 
-bmi_dens <- density(bmi)
+bmi_dens <- density(BMI)
 bmi_mode <- bmi_dens$x[which.max(bmi_dens$y)]
 
 # Build combined data for faceted plot
 dt_fl <- data.table$data.table(value = fl, dataset = "Penguin Flipper Length (mm)")
-dt_bmi <- data.table$data.table(value = bmi, dataset = "NHANES BMI")
+dt_bmi <- data.table$data.table(value = BMI, dataset = "NHANES BMI")
 dt_combined <- data.table$rbindlist(list(dt_fl, dt_bmi))
 
 # Summary lines
@@ -397,16 +397,16 @@ my_trimmed_mean <- function(x, trim = 0.1) {
 }
 
 # Compare trimming fractions on BMI
-bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
 
 trims <- c(0.00, 0.05, 0.10, 0.25, 0.50)
 data.table$data.table(
   trim_fraction = trims,
-  trimmed_mean = vapply(trims, function(t) my_trimmed_mean(bmi, t), numeric(1))
+  trimmed_mean = vapply(trims, function(t) my_trimmed_mean(BMI, t), numeric(1))
 )
 
 # Verify against built-in
-mean(bmi, trim = 0.10)
+mean(BMI, trim = 0.10)
 ```
 
 As we trim more, the result moves from the mean toward the median. Trimmed means are **robust** -- they are less affected by outliers than the ordinary mean. We shall formalise the concept of robustness in Chapter 13 (Nonparametric Methods).

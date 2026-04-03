@@ -1,0 +1,569 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 13: Nonparametric Methods"
+part: "Part 1: Permutation and Rank Tests"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, nonparametric, permutation-test, rank-test, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r dt-helpers, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 13 -- Nonparametric Methods
+
+## Part 1: Permutation and Rank Tests
+
+Every test we have encountered so far -- the $z$-test, the $t$-test, the $F$-test -- rests on a distributional assumption: the data come from a normal population (or at least, the sampling distribution of the test statistic is known under the null). When those assumptions hold, parametric tests are powerful and efficient. When they fail -- because the data are heavily skewed, contain outliers, or sit on an ordinal scale -- the $p$-values they produce can be wildly wrong.
+
+**Nonparametric methods** sidestep distributional assumptions. Instead of assuming a model for the population, they operate directly on the **ranks** or **permutations** of the observed data. The price is modest: a small loss of power when the parametric assumptions happen to hold. The gain is substantial: valid inference under far weaker conditions.
+
+This chapter develops three families of distribution-free procedures:
+
+1. **Permutation tests** -- the conceptual foundation. We build a null distribution by enumerating (or sampling) rearrangements of the data.
+2. **Wilcoxon signed-rank test** -- a rank-based alternative to the paired $t$-test.
+3. **Mann--Whitney $U$ test** -- a rank-based alternative to the two-sample $t$-test.
+
+We derive the logic from scratch, implement every procedure in R before calling built-in functions, and close with a simulation that compares rank-based power to parametric power under varying distributional assumptions.
+
+---
+
+## 13.1 Permutation Tests
+
+### 13.1.1 The Core Idea
+
+Suppose we observe two groups -- treatment and control -- and want to test whether the treatment shifts the mean (or median, or any summary). The null hypothesis states:
+
+$$H_0: \text{The treatment label is irrelevant -- outcomes are exchangeable between groups.}$$
+
+Under $H_0$, every possible assignment of observations to groups is equally likely. The permutation test makes this idea operational:
+
+1. Compute the observed test statistic $T_{\text{obs}}$ (e.g., difference in means).
+2. Generate every possible relabelling of observations to groups (or a large random sample of relabellings).
+3. For each relabelling, compute the same statistic $T^*$.
+4. The permutation $p$-value is the proportion of relabellings for which $|T^*| \ge |T_{\text{obs}}|$.
+
+No distributional assumptions are needed. The null distribution is constructed entirely from the data.
+
+### 13.1.2 Why It Works: Exchangeability
+
+Under $H_0$, the joint distribution of the data is invariant to permutations of the group labels. Formally, if $\mathbf{Z} = (Z_1, \ldots, Z_N)$ are the pooled observations and $\pi$ is any permutation of $\{1, \ldots, N\}$, then under $H_0$:
+
+$$P(\mathbf{Z}) = P(\mathbf{Z}_\pi).$$
+
+This exchangeability is weaker than independence and weaker than any parametric model -- it follows directly from the null hypothesis that groups are identical.
+
+### 13.1.3 Implementation from Scratch
+
+We use the Palmer penguins data to test whether Adelie and Chinstrap penguins differ in body mass.
+
+```{r load-packages}
+box::use(data.table)
+box::use(ggplot2)
+
+set.seed(42)
+```
+
+```{r load-penguins}
+data_dir <- "../../../data"
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+
+# Keep complete cases for body_mass_g and the two species
+pen2 <- penguins[
+  species %in% c("Adelie", "Chinstrap") & !is.na(body_mass_g),
+  .(species, body_mass_g)
+]
+
+pen2[, .N, by = species]
+```
+
+```{r permutation-from-scratch}
+#' Permutation test for difference in means (two-sample)
+#' @param x numeric vector -- group 1 observations
+#' @param y numeric vector -- group 2 observations
+#' @param n_perm integer -- number of random permutations
+#' @return list with observed statistic, permutation distribution, and p-value
+permutation_test <- function(x, y, n_perm = 9999L) {
+  pooled <- c(x, y)
+  n_x <- length(x)
+  n_total <- length(pooled)
+  t_obs <- mean(x) - mean(y)
+
+  t_perm <- numeric(n_perm)
+  for (i in seq_len(n_perm)) {
+    idx <- sample.int(n_total, n_x)
+    t_perm[i] <- mean(pooled[idx]) - mean(pooled[-idx])
+  }
+
+  p_value <- (sum(abs(t_perm) >= abs(t_obs)) + 1) / (n_perm + 1)
+  list(
+    observed = t_obs,
+    distribution = t_perm,
+    p_value = p_value
+  )
+}
+
+adelie <- pen2[species == "Adelie", body_mass_g]
+chinstrap <- pen2[species == "Chinstrap", body_mass_g]
+
+perm_result <- permutation_test(adelie, chinstrap)
+perm_result$observed
+perm_result$p_value
+```
+
+The `+1` in both numerator and denominator is the standard correction that includes the observed arrangement itself -- it ensures the $p$-value is never exactly zero and is a valid test.
+
+```{r perm-distribution-plot, fig.cap="Permutation null distribution for the difference in mean body mass (Adelie minus Chinstrap). The red dashed line marks the observed statistic."}
+perm_dt <- data.table$data.table(t_star = perm_result$distribution)
+
+ggplot2$ggplot(perm_dt, ggplot2$aes(x = t_star)) +
+  ggplot2$geom_histogram(
+    bins = 60,
+    fill = "#3182bd",
+    colour = "white",
+    alpha = 0.8
+  ) +
+  ggplot2$geom_vline(
+    xintercept = perm_result$observed,
+    colour = "red",
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  ggplot2$geom_vline(
+    xintercept = -perm_result$observed,
+    colour = "red",
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  ggplot2$labs(
+    x = "Permutation statistic (difference in means)",
+    y = "Count",
+    title = "Permutation null distribution"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+### 13.1.4 Comparison with the Two-Sample $t$-Test
+
+```{r t-test-comparison}
+t_result <- t.test(adelie, chinstrap, var.equal = FALSE)
+t_result
+```
+
+Both tests should agree when the data are reasonably symmetric. The permutation test makes no normality assumption; the $t$-test is an approximation that happens to be excellent here because of the moderate sample sizes and the central limit theorem.
+
+### 13.1.5 Exact versus Approximate Permutation Tests
+
+For two groups of sizes $n_1$ and $n_2$, the total number of distinct permutations is $\binom{n_1 + n_2}{n_1}$. When this is small enough (say, $< 100{,}000$), we can enumerate all permutations -- an **exact** permutation test. When the number is large, we sample $B$ random permutations and obtain a **Monte Carlo** approximation. The Monte Carlo error on the $p$-value is $O(1/\sqrt{B})$, so $B = 9{,}999$ gives roughly two decimal places of accuracy.
+
+---
+
+## 13.2 Wilcoxon Signed-Rank Test
+
+### 13.2.1 The Setting
+
+We have $n$ paired observations $(X_1, Y_1), \ldots, (X_n, Y_n)$ and wish to test $H_0{:}$ the distribution of $D_i = X_i - Y_i$ is symmetric about zero. This is the nonparametric analogue of the paired $t$-test.
+
+### 13.2.2 Deriving the Procedure
+
+1. Compute the differences $D_i = X_i - Y_i$.
+2. Discard any $D_i = 0$ (ties with zero).
+3. Rank the absolute differences $|D_1|, \ldots, |D_n|$ from smallest to largest.
+4. Assign to each rank the sign of the original $D_i$.
+5. The test statistic is the sum of the *positive* signed ranks:
+
+$$W^+ = \sum_{i: D_i > 0} R_i,$$
+
+where $R_i$ is the rank of $|D_i|$ among all $|D_j|$.
+
+Under $H_0$, each rank is equally likely to be positive or negative. The null distribution of $W^+$ can therefore be constructed by enumerating all $2^n$ possible sign assignments.
+
+### 13.2.3 Expected Value and Variance Under $H_0$
+
+Under the null, each rank $r$ contributes $r$ to $W^+$ with probability $1/2$ and $0$ with probability $1/2$. So:
+
+$$E[W^+] = \frac{1}{2} \sum_{r=1}^{n} r = \frac{n(n+1)}{4}.$$
+
+Because the sign assignments are independent:
+
+$$\text{Var}(W^+) = \frac{1}{4} \sum_{r=1}^{n} r^2 = \frac{n(n+1)(2n+1)}{24}.$$
+
+For large $n$, $W^+$ is approximately normal, giving the familiar $z$-approximation.
+
+### 13.2.4 Implementation from Scratch
+
+We use the scurvy data set. Patients received different treatments; we compare ordinal outcomes. For illustration we create paired differences from two treatment groups.
+
+```{r load-scurvy}
+scurvy <- data.table$fread(file.path(data_dir, "medical/scurvy.csv"))
+str(scurvy)
+```
+
+```{r recode-scurvy}
+# Recode ordinal gum_rot_d6 to numeric scores
+score_map <- c("0_none" = 0, "1_mild" = 1, "2_moderate" = 2, "3_severe" = 3)
+
+scurvy[, gum_score := score_map[gum_rot_d6]]
+
+# Compare cider vs vinegar treatments
+cider   <- scurvy[treatment == "cider", gum_score]
+vinegar <- scurvy[treatment == "dilute_sulfuric_acid", gum_score]
+
+# Ensure equal lengths for pairing (take minimum)
+n_pairs <- min(length(cider), length(vinegar))
+d <- cider[1:n_pairs] - vinegar[1:n_pairs]
+d
+```
+
+```{r wilcoxon-from-scratch}
+#' Wilcoxon signed-rank test -- implemented from scratch
+#' @param d numeric vector of paired differences
+#' @return list with W+, expected, variance, z-score, and p-value
+my_wilcoxon_signed_rank <- function(d) {
+  # Remove zeros
+  d <- d[d != 0]
+  n <- length(d)
+
+  if (n == 0) return(list(W_plus = 0, p_value = 1))
+
+  ranks <- rank(abs(d))
+  W_plus <- sum(ranks[d > 0])
+
+  # Null moments
+
+  E_W <- n * (n + 1) / 4
+  V_W <- n * (n + 1) * (2 * n + 1) / 24
+
+  # Normal approximation with continuity correction
+  z <- (W_plus - E_W) / sqrt(V_W)
+  p_value <- 2 * pnorm(-abs(z))
+
+  list(
+    W_plus = W_plus,
+    E_W = E_W,
+    V_W = V_W,
+    z = z,
+    p_value = p_value,
+    n = n
+  )
+}
+
+my_wilcoxon_signed_rank(d)
+```
+
+```{r wilcoxon-builtin}
+# Compare with R's built-in (when enough data)
+if (length(d[d != 0]) >= 2) {
+  wilcox.test(d, exact = FALSE, correct = TRUE)
+}
+```
+
+### 13.2.5 Exact Distribution for Small Samples
+
+When $n$ is small (say, $n \le 20$), we enumerate all $2^n$ sign assignments to build the exact null distribution of $W^+$.
+
+```{r exact-wilcoxon, fig.cap="Exact null distribution of W+ for n = 6. Every bar represents one possible value of the signed-rank sum; each has a probability given by the number of sign assignments producing that value divided by 2^6 = 64."}
+exact_null_W <- function(n) {
+  ranks <- 1:n
+  W_values <- numeric(2^n)
+  for (k in 0:(2^n - 1)) {
+    signs <- as.integer(intToBits(k))[1:n]
+    W_values[k + 1] <- sum(ranks[signs == 1])
+  }
+  W_values
+}
+
+n_demo <- 6
+null_dist <- exact_null_W(n_demo)
+null_dt <- data.table$data.table(W = null_dist)
+null_dt <- null_dt[, .(prob = .N / length(null_dist)), by = W]
+
+ggplot2$ggplot(null_dt, ggplot2$aes(x = W, y = prob)) +
+  ggplot2$geom_col(fill = "#2ca02c", alpha = 0.8) +
+  ggplot2$labs(
+    x = expression(W^"+"),
+    y = "Probability",
+    title = paste0("Exact null distribution of W+ (n = ", n_demo, ")")
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+---
+
+## 13.3 Mann--Whitney $U$ Test
+
+### 13.3.1 The Setting
+
+We have two independent samples $X_1, \ldots, X_{n_1}$ and $Y_1, \ldots, Y_{n_2}$ and wish to test $H_0{:}$ the two populations have the same distribution. This is the nonparametric counterpart of the independent-samples $t$-test.
+
+### 13.3.2 Deriving the Logic
+
+1. Pool all $N = n_1 + n_2$ observations and rank them $1, 2, \ldots, N$.
+2. Let $R_1, R_2, \ldots, R_{n_1}$ be the ranks of the first sample in the pooled ranking.
+3. The **Wilcoxon rank-sum statistic** is $W = \sum_{i=1}^{n_1} R_i$.
+4. The Mann--Whitney $U$ statistic is related by:
+
+$$U = W - \frac{n_1(n_1 + 1)}{2}.$$
+
+$U$ counts the number of pairs $(X_i, Y_j)$ where $X_i > Y_j$. Under $H_0$, each pair is equally likely to favour either group, so:
+
+$$E[U] = \frac{n_1 n_2}{2}, \qquad \text{Var}(U) = \frac{n_1 n_2 (n_1 + n_2 + 1)}{12}.$$
+
+### 13.3.3 Implementation from Scratch
+
+```{r mann-whitney-from-scratch}
+#' Mann-Whitney U test -- implemented from scratch
+#' @param x numeric vector -- group 1
+#' @param y numeric vector -- group 2
+#' @return list with U, z-score, and p-value
+my_mann_whitney <- function(x, y) {
+  n1 <- length(x)
+  n2 <- length(y)
+  pooled <- c(x, y)
+  ranks <- rank(pooled)
+
+  W <- sum(ranks[1:n1])
+  U <- W - n1 * (n1 + 1) / 2
+
+  E_U <- n1 * n2 / 2
+  V_U <- n1 * n2 * (n1 + n2 + 1) / 12
+
+  z <- (U - E_U) / sqrt(V_U)
+  p_value <- 2 * pnorm(-abs(z))
+
+  list(
+    U = U,
+    W = W,
+    E_U = E_U,
+    V_U = V_U,
+    z = z,
+    p_value = p_value
+  )
+}
+
+mw_result <- my_mann_whitney(adelie, chinstrap)
+mw_result
+```
+
+```{r mann-whitney-builtin}
+wilcox.test(adelie, chinstrap, exact = FALSE, correct = TRUE)
+```
+
+### 13.3.4 Intuition: Counting Victories
+
+$U$ has a beautiful combinatorial interpretation. For every pair $(X_i, Y_j)$, score a "win" for $X$ if $X_i > Y_j$, a "loss" if $X_i < Y_j$, and half a point for a tie. Then $U$ equals the total number of wins for $X$. Under the null (identical distributions), $X$ wins and loses equally often, so $U$ centres at $n_1 n_2 / 2$.
+
+```{r counting-victories}
+# Explicit counting
+victories <- outer(adelie, chinstrap, FUN = function(a, b) {
+  ifelse(a > b, 1, ifelse(a == b, 0.5, 0))
+})
+sum(victories)
+mw_result$U
+```
+
+---
+
+## 13.4 Rank-Based Power Comparison via Simulation
+
+How do rank tests compare to parametric tests? We run a simulation varying the population distribution.
+
+### 13.4.1 Design
+
+- Two groups, each of size $n = 30$.
+- The true shift between groups is $\delta = 0.5$ (in units of the scale parameter).
+- We simulate from four distributions: Normal, $t_3$ (heavy-tailed), Exponential (skewed), and Uniform.
+- For each distribution we run 2,000 replications and record whether each of four tests rejects at $\alpha = 0.05$: the two-sample $t$-test, the permutation test, the Mann--Whitney $U$, and the Wilcoxon rank-sum (which is equivalent to Mann--Whitney but we include both to show consistency).
+
+```{r power-simulation}
+set.seed(42)
+n <- 30
+delta <- 0.5
+n_sim <- 2000
+alpha <- 0.05
+
+distributions <- list(
+  Normal = function(n) rnorm(n),
+  t3 = function(n) rt(n, df = 3),
+  Exponential = function(n) rexp(n),
+  Uniform = function(n) runif(n, -1, 1)
+)
+
+results <- data.table$data.table()
+
+for (dist_name in names(distributions)) {
+  r_gen <- distributions[[dist_name]]
+  reject_t <- 0
+  reject_perm <- 0
+  reject_mw <- 0
+
+  for (sim in seq_len(n_sim)) {
+    x <- r_gen(n) + delta
+    y <- r_gen(n)
+
+    # t-test
+    p_t <- t.test(x, y)$p.value
+    reject_t <- reject_t + (p_t < alpha)
+
+    # Quick permutation test (fewer permutations for speed)
+    pooled <- c(x, y)
+    t_obs <- mean(x) - mean(y)
+    t_perm <- replicate(999, {
+      idx <- sample.int(2 * n, n)
+      mean(pooled[idx]) - mean(pooled[-idx])
+    })
+    p_perm <- (sum(abs(t_perm) >= abs(t_obs)) + 1) / 1000
+    reject_perm <- reject_perm + (p_perm < alpha)
+
+    # Mann-Whitney
+    p_mw <- wilcox.test(x, y, exact = FALSE)$p.value
+    reject_mw <- reject_mw + (p_mw < alpha)
+  }
+
+  results <- data.table$rbindlist(list(results, data.table$data.table(
+    distribution = rep(dist_name, 3),
+    test = c("t-test", "Permutation", "Mann-Whitney"),
+    power = c(reject_t, reject_perm, reject_mw) / n_sim
+  )))
+}
+
+results
+```
+
+```{r power-plot, fig.cap="Empirical power at alpha = 0.05 across four population distributions. The Mann-Whitney test matches or exceeds the t-test under heavy tails and skewness, losing only slightly under normality."}
+ggplot2$ggplot(
+  results,
+  ggplot2$aes(x = distribution, y = power, fill = test)
+) +
+  ggplot2$geom_col(position = "dodge", alpha = 0.85) +
+  ggplot2$scale_fill_manual(values = c(
+    "t-test" = "#1f77b4",
+    "Permutation" = "#ff7f0e",
+    "Mann-Whitney" = "#2ca02c"
+  )) +
+  ggplot2$geom_hline(
+    yintercept = 0.05,
+    linetype = "dashed",
+    colour = "grey50"
+  ) +
+  ggplot2$labs(
+    x = "Population distribution",
+    y = "Empirical power",
+    fill = "Test",
+    title = "Power comparison: parametric vs nonparametric"
+  ) +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
+```
+
+### 13.4.2 Interpretation
+
+The key findings from the simulation:
+
+- Under **normality**, the $t$-test is slightly more powerful -- it is the uniformly most powerful unbiased test when its assumptions hold (Neyman--Pearson theory applies).
+- Under **heavy tails** ($t_3$), the Mann--Whitney and permutation tests substantially outperform the $t$-test. Outliers inflate the variance estimate, weakening the $t$-statistic.
+- Under **skewness** (Exponential), nonparametric methods again dominate.
+- The **Asymptotic Relative Efficiency** (ARE) of the Mann--Whitney versus the $t$-test under normality is $3/\pi \approx 0.955$. This means even in the best case for the $t$-test, rank methods lose less than 5% efficiency.
+
+The conclusion is clear: rank tests are an excellent default. They sacrifice almost nothing under normality and gain substantially under violations.
+
+---
+
+## 13.5 Handling Ties
+
+Real data often contain ties, especially with ordinal scales or rounded measurements. The standard approach is **mid-ranking**: tied observations each receive the average of the ranks they would have occupied. The variance formulae for $W^+$ and $U$ require a ties correction:
+
+$$\text{Var}(U)_{\text{ties}} = \frac{n_1 n_2}{12} \left[ (N + 1) - \sum_k \frac{t_k^3 - t_k}{N(N-1)} \right],$$
+
+where $t_k$ is the number of observations in the $k$-th tied group and $N = n_1 + n_2$. R's `wilcox.test()` applies this correction automatically when `exact = FALSE`.
+
+---
+
+## 13.6 Communicating to Stakeholders
+
+When presenting nonparametric results to a non-technical audience:
+
+1. **Lead with the question**, not the method. "We tested whether treatment A differs from treatment B" is clearer than "We performed a Mann--Whitney $U$ test."
+2. **Report the effect size.** The Hodges--Lehmann estimator (the median of all pairwise differences) is a natural companion to the Mann--Whitney test. It answers "by how much?" whereas the $p$-value answers only "is there evidence of a difference?"
+3. **Explain why you chose a nonparametric test.** A histogram or QQ plot of the data showing obvious skewness or outliers is the most persuasive justification.
+4. **Avoid jargon.** Instead of "rank-sum statistic", say "we compared how the two groups overlap when the data are ordered from smallest to largest."
+
+```{r hodges-lehmann}
+# Hodges-Lehmann estimator: median of all pairwise differences
+pairwise_diffs <- outer(adelie, chinstrap, "-")
+hl_estimate <- median(pairwise_diffs)
+hl_estimate
+```
+
+---
+
+## 13.7 Quick Reference
+
+| Parametric test | Nonparametric analogue | R function | Null hypothesis |
+|:---|:---|:---|:---|
+| One-sample $t$-test | Wilcoxon signed-rank | `wilcox.test(x)` | Median = $m_0$ |
+| Paired $t$-test | Wilcoxon signed-rank | `wilcox.test(x, y, paired = TRUE)` | Median difference = 0 |
+| Two-sample $t$-test | Mann--Whitney $U$ / Rank-sum | `wilcox.test(x, y)` | Same distribution |
+| One-way ANOVA | Kruskal--Wallis | `kruskal.test()` | All groups same |
+| Pearson correlation | Spearman rank correlation | `cor.test(method = "spearman")` | No monotone association |
+
+**Asymptotic Relative Efficiency (ARE) vs $t$-test under normality:**
+
+- Mann--Whitney: $3/\pi \approx 0.955$
+- Signed-rank: $3/\pi \approx 0.955$
+- Permutation test: 1.000 (exact same power asymptotically)
+
+---
+
+## 13.8 Exercises
+
+### Conceptual
+
+1. Explain why a permutation test does not require any distributional assumptions. What assumption *does* it require?
+2. The ARE of the Mann--Whitney test relative to the $t$-test is $3/\pi$ under normality. What does this mean in practical terms? If you needed 100 observations for the $t$-test to achieve 80% power, approximately how many would you need for the Mann--Whitney?
+3. Why does the Wilcoxon signed-rank test discard differences that are exactly zero?
+
+### Computational
+
+4. Modify the `permutation_test()` function to accept an arbitrary test statistic (not just the difference in means). Use it to test the difference in medians between Adelie and Chinstrap penguins.
+5. Download the `airquality` data and test whether ozone levels differ between months 5 and 8 using:
+   (a) a two-sample $t$-test,
+   (b) a permutation test,
+   (c) the Mann--Whitney $U$ test.
+   Compare the three $p$-values. Which test do you trust most, and why?
+6. Implement an exact permutation test (enumerate all $\binom{n_1+n_2}{n_1}$ arrangements) for two groups of size 8 and 10. Compare the exact $p$-value to the Monte Carlo approximation.
+
+### Extension
+
+7. Run the power simulation from Section 13.4 but vary the sample size ($n = 10, 20, 50, 100$) while keeping $\delta = 0.5$. Plot power as a function of $n$ for each test and distribution. At what sample size does the $t$-test's power advantage under normality become negligible?
+8. The **Kolmogorov--Smirnov test** (`ks.test()`) is another nonparametric two-sample test. Add it to the power simulation and discuss when it has an advantage over the Mann--Whitney test.

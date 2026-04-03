@@ -1,0 +1,519 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 9: Interval Estimation"
+part: "Part 2: Proportions and Variance"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, estimation, confidence-intervals, proportions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 9 -- Interval Estimation
+
+## Part 2: Proportions and Variance
+
+In Part 1 we built confidence intervals for the population mean. We now turn to two other quantities that arise constantly in practice: a population **proportion** (e.g., the fraction of patients who respond to a treatment) and a population **variance** (e.g., the variability of a manufacturing process). Both require new ideas -- and one of them, the Wald interval for proportions, turns out to be surprisingly unreliable.
+
+---
+
+## 9.4 Confidence Intervals for a Proportion
+
+### 9.4.1 Setup
+
+Let $X_1, \ldots, X_n \overset{\text{iid}}{\sim} \text{Bernoulli}(p)$, where $p$ is the unknown probability of success. The natural point estimator is the sample proportion:
+
+$$\hat{p} = \frac{1}{n}\sum_{i=1}^n X_i = \frac{X}{n},$$
+
+where $X = \sum X_i \sim \text{Bin}(n, p)$. By the CLT, for large $n$:
+
+$$\frac{\hat{p} - p}{\sqrt{p(1-p)/n}} \;\xrightarrow{d}\; N(0, 1).$$
+
+### 9.4.2 The Wald Interval (Derivation)
+
+The most direct approach is to plug $\hat{p}$ into the standard error, giving the **Wald interval**:
+
+$$\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}.$$
+
+**Derivation.** Start from the approximate pivotal quantity:
+
+$$Z = \frac{\hat{p} - p}{\sqrt{\hat{p}(1-\hat{p})/n}} \;\dot\sim\; N(0,1).$$
+
+Then invert $P(-z_{\alpha/2} \le Z \le z_{\alpha/2}) \approx 1 - \alpha$ exactly as we did for the Z-interval in Part 1, replacing $\sigma/\sqrt{n}$ with $\sqrt{\hat{p}(1-\hat{p})/n}$.
+
+### 9.4.3 The Problem with Wald
+
+The Wald interval looks clean, but its actual coverage can be *terrible* -- especially when $p$ is near 0 or 1, or when $n$ is small. The coverage probability oscillates wildly as a function of $p$ rather than staying close to the nominal level.
+
+Why does this happen? The approximation $Z \dot\sim N(0,1)$ breaks down when $np$ or $n(1-p)$ is small. Additionally, replacing $p$ with $\hat{p}$ in the denominator introduces a further approximation that compounds the error.
+
+
+``` r
+set.seed(42)
+
+#' Wald interval for a proportion
+#' @param x number of successes
+#' @param n number of trials
+#' @param conf confidence level
+#' @return named vector: lower, upper, phat
+my_wald_interval <- function(x, n, conf = 0.95) {
+  phat <- x / n
+  z <- qnorm(1 - (1 - conf) / 2)
+  se <- sqrt(phat * (1 - phat) / n)
+  c(lower = phat - z * se, upper = phat + z * se, phat = phat)
+}
+
+# Example: 8 successes out of 20 trials
+my_wald_interval(8, 20)
+```
+
+```
+    lower     upper      phat 
+0.1852967 0.6147033 0.4000000 
+```
+
+### 9.4.4 Edge Cases
+
+When $\hat{p} = 0$ (no successes) or $\hat{p} = 1$ (all successes), the Wald standard error collapses to zero, giving a degenerate interval of width zero. This is clearly absurd -- observing 0 out of 20 successes does not mean $p$ is exactly zero with perfect confidence.
+
+
+``` r
+# Wald interval when phat = 0 -- degeneracy
+my_wald_interval(0, 20)
+```
+
+```
+lower upper  phat 
+    0     0     0 
+```
+
+---
+
+## 9.5 The Wilson Interval
+
+### 9.5.1 Derivation
+
+Rather than plugging $\hat{p}$ into the standard error, we keep $p$ in the denominator and solve the resulting quadratic. Start from:
+
+$$\left(\frac{\hat{p} - p}{\sqrt{p(1-p)/n}}\right)^2 \le z_{\alpha/2}^2.$$
+
+Expanding and rearranging:
+
+$$n(\hat{p} - p)^2 \le z^2 \, p(1-p),$$
+
+where we write $z = z_{\alpha/2}$ for brevity. Expand the left side:
+
+$$n\hat{p}^2 - 2n\hat{p}\,p + np^2 \le z^2 p - z^2 p^2.$$
+
+Collect all terms on one side:
+
+$$(n + z^2)p^2 - (2n\hat{p} + z^2)p + n\hat{p}^2 \le 0.$$
+
+This is a quadratic inequality in $p$. The two roots give the endpoints of the **Wilson interval**:
+
+$$\tilde{p}_{\pm} = \frac{2n\hat{p} + z^2 \pm z\sqrt{z^2 + 4n\hat{p}(1 - \hat{p})}}{2(n + z^2)}.$$
+
+An equivalent and more illuminating form is:
+
+$$\tilde{p} = \frac{n\hat{p} + z^2/2}{n + z^2} \pm \frac{z}{n + z^2}\sqrt{\frac{n\hat{p}(1-\hat{p}) + z^2/4}{1}}.$$
+
+The Wilson interval can be understood as a Wald interval that has been "shrunk" towards $1/2$. The centre is no longer $\hat{p}$ but a weighted average of $\hat{p}$ and $1/2$, with the weight depending on $n$ and $z^2$. For large $n$, the Wilson and Wald intervals coincide.
+
+### 9.5.2 Implementation from Scratch
+
+
+``` r
+#' Wilson interval for a proportion
+#' @param x number of successes
+#' @param n number of trials
+#' @param conf confidence level
+#' @return named vector: lower, upper, centre
+my_wilson_interval <- function(x, n, conf = 0.95) {
+  phat <- x / n
+  z <- qnorm(1 - (1 - conf) / 2)
+  z2 <- z^2
+  denom <- n + z2
+  centre <- (n * phat + z2 / 2) / denom
+  halfwidth <- z / denom * sqrt(n * phat * (1 - phat) + z2 / 4)
+  c(lower = centre - halfwidth, upper = centre + halfwidth, centre = centre)
+}
+
+# Same example: 8 out of 20
+my_wilson_interval(8, 20)
+```
+
+```
+    lower     upper    centre 
+0.2188065 0.6134185 0.4161125 
+```
+
+### 9.5.3 Wilson Handles Edge Cases Gracefully
+
+
+``` r
+# Wilson interval when phat = 0 -- no longer degenerate
+my_wilson_interval(0, 20)
+```
+
+```
+     lower      upper     centre 
+0.00000000 0.16112516 0.08056258 
+```
+
+Unlike the Wald interval, the Wilson interval gives a sensible range even when $\hat{p} = 0$. The upper bound reflects the fact that observing 0 out of 20 is consistent with a small but non-zero $p$.
+
+### 9.5.4 Comparison with R's `prop.test`
+
+
+``` r
+# R's prop.test uses a Wilson-type interval by default
+pt <- prop.test(8, 20, conf.level = 0.95, correct = FALSE)
+pt$conf.int
+
+# Compare
+my_wilson_interval(8, 20)
+```
+
+```
+[1] 0.2188065 0.6134185
+attr(,"conf.level")
+[1] 0.95
+    lower     upper    centre 
+0.2188065 0.6134185 0.4161125 
+```
+
+The values agree -- `prop.test` with `correct = FALSE` produces the Wilson interval.
+
+---
+
+## 9.6 Coverage Simulation: Wald vs. Wilson
+
+### 9.6.1 The Setup
+
+We fix $n$ and sweep $p$ across $(0, 1)$. For each $p$, we simulate many Binomial samples, compute both the Wald and Wilson intervals, and record the empirical coverage (fraction of intervals that contain the true $p$).
+
+
+``` r
+set.seed(42)
+n <- 30
+n_sims <- 5000
+conf <- 0.95
+z_crit <- qnorm(1 - (1 - conf) / 2)
+p_grid <- seq(0.01, 0.99, by = 0.01)
+
+coverage_dt <- data.table$data.table(
+  p = rep(p_grid, each = 2),
+  method = rep(c("Wald", "Wilson"), times = length(p_grid)),
+  coverage = numeric(2 * length(p_grid))
+)
+
+idx <- 1
+for (p_true in p_grid) {
+  x_sims <- rbinom(n_sims, size = n, prob = p_true)
+  phat <- x_sims / n
+
+  # Wald coverage
+  se_wald <- sqrt(phat * (1 - phat) / n)
+  lo_wald <- phat - z_crit * se_wald
+  hi_wald <- phat + z_crit * se_wald
+  cov_wald <- mean(lo_wald <= p_true & p_true <= hi_wald)
+
+  # Wilson coverage
+  z2 <- z_crit^2
+  denom <- n + z2
+  centre <- (n * phat + z2 / 2) / denom
+  hw <- z_crit / denom * sqrt(n * phat * (1 - phat) + z2 / 4)
+  lo_wilson <- centre - hw
+  hi_wilson <- centre + hw
+  cov_wilson <- mean(lo_wilson <= p_true & p_true <= hi_wilson)
+
+  coverage_dt[idx, coverage := cov_wald]
+  coverage_dt[idx + 1, coverage := cov_wilson]
+  idx <- idx + 2
+}
+```
+
+### 9.6.2 Coverage Comparison Plot
+
+
+``` r
+ggplot2$ggplot(coverage_dt, ggplot2$aes(x = p, y = coverage, colour = method)) +
+  ggplot2$geom_line(linewidth = 0.6) +
+  ggplot2$geom_hline(yintercept = 0.95, linetype = "dashed", colour = "grey40") +
+  ggplot2$scale_colour_manual(values = c("Wald" = "#D55E00", "Wilson" = "#0072B2")) +
+  ggplot2$labs(
+    x = "True proportion p",
+    y = "Empirical Coverage",
+    colour = "Method",
+    title = sprintf("Coverage of 95%% CIs for a proportion (n = %d, %s sims per p)",
+      n, format(n_sims, big.mark = ","))
+  ) +
+  ggplot2$scale_y_continuous(limits = c(0.80, 1.0)) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/coverage-plot-1.png" alt="Empirical coverage of 95% Wald and Wilson intervals for a proportion with n = 30. The horizontal dashed line marks the nominal 95% level. The Wald interval (orange) oscillates wildly and dips well below 90% for some values of p. The Wilson interval (blue) hugs the nominal level far more closely.">
+	Empirical coverage of 95% Wald and Wilson intervals for a proportion with n = 30. The horizontal dashed line marks the nominal 95% level. The Wald interval (orange) oscillates wildly and dips well below 90% for some values of p. The Wilson interval (blue) hugs the nominal level far more closely.
+</Figure>
+
+The plot speaks for itself. The Wald interval's coverage can drop below 85% -- far from the advertised 95% -- while the Wilson interval stays much closer to the nominal level across all values of $p$.
+
+**The lesson:** always prefer the Wilson interval (or the closely related Agresti--Coull interval) over the Wald interval. The Wald interval persists in textbooks for pedagogical reasons, but it should not be used in practice.
+
+---
+
+## 9.7 Confidence Interval for a Variance
+
+### 9.7.1 Setup
+
+Suppose $X_1, \ldots, X_n \overset{\text{iid}}{\sim} N(\mu, \sigma^2)$ where both $\mu$ and $\sigma^2$ are unknown. We want a CI for $\sigma^2$.
+
+From Chapter 5, we know that the sample variance $S^2 = \frac{1}{n-1}\sum_{i=1}^n(X_i - \bar{X})^2$ satisfies:
+
+$$\frac{(n-1)S^2}{\sigma^2} \sim \chi^2_{n-1}.$$
+
+This is our pivotal quantity -- a function of the data and the parameter $\sigma^2$ whose distribution does not depend on any unknown parameters.
+
+### 9.7.2 Derivation
+
+Let $\chi^2_L$ and $\chi^2_U$ denote the lower $\alpha/2$ and upper $\alpha/2$ quantiles of $\chi^2_{n-1}$. Then:
+
+$$P\!\left(\chi^2_L \le \frac{(n-1)S^2}{\sigma^2} \le \chi^2_U\right) = 1 - \alpha.$$
+
+Invert for $\sigma^2$:
+
+$$P\!\left(\frac{(n-1)S^2}{\chi^2_U} \le \sigma^2 \le \frac{(n-1)S^2}{\chi^2_L}\right) = 1 - \alpha.$$
+
+Note the "flip" -- because we divide by $\sigma^2$, the upper chi-square quantile gives the *lower* endpoint for $\sigma^2$.
+
+### 9.7.3 Implementation from Scratch
+
+
+``` r
+set.seed(42)
+
+#' CI for population variance (Normal data)
+#' @param x numeric vector
+#' @param conf confidence level
+#' @return named vector: lower_var, upper_var, s2
+my_var_ci <- function(x, conf = 0.95) {
+  n <- length(x)
+  s2 <- var(x)
+  alpha <- 1 - conf
+  df <- n - 1
+  chi2_lower <- qchisq(alpha / 2, df)
+  chi2_upper <- qchisq(1 - alpha / 2, df)
+  c(
+    lower_var = df * s2 / chi2_upper,
+    upper_var = df * s2 / chi2_lower,
+    s2 = s2
+  )
+}
+
+# Generate N(50, 10^2) data -- true variance is 100
+x <- rnorm(30, mean = 50, sd = 10)
+my_var_ci(x)
+```
+
+```
+lower_var upper_var        s2 
+ 99.90264 284.64863 157.50955 
+```
+
+### 9.7.4 Asymmetry
+
+The chi-square distribution is right-skewed, so the CI for $\sigma^2$ is **asymmetric** -- the upper tail is longer than the lower tail. This is not a flaw; it correctly reflects the shape of the sampling distribution of $S^2$.
+
+
+``` r
+df <- 29
+alpha <- 0.05
+s2 <- var(x)
+
+chi2_lo <- qchisq(alpha / 2, df)
+chi2_hi <- qchisq(1 - alpha / 2, df)
+
+chi2_seq <- seq(0, 60, length.out = 500)
+dens <- dchisq(chi2_seq, df)
+chi2_dens_dt <- data.table$data.table(x = chi2_seq, y = dens)
+
+ggplot2$ggplot(chi2_dens_dt, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_area(
+    data = chi2_dens_dt[x <= chi2_lo],
+    ggplot2$aes(x = x, y = y), fill = "#D55E00", alpha = 0.4
+  ) +
+  ggplot2$geom_area(
+    data = chi2_dens_dt[x >= chi2_hi],
+    ggplot2$aes(x = x, y = y), fill = "#D55E00", alpha = 0.4
+  ) +
+  ggplot2$geom_vline(xintercept = c(chi2_lo, chi2_hi),
+    linetype = "dashed", colour = "grey40") +
+  ggplot2$annotate("text", x = chi2_lo, y = max(dens) * 0.5,
+    label = sprintf("chi[L]^2 == %.2f", chi2_lo), parse = TRUE,
+    hjust = 1.1, size = 4) +
+  ggplot2$annotate("text", x = chi2_hi, y = max(dens) * 0.5,
+    label = sprintf("chi[U]^2 == %.2f", chi2_hi), parse = TRUE,
+    hjust = -0.1, size = 4) +
+  ggplot2$labs(
+    x = expression(chi^2),
+    y = "Density",
+    title = sprintf("chi-squared(%d) density with 95%% CI quantiles", df)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/chi2-ci-plot-1.png" alt="A 95% CI for the population variance overlaid on the chi-square density. The shaded regions in each tail have area alpha/2 = 0.025. Because the chi-square density is skewed, the interval is asymmetric.">
+	A 95% CI for the population variance overlaid on the chi-square density. The shaded regions in each tail have area alpha/2 = 0.025. Because the chi-square density is skewed, the interval is asymmetric.
+</Figure>
+
+### 9.7.5 CI for the Standard Deviation
+
+Often we prefer a CI for $\sigma$ rather than $\sigma^2$. Simply take square roots of the variance CI endpoints:
+
+$$\left(\sqrt{\frac{(n-1)S^2}{\chi^2_U}}, \; \sqrt{\frac{(n-1)S^2}{\chi^2_L}}\right).$$
+
+
+``` r
+var_ci <- my_var_ci(x)
+sqrt(var_ci[c("lower_var", "upper_var")])
+```
+
+```
+lower_var upper_var 
+ 9.995131 16.871533 
+```
+
+### 9.7.6 Sensitivity to Non-Normality
+
+**Warning:** The chi-square CI for variance is extremely sensitive to departures from Normality. Even modest skewness or heavy tails can produce wildly inaccurate coverage. For non-Normal data, the bootstrap (Chapter 13) is strongly preferred.
+
+
+``` r
+set.seed(42)
+n_sims <- 10000
+n <- 20
+conf <- 0.95
+alpha <- 1 - conf
+
+coverage_normal <- 0
+coverage_exp <- 0
+true_var_exp <- 1  # Exp(1) has variance 1
+
+for (i in 1:n_sims) {
+  # Normal data
+  x_norm <- rnorm(n, 0, 1)  # true variance = 1
+  s2_norm <- var(x_norm)
+  lo_norm <- (n - 1) * s2_norm / qchisq(1 - alpha/2, n - 1)
+  hi_norm <- (n - 1) * s2_norm / qchisq(alpha/2, n - 1)
+  if (lo_norm <= 1 && 1 <= hi_norm) coverage_normal <- coverage_normal + 1
+
+  # Exponential data
+  x_exp <- rexp(n, rate = 1)  # true variance = 1
+  s2_exp <- var(x_exp)
+  lo_exp <- (n - 1) * s2_exp / qchisq(1 - alpha/2, n - 1)
+  hi_exp <- (n - 1) * s2_exp / qchisq(alpha/2, n - 1)
+  if (lo_exp <= 1 && 1 <= hi_exp) coverage_exp <- coverage_exp + 1
+}
+
+cov_dt <- data.table$data.table(
+  distribution = c("Normal", "Exponential"),
+  coverage = c(coverage_normal / n_sims, coverage_exp / n_sims)
+)
+
+ggplot2$ggplot(cov_dt, ggplot2$aes(x = distribution, y = coverage,
+    fill = distribution)) +
+  ggplot2$geom_col(width = 0.5) +
+  ggplot2$geom_hline(yintercept = 0.95, linetype = "dashed", colour = "grey40") +
+  ggplot2$scale_fill_manual(values = c("Normal" = "#0072B2",
+    "Exponential" = "#D55E00")) +
+  ggplot2$geom_text(ggplot2$aes(label = sprintf("%.1f%%", 100 * coverage)),
+    vjust = -0.5, size = 5) +
+  ggplot2$scale_y_continuous(limits = c(0, 1.05)) +
+  ggplot2$labs(
+    x = "Data Distribution",
+    y = "Empirical Coverage",
+    title = "Coverage of chi-square 95% CI for variance (n = 20)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/variance-ci-robustness-1.png" alt="Empirical coverage of the 95% chi-square CI for variance under Normal and Exponential data. Under Normality, coverage is close to 95%. Under the Exponential distribution (skewed), coverage drops below 90%.">
+	Empirical coverage of the 95% chi-square CI for variance under Normal and Exponential data. Under Normality, coverage is close to 95%. Under the Exponential distribution (skewed), coverage drops below 90%.
+</Figure>
+
+---
+
+## 9.8 Summary: Which Interval for Which Parameter?
+
+| Parameter | Interval | Pivot | Distribution | Key Caveat |
+|:----------|:---------|:------|:-------------|:-----------|
+| $\mu$ (known $\sigma$) | Z-interval | $(\bar{X}-\mu)/(\sigma/\sqrt{n})$ | $N(0,1)$ | Rarely applicable |
+| $\mu$ (unknown $\sigma$) | t-interval | $(\bar{X}-\mu)/(S/\sqrt{n})$ | $t_{n-1}$ | Assumes Normality or large $n$ |
+| $p$ | Wilson | Quadratic in $p$ | $N(0,1)$ approx. | Prefer over Wald; exact methods for very small $n$ |
+| $\sigma^2$ | Chi-square | $(n-1)S^2/\sigma^2$ | $\chi^2_{n-1}$ | Very sensitive to non-Normality |
+
+---
+
+## Communicating to Stakeholders
+
+When presenting proportion CIs or variance CIs:
+
+- For proportions, say "we estimate about 40% of customers prefer option A, with a margin of error of roughly 10 percentage points." Never report a CI that extends below 0% or above 100%.
+- If you used the Wilson interval, there is no need to explain the quadratic derivation. Simply note that "this is a more reliable method than the standard textbook formula."
+- For variance, translate into standard deviation: "Process variability is about 2.3 units, with a plausible range of 1.8 to 3.1 units" is far more interpretable than quoting $\sigma^2 \in (3.24, 9.61)$.
+- Emphasise that the chi-square CI for variance assumes Normality. If there is any doubt about that assumption, say so explicitly.
+
+---
+
+## Quick Reference
+
+| Interval | Formula | Notes |
+|:---------|:--------|:------|
+| **Wald** | $\hat{p} \pm z_{\alpha/2}\sqrt{\hat{p}(1-\hat{p})/n}$ | Degenerate at $\hat{p}=0,1$; poor coverage |
+| **Wilson** | Quadratic roots (see 9.5.1) | Better coverage; default in `prop.test` |
+| **Chi-square (variance)** | $\left(\frac{(n-1)S^2}{\chi^2_U},\;\frac{(n-1)S^2}{\chi^2_L}\right)$ | Sensitive to non-Normality |
+| **Chi-square (SD)** | Square roots of variance CI | More interpretable |
+
+---
+
+## Exercises
+
+**Conceptual**
+
+1. Explain in your own words why the Wald interval for a proportion can have poor coverage. What happens at the boundary $\hat{p} = 0$?
+
+2. The Wilson interval "shrinks" the centre towards $1/2$. Why does this improve coverage? What parameter controls the strength of the shrinkage?
+
+3. Why is the CI for $\sigma^2$ asymmetric while the CI for $\mu$ (t-interval) is symmetric? Relate your answer to the shapes of the t and chi-square distributions.
+
+4. A colleague proposes using the chi-square CI for the variance of household income data. Why might this be a bad idea?
+
+**Proofs and Derivations**
+
+5. Starting from $(\hat{p} - p)^2 / [p(1-p)/n] \le z^2$, derive the Wilson interval endpoints. Show that the centre is a weighted average of $\hat{p}$ and $1/2$.
+
+6. Show that the Wilson interval reduces to the Wald interval as $n \to \infty$ with $z$ fixed.
+
+7. Derive the CI for $\sigma^2$ from the pivot $(n-1)S^2/\sigma^2 \sim \chi^2_{n-1}$. Explain why the chi-square quantiles "swap" in the final expression.
+
+**Computational**
+
+8. Repeat the Wald vs. Wilson coverage simulation for $n = 10$ and $n = 100$. At what sample size does the Wald interval become acceptable?
+
+9. Generate 1000 samples of size $n = 15$ from a $\text{Uniform}(0, 1)$ distribution (variance $= 1/12$). Compute the chi-square CI for variance from each sample and report the empirical coverage. Is it close to 95%?
+
+10. A clinical trial reports 23 successes out of 100 patients. Compute the Wald and Wilson 95% CIs for the success rate. Which is wider? Which would you report?

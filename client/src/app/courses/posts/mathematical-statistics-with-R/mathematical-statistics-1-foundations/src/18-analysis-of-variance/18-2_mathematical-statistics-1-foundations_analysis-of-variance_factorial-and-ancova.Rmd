@@ -1,0 +1,663 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 18: Analysis of Variance"
+part: "Part 2: Factorial Designs and ANCOVA"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, anova, factorial, interaction, ancova, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 18 -- Analysis of Variance
+
+## Part 2: Factorial Designs and ANCOVA
+
+One-way ANOVA tests whether a single factor affects the response. In practice, experiments often involve **two or more factors simultaneously**. The power of factorial designs lies in their ability to estimate not only the effect of each factor, but also their **interaction** -- the extent to which the effect of one factor depends on the level of another. ANCOVA extends the framework to include continuous covariates alongside categorical factors. All of these are simply different flavours of the general linear model.
+
+---
+
+## 18.13 Two-Way ANOVA: The Model
+
+### 18.13.1 Setup
+
+With factors $A$ (with $a$ levels) and $B$ (with $b$ levels), each combination observed $n$ times, the model is:
+
+$$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \varepsilon_{ijk}$$
+
+where:
+- $\mu$ is the overall mean.
+- $\alpha_i$ is the main effect of factor $A$ at level $i$ ($\sum_i \alpha_i = 0$).
+- $\beta_j$ is the main effect of factor $B$ at level $j$ ($\sum_j \beta_j = 0$).
+- $(\alpha\beta)_{ij}$ is the interaction ($\sum_i (\alpha\beta)_{ij} = 0$ for each $j$, and vice versa).
+- $\varepsilon_{ijk} \stackrel{\text{iid}}{\sim} N(0, \sigma^2)$.
+
+### 18.13.2 The ANOVA Decomposition
+
+The total sum of squares decomposes as:
+
+$$\text{SST} = \text{SS}_A + \text{SS}_B + \text{SS}_{AB} + \text{SSE}$$
+
+with degrees of freedom:
+
+$$abn - 1 = (a-1) + (b-1) + (a-1)(b-1) + ab(n-1)$$
+
+Each sum of squares, divided by its df, gives a mean square. The $F$-tests are:
+
+| Effect | $F$-statistic | $H_0$ |
+|:-------|:-------------|:------|
+| $A$ | $\text{MS}_A / \text{MSE}$ | All $\alpha_i = 0$ |
+| $B$ | $\text{MS}_B / \text{MSE}$ | All $\beta_j = 0$ |
+| $A \times B$ | $\text{MS}_{AB} / \text{MSE}$ | All $(\alpha\beta)_{ij} = 0$ |
+
+### 18.13.3 As Regression
+
+The two-way ANOVA model with interaction is:
+
+```
+Y ~ A + B + A:B
+```
+
+which R shorthand writes as `Y ~ A * B`. The design matrix contains dummy columns for each level of $A$, each level of $B$, and their pairwise products.
+
+---
+
+## 18.14 The ToothGrowth Example
+
+The ToothGrowth dataset records the length of odontoblasts (cells responsible for tooth growth) in guinea pigs given vitamin C by one of two delivery methods (`supp`: OJ or VC) at three dose levels (0.5, 1, 2 mg/day).
+
+```{r toothgrowth-data}
+data_dir <- "../../../data"
+tg <- data.table$as.data.table(
+  read.csv(file.path(data_dir, "classic/toothgrowth.csv"))
+)
+tg[, dose := factor(dose)]
+
+tg[, .(.N, mean = mean(len), sd = sd(len)), by = .(supp, dose)]
+```
+
+### 18.14.1 Visualising the Factorial Design
+
+```{r tg-interaction-plot, fig.cap="Mean tooth length by supplement type and dose. The lines are not parallel -- OJ is more effective than VC at lower doses, but the advantage disappears at dose = 2.0 mg/day. This non-parallel pattern suggests an interaction between supplement and dose."}
+tg_means <- tg[, .(mean = mean(len), se = sd(len) / sqrt(.N)), by = .(supp, dose)]
+
+ggplot2$ggplot(tg_means, ggplot2$aes(x = dose, y = mean, colour = supp, group = supp)) +
+  ggplot2$geom_line(linewidth = 0.9) +
+  ggplot2$geom_pointrange(
+    ggplot2$aes(ymin = mean - se, ymax = mean + se),
+    size = 0.8
+  ) +
+  ggplot2$scale_colour_manual(
+    values = c("OJ" = "#E69F00", "VC" = "#0072B2"),
+    name = "Supplement"
+  ) +
+  ggplot2$labs(
+    x = "Dose (mg/day)",
+    y = "Tooth length",
+    title = "Interaction plot: supplement x dose"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+**Reading an interaction plot:** if the lines are parallel, there is no interaction -- the effect of dose is the same regardless of supplement. Non-parallel lines suggest an interaction.
+
+### 18.14.2 Fitting the Two-Way Model
+
+```{r tg-two-way}
+fit_tg <- lm(len ~ supp * dose, data = tg)
+anova(fit_tg)
+```
+
+```{r tg-summary}
+summary(fit_tg)
+```
+
+The ANOVA table shows:
+
+- **supp**: significant main effect -- supplement type matters.
+- **dose**: highly significant main effect -- higher doses produce longer odontoblasts.
+- **supp:dose**: the interaction is significant, confirming what the interaction plot suggested.
+
+### 18.14.3 Understanding the Interaction
+
+When the interaction is significant, the main effects must be interpreted carefully. The statement "OJ produces longer odontoblasts than VC" is **incomplete** -- it is true at lower doses but not at the highest dose. The interaction tells us that the effect of supplement depends on the dose.
+
+```{r tg-cell-means, fig.cap="Box plots of tooth length by supplement and dose. The raw data confirm that the OJ advantage is largest at dose 0.5 and vanishes at dose 2.0."}
+ggplot2$ggplot(tg, ggplot2$aes(x = dose, y = len, fill = supp)) +
+  ggplot2$geom_boxplot(alpha = 0.7, position = ggplot2$position_dodge(width = 0.8)) +
+  ggplot2$scale_fill_manual(
+    values = c("OJ" = "#E69F00", "VC" = "#0072B2"),
+    name = "Supplement"
+  ) +
+  ggplot2$labs(
+    x = "Dose (mg/day)",
+    y = "Tooth length",
+    title = "Tooth length by supplement and dose"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 18.15 Type I, II, and III Sums of Squares
+
+### 18.15.1 The Issue
+
+When the design is **unbalanced** (unequal cell sizes), the sums of squares for the different effects are not orthogonal, and the order in which terms are added to the model matters. R's `anova()` computes **Type I** (sequential) sums of squares by default.
+
+### 18.15.2 The Three Types
+
+- **Type I** (sequential): each effect is tested after adjusting for all preceding effects. The results depend on the order of terms.
+- **Type II**: each main effect is tested after adjusting for the other main effects, but **not** for the interaction.
+- **Type III**: each effect is tested after adjusting for all other effects **including** the interaction. This requires properly centred contrasts.
+
+### 18.15.3 Demonstrating the Difference
+
+```{r ss-types}
+# Type I: order matters for unbalanced designs
+anova(lm(len ~ supp + dose + supp:dose, data = tg))
+anova(lm(len ~ dose + supp + dose:supp, data = tg))
+```
+
+For the ToothGrowth data (which is balanced), the Type I sums of squares are the same regardless of term order. The distinction matters with unbalanced data.
+
+### 18.15.4 Practical Advice
+
+- For **balanced designs**: all three types give the same results.
+- For **unbalanced designs** with no interaction: Type II is generally preferred (more powerful).
+- For **unbalanced designs** with a significant interaction: interpret the interaction directly rather than relying on main effect tests.
+
+---
+
+## 18.16 ANCOVA: Continuous + Categorical
+
+### 18.16.1 The Idea
+
+**Analysis of Covariance** (ANCOVA) combines ANOVA with regression. The model includes both categorical predictors (factors) and continuous predictors (covariates):
+
+$$Y_{ij} = \mu + \alpha_j + \beta x_{ij} + \varepsilon_{ij}$$
+
+The covariate $x$ is included to reduce residual variance and/or to adjust for a confounding variable. ANCOVA answers: "Do the group means differ **after adjusting for** the covariate?"
+
+### 18.16.2 Geometric Interpretation
+
+ANCOVA fits **parallel regression lines** (one per group). The lines share a common slope $\beta$ but have different intercepts $\mu + \alpha_j$. If the interaction `factor:covariate` is included, the lines have different slopes -- this is the "heterogeneous slopes" model.
+
+### 18.16.3 Assumptions
+
+In addition to the standard regression assumptions:
+1. The relationship between $Y$ and the covariate is linear within each group.
+2. The slopes are equal across groups (homogeneity of slopes) -- unless the interaction is explicitly modelled.
+
+---
+
+## 18.17 ANCOVA Example: ToothGrowth with Numeric Dose
+
+Instead of treating dose as a factor, we can treat it as a continuous covariate and test whether the supplement effect persists after adjusting for a linear dose effect.
+
+```{r ancova-tg}
+tg_num <- data.table$as.data.table(
+  read.csv(file.path(data_dir, "classic/toothgrowth.csv"))
+)
+# Keep dose as numeric for ANCOVA
+
+fit_ancova <- lm(len ~ supp + dose, data = tg_num)
+anova(fit_ancova)
+```
+
+```{r ancova-summary}
+summary(fit_ancova)
+```
+
+```{r ancova-plot, fig.cap="ANCOVA model for ToothGrowth. Parallel regression lines (common slope) are fit for each supplement type. After adjusting for dose, the supplement effect is significant -- OJ produces longer odontoblasts at any given dose level."}
+ggplot2$ggplot(tg_num, ggplot2$aes(x = dose, y = len, colour = supp)) +
+  ggplot2$geom_point(alpha = 0.5, size = 2) +
+  ggplot2$geom_abline(
+    intercept = coef(fit_ancova)[1],
+    slope = coef(fit_ancova)["dose"],
+    colour = "#E69F00", linewidth = 0.9
+  ) +
+  ggplot2$geom_abline(
+    intercept = coef(fit_ancova)[1] + coef(fit_ancova)["suppVC"],
+    slope = coef(fit_ancova)["dose"],
+    colour = "#0072B2", linewidth = 0.9
+  ) +
+  ggplot2$scale_colour_manual(
+    values = c("OJ" = "#E69F00", "VC" = "#0072B2"),
+    name = "Supplement"
+  ) +
+  ggplot2$labs(
+    x = "Dose (mg/day)",
+    y = "Tooth length",
+    title = "ANCOVA: parallel lines model"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 18.17.1 Testing Homogeneity of Slopes
+
+```{r slopes-test}
+# Add the interaction to allow different slopes
+fit_slopes <- lm(len ~ supp * dose, data = tg_num)
+anova(fit_ancova, fit_slopes)
+```
+
+The interaction term `supp:dose` tests whether the slopes differ. A significant result would violate the homogeneity of slopes assumption and suggest that we need separate slopes for each supplement.
+
+---
+
+## 18.18 NHANES: Blood Pressure by Age Group Adjusting for BMI
+
+We demonstrate ANCOVA on a substantive question: does systolic blood pressure differ by age group after adjusting for BMI?
+
+```{r nhanes-ancova-data}
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes_bp <- nhanes[
+  complete.cases(nhanes[, .(BPSysAve, BMI, Age)]) & Age >= 18
+]
+
+# Create age groups
+nhanes_bp[, age_group := cut(Age, breaks = c(18, 35, 50, 65, 100),
+  labels = c("18-34", "35-49", "50-64", "65+"),
+  right = FALSE
+)]
+nhanes_bp <- nhanes_bp[!is.na(age_group)]
+
+nhanes_bp[, .(
+  n = .N,
+  mean_bp = mean(BPSysAve),
+  mean_bmi = mean(BMI)
+), by = age_group]
+```
+
+### 18.18.1 Unadjusted ANOVA
+
+```{r nhanes-unadj}
+fit_unadj <- lm(BPSysAve ~ age_group, data = nhanes_bp)
+anova(fit_unadj)
+```
+
+### 18.18.2 ANCOVA: Adjusting for BMI
+
+```{r nhanes-ancova}
+fit_adj <- lm(BPSysAve ~ age_group + BMI, data = nhanes_bp)
+anova(fit_adj)
+```
+
+```{r nhanes-ancova-summary}
+summary(fit_adj)
+```
+
+Both age group and BMI are significant predictors of systolic blood pressure. The age group effect persists after adjusting for BMI.
+
+### 18.18.3 Visualising the ANCOVA
+
+```{r nhanes-ancova-plot, fig.cap="Systolic blood pressure vs BMI by age group (NHANES). Each age group has its own intercept but a common slope. Older age groups have higher blood pressure at any given BMI level."}
+ggplot2$ggplot(nhanes_bp, ggplot2$aes(x = BMI, y = BPSysAve, colour = age_group)) +
+  ggplot2$geom_point(alpha = 0.05, size = 0.5) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$scale_colour_manual(
+    values = c(
+      "18-34" = "#0072B2", "35-49" = "#E69F00",
+      "50-64" = "#009E73", "65+" = "#D55E00"
+    ),
+    name = "Age group"
+  ) +
+  ggplot2$labs(
+    x = "BMI",
+    y = "Systolic BP (mmHg)",
+    title = "ANCOVA: BP by age group adjusting for BMI"
+  ) +
+  ggplot2$coord_cartesian(xlim = c(15, 55)) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+Note that the separate `geom_smooth` lines have slightly different slopes -- this suggests we should test for a `age_group:BMI` interaction.
+
+### 18.18.4 Testing the Interaction
+
+```{r nhanes-interaction}
+fit_int <- lm(BPSysAve ~ age_group * BMI, data = nhanes_bp)
+anova(fit_adj, fit_int)
+```
+
+```{r nhanes-int-plot, fig.cap="Interaction plot for the NHANES BP model. The lines are nearly parallel at most BMI values, but diverge slightly at extreme BMI, suggesting a modest interaction."}
+nhanes_bp_means <- nhanes_bp[, .(
+  mean_bp = mean(BPSysAve),
+  mean_bmi = mean(BMI)
+), by = age_group]
+
+ggplot2$ggplot(nhanes_bp_means, ggplot2$aes(
+  x = mean_bmi, y = mean_bp, colour = age_group
+)) +
+  ggplot2$geom_point(size = 4) +
+  ggplot2$geom_text(
+    ggplot2$aes(label = age_group),
+    vjust = -1, size = 4
+  ) +
+  ggplot2$scale_colour_manual(
+    values = c(
+      "18-34" = "#0072B2", "35-49" = "#E69F00",
+      "50-64" = "#009E73", "65+" = "#D55E00"
+    )
+  ) +
+  ggplot2$labs(
+    x = "Mean BMI",
+    y = "Mean systolic BP (mmHg)",
+    title = "Group centroids: age group means"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 18.19 Post-Hoc Comparisons in Multi-Factor Designs
+
+When the ANOVA reveals significant effects, we need pairwise comparisons. For two-way designs with interactions, compare cell means rather than marginal means.
+
+```{r tg-posthoc}
+# Cell-level Tukey HSD for ToothGrowth
+tg[, cell := interaction(supp, dose)]
+fit_cell <- aov(len ~ cell, data = tg)
+tukey_cell <- TukeyHSD(fit_cell)
+
+# Show the most extreme comparisons
+tukey_dt <- data.table$as.data.table(
+  tukey_cell$cell, keep.rownames = "comparison"
+)
+tukey_dt <- tukey_dt[order(-abs(diff))]
+
+tukey_dt[1:10]
+```
+
+```{r tg-posthoc-plot, fig.cap="Tukey HSD intervals for all pairwise comparisons of cell means in the ToothGrowth experiment. Comparisons whose intervals exclude zero represent significant differences at the 95 per cent family-wise confidence level."}
+# Plot top 10 comparisons
+top_comp <- tukey_dt[1:10]
+
+ggplot2$ggplot(top_comp, ggplot2$aes(x = diff, y = reorder(comparison, diff))) +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_pointrange(
+    ggplot2$aes(xmin = lwr, xmax = upr),
+    colour = "#0072B2", size = 0.6, linewidth = 0.6
+  ) +
+  ggplot2$labs(
+    x = "Difference in means",
+    y = "Comparison",
+    title = "Tukey HSD: cell-level comparisons (ToothGrowth)"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+```
+
+---
+
+## 18.20 ANOVA Diagnostics
+
+The diagnostic tools from Chapter 17 apply directly to ANOVA models. ANOVA is regression, so residual plots, Q-Q plots, and influence measures work identically.
+
+```{r anova-diag, fig.cap="Diagnostic plots for the two-way ToothGrowth model. The residuals vs fitted plot shows a slight fan shape, the Q-Q plot is reasonably straight, and no single observation is highly influential.", fig.height=10}
+diag_tg <- data.table$data.table(
+  fitted = fitted(fit_tg),
+  resid = residuals(fit_tg),
+  std_resid = rstandard(fit_tg),
+  leverage = hatvalues(fit_tg)
+)
+diag_tg[, sqrt_abs_std := sqrt(abs(std_resid))]
+
+p1 <- ggplot2$ggplot(diag_tg, ggplot2$aes(x = fitted, y = resid)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE
+  ) +
+  ggplot2$labs(x = "Fitted", y = "Residuals", title = "Residuals vs Fitted") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p2 <- ggplot2$ggplot(diag_tg, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_qq_line(colour = "#D55E00") +
+  ggplot2$labs(x = "Theoretical", y = "Std. residuals", title = "Normal Q-Q") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p3 <- ggplot2$ggplot(diag_tg, ggplot2$aes(x = fitted, y = sqrt_abs_std)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE
+  ) +
+  ggplot2$labs(
+    x = "Fitted", y = expression(sqrt("|Std. resid.|")),
+    title = "Scale-Location"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+p4 <- ggplot2$ggplot(diag_tg, ggplot2$aes(x = leverage, y = std_resid)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE
+  ) +
+  ggplot2$labs(x = "Leverage", y = "Std. residuals", title = "Resid. vs Leverage") +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+---
+
+## 18.21 Simulated Factorial Experiment
+
+To build intuition, let us simulate a $2 \times 3$ factorial experiment with and without an interaction.
+
+```{r sim-factorial, fig.cap="Simulated factorial data. Left: no interaction (parallel lines). Right: with interaction (non-parallel lines). The interaction plot makes the difference immediately visible."}
+set.seed(42)
+n_per_cell <- 30
+
+# No interaction
+sim_no_int <- data.table$data.table(
+  A = rep(rep(c("A1", "A2"), each = n_per_cell), 3),
+  B = rep(c("B1", "B2", "B3"), each = 2 * n_per_cell)
+)
+sim_no_int[, y := 10 +
+  2 * (A == "A2") +
+  c(B1 = 0, B2 = 3, B3 = 6)[B] +
+  rnorm(.N, 0, 1.5)]
+
+# With interaction
+sim_int <- data.table$data.table(
+  A = rep(rep(c("A1", "A2"), each = n_per_cell), 3),
+  B = rep(c("B1", "B2", "B3"), each = 2 * n_per_cell)
+)
+sim_int[, y := 10 +
+  2 * (A == "A2") +
+  c(B1 = 0, B2 = 3, B3 = 6)[B] +
+  4 * (A == "A2") * (B == "B3") +
+  rnorm(.N, 0, 1.5)]
+
+# Means for interaction plots
+means_no <- sim_no_int[, .(mean_y = mean(y)), by = .(A, B)]
+means_int <- sim_int[, .(mean_y = mean(y)), by = .(A, B)]
+
+p_no <- ggplot2$ggplot(means_no, ggplot2$aes(x = B, y = mean_y, colour = A, group = A)) +
+  ggplot2$geom_line(linewidth = 0.9) +
+  ggplot2$geom_point(size = 3) +
+  ggplot2$scale_colour_manual(values = c("A1" = "#0072B2", "A2" = "#D55E00")) +
+  ggplot2$labs(x = "Factor B", y = "Mean Y", title = "No interaction") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p_yes <- ggplot2$ggplot(means_int, ggplot2$aes(x = B, y = mean_y, colour = A, group = A)) +
+  ggplot2$geom_line(linewidth = 0.9) +
+  ggplot2$geom_point(size = 3) +
+  ggplot2$scale_colour_manual(values = c("A1" = "#0072B2", "A2" = "#D55E00")) +
+  ggplot2$labs(x = "Factor B", y = "Mean Y", title = "With interaction") +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p_no, p_yes, ncol = 2)
+```
+
+```{r sim-anova-tables}
+# ANOVA: no interaction
+anova(lm(y ~ A * B, data = sim_no_int))
+
+# ANOVA: with interaction
+anova(lm(y ~ A * B, data = sim_int))
+```
+
+The interaction term `A:B` is non-significant in the first simulation (correctly -- we did not include one) and highly significant in the second (correctly -- we added an interaction of +4 in the A2:B3 cell).
+
+---
+
+## 18.22 The Hierarchy Principle
+
+When an interaction is significant, the main effects involved in that interaction should **always** be retained in the model, even if their individual $p$-values are large. This is the **hierarchy (or marginality) principle**: the interpretation of an interaction $A \times B$ is meaningful only if both $A$ and $B$ are in the model.
+
+```{r hierarchy}
+# Wrong: dropping main effect but keeping interaction
+fit_wrong <- lm(len ~ supp:dose, data = tg)
+
+# Correct: keep main effects when interaction is present
+fit_right <- lm(len ~ supp * dose, data = tg)
+
+c(
+  "R2 without main effects" = summary(fit_wrong)$r.squared,
+  "R2 with main effects" = summary(fit_right)$r.squared
+)
+```
+
+---
+
+## 18.23 Penguins: Two-Way ANOVA (Species x Sex)
+
+```{r penguins-two-way}
+penguins_raw <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+penguins <- penguins_raw[
+  complete.cases(penguins_raw[, .(body_mass_g, species, sex)])
+]
+
+fit_pen2 <- lm(body_mass_g ~ species * sex, data = penguins)
+anova(fit_pen2)
+```
+
+```{r penguins-interaction, fig.cap="Interaction plot for body mass by species and sex. The lines are approximately parallel -- the sex difference is similar across species -- but Gentoo penguins show a slightly larger sex dimorphism."}
+pen_means <- penguins[, .(
+  mean_mass = mean(body_mass_g),
+  se = sd(body_mass_g) / sqrt(.N)
+), by = .(species, sex)]
+
+ggplot2$ggplot(pen_means, ggplot2$aes(
+  x = species, y = mean_mass, colour = sex, group = sex
+)) +
+  ggplot2$geom_line(linewidth = 0.9) +
+  ggplot2$geom_pointrange(
+    ggplot2$aes(ymin = mean_mass - se, ymax = mean_mass + se),
+    size = 0.8
+  ) +
+  ggplot2$scale_colour_manual(
+    values = c("female" = "#CC79A7", "male" = "#0072B2"),
+    name = "Sex"
+  ) +
+  ggplot2$labs(
+    x = "Species",
+    y = "Body mass (g)",
+    title = "Interaction plot: species x sex"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The interaction is modest: all three species show males heavier than females, but the magnitude of the difference varies. The main effects of both species and sex are highly significant.
+
+---
+
+## 18.24 Connecting ANOVA to the Broader Framework
+
+| What you call it | What it really is |
+|:----------------|:-----------------|
+| One-way ANOVA | `lm(Y ~ factor)` |
+| Two-way ANOVA | `lm(Y ~ A + B)` |
+| Factorial ANOVA | `lm(Y ~ A * B)` |
+| ANCOVA | `lm(Y ~ factor + covariate)` |
+| Repeated measures | Mixed-effects model (beyond this chapter) |
+
+Every entry in this table is a special case of the general linear model. The $F$-tests are all instances of comparing nested models. Understanding this unity is the single most important insight from this chapter.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting factorial ANOVA and ANCOVA results:
+
+- **Lead with the interaction plot.** It communicates more than any table of numbers. If the lines are parallel, say "the effect of dose is the same for both supplements." If they cross or diverge, say "the effect of dose depends on which supplement was used."
+- **Beware of marginal means when interactions are present.** If you report "the mean for OJ is 20.7 and the mean for VC is 17.0," you are averaging over doses -- which is misleading when the supplement effect depends on dose.
+- **ANCOVA adjusts for confounders.** "After adjusting for BMI, blood pressure still increases with age" is a more precise statement than "blood pressure increases with age."
+- **Report both the ANOVA table and the model coefficients.** The ANOVA table gives the overall tests; the coefficients give the effect sizes and directions.
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **Two-way model** | $Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \varepsilon_{ijk}$ |
+| **ANCOVA model** | $Y_{ij} = \mu + \alpha_j + \beta x_{ij} + \varepsilon_{ij}$ |
+| **Interaction $F$** | $\text{MS}_{AB} / \text{MSE}$ |
+| **Type I SS** | Sequential -- depends on term order |
+| **Type II SS** | Each main effect adjusted for other main effects |
+| **Type III SS** | Each effect adjusted for all others including interactions |
+| **Hierarchy principle** | Keep main effects when their interaction is in the model |
+
+---
+
+## Exercises
+
+1. **Two-way ANOVA from scratch.** Using the ToothGrowth data, compute SSA, SSB, SSAB, and SSE by hand (using group and cell means). Verify your values against `anova(lm(len ~ supp * dose, data = tg))`.
+
+2. **Interaction interpretation.** In the ToothGrowth experiment, compute the simple effect of supplement at each dose level (i.e., the OJ - VC difference at dose 0.5, 1.0, and 2.0). At which dose is the supplement effect largest? Does this match the interaction plot?
+
+3. **Unbalanced design.** Randomly remove 10 observations from the ToothGrowth data (using `set.seed(42)`). Refit the two-way model and compare Type I, II, and III sums of squares. Do the conclusions change?
+
+4. **ANCOVA assumptions.** For the NHANES BP model, test the homogeneity of slopes assumption by comparing the additive model `BPSysAve ~ age_group + BMI` with the interaction model `BPSysAve ~ age_group * BMI`. Interpret the result.
+
+5. **Penguins ANCOVA.** Fit `body_mass_g ~ species + bill_length_mm` to the penguins data. Compare the species effect before and after adjusting for bill length. Does the covariate change the conclusions?
+
+6. **Simulated power.** For a $2 \times 3$ factorial with $\sigma = 2$, determine the per-cell sample size needed to detect an interaction effect of size $\delta = 2$ with 80% power at $\alpha = 0.05$. Use simulation (10,000 replications at each sample size).

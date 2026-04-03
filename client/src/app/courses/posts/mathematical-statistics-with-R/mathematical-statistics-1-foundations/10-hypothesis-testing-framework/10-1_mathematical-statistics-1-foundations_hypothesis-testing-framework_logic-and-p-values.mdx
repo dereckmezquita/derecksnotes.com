@@ -1,0 +1,157 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 10: Hypothesis Testing Framework"
+part: "Part 1: Logic and P-values"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, p-values, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 10 -- Hypothesis Testing Framework
+
+## Part 1: Logic and P-values
+
+In Chapters 8 and 9 we learnt to *estimate* parameters -- point estimates, confidence intervals. But estimation answers the question "what is the value of $\theta$?" In practice, we often face a sharper question: "is there evidence that $\theta$ differs from some reference value?" This is the domain of **hypothesis testing**, one of the most widely used -- and widely misunderstood -- tools in all of science.
+
+We open with a historical episode that captures the spirit of testing beautifully: James Lind's scurvy trial of 1747.
+
+---
+
+## 10.1 Motivation: The Scurvy Trial
+
+In 1747, the Scottish physician James Lind conducted what is often considered the first controlled clinical trial. Twelve sailors suffering from scurvy were divided into six pairs. Each pair received a different treatment: cider, elixir of vitriol, vinegar, seawater, oranges and lemons, or a purgative. The pair given citrus fruit recovered dramatically; the others did not.
+
+Lind's reasoning was, in essence, a hypothesis test. His **null hypothesis** was that no treatment was effective against scurvy -- that recovery (or lack thereof) was governed by chance alone. The dramatic recovery of the citrus pair constituted evidence *against* this null. The question we formalise in this chapter is: how do we quantify such evidence rigorously?
+
+
+``` r
+# Lind's scurvy trial data (simplified)
+scurvy <- data.frame(
+  treatment = c("Cider", "Elixir of vitriol", "Vinegar",
+                 "Seawater", "Citrus fruit", "Purgative"),
+  n_patients = rep(2, 6),
+  n_improved = c(0, 0, 0, 0, 2, 0)
+)
+
+scurvy$prop_improved <- scurvy$n_improved / scurvy$n_patients
+scurvy
+```
+
+```
+          treatment n_patients n_improved prop_improved
+1             Cider          2          0             0
+2 Elixir of vitriol          2          0             0
+3           Vinegar          2          0             0
+4          Seawater          2          0             0
+5      Citrus fruit          2          2             1
+6         Purgative          2          0             0
+```
+
+With only 2 patients per group, formal inference is limited. But the signal is unmistakable: every other group showed zero improvement. This is the archetype -- we observe something surprising under the assumption of no effect, and we must decide whether to attribute it to chance or to a real phenomenon.
+
+---
+
+## 10.2 The Logic of Hypothesis Testing
+
+### 10.2.1 Innocent Until Proven Guilty
+
+Hypothesis testing follows the logic of proof by contradiction, borrowing directly from the legal principle of "innocent until proven guilty."
+
+1. **Assume the null hypothesis $H_0$ is true.** This is the "innocent" state -- the status quo, the default, the claim of no effect.
+2. **Collect data and compute a test statistic.**
+3. **Ask: how surprising are these data if $H_0$ were true?**
+4. **If the data are sufficiently surprising, reject $H_0$.** The "burden of proof" has been met.
+
+The defendant (null hypothesis) is presumed innocent. The prosecution (the data) must present evidence strong enough to convince us beyond a reasonable threshold. If the evidence is weak, we do not convict -- we "fail to reject $H_0$." Note carefully: we do **not** declare the defendant innocent; we merely state that the evidence was insufficient to convict.
+
+### 10.2.2 The Asymmetry of Testing
+
+This asymmetry is fundamental and often a source of confusion:
+
+- **Rejecting $H_0$** is a strong conclusion: the data provide sufficient evidence against the null.
+- **Failing to reject $H_0$** is a weak conclusion: the data are consistent with the null, but they might also be consistent with many alternative hypotheses.
+
+"Absence of evidence is not evidence of absence." Failing to reject $H_0$ does *not* mean $H_0$ is true.
+
+---
+
+## 10.3 Null and Alternative Hypotheses
+
+### 10.3.1 Formal Definitions
+
+Let $\theta$ be a parameter of interest. A hypothesis test involves two competing claims:
+
+- **Null hypothesis $H_0$:** $\theta \in \Theta_0$, where $\Theta_0$ is some subset of the parameter space.
+- **Alternative hypothesis $H_1$ (or $H_a$):** $\theta \in \Theta_0^c$ (the complement of $\Theta_0$).
+
+In the simplest and most common case, the null specifies a single value:
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta \neq \theta_0 \quad \text{(two-sided)}$$
+
+or a direction:
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta > \theta_0 \quad \text{(one-sided, right)}$$
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta < \theta_0 \quad \text{(one-sided, left)}$$
+
+### 10.3.2 Simple vs. Composite Hypotheses
+
+A hypothesis is **simple** if it specifies the distribution completely (i.e., a single point in the parameter space). It is **composite** if it specifies a set of distributions.
+
+- $H_0: \mu = 5$ is simple (for a normal distribution with known $\sigma$).
+- $H_1: \mu \neq 5$ is composite -- it includes all values $\mu \in \mathbb{R} \setminus \{5\}$.
+
+The distinction matters theoretically: the Neyman-Pearson lemma (Part 3) applies to simple hypotheses. For composite alternatives, we need more general tools such as likelihood ratio tests.
+
+### 10.3.3 Choosing the Null
+
+The null hypothesis should always represent the "conservative" claim -- the one that places the burden of proof on the researcher. In pharmaceutical trials, $H_0$ states that the drug has no effect. In quality control, $H_0$ states that the production process is operating within specification. In basic science, $H_0$ states that there is no relationship between variables.
+
+We never set out to "prove" $H_0$. We set out to see whether the data are incompatible with it.
+
+---
+
+## 10.4 Test Statistics and Rejection Regions
+
+### 10.4.1 Test Statistics
+
+A **test statistic** $T = T(X_1, \ldots, X_n)$ is a function of the data that measures how far the observed data deviate from what we would expect under $H_0$. Good test statistics are large (in absolute value) when the data are inconsistent with $H_0$ and small when they are consistent.
+
+**Example.** Suppose $X_1, \ldots, X_n \overset{iid}{\sim} N(\mu, \sigma^2)$ with $\sigma^2$ known, and we test $H_0: \mu = \mu_0$ vs. $H_1: \mu \neq \mu_0$. A natural test statistic is:
+
+$$Z = \frac{\bar{X} - \mu_0}{\sigma / \sqrt{n}}.$$
+
+Under $H_0$, $Z \sim N(0, 1)$. Large values of $|Z|$ suggest $\mu \neq \mu_0$.
+
+### 10.4.2 Rejection Regions
+
+The **rejection region** (or critical region) $\mathcal{R}$ is the set of values of the test statistic for which we reject $H_0$. For a two-sided test at significance level $\alpha$:
+
+$$\mathcal{R} = \{z : |z| > z_{\alpha/2}\}$$
+
+where $z_{\alpha/2}$ is the upper $\alpha/2$ quantile of $N(0, 1)$. For $\alpha = 0.05$, $z_{0.025} \approx 1.96$.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

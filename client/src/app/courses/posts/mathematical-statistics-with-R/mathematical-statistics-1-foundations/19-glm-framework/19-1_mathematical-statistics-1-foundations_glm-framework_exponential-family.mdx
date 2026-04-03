@@ -1,0 +1,85 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 19: GLM Framework"
+part: "Part 1: The Exponential Family"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, glm, exponential-family, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 19 -- GLM Framework
+
+## Part 1: The Exponential Family
+
+Up to this point every model we have fitted assumes a continuous, normally distributed response. But the real world is not so obliging. A patient either survives or does not. A website visitor clicks or does not click. A count of insurance claims cannot be negative or fractional. Forcing these outcomes into the straight-jacket of ordinary linear regression produces nonsensical predictions -- probabilities outside $[0, 1]$, negative counts -- and violates every assumption that makes inference valid.
+
+This chapter develops the **Generalised Linear Model (GLM)**, a framework that extends linear regression to responses from any distribution in the *exponential family*. In this first part we ask *why* generalisation is necessary, define the exponential family precisely, and show that every distribution we have already studied -- Normal, Binomial, Poisson, Gamma -- is a member.
+
+---
+
+## 19.1 Why Generalise?
+
+### 19.1.1 Linear Regression Fails for Binary Data
+
+Suppose we want to model whether a baby has low birth weight ($< 2500\text{g}$) as a function of the mother's weight. The response is binary: $Y_i \in \{0, 1\}$. Let us see what happens when we fit an ordinary linear model.
+
+
+``` r
+set.seed(42)
+data_dir <- "../../../data"
+bwt <- data.table$fread(file.path(data_dir, "classic/birthwt.csv"))
+bwt[, low := as.integer(bwt < 2500)]
+
+fit_ols <- lm(low ~ lwt, data = bwt)
+bwt[, pred_ols := predict(fit_ols)]
+
+ggplot2$ggplot(bwt, ggplot2$aes(x = lwt, y = low)) +
+  ggplot2$geom_jitter(
+    Height = 0.03, width = 0, alpha = 0.4, colour = "#0072B2", size = 2
+  ) +
+  ggplot2$geom_line(
+    ggplot2$aes(y = pred_ols), colour = "#D55E00", linewidth = 1.1
+  ) +
+  ggplot2$geom_hline(yintercept = c(0, 1), linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = "Mother's weight at last menstrual period (lbs)",
+    y = "Low birth weight (0/1)",
+    title = "OLS fitted to a binary response"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="linear-binary-fail-1.png" alt="OLS fitted to binary data. The fitted line predicts probabilities below 0 and above 1, which is nonsensical for a binary outcome.">
+	OLS fitted to binary data. The fitted line predicts probabilities below 0 and above 1, which is nonsensical for a binary outcome.
+</Figure>
+
+The fitted line blasts through the floor and ceiling. At high maternal weights the "predicted probability" is negative; at low maternal weights it exceeds one. The model is mathematically incoherent.
+
+### 19.1.2 Linear Regression Fails for Count Data
+
+Next, consider modelling the number of insurance claims as a function of age. Counts are non-negative integers. An OLS line will happily predict $-3.7$ claims for young policyholders.
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,531 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 23: Computational Bayesian Methods"
+part: "Part 1: MCMC Algorithms"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, mcmc, metropolis-hastings, gibbs-sampling, bayesian, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 23 -- Computational Bayesian Methods
+
+## Part 1: MCMC Algorithms
+
+In Chapter 22 we exploited conjugate priors to obtain closed-form posteriors. But most real-world models -- hierarchical models, mixture models, models with many parameters -- do not admit conjugate solutions. The posterior is known only up to a normalising constant:
+
+$$\pi(\boldsymbol{\theta} \mid \mathbf{y}) = \frac{f(\mathbf{y} \mid \boldsymbol{\theta}) \, \pi(\boldsymbol{\theta})}{m(\mathbf{y})}$$
+
+and the integral $m(\mathbf{y}) = \int f(\mathbf{y} \mid \boldsymbol{\theta}) \, \pi(\boldsymbol{\theta}) \, d\boldsymbol{\theta}$ is intractable in high dimensions.
+
+**Markov chain Monte Carlo (MCMC)** solves this problem by constructing a Markov chain whose stationary distribution is the target posterior. We draw correlated samples from this chain and use them to approximate any posterior quantity.
+
+---
+
+## 23.1 Monte Carlo Integration
+
+### 23.1.1 The Core Idea
+
+Suppose we want to compute $E[g(\theta) \mid \mathbf{y}] = \int g(\theta) \, \pi(\theta \mid \mathbf{y}) \, d\theta$. If we can draw $\theta^{(1)}, \dots, \theta^{(S)} \sim \pi(\theta \mid \mathbf{y})$, then by the **law of large numbers**:
+
+$$\hat{g}_S = \frac{1}{S} \sum_{s=1}^S g(\theta^{(s)}) \xrightarrow{a.s.} E[g(\theta) \mid \mathbf{y}] \qquad \text{as } S \to \infty$$
+
+The Monte Carlo standard error is $\text{SE} = \text{sd}(g(\theta^{(s)})) / \sqrt{S}$. With $S = 10{,}000$ draws, we can approximate most posterior summaries to high accuracy.
+
+### 23.1.2 Demonstration: Monte Carlo Integration
+
+
+``` r
+set.seed(42)
+a_true <- 14
+b_true <- 13
+true_mean <- a_true / (a_true + b_true)
+
+draws <- rbeta(10000, a_true, b_true)
+running_mean <- cumsum(draws) / seq_along(draws)
+
+mc_dt <- data.table$data.table(
+  s = seq_along(running_mean),
+  estimate = running_mean
+)
+
+ggplot2$ggplot(mc_dt, ggplot2$aes(x = s, y = estimate)) +
+  ggplot2$geom_line(colour = "#0072B2", alpha = 0.7) +
+  ggplot2$geom_hline(yintercept = true_mean, linetype = "dashed", colour = "#D55E00", linewidth = 1) +
+  ggplot2$labs(
+    x = "Number of Monte Carlo draws (S)",
+    y = "Running mean",
+    title = sprintf("Monte Carlo estimate converges to true mean = %.4f", true_mean)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="mc-integration-1.png" alt="Monte Carlo integration converges to the true posterior mean as the number of draws increases.">
+	Monte Carlo integration converges to the true posterior mean as the number of draws increases.
+</Figure>
+
+---
+
+## 23.2 Why MCMC? The Problem with Direct Sampling
+
+For conjugate models we can sample directly from the posterior. But consider a posterior like:
+
+$$\pi(\mu, \sigma^2 \mid \mathbf{y}) \propto \prod_{i=1}^n \frac{1}{\sigma} \exp\!\left[-\frac{(y_i - \mu)^2}{2\sigma^2}\right] \cdot \pi(\mu) \cdot \pi(\sigma^2)$$
+
+With non-conjugate priors, no closed form exists. We cannot use `rbeta()` or `rnorm()`. We need a method that samples from an **unnormalised** density.
+
+---
+
+## 23.3 The Metropolis-Hastings Algorithm
+
+### 23.3.1 The Algorithm
+
+The **Metropolis-Hastings (MH)** algorithm constructs a Markov chain $\{\theta^{(0)}, \theta^{(1)}, \theta^{(2)}, \dots\}$ whose stationary distribution is the target $\pi(\theta \mid \mathbf{y})$.
+
+**Algorithm.** Given current state $\theta^{(t)}$:
+
+1. **Propose** $\theta^* \sim q(\theta^* \mid \theta^{(t)})$ (a proposal distribution).
+2. **Compute** the acceptance ratio:
+
+$$\alpha = \min\!\left(1, \; \frac{\pi(\theta^* \mid \mathbf{y}) \, q(\theta^{(t)} \mid \theta^*)}{\pi(\theta^{(t)} \mid \mathbf{y}) \, q(\theta^* \mid \theta^{(t)})}\right)$$
+
+3. **Accept or reject:**
+   - With probability $\alpha$, set $\theta^{(t+1)} = \theta^*$.
+   - Otherwise, set $\theta^{(t+1)} = \theta^{(t)}$.
+
+The beauty is that $\pi(\theta^* \mid \mathbf{y})$ appears only as a ratio, so the normalising constant cancels:
+
+$$\frac{\pi(\theta^* \mid \mathbf{y})}{\pi(\theta^{(t)} \mid \mathbf{y})} = \frac{f(\mathbf{y} \mid \theta^*) \pi(\theta^*)}{f(\mathbf{y} \mid \theta^{(t)}) \pi(\theta^{(t)})}$$
+
+### 23.3.2 Detailed Balance (Intuition)
+
+The chain satisfies **detailed balance**: the flow of probability from $\theta_a$ to $\theta_b$ equals the flow from $\theta_b$ to $\theta_a$:
+
+$$\pi(\theta_a) \, T(\theta_a \to \theta_b) = \pi(\theta_b) \, T(\theta_b \to \theta_a)$$
+
+where $T(\theta_a \to \theta_b) = q(\theta_b \mid \theta_a) \, \alpha(\theta_a, \theta_b)$. This ensures $\pi(\theta \mid \mathbf{y})$ is the stationary distribution -- the chain spends time in each region proportional to its posterior probability.
+
+### 23.3.3 The Random Walk Metropolis
+
+The most common variant uses a **symmetric** proposal: $q(\theta^* \mid \theta^{(t)}) = q(\theta^{(t)} \mid \theta^*)$, typically:
+
+$$\theta^* = \theta^{(t)} + \epsilon, \qquad \epsilon \sim N(0, \sigma^2_{\text{prop}})$$
+
+The proposal terms cancel, and the acceptance ratio simplifies to:
+
+$$\alpha = \min\!\left(1, \; \frac{\pi(\theta^* \mid \mathbf{y})}{\pi(\theta^{(t)} \mid \mathbf{y})}\right)$$
+
+If the proposed point has higher posterior density, we always accept. If lower, we accept with probability equal to the density ratio -- allowing the chain to occasionally move downhill and explore the full posterior.
+
+---
+
+## 23.4 Implementing Metropolis-Hastings from Scratch
+
+Let us estimate the mean of a normal distribution with known variance using a non-conjugate (Cauchy) prior.
+
+
+``` r
+set.seed(42)
+
+y_data <- rnorm(30, mean = 5, sd = 2)
+n_data <- length(y_data)
+y_bar <- mean(y_data)
+sigma_known <- 2
+
+log_posterior <- function(mu) {
+  log_lik <- -n_data / (2 * sigma_known^2) * (mu - y_bar)^2
+  log_prior <- dt(mu, df = 1, log = TRUE)
+  log_lik + log_prior
+}
+
+metropolis_hastings <- function(n_iter, sigma_prop, start = 0) {
+  chain <- numeric(n_iter)
+  chain[1] <- start
+  accepted <- 0
+
+  for (t in 2:n_iter) {
+    proposal <- rnorm(1, chain[t - 1], sigma_prop)
+    log_alpha <- log_posterior(proposal) - log_posterior(chain[t - 1])
+
+    if (log(runif(1)) < log_alpha) {
+      chain[t] <- proposal
+      accepted <- accepted + 1
+    } else {
+      chain[t] <- chain[t - 1]
+    }
+  }
+
+  list(chain = chain, acceptance_rate = accepted / (n_iter - 1))
+}
+
+result <- metropolis_hastings(n_iter = 20000, sigma_prop = 1.5)
+sprintf("Acceptance rate: %.3f", result$acceptance_rate)
+sprintf("Posterior mean (MCMC): %.4f", mean(result$chain[5001:20000]))
+sprintf("Sample mean (MLE): %.4f", y_bar)
+```
+
+```
+[1] "Acceptance rate: 0.282"
+[1] "Posterior mean (MCMC): 5.0907"
+[1] "Sample mean (MLE): 5.1372"
+```
+
+
+``` r
+chain_dt <- data.table$data.table(
+  iteration = seq_along(result$chain),
+  mu = result$chain
+)
+
+p1 <- ggplot2$ggplot(chain_dt[iteration > 500], ggplot2$aes(x = iteration, y = mu)) +
+  ggplot2$geom_line(alpha = 0.4, colour = "#0072B2") +
+  ggplot2$geom_hline(yintercept = y_bar, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(x = "Iteration", y = expression(mu), title = "Trace plot") +
+  ggplot2$theme_minimal(base_size = 12)
+
+p2 <- ggplot2$ggplot(chain_dt[iteration > 5000], ggplot2$aes(x = mu)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.7, colour = "white"
+  ) +
+  ggplot2$geom_vline(xintercept = y_bar, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(x = expression(mu), y = "Density", title = "Posterior histogram") +
+  ggplot2$theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+<Figure src="mh-trace-and-hist-1.png" alt="Metropolis-Hastings output: trace plot (left) and posterior histogram (right). The chain mixes well and concentrates around the data mean.">
+	Metropolis-Hastings output: trace plot (left) and posterior histogram (right). The chain mixes well and concentrates around the data mean.
+</Figure>
+
+---
+
+## 23.5 Tuning the Proposal
+
+The proposal standard deviation $\sigma_{\text{prop}}$ controls the trade-off between exploration and acceptance:
+
+- **Too small:** high acceptance rate (~95%), but the chain takes tiny steps and explores slowly.
+- **Too large:** the chain proposes extreme values that are usually rejected (~5%), and the chain gets stuck.
+- **Optimal:** for a single parameter, an acceptance rate of ~44% is optimal; for many parameters, ~23%.
+
+
+``` r
+set.seed(42)
+sigmas <- c(0.1, 1.5, 20)
+tuning_list <- list()
+
+for (sig in sigmas) {
+  res <- metropolis_hastings(10000, sig)
+  tuning_list[[length(tuning_list) + 1]] <- data.table$data.table(
+    iteration = 1:10000,
+    mu = res$chain,
+    sigma_prop = sprintf("sigma = %.1f (accept = %.0f%%)", sig, res$acceptance_rate * 100)
+  )
+}
+
+tuning_dt <- data.table$rbindlist(tuning_list)
+
+ggplot2$ggplot(tuning_dt[iteration <= 2000], ggplot2$aes(x = iteration, y = mu)) +
+  ggplot2$geom_line(alpha = 0.6, colour = "#0072B2") +
+  ggplot2$facet_wrap(~ sigma_prop, ncol = 1, scales = "free_y") +
+  ggplot2$geom_hline(yintercept = y_bar, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(
+    x = "Iteration", y = expression(mu),
+    title = "Proposal tuning: too narrow, just right, and too wide"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+<Figure src="tuning-demo-1.png" alt="Effect of proposal scale on chain behaviour. Too narrow: slow exploration. Too wide: high rejection. A well-tuned proposal explores efficiently.">
+	Effect of proposal scale on chain behaviour. Too narrow: slow exploration. Too wide: high rejection. A well-tuned proposal explores efficiently.
+</Figure>
+
+---
+
+## 23.6 Gibbs Sampling
+
+### 23.6.1 The Idea
+
+**Gibbs sampling** is a special case of Metropolis-Hastings for multivariate problems. Instead of proposing all parameters at once, we update each parameter in turn from its **full conditional** distribution -- the distribution of that parameter given all others and the data.
+
+For parameters $\theta_1, \theta_2$:
+
+1. Draw $\theta_1^{(t+1)} \sim \pi(\theta_1 \mid \theta_2^{(t)}, \mathbf{y})$
+2. Draw $\theta_2^{(t+1)} \sim \pi(\theta_2 \mid \theta_1^{(t+1)}, \mathbf{y})$
+
+Each step is an MH step with acceptance probability 1, because the proposal equals the full conditional.
+
+### 23.6.2 Gibbs as a Special Case of MH
+
+In step 1, the proposal is $q(\theta_1^* \mid \theta_1^{(t)}) = \pi(\theta_1^* \mid \theta_2^{(t)}, \mathbf{y})$. The MH acceptance ratio becomes:
+
+$$\alpha = \frac{\pi(\theta_1^*, \theta_2^{(t)} \mid \mathbf{y}) \, \pi(\theta_1^{(t)} \mid \theta_2^{(t)}, \mathbf{y})}{\pi(\theta_1^{(t)}, \theta_2^{(t)} \mid \mathbf{y}) \, \pi(\theta_1^* \mid \theta_2^{(t)}, \mathbf{y})} = \frac{\cancel{\pi(\theta_2^{(t)} \mid \mathbf{y})} \, \cancel{\pi(\theta_1^{(t)} \mid \theta_2^{(t)}, \mathbf{y})}}{\cancel{\pi(\theta_2^{(t)} \mid \mathbf{y})} \, \cancel{\pi(\theta_1^{(t)} \mid \theta_2^{(t)}, \mathbf{y})}} = 1$$
+
+Every proposal is accepted.
+
+---
+
+## 23.7 Gibbs Sampler: Bivariate Normal
+
+Let us implement a Gibbs sampler for the bivariate normal distribution with known parameters:
+
+$$\begin{pmatrix} X \\ Y \end{pmatrix} \sim N\!\left(\begin{pmatrix} \mu_X \\ \mu_Y \end{pmatrix}, \begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix}\right)$$
+
+The full conditionals are:
+
+$$X \mid Y = y \sim N(\mu_X + \rho(y - \mu_Y), \; 1 - \rho^2)$$
+$$Y \mid X = x \sim N(\mu_Y + \rho(x - \mu_X), \; 1 - \rho^2)$$
+
+
+``` r
+set.seed(42)
+
+gibbs_bivariate <- function(n_iter, mu_x = 0, mu_y = 0, rho = 0.8) {
+  x <- numeric(n_iter)
+  y <- numeric(n_iter)
+  x[1] <- 0
+  y[1] <- 0
+  cond_sd <- sqrt(1 - rho^2)
+
+  for (t in 2:n_iter) {
+    x[t] <- rnorm(1, mu_x + rho * (y[t - 1] - mu_y), cond_sd)
+    y[t] <- rnorm(1, mu_y + rho * (x[t] - mu_x), cond_sd)
+  }
+
+  data.table$data.table(iteration = seq_len(n_iter), x = x, y = y)
+}
+
+gibbs_samples <- gibbs_bivariate(5000, rho = 0.8)
+```
+
+
+``` r
+burn_in <- 500
+post_burn <- gibbs_samples[iteration > burn_in]
+
+ggplot2$ggplot(post_burn, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_point(alpha = 0.15, colour = "#0072B2", size = 0.8) +
+  ggplot2$stat_density_2d(colour = "#D55E00", linewidth = 0.5) +
+  ggplot2$labs(
+    x = "X", y = "Y",
+    title = sprintf(
+      "Gibbs samples: cor = %.3f (target = 0.800)",
+      cor(post_burn$x, post_burn$y)
+    )
+  ) +
+  ggplot2$coord_equal() +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="gibbs-scatter-1.png" alt="Gibbs sampler for a bivariate normal with rho = 0.8. The samples (after burn-in) reproduce the target correlation structure.">
+	Gibbs sampler for a bivariate normal with rho = 0.8. The samples (after burn-in) reproduce the target correlation structure.
+</Figure>
+
+
+``` r
+early <- gibbs_samples[iteration <= 50]
+
+ggplot2$ggplot(early, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_path(alpha = 0.5, colour = "#0072B2") +
+  ggplot2$geom_point(size = 1.5, colour = "#D55E00") +
+  ggplot2$labs(
+    x = "X", y = "Y",
+    title = "Gibbs sampler path: first 50 iterations (zig-zag pattern)"
+  ) +
+  ggplot2$coord_equal() +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="gibbs-path-1.png" alt="First 50 iterations of the Gibbs sampler showing the characteristic zig-zag pattern as it alternates between updating X and Y.">
+	First 50 iterations of the Gibbs sampler showing the characteristic zig-zag pattern as it alternates between updating X and Y.
+</Figure>
+
+---
+
+## 23.8 Interactive: Watch the MCMC Chain Explore
+
+<InteractivePlot>
+
+
+``` r
+box::use(shiny)
+box::use(ggplot2)
+
+shiny$shinyApp(
+  ui = shiny$fluidPage(
+    shiny$titlePanel("MCMC: Watch the Chain Explore the Posterior"),
+    shiny$sidebarLayout(
+      shiny$sidebarPanel(
+        shiny$selectInput("algorithm", "Algorithm:",
+          choices = c("Random Walk Metropolis" = "rw", "Gibbs Sampler" = "gibbs")
+        ),
+        shiny$sliderInput("n_show", "Iterations to show:",
+          min = 10, max = 5000, value = 100, step = 10, animate = TRUE
+        ),
+        shiny$sliderInput("sigma_prop", "Proposal SD (Metropolis):",
+          min = 0.1, max = 5, value = 1, step = 0.1
+        ),
+        shiny$sliderInput("rho", "Correlation (Gibbs):",
+          min = -0.95, max = 0.95, value = 0.7, step = 0.05
+        ),
+        shiny$actionButton("rerun", "New chain")
+      ),
+      shiny$mainPanel(
+        shiny$plotOutput("chain_plot", Height = "500px"),
+        shiny$verbatimTextOutput("stats_text")
+      )
+    )
+  ),
+  server = function(input, output, session) {
+    chain_data <- shiny$reactiveVal(NULL)
+
+    shiny$observeEvent(input$rerun, {
+      chain_data(NULL)
+    }, ignoreNULL = FALSE)
+
+    get_chain <- shiny$reactive({
+      input$rerun
+      if (input$algorithm == "gibbs") {
+        n <- 5000
+        rho <- input$rho
+        x <- y <- numeric(n)
+        csd <- sqrt(1 - rho^2)
+        for (t in 2:n) {
+          x[t] <- rnorm(1, rho * y[t-1], csd)
+          y[t] <- rnorm(1, rho * x[t], csd)
+        }
+        data.frame(iter = 1:n, x = x, y = y)
+      } else {
+        n <- 5000
+        sp <- input$sigma_prop
+        x <- y <- numeric(n)
+        for (t in 2:n) {
+          px <- rnorm(1, x[t-1], sp)
+          py <- rnorm(1, y[t-1], sp)
+          log_a <- -(px^2 + py^2)/2 + (x[t-1]^2 + y[t-1]^2)/2
+          if (log(runif(1)) < log_a) { x[t] <- px; y[t] <- py
+          } else { x[t] <- x[t-1]; y[t] <- y[t-1] }
+        }
+        data.frame(iter = 1:n, x = x, y = y)
+      }
+    })
+
+    output$chain_plot <- shiny$renderPlot({
+      d <- get_chain()
+      k <- min(input$n_show, nrow(d))
+      sub <- d[1:k, ]
+      ggplot2$ggplot(sub, ggplot2$aes(x = x, y = y)) +
+        ggplot2$geom_path(alpha = 0.3, colour = "#0072B2") +
+        ggplot2$geom_point(size = 0.5, colour = "#D55E00", alpha = 0.5) +
+        ggplot2$labs(title = sprintf("MCMC chain: %d iterations", k)) +
+        ggplot2$coord_equal(xlim = c(-4, 4), ylim = c(-4, 4)) +
+        ggplot2$theme_minimal(base_size = 14)
+    })
+
+    output$stats_text <- shiny$renderText({
+      d <- get_chain()
+      k <- min(input$n_show, nrow(d))
+      sub <- d[1:k, ]
+      sprintf("Mean X: %.3f  Mean Y: %.3f  Cor(X,Y): %.3f",
+              mean(sub$x), mean(sub$y),
+              if (k > 2) cor(sub$x, sub$y) else NA)
+    })
+  }
+)
+```
+
+</InteractivePlot>
+
+---
+
+## 23.9 Burn-In and Thinning
+
+### 23.9.1 Burn-In
+
+The chain starts from an arbitrary point and may take many iterations to reach the high-probability region. We discard the first $B$ iterations as **burn-in**. A common choice is to discard the first 10--50% of the chain.
+
+### 23.9.2 Thinning
+
+Successive MCMC samples are correlated. **Thinning** -- keeping every $k$-th sample -- reduces correlation but wastes samples. Modern practice favours running longer chains rather than thinning aggressively.
+
+
+``` r
+set.seed(42)
+bad_start <- metropolis_hastings(10000, sigma_prop = 1.5, start = -20)
+
+burn_dt <- data.table$data.table(
+  iteration = seq_along(bad_start$chain),
+  mu = bad_start$chain
+)
+
+ggplot2$ggplot(burn_dt, ggplot2$aes(x = iteration, y = mu)) +
+  ggplot2$geom_line(alpha = 0.5, colour = "#0072B2") +
+  ggplot2$geom_hline(yintercept = y_bar, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$geom_vline(xintercept = 1000, linetype = "dotted", colour = "#009E73", linewidth = 1) +
+  ggplot2$annotate("text", x = 1200, y = -15, label = "Burn-in ends", colour = "#009E73", hjust = 0) +
+  ggplot2$labs(
+    x = "Iteration", y = expression(mu),
+    title = "Chain started at mu = -20: burn-in removes initialisation transient"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="burnin-demo-1.png" alt="Effect of burn-in: the chain starts far from the target and takes several hundred iterations to settle. Discarding these early iterations removes the initialisation bias.">
+	Effect of burn-in: the chain starts far from the target and takes several hundred iterations to settle. Discarding these early iterations removes the initialisation bias.
+</Figure>
+
+---
+
+## 23.10 Autocorrelation in MCMC
+
+Unlike independent Monte Carlo draws, MCMC samples are correlated. The **effective sample size (ESS)** quantifies the information content:
+
+$$\text{ESS} = \frac{S}{1 + 2\sum_{k=1}^{\infty} \rho_k}$$
+
+where $\rho_k$ is the autocorrelation at lag $k$.
+
+
+``` r
+set.seed(42)
+chain_good <- metropolis_hastings(10000, 1.5)$chain[5001:10000]
+chain_narrow <- metropolis_hastings(10000, 0.1)$chain[5001:10000]
+
+acf_good <- acf(chain_good, lag.max = 50, plot = FALSE)
+acf_narrow <- acf(chain_narrow, lag.max = 50, plot = FALSE)
+
+acf_dt <- data.table$data.table(
+  lag = rep(acf_good$lag[-1], 2),
+  acf = c(acf_good$acf[-1], acf_narrow$acf[-1]),
+  chain = rep(c("Well-tuned (sigma=1.5)", "Too narrow (sigma=0.1)"), each = 50)
+)
+
+ggplot2$ggplot(acf_dt, ggplot2$aes(x = lag, y = acf, fill = chain)) +
+  ggplot2$geom_col(position = "dodge", alpha = 0.8) +
+  ggplot2$scale_fill_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "Lag", y = "Autocorrelation",
+    title = "Autocorrelation: well-tuned chain decorrelates much faster",
+    fill = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="autocorrelation-1.png" alt="Autocorrelation function for MCMC chains with different proposal scales. A well-tuned chain decorrelates quickly.">
+	Autocorrelation function for MCMC chains with different proposal scales. A well-tuned chain decorrelates quickly.
+</Figure>
+
+
+

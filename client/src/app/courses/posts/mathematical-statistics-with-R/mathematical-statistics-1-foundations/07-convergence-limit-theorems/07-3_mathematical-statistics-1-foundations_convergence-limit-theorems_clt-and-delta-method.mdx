@@ -1,0 +1,747 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 7: Convergence and Limit Theorems"
+part: "Part 3: The Central Limit Theorem and the Delta Method"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, convergence, CLT, delta-method, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+# Chapter 7 -- Convergence and Limit Theorems
+
+## Part 3: The Central Limit Theorem and the Delta Method
+
+The Central Limit Theorem (CLT) is arguably the single most important result in statistics. It explains why the normal distribution appears so often in practice: **the sum (or average) of many independent random variables is approximately normal, regardless of the underlying distribution**. This is the theorem that makes confidence intervals work, that justifies the $z$-test, and that underpins the entire asymptotic theory of maximum likelihood.
+
+In this part we prove the CLT using moment-generating functions, demonstrate it with extensive simulations (including real NHANES data), and then derive the **delta method** -- the tool that extends the CLT to functions of sample means.
+
+---
+
+## 7.8 The Central Limit Theorem
+
+### 7.8.1 Statement
+
+Let $X_1, X_2, \ldots$ be iid random variables with mean $\mu$ and finite variance $\sigma^2 > 0$. Define the **standardised sample mean**:
+
+$$Z_n = \frac{\bar{X}_n - \mu}{\sigma / \sqrt{n}} = \frac{\sum_{i=1}^n X_i - n\mu}{\sigma\sqrt{n}}.$$
+
+**Theorem (Central Limit Theorem).** As $n \to \infty$:
+
+$$Z_n \xrightarrow{d} Z \sim N(0, 1).$$
+
+Equivalently:
+
+$$\bar{X}_n \stackrel{\cdot}{\sim} N\!\left(\mu, \frac{\sigma^2}{n}\right)$$
+
+for large $n$.
+
+### 7.8.2 Proof via Moment-Generating Functions
+
+We prove the CLT by showing that the MGF of $Z_n$ converges to the MGF of a standard normal. By the MGF convergence theorem (Lévy's continuity theorem for MGFs), this implies convergence in distribution.
+
+**Step 1: Define centred variables.**
+
+Let $Y_i = X_i - \mu$, so $E[Y_i] = 0$ and $\text{Var}(Y_i) = \sigma^2$. Then:
+
+$$Z_n = \frac{1}{\sigma\sqrt{n}} \sum_{i=1}^{n} Y_i.$$
+
+**Step 2: Write the MGF of $Z_n$.**
+
+Since the $Y_i$ are iid, the MGF of their sum is the product of the individual MGFs. Let $M_Y(t) = E[e^{tY_i}]$ denote the common MGF. Then:
+
+$$M_{Z_n}(t) = E\!\left[\exp\!\left(t \cdot \frac{\sum Y_i}{\sigma\sqrt{n}}\right)\right] = \prod_{i=1}^{n} E\!\left[\exp\!\left(\frac{t}{\sigma\sqrt{n}} Y_i\right)\right] = \left[M_Y\!\left(\frac{t}{\sigma\sqrt{n}}\right)\right]^n.$$
+
+**Step 3: Taylor-expand the MGF around 0.**
+
+Since $E[Y_i] = 0$ and $E[Y_i^2] = \sigma^2$, the Taylor expansion of $M_Y(s)$ around $s = 0$ is:
+
+$$M_Y(s) = 1 + sE[Y_i] + \frac{s^2}{2}E[Y_i^2] + O(s^3) = 1 + \frac{s^2 \sigma^2}{2} + O(s^3).$$
+
+Substituting $s = t / (\sigma\sqrt{n})$:
+
+$$M_Y\!\left(\frac{t}{\sigma\sqrt{n}}\right) = 1 + \frac{t^2/(n\sigma^2) \cdot \sigma^2}{2} + O(n^{-3/2}) = 1 + \frac{t^2}{2n} + O(n^{-3/2}).$$
+
+**Step 4: Raise to the power $n$ and take the limit.**
+
+$$M_{Z_n}(t) = \left[1 + \frac{t^2}{2n} + O(n^{-3/2})\right]^n.$$
+
+We use the fundamental limit: $\lim_{n \to \infty} (1 + a_n/n)^n = e^{a}$ whenever $a_n \to a$. Here $a_n = t^2/2 + O(n^{-1/2}) \to t^2/2$. Therefore:
+
+$$\lim_{n \to \infty} M_{Z_n}(t) = e^{t^2/2}.$$
+
+**Step 5: Recognise the limit.**
+
+The function $e^{t^2/2}$ is the MGF of the standard normal distribution $N(0,1)$.
+
+By the **MGF convergence theorem** (if $M_{Z_n}(t) \to M_Z(t)$ for all $t$ in a neighbourhood of 0, and $M_Z$ is the MGF of some distribution, then $Z_n \xrightarrow{d} Z$), we conclude:
+
+$$Z_n \xrightarrow{d} N(0, 1). \quad \blacksquare$$
+
+### 7.8.3 What the CLT Does and Does Not Say
+
+**Does say:**
+- The *sampling distribution of the mean* is approximately normal for large $n$.
+- The approximation improves as $n$ increases.
+- It works regardless of the shape of the original distribution (provided $\sigma^2 < \infty$).
+
+**Does not say:**
+- The data themselves are normal.
+- The approximation is good for any particular small $n$.
+- It applies to distributions without finite variance (e.g., Cauchy).
+
+---
+
+## 7.9 The Definitive CLT Demonstration
+
+### 7.9.1 Four Source Distributions
+
+We sample from four very different distributions and show that the sampling distribution of $\bar{X}_n$ becomes approximately normal in each case.
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+set.seed(42)
+
+n_reps <- 5000
+
+# Define four source distributions
+source_dists <- list(
+  "Exponential(1)" = list(
+    rfun = function(n) rexp(n, 1),
+    mu = 1, sigma = 1
+  ),
+  "Uniform(0, 1)" = list(
+    rfun = function(n) runif(n),
+    mu = 0.5, sigma = 1 / sqrt(12)
+  ),
+  "Poisson(2)" = list(
+    rfun = function(n) rpois(n, 2),
+    mu = 2, sigma = sqrt(2)
+  ),
+  "Bimodal" = list(
+    rfun = function(n) {
+      # Mixture of N(-2, 0.5^2) and N(2, 0.5^2) with equal weight
+      ifelse(runif(n) < 0.5, rnorm(n, -2, 0.5), rnorm(n, 2, 0.5))
+    },
+    mu = 0, sigma = sqrt(0.5 * (0.25 + 4) + 0.5 * (0.25 + 4))
+    # Var = E[X^2] - (E[X])^2 = (0.25+4) - 0 = 4.25
+  )
+)
+
+# Correct bimodal sigma
+source_dists[["Bimodal"]]$sigma <- sqrt(4.25)
+
+n_values <- c(1, 5, 30, 100)
+```
+
+
+``` r
+# For each distribution and each n, simulate n_reps sample means
+clt_data <- do.call(rbind, lapply(names(source_dists), function(dname) {
+  info <- source_dists[[dname]]
+  do.call(rbind, lapply(n_values, function(n) {
+    means <- replicate(n_reps, mean(info$rfun(n)))
+    # Standardise
+    z <- (means - info$mu) / (info$sigma / sqrt(n))
+    data.table$data.table(
+      distribution = dname,
+      n = n,
+      z = z
+    )
+  }))
+}))
+
+clt_data[, n_label := factor(
+  paste0("n = ", n),
+  levels = paste0("n = ", n_values)
+)]
+clt_data[, distribution := factor(
+  distribution,
+  levels = names(source_dists)
+)]
+```
+
+
+``` r
+normal_curve <- data.table$data.table(
+  z = seq(-4, 4, length.out = 300),
+  density = dnorm(seq(-4, 4, length.out = 300))
+)
+
+ggplot2$ggplot(clt_data, ggplot2$aes(x = z)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.6
+  ) +
+  ggplot2$geom_line(
+    data = normal_curve,
+    ggplot2$aes(x = z, y = density),
+    colour = "#D55E00", linewidth = 0.9
+  ) +
+  ggplot2$facet_grid(distribution ~ n_label, scales = "free_y") +
+  ggplot2$coord_cartesian(xlim = c(-4, 4)) +
+  ggplot2$labs(
+    x = expression(Z[n] == (bar(X)[n] - mu) / (sigma / sqrt(n))),
+    y = "Density",
+    title = "CLT: sampling distribution of the standardised mean approaches N(0,1)"
+  ) +
+  ggplot2$theme_minimal(base_size = 12) +
+  ggplot2$theme(strip.text = ggplot2$element_text(size = 11))
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/clt-demo-grid-1.png" alt="The Central Limit Theorem in action. Rows: four different source distributions. Columns: sample sizes n = 1, 5, 30, 100. The orange curve is the standard normal density. By n = 30, all four sampling distributions are remarkably close to normal.">
+	The Central Limit Theorem in action. Rows: four different source distributions. Columns: sample sizes n = 1, 5, 30, 100. The orange curve is the standard normal density. By n = 30, all four sampling distributions are remarkably close to normal.
+</Figure>
+
+### 7.9.2 Q-Q Plots: A Sharper Test
+
+
+``` r
+ggplot2$ggplot(clt_data, ggplot2$aes(sample = z)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.2, size = 0.5) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$facet_grid(distribution ~ n_label) +
+  ggplot2$labs(
+    x = "Theoretical normal quantiles",
+    y = "Sample quantiles",
+    title = "Q-Q plots: CLT convergence to normality"
+  ) +
+  ggplot2$theme_minimal(base_size = 12) +
+  ggplot2$theme(strip.text = ggplot2$element_text(size = 11))
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/clt-qq-1.png" alt="Normal Q-Q plots for the same simulation. If the sampling distribution is exactly normal, points fall on the diagonal line. By n = 30, the match is excellent even for the highly skewed Exponential source.">
+	Normal Q-Q plots for the same simulation. If the sampling distribution is exactly normal, points fall on the diagonal line. By n = 30, the match is excellent even for the highly skewed Exponential source.
+</Figure>
+
+---
+
+## 7.10 Interactive: Explore the CLT
+
+<InteractivePlot>
+
+
+``` r
+box::use(shiny)
+box::use(ggplot2)
+
+shiny$shinyApp(
+  ui = shiny$fluidPage(
+    shiny$titlePanel("Central Limit Theorem Explorer"),
+    shiny$sidebarLayout(
+      shiny$sidebarPanel(
+        shiny$selectInput("dist", "Source distribution:",
+          choices = c("Exponential(1)" = "exp",
+                      "Uniform(0,1)" = "unif",
+                      "Poisson(2)" = "pois",
+                      "Bernoulli(0.1)" = "bern",
+                      "Bimodal mixture" = "bimodal",
+                      "Chi-squared(3)" = "chisq"),
+          selected = "exp"
+        ),
+        shiny$sliderInput("n_size", "Sample size n:",
+          min = 1, max = 200, value = 5, step = 1
+        ),
+        shiny$sliderInput("n_reps", "Number of repetitions:",
+          min = 500, max = 10000, value = 3000, step = 500
+        ),
+        shiny$actionButton("resample", "Resample")
+      ),
+      shiny$mainPanel(
+        shiny$plotOutput("source_plot", Height = "250px"),
+        shiny$plotOutput("clt_plot", Height = "300px")
+      )
+    )
+  ),
+  server = function(input, output, session) {
+    get_dist <- shiny$reactive({
+      switch(input$dist,
+        "exp" = list(r = function(n) rexp(n, 1), mu = 1, sig = 1, name = "Exp(1)"),
+        "unif" = list(r = function(n) runif(n), mu = 0.5, sig = 1/sqrt(12), name = "Unif(0,1)"),
+        "pois" = list(r = function(n) rpois(n, 2), mu = 2, sig = sqrt(2), name = "Pois(2)"),
+        "bern" = list(r = function(n) rbinom(n, 1, 0.1), mu = 0.1, sig = sqrt(0.09), name = "Bern(0.1)"),
+        "bimodal" = list(
+          r = function(n) ifelse(runif(n) < 0.5, rnorm(n, -2, 0.5), rnorm(n, 2, 0.5)),
+          mu = 0, sig = sqrt(4.25), name = "Bimodal"
+        ),
+        "chisq" = list(r = function(n) rchisq(n, 3), mu = 3, sig = sqrt(6), name = "Chi-sq(3)")
+      )
+    })
+
+    sim_data <- shiny$reactive({
+      shiny$req(input$resample >= 0)
+      d <- get_dist()
+      means <- replicate(input$n_reps, mean(d$r(input$n_size)))
+      z <- (means - d$mu) / (d$sig / sqrt(input$n_size))
+      list(source = d$r(5000), z = z, info = d)
+    })
+
+    output$source_plot <- shiny$renderPlot({
+      d <- sim_data()
+      df <- data.frame(x = d$source)
+      ggplot2$ggplot(df, ggplot2$aes(x = x)) +
+        ggplot2$geom_histogram(bins = 60, fill = "#009E73", alpha = 0.7) +
+        ggplot2$labs(title = paste("Source distribution:", d$info$name), x = "x", y = "Count") +
+        ggplot2$theme_minimal(base_size = 13)
+    })
+
+    output$clt_plot <- shiny$renderPlot({
+      d <- sim_data()
+      df <- data.frame(z = d$z)
+      nc <- data.frame(z = seq(-4, 4, length.out = 300), y = dnorm(seq(-4, 4, length.out = 300)))
+      ggplot2$ggplot(df, ggplot2$aes(x = z)) +
+        ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+          bins = 50, fill = "#0072B2", alpha = 0.7) +
+        ggplot2$geom_line(data = nc, ggplot2$aes(x = z, y = y),
+          colour = "#D55E00", linewidth = 1) +
+        ggplot2$coord_cartesian(xlim = c(-4, 4)) +
+        ggplot2$labs(
+          title = paste0("Sampling distribution of Z_n (n = ", input$n_size, ")"),
+          x = expression(Z[n]), y = "Density"
+        ) +
+        ggplot2$theme_minimal(base_size = 13)
+    })
+  }
+)
+```
+
+</InteractivePlot>
+
+---
+
+## 7.11 CLT with Real Data: NHANES
+
+
+``` r
+box::use(data.table)
+box::use(ggplot2)
+
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Use SystolicBP -- drop missing
+nhanes_bp <- nhanes[!is.na(BPSysAve), .(bp = BPSysAve)]
+pop_mean <- mean(nhanes_bp$bp)
+pop_sd <- sd(nhanes_bp$bp)
+
+pop_mean
+pop_sd
+```
+
+```
+[1] 118.155
+[1] 17.24817
+```
+
+
+``` r
+ggplot2$ggplot(nhanes_bp, ggplot2$aes(x = bp)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#009E73", alpha = 0.7
+  ) +
+  ggplot2$labs(
+    x = "Systolic blood pressure (mmHg)",
+    y = "Density",
+    title = "NHANES: distribution of systolic blood pressure (right-skewed)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/clt-nhanes-hist-1.png" alt="Distribution of systolic blood pressure in the NHANES population. The distribution is right-skewed -- far from normal. Yet the CLT guarantees that sample means will be approximately normal.">
+	Distribution of systolic blood pressure in the NHANES population. The distribution is right-skewed -- far from normal. Yet the CLT guarantees that sample means will be approximately normal.
+</Figure>
+
+
+``` r
+set.seed(42)
+
+n_values <- c(5, 15, 30, 100)
+n_reps <- 4000
+pop_size <- nrow(nhanes_bp)
+
+clt_nhanes <- do.call(rbind, lapply(n_values, function(n) {
+  means <- replicate(n_reps, {
+    idx <- sample.int(pop_size, size = n, replace = TRUE)
+    mean(nhanes_bp$bp[idx])
+  })
+  z <- (means - pop_mean) / (pop_sd / sqrt(n))
+  data.table$data.table(n = n, z = z)
+}))
+
+clt_nhanes[, n_label := factor(
+  paste0("n = ", n),
+  levels = paste0("n = ", n_values)
+)]
+
+normal_curve <- data.table$data.table(
+  z = seq(-4, 4, length.out = 300),
+  density = dnorm(seq(-4, 4, length.out = 300))
+)
+```
+
+
+``` r
+ggplot2$ggplot(clt_nhanes, ggplot2$aes(x = z)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.7
+  ) +
+  ggplot2$geom_line(
+    data = normal_curve,
+    ggplot2$aes(x = z, y = density),
+    colour = "#D55E00", linewidth = 0.9
+  ) +
+  ggplot2$facet_wrap(~ n_label, ncol = 4) +
+  ggplot2$coord_cartesian(xlim = c(-4, 4)) +
+  ggplot2$labs(
+    x = expression(Z[n]),
+    y = "Density",
+    title = "CLT with real data: standardised sample mean of NHANES systolic BP"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/clt-nhanes-plot-1.png" alt="CLT with real NHANES blood pressure data. Despite the skewed source distribution, the standardised sample mean follows the N(0,1) curve (orange) closely by n = 30.">
+	CLT with real NHANES blood pressure data. Despite the skewed source distribution, the standardised sample mean follows the N(0,1) curve (orange) closely by n = 30.
+</Figure>
+
+---
+
+## 7.12 The Delta Method
+
+### 7.12.1 Motivation
+
+The CLT tells us that $\bar{X}_n$ is approximately normal. But what if we are interested in a *function* of the mean -- say $g(\bar{X}_n) = \log(\bar{X}_n)$ or $g(\bar{X}_n) = 1/\bar{X}_n$? What is the asymptotic distribution of $g(\bar{X}_n)$?
+
+The **delta method** answers this question using a first-order Taylor expansion.
+
+### 7.12.2 Crash Course: First-Order Taylor Expansion
+
+Recall from calculus that if $g$ is a differentiable function, then near a point $a$:
+
+$$g(x) \approx g(a) + g'(a)(x - a).$$
+
+This is the tangent-line approximation. The error is $O((x-a)^2)$, which becomes negligible when $x$ is close to $a$.
+
+**Example.** $g(x) = \log(x)$, $a = 1$. Then $g'(x) = 1/x$, so $g'(1) = 1$. The approximation is:
+
+$$\log(x) \approx \log(1) + 1 \cdot (x - 1) = x - 1.$$
+
+This is accurate for $x$ near 1.
+
+### 7.12.3 Derivation of the Delta Method
+
+**Theorem (Delta Method).** If $\sqrt{n}(\bar{X}_n - \mu) \xrightarrow{d} N(0, \sigma^2)$ and $g$ is a function with $g'(\mu) \ne 0$, then:
+
+$$\sqrt{n}\left(g(\bar{X}_n) - g(\mu)\right) \xrightarrow{d} N\!\left(0, \, [g'(\mu)]^2 \sigma^2\right).$$
+
+Equivalently:
+
+$$g(\bar{X}_n) \stackrel{\cdot}{\sim} N\!\left(g(\mu), \, \frac{[g'(\mu)]^2 \sigma^2}{n}\right).$$
+
+**Proof.** Apply a first-order Taylor expansion of $g$ around $\mu$:
+
+$$g(\bar{X}_n) \approx g(\mu) + g'(\mu)(\bar{X}_n - \mu).$$
+
+Rearranging:
+
+$$g(\bar{X}_n) - g(\mu) \approx g'(\mu)(\bar{X}_n - \mu).$$
+
+Multiplying both sides by $\sqrt{n}$:
+
+$$\sqrt{n}\left(g(\bar{X}_n) - g(\mu)\right) \approx g'(\mu) \cdot \sqrt{n}(\bar{X}_n - \mu).$$
+
+By the CLT, $\sqrt{n}(\bar{X}_n - \mu) \xrightarrow{d} N(0, \sigma^2)$.
+
+Since multiplication by the constant $g'(\mu)$ preserves convergence in distribution:
+
+$$\sqrt{n}\left(g(\bar{X}_n) - g(\mu)\right) \xrightarrow{d} g'(\mu) \cdot N(0, \sigma^2) = N\!\left(0, [g'(\mu)]^2 \sigma^2\right). \quad \blacksquare$$
+
+The approximation error vanishes in the limit because $\bar{X}_n - \mu = O_P(1/\sqrt{n})$, so the second-order Taylor term is $O_P(1/n)$, which vanishes after multiplication by $\sqrt{n}$.
+
+### 7.12.4 Summary
+
+$$\text{If } \bar{X}_n \stackrel{\cdot}{\sim} N\!\left(\mu, \frac{\sigma^2}{n}\right), \quad \text{then } g(\bar{X}_n) \stackrel{\cdot}{\sim} N\!\left(g(\mu), \frac{[g'(\mu)]^2 \sigma^2}{n}\right).$$
+
+The key insight: **the asymptotic variance of** $g(\bar{X}_n)$ **is** $[g'(\mu)]^2 \sigma^2 / n$.
+
+---
+
+## 7.13 Delta Method Examples
+
+### 7.13.1 Example: The Log Transformation
+
+Let $X_i \sim \text{Exp}(1)$, so $\mu = 1$, $\sigma^2 = 1$. Consider $g(x) = \log(x)$, so $g'(x) = 1/x$ and $g'(\mu) = 1$.
+
+By the delta method:
+
+$$\log(\bar{X}_n) \stackrel{\cdot}{\sim} N\!\left(\log(1), \frac{1^2 \cdot 1}{n}\right) = N\!\left(0, \frac{1}{n}\right).$$
+
+
+``` r
+set.seed(42)
+
+n_values <- c(10, 50, 200, 1000)
+n_reps <- 5000
+
+delta_log <- do.call(rbind, lapply(n_values, function(n) {
+  means <- replicate(n_reps, mean(rexp(n, 1)))
+  g_means <- log(means)
+  # By delta method: sqrt(n) * (g(Xbar) - g(mu)) ~ N(0, [g'(mu)]^2 * sigma^2)
+  # g(mu) = log(1) = 0, g'(mu) = 1, sigma^2 = 1
+  z <- sqrt(n) * (g_means - 0) / 1
+  data.table$data.table(n = n, z = z)
+}))
+
+delta_log[, n_label := factor(paste0("n = ", n), levels = paste0("n = ", n_values))]
+
+normal_curve <- data.table$data.table(
+  z = seq(-4, 4, length.out = 300),
+  density = dnorm(seq(-4, 4, length.out = 300))
+)
+```
+
+
+``` r
+ggplot2$ggplot(delta_log, ggplot2$aes(x = z)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.7
+  ) +
+  ggplot2$geom_line(
+    data = normal_curve,
+    ggplot2$aes(x = z, y = density),
+    colour = "#D55E00", linewidth = 0.9
+  ) +
+  ggplot2$facet_wrap(~ n_label, ncol = 4) +
+  ggplot2$coord_cartesian(xlim = c(-4, 4)) +
+  ggplot2$labs(
+    x = expression(sqrt(n) * (log(bar(X)[n]) - log(mu))),
+    y = "Density",
+    title = "Delta method: log transformation of Exp(1) sample means"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/delta-log-plot-1.png" alt="Delta method for g(x) = log(x) applied to Exp(1) sample means. The standardised quantity sqrt(n)(log(X_bar) - log(mu)) converges to N(0,1) as n increases, confirming the delta method prediction.">
+	Delta method for g(x) = log(x) applied to Exp(1) sample means. The standardised quantity sqrt(n)(log(X_bar) - log(mu)) converges to N(0,1) as n increases, confirming the delta method prediction.
+</Figure>
+
+### 7.13.2 Example: Variance-Stabilising Transformation for Poisson
+
+For a Poisson random variable, $\text{Var}(X) = \mu$. The asymptotic variance of $\bar{X}_n$ is $\mu/n$, which depends on the unknown $\mu$.
+
+Can we find a transformation $g$ such that the asymptotic variance of $g(\bar{X}_n)$ does **not** depend on $\mu$?
+
+By the delta method, $\text{Var}(g(\bar{X}_n)) \approx [g'(\mu)]^2 \mu / n$. We want this to be a constant divided by $n$:
+
+$$[g'(\mu)]^2 \mu = c \implies g'(\mu) = \frac{c'}{\sqrt{\mu}} \implies g(\mu) = c' \cdot 2\sqrt{\mu}.$$
+
+So $g(x) = \sqrt{x}$ is the **variance-stabilising transformation** for the Poisson.
+
+After the transformation:
+
+$$\sqrt{\bar{X}_n} \stackrel{\cdot}{\sim} N\!\left(\sqrt{\mu}, \frac{1}{4n}\right).$$
+
+The asymptotic variance $1/(4n)$ is free of $\mu$ -- mission accomplished.
+
+
+``` r
+set.seed(42)
+
+lambda_vals <- c(1, 5, 20)
+n <- 100
+n_reps <- 5000
+
+# Compare raw variance and transformed variance
+var_stab <- do.call(rbind, lapply(lambda_vals, function(lam) {
+  means <- replicate(n_reps, mean(rpois(n, lam)))
+  sqrt_means <- sqrt(means)
+
+  data.table$data.table(
+    lambda = lam,
+    raw_var = var(means),
+    raw_theory = lam / n,
+    sqrt_var = var(sqrt_means),
+    sqrt_theory = 1 / (4 * n)
+  )
+}))
+
+var_stab
+```
+
+```
+   lambda     raw_var raw_theory    sqrt_var sqrt_theory
+    <num>       <num>      <num>       <num>       <num>
+1:      1 0.009762286       0.01 0.002451386      0.0025
+2:      5 0.049557104       0.05 0.002481290      0.0025
+3:     20 0.201543456       0.20 0.002517252      0.0025
+```
+
+
+``` r
+raw_data <- do.call(rbind, lapply(lambda_vals, function(lam) {
+  means <- replicate(n_reps, mean(rpois(n, lam)))
+  data.table$data.table(
+    value = c(means, sqrt(means)),
+    transform = rep(c("Raw mean", "sqrt(mean)"), each = n_reps),
+    lambda = paste0("lambda = ", lam)
+  )
+}))
+
+ggplot2$ggplot(raw_data, ggplot2$aes(x = value)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, fill = "#0072B2", alpha = 0.7
+  ) +
+  ggplot2$facet_grid(lambda ~ transform, scales = "free") +
+  ggplot2$labs(
+    x = "Value",
+    y = "Density",
+    title = "Variance stabilisation: sqrt transform makes spread constant across lambda"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/delta-var-stab-plot-1.png" alt="Variance stabilisation for Poisson data. Left: variance of the raw sample mean depends on lambda. Right: after the square-root transformation, the variance is approximately 1/(4n) = 0.0025 for all three lambda values -- constant, as the delta method predicts.">
+	Variance stabilisation for Poisson data. Left: variance of the raw sample mean depends on lambda. Right: after the square-root transformation, the variance is approximately 1/(4n) = 0.0025 for all three lambda values -- constant, as the delta method predicts.
+</Figure>
+
+### 7.13.3 Common Delta Method Results
+
+| Statistic | $g(x)$ | $g'(x)$ | Asymptotic variance of $g(\bar{X}_n)$ |
+|:---|:---|:---|:---|
+| Log mean | $\log(x)$ | $1/x$ | $\sigma^2 / (n\mu^2)$ |
+| Reciprocal | $1/x$ | $-1/x^2$ | $\sigma^2 / (n\mu^4)$ |
+| Square root | $\sqrt{x}$ | $1/(2\sqrt{x})$ | $\sigma^2 / (4n\mu)$ |
+| Proportion odds | $\log(p/(1-p))$ | $1/(p(1-p))$ | $1/(np(1-p))$ |
+
+---
+
+## 7.14 Rate of CLT Convergence: Berry--Esseen
+
+How fast does the CLT approximation improve? The **Berry--Esseen theorem** provides a bound.
+
+**Theorem (Berry--Esseen).** If $X_1, \ldots, X_n$ are iid with $E[X_i] = 0$, $E[X_i^2] = \sigma^2$, and $E[|X_i|^3] = \rho < \infty$, then:
+
+$$\sup_z \left|P(Z_n \le z) - \Phi(z)\right| \le \frac{C \rho}{\sigma^3 \sqrt{n}}$$
+
+where $C \le 0.4748$ (the best known constant as of 2012) and $\Phi$ is the standard normal CDF.
+
+The key message: the CLT error is $O(1/\sqrt{n})$. Distributions with large third moments (skewness) converge more slowly.
+
+
+``` r
+set.seed(42)
+
+# Compare convergence rate for symmetric (Uniform) vs. skewed (Exp) distributions
+n_vals <- c(5, 10, 30, 50, 100, 200, 500, 1000)
+n_reps <- 20000
+
+sup_error <- do.call(rbind, lapply(n_vals, function(n) {
+  # Uniform(0,1): mu=0.5, sigma^2=1/12, rho = E[|X-mu|^3]
+  z_unif <- replicate(n_reps, {
+    x <- runif(n)
+    (mean(x) - 0.5) / (1/sqrt(12) / sqrt(n))
+  })
+
+  # Exp(1): mu=1, sigma^2=1, rho = E[|X-1|^3]
+  z_exp <- replicate(n_reps, {
+    x <- rexp(n, 1)
+    (mean(x) - 1) / (1 / sqrt(n))
+  })
+
+  z_grid <- seq(-4, 4, length.out = 500)
+
+  err_unif <- max(abs(ecdf(z_unif)(z_grid) - pnorm(z_grid)))
+  err_exp <- max(abs(ecdf(z_exp)(z_grid) - pnorm(z_grid)))
+
+  data.table$data.table(
+    n = c(n, n),
+    sup_error = c(err_unif, err_exp),
+    distribution = c("Uniform(0,1)", "Exponential(1)")
+  )
+}))
+```
+
+
+``` r
+ggplot2$ggplot(sup_error, ggplot2$aes(x = n, y = sup_error, colour = distribution)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_point(size = 2.5) +
+  ggplot2$geom_line(
+    data = data.table$data.table(n = n_vals, y = 0.5 / sqrt(n_vals)),
+    ggplot2$aes(x = n, y = y),
+    inherit.aes = FALSE, linetype = "dashed", colour = "grey40", linewidth = 0.8
+  ) +
+  ggplot2$scale_x_log10() +
+  ggplot2$scale_y_log10() +
+  ggplot2$scale_colour_manual(values = c("Uniform(0,1)" = "#009E73", "Exponential(1)" = "#D55E00")) +
+  ggplot2$labs(
+    x = "Sample size n (log scale)",
+    y = "Sup|F_n(z) - Phi(z)| (log scale)",
+    title = "Berry-Esseen: CLT convergence rate is O(1/sqrt(n))",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/berry-esseen-plot-1.png" alt="Rate of CLT convergence (supremum CDF error) for Uniform (symmetric) and Exponential (skewed) sources. Both decay as 1/sqrt(n) (dashed line), but the skewed distribution converges more slowly.">
+	Rate of CLT convergence (supremum CDF error) for Uniform (symmetric) and Exponential (skewed) sources. Both decay as 1/sqrt(n) (dashed line), but the skewed distribution converges more slowly.
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+When explaining the CLT and delta method to a non-technical audience:
+
+- The CLT in one sentence: "When you average enough observations, the result follows a bell curve -- no matter what the individual data look like."
+- A vivid analogy: "Imagine rolling a single die -- the outcome is equally likely to be 1 through 6 (flat, not bell-shaped). But if you roll 100 dice and average them, the average will be very close to 3.5 almost every time, following a bell curve. That is the CLT."
+- For the delta method: "Once we know the average follows a bell curve, we can work out the bell curve for any smooth function of the average -- like the logarithm or the reciprocal."
+- The practical punchline: "This is why confidence intervals work. The CLT guarantees that our estimate plus-or-minus two standard errors covers the truth about 95% of the time."
+- Variance stabilisation: "Sometimes we transform the data (e.g., take the square root) so that the uncertainty is the same regardless of the true value. This makes fair comparisons possible."
+
+---
+
+## Quick Reference
+
+| Result | Statement | Conditions |
+|:---|:---|:---|
+| **CLT** | $\sqrt{n}(\bar{X}_n - \mu)/\sigma \xrightarrow{d} N(0,1)$ | iid, $\sigma^2 < \infty$ |
+| **Practical form** | $\bar{X}_n \stackrel{\cdot}{\sim} N(\mu, \sigma^2/n)$ | Large $n$ |
+| **Delta method** | $g(\bar{X}_n) \stackrel{\cdot}{\sim} N(g(\mu), [g'(\mu)]^2 \sigma^2/n)$ | $g'(\mu) \ne 0$ |
+| **Berry--Esseen** | CDF error $\le C\rho/(\sigma^3\sqrt{n})$ | $E[\|X\|^3] < \infty$ |
+| **Var-stab (Poisson)** | $\sqrt{\bar{X}} \stackrel{\cdot}{\sim} N(\sqrt{\mu}, 1/(4n))$ | Poisson data |
+
+---
+
+## Exercises
+
+**Exercise 7.15.** Reproduce the CLT grid plot (Section 7.9.1) but add a fifth source distribution: the $\text{Beta}(0.5, 0.5)$ distribution (a U-shaped density). At what sample size does the sampling distribution begin to look normal?
+
+**Exercise 7.16.** Using the MGF proof structure from Section 7.8.2, verify the Taylor expansion step by computing the MGF of $Y = X - \mu$ for $X \sim \text{Bernoulli}(p)$ and expanding it to second order. Confirm that the coefficient of $s^2/2$ is indeed $\sigma^2 = p(1-p)$.
+
+**Exercise 7.17.** Let $X_1, \ldots, X_n$ be iid $\text{Exp}(\lambda)$. Use the delta method to find the asymptotic distribution of $1/\bar{X}_n$ (an estimator of $\lambda$). Verify your answer with a simulation.
+
+**Exercise 7.18.** (*Variance stabilisation.*) For $X \sim \text{Bin}(n, p)$, the sample proportion $\hat{p} = X/n$ has variance $p(1-p)/n$. Use the delta method to show that $g(\hat{p}) = \arcsin(\sqrt{\hat{p}})$ has asymptotic variance $1/(4n)$ -- free of $p$. This is the **arcsine transformation** used in classical statistics.
+
+**Exercise 7.19.** Download the NHANES data and demonstrate the CLT for the `Height` variable. Create a grid of histograms for $n = 2, 10, 50, 200$, overlaid with the normal density. At what $n$ does the approximation become adequate?
+
+**Exercise 7.20.** (*Challenging.*) The CLT fails for the Cauchy distribution. Simulate 5000 standardised sample means (using the sample mean and sample standard deviation) for $n = 100$ draws from a Cauchy. Plot the histogram alongside $N(0,1)$. Where does the approximation break down -- in the centre or the tails? Explain why.
+
+**Exercise 7.21.** Use the delta method to derive the asymptotic distribution of $\bar{X}_n^2$ when $X_i \sim N(\mu, \sigma^2)$. Write down the asymptotic variance and verify it with a simulation for $\mu = 3$, $\sigma = 2$, $n = 100$.

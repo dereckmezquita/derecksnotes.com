@@ -1,0 +1,374 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 6: Joint Distributions and Multivariate Thinking"
+part: "Part 2: Covariance and Correlation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 6 -- Joint Distributions and Multivariate Thinking
+
+## Part 2: Covariance and Correlation
+
+In Part 1 we learnt to describe how two random variables behave *together* through their joint distribution. Now we develop **numerical summaries** of the relationship between two variables. Just as the mean and variance summarise a single variable, the **covariance** and **correlation** summarise the linear association between a pair of variables.
+
+We shall derive these quantities from first principles, prove the Cauchy-Schwarz inequality (which guarantees that correlation is bounded between $-1$ and $+1$), and carefully distinguish between correlation and dependence -- one of the most important conceptual distinctions in all of statistics.
+
+---
+
+## 6.5 Covariance
+
+### 6.5.1 Definition
+
+The **covariance** of two random variables $X$ and $Y$ is defined as:
+
+$$\text{Cov}(X, Y) = E\bigl[(X - E[X])(Y - E[Y])\bigr].$$
+
+This measures the *average product of deviations from the mean*. If $X$ tends to be above its mean when $Y$ is above its mean (and below when below), the product is positive. If they move in opposite directions, it is negative.
+
+### 6.5.2 The Computational Formula
+
+Expanding the definition:
+
+$$\text{Cov}(X, Y) = E\bigl[XY - X \cdot E[Y] - E[X] \cdot Y + E[X] \cdot E[Y]\bigr].$$
+
+By linearity of expectation:
+
+$$= E[XY] - E[X] \cdot E[Y] - E[X] \cdot E[Y] + E[X] \cdot E[Y]$$
+
+$$\boxed{\text{Cov}(X, Y) = E[XY] - E[X] \cdot E[Y].}$$
+
+This is the **computational formula** -- often easier to use than the definition.
+
+### 6.5.3 Properties of Covariance
+
+We derive the key properties from the definition.
+
+**Property 1: Symmetry.** $\text{Cov}(X, Y) = \text{Cov}(Y, X)$.
+
+*Proof:* $E[(X - \mu_X)(Y - \mu_Y)] = E[(Y - \mu_Y)(X - \mu_X)]$ by commutativity of multiplication. $\square$
+
+**Property 2: Covariance with itself.** $\text{Cov}(X, X) = \text{Var}(X)$.
+
+*Proof:* $E[(X - \mu_X)(X - \mu_X)] = E[(X - \mu_X)^2] = \text{Var}(X)$. $\square$
+
+**Property 3: Linearity in each argument.**
+
+$$\text{Cov}(aX + b, Y) = a \cdot \text{Cov}(X, Y).$$
+
+*Proof:*
+
+$$E\bigl[(aX + b - E[aX + b])(Y - E[Y])\bigr] = E\bigl[(aX + b - a\mu_X - b)(Y - \mu_Y)\bigr]$$
+$$= E\bigl[a(X - \mu_X)(Y - \mu_Y)\bigr] = a \cdot \text{Cov}(X, Y). \quad \square$$
+
+The constant $b$ vanishes because it cancels with $E[aX + b] = a\mu_X + b$.
+
+**Property 4: Bilinearity.**
+
+$$\text{Cov}\left(\sum_i a_i X_i, \sum_j b_j Y_j\right) = \sum_i \sum_j a_i b_j \, \text{Cov}(X_i, Y_j).$$
+
+**Property 5: Independence implies zero covariance.**
+
+If $X$ and $Y$ are independent, then $E[XY] = E[X] \cdot E[Y]$, so $\text{Cov}(X, Y) = 0$.
+
+**Warning:** The converse is *false* -- zero covariance does **not** imply independence. We demonstrate this in Section 6.7.
+
+**Property 6: Variance of a sum.**
+
+$$\text{Var}(X + Y) = \text{Var}(X) + \text{Var}(Y) + 2\,\text{Cov}(X, Y).$$
+
+*Proof:*
+
+$$\text{Var}(X + Y) = E\bigl[(X + Y - \mu_X - \mu_Y)^2\bigr]$$
+$$= E\bigl[(X - \mu_X)^2 + 2(X - \mu_X)(Y - \mu_Y) + (Y - \mu_Y)^2\bigr]$$
+$$= \text{Var}(X) + 2\,\text{Cov}(X, Y) + \text{Var}(Y). \quad \square$$
+
+When $X$ and $Y$ are independent, $\text{Cov}(X,Y) = 0$ and we recover the familiar $\text{Var}(X + Y) = \text{Var}(X) + \text{Var}(Y)$.
+
+### 6.5.4 Implementing Covariance from Scratch
+
+
+
+
+``` r
+box::use(data.table)
+box::use(ggplot2)
+
+#' Covariance -- implemented from scratch
+#' Uses the unbiased estimator (denominator n-1)
+#' @param x numeric vector
+#' @param y numeric vector
+#' @return scalar covariance
+my_cov <- function(x, y) {
+  stopifnot(length(x) == length(y))
+  n <- length(x)
+  sum((x - mean(x)) * (y - mean(y))) / (n - 1)
+}
+
+# Verify against R's built-in cov()
+set.seed(42)
+x <- rnorm(100)
+y <- 2 * x + rnorm(100)
+
+c(ours = my_cov(x, y), builtin = cov(x, y))
+```
+
+```
+    ours  builtin 
+2.198301 2.198301 
+```
+
+The values match exactly. The denominator $n - 1$ (rather than $n$) gives the unbiased sample covariance, just as for the sample variance.
+
+---
+
+## 6.6 Correlation and the Cauchy-Schwarz Inequality
+
+### 6.6.1 Definition of Correlation
+
+The **Pearson correlation coefficient** between $X$ and $Y$ is the covariance normalised by the standard deviations:
+
+$$\rho_{X,Y} = \frac{\text{Cov}(X, Y)}{\sqrt{\text{Var}(X)} \cdot \sqrt{\text{Var}(Y)}} = \frac{\text{Cov}(X, Y)}{\sigma_X \, \sigma_Y}.$$
+
+The correlation is a **dimensionless** quantity -- it does not depend on the units or scale of $X$ and $Y$. It measures the strength and direction of the *linear* relationship.
+
+### 6.6.2 The Cauchy-Schwarz Inequality
+
+To prove that the correlation coefficient always lies between $-1$ and $+1$, we need the **Cauchy-Schwarz inequality** for expectations:
+
+$$\bigl|E[UV]\bigr|^2 \le E[U^2] \cdot E[V^2]$$
+
+for any random variables $U$ and $V$ with finite second moments.
+
+**Proof.** Consider the non-negative quantity $E[(U - tV)^2] \ge 0$ for any real number $t$. Expanding:
+
+$$E[U^2] - 2t \, E[UV] + t^2 \, E[V^2] \ge 0.$$
+
+This is a quadratic in $t$: $at^2 + bt + c \ge 0$ where $a = E[V^2]$, $b = -2E[UV]$, $c = E[U^2]$.
+
+A quadratic $at^2 + bt + c$ is non-negative for all $t$ if and only if its discriminant is non-positive:
+
+$$b^2 - 4ac \le 0$$
+
+$$4\bigl(E[UV]\bigr)^2 - 4 \, E[U^2] \cdot E[V^2] \le 0$$
+
+$$\boxed{\bigl(E[UV]\bigr)^2 \le E[U^2] \cdot E[V^2].} \quad \square$$
+
+### 6.6.3 Proving $|\rho| \le 1$
+
+Set $U = X - E[X]$ and $V = Y - E[Y]$. Then:
+
+- $E[UV] = \text{Cov}(X, Y)$
+- $E[U^2] = \text{Var}(X) = \sigma_X^2$
+- $E[V^2] = \text{Var}(Y) = \sigma_Y^2$
+
+Applying Cauchy-Schwarz:
+
+$$\bigl(\text{Cov}(X,Y)\bigr)^2 \le \sigma_X^2 \, \sigma_Y^2$$
+
+$$\left(\frac{\text{Cov}(X,Y)}{\sigma_X \, \sigma_Y}\right)^2 \le 1$$
+
+$$\boxed{|\rho_{X,Y}| \le 1.}$$
+
+Equality holds if and only if $U = tV$ for some constant $t$, i.e., $Y = aX + b$ for constants $a, b$. In other words, $\rho = \pm 1$ if and only if $X$ and $Y$ have a *perfectly linear* relationship.
+
+### 6.6.4 Implementing Correlation from Scratch
+
+
+``` r
+#' Pearson correlation -- implemented from scratch
+#' @param x numeric vector
+#' @param y numeric vector
+#' @return scalar correlation
+my_cor <- function(x, y) {
+  my_cov(x, y) / (sd(x) * sd(y))
+}
+
+# Verify
+c(ours = my_cor(x, y), builtin = cor(x, y))
+```
+
+```
+     ours   builtin 
+0.9192997 0.9192997 
+```
+
+### 6.6.5 Visualising Different Correlations
+
+
+``` r
+set.seed(42)
+n_pts <- 500
+
+make_correlated <- function(rho, n = n_pts) {
+  Z1 <- rnorm(n)
+  Z2 <- rnorm(n)
+  X <- Z1
+  Y <- rho * Z1 + sqrt(1 - rho^2) * Z2
+  data.table$data.table(X = X, Y = Y)
+}
+
+rho_values <- c(-0.95, -0.5, 0, 0.5, 0.95, 1.0)
+gallery <- data.table$rbindlist(lapply(rho_values, function(r) {
+  dt <- make_correlated(min(r, 0.999))  # avoid sqrt(0) issue at rho=1
+  if (r == 1.0) { dt$Y <- dt$X }  # exact linear
+  dt[, rho_label := sprintf("rho == %.2f", r)]
+  dt
+}))
+
+ggplot2$ggplot(gallery, ggplot2$aes(x = X, y = Y)) +
+  ggplot2$geom_point(alpha = 0.25, size = 0.8, colour = "#0072B2") +
+  ggplot2$facet_wrap(~rho_label, scales = "free", ncol = 3, labeller = ggplot2$label_parsed) +
+  ggplot2$labs(x = "X", y = "Y", title = "Gallery of correlation values") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="correlation-gallery-1.png" alt="Scatterplots illustrating different values of the correlation coefficient. Perfect positive correlation (rho = 1) and perfect negative correlation (rho = -1) produce straight lines. As |rho| decreases, the scatter increases. At rho = 0, there is no linear pattern.">
+	Scatterplots illustrating different values of the correlation coefficient. Perfect positive correlation (rho = 1) and perfect negative correlation (rho = -1) produce straight lines. As |rho| decreases, the scatter increases. At rho = 0, there is no linear pattern.
+</Figure>
+
+---
+
+## 6.7 Correlation Does Not Imply Dependence
+
+### 6.7.1 The Classic Counterexample
+
+This is one of the most important lessons in statistics: **uncorrelated does not mean independent**. We construct a definitive example.
+
+Let $X \sim N(0, 1)$ and define $Y = X^2$. Then $Y$ is completely determined by $X$ -- they are maximally dependent. But:
+
+$$\text{Cov}(X, Y) = E[XY] - E[X] \cdot E[Y] = E[X^3] - 0 \cdot E[X^2] = E[X^3].$$
+
+For $X \sim N(0,1)$, the third moment is zero (by symmetry of the normal distribution). Therefore:
+
+$$\text{Cov}(X, X^2) = 0 \quad \text{and} \quad \rho(X, X^2) = 0.$$
+
+The variables are **uncorrelated but perfectly dependent**.
+
+### 6.7.2 Simulation
+
+
+``` r
+set.seed(42)
+n_sim <- 3000
+X_sim <- rnorm(n_sim)
+Y_sim <- X_sim^2
+
+dep_dt <- data.table$data.table(X = X_sim, Y = Y_sim)
+
+ggplot2$ggplot(dep_dt, ggplot2$aes(x = X, y = Y)) +
+  ggplot2$geom_point(alpha = 0.3, size = 0.8, colour = "#0072B2") +
+  ggplot2$labs(
+    x = "X", y = expression(Y == X^2),
+    title = sprintf("Uncorrelated but dependent (r = %.4f)", cor(X_sim, Y_sim))
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="uncorrelated-dependent-1.png" alt="X ~ N(0,1) and Y = X^2: a perfect functional relationship (Y is completely determined by X) yet the correlation is zero. The parabolic pattern is invisible to correlation, which only detects linear relationships.">
+	X ~ N(0,1) and Y = X^2: a perfect functional relationship (Y is completely determined by X) yet the correlation is zero. The parabolic pattern is invisible to correlation, which only detects linear relationships.
+</Figure>
+
+
+``` r
+c(cor_XY = cor(X_sim, Y_sim), cov_XY = cov(X_sim, Y_sim))
+```
+
+```
+     cor_XY      cov_XY 
+-0.02098664 -0.03071533 
+```
+
+The correlation is essentially zero (up to sampling noise), even though $Y$ is a deterministic function of $X$.
+
+### 6.7.3 The Lesson
+
+Correlation measures **linear** association only. It is blind to nonlinear relationships like $Y = X^2$, $Y = \sin(X)$, or $Y = |X|$. This is why we must always look at scatterplots in addition to computing numerical summaries.
+
+### 6.7.4 Anscombe's Quartet Idea
+
+
+``` r
+# Construct four datasets with similar statistics but different structure
+set.seed(42)
+n_a <- 50
+
+d1 <- data.table$data.table(
+  x = rnorm(n_a, 9, 3),
+  type = "I: Linear"
+)
+d1[, y := 0.5 * x + rnorm(n_a, 0, 1)]
+
+d2_x <- rnorm(n_a, 9, 3)
+d2 <- data.table$data.table(
+  x = d2_x,
+  y = -0.1 * (d2_x - 9)^2 + 8 + rnorm(n_a, 0, 0.5),
+  type = "II: Quadratic"
+)
+
+d3 <- data.table$data.table(
+  x = rnorm(n_a, 9, 3),
+  type = "III: Outlier"
+)
+d3[, y := 0.5 * x + rnorm(n_a, 0, 0.3)]
+d3[1, y := 20]  # one big outlier
+
+d4_x <- rep(8, n_a)
+d4_x[1] <- 18
+d4 <- data.table$data.table(
+  x = d4_x + rnorm(n_a, 0, 0.1),
+  type = "IV: Leverage point"
+)
+d4[, y := 0.5 * x + rnorm(n_a, 0, 1)]
+
+anscombe_data <- data.table$rbindlist(list(d1, d2, d3, d4))
+```
+
+```
+Column 3 ['type'] of item 2 appears in position 2 in item 1. Set use.names=TRUE to match by column name, or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
+```
+
+``` r
+ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_point(alpha = 0.6, size = 1.5, colour = "#0072B2") +
+  ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$facet_wrap(~type, scales = "free", ncol = 2) +
+  ggplot2$labs(x = "X", y = "Y", title = "Four datasets with similar summary statistics") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="anscombe-1.png" alt="Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient.">
+	Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient.
+</Figure>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,612 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 5: Continuous Distributions"
+part: "Part 1: Uniform, Exponential, and Gamma"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 5 -- Continuous Distributions
+
+## Part 1: Uniform, Exponential, and Gamma
+
+In Chapter 4 we catalogued the discrete distributions -- families of random variables that take values on a countable set. Now we cross the bridge to the continuum. A continuous random variable assigns probability not to individual points (each point has probability zero) but to *intervals*, through a probability density function (PDF).
+
+This chapter studies the most important continuous families. We begin with the simplest -- the uniform -- and use it to develop a powerful simulation principle. We then derive the exponential distribution from the Poisson process, and generalise it into the Gamma family. Throughout, we build every distribution from scratch before touching the built-in R functions.
+
+---
+
+## 5.1 The Continuous Uniform Distribution
+
+### 5.1.1 Definition and Derivation
+
+The continuous uniform distribution on the interval $[a, b]$ is the "maximally ignorant" distribution: every sub-interval of the same length is equally probable. If $X \sim \text{Uniform}(a, b)$, its PDF must be constant on $[a, b]$ and zero elsewhere.
+
+**Deriving the PDF.** Let $f(x) = c$ for $x \in [a, b]$. The total-probability axiom requires
+
+$$\int_{-\infty}^{\infty} f(x)\,dx = 1 \implies \int_a^b c\,dx = c(b - a) = 1 \implies c = \frac{1}{b - a}.$$
+
+Therefore:
+
+$$f(x) = \begin{cases} \dfrac{1}{b-a}, & a \le x \le b, \\[6pt] 0, & \text{otherwise}. \end{cases}$$
+
+### 5.1.2 The CDF
+
+Integrate the PDF from $-\infty$ to $x$:
+
+$$F(x) = \begin{cases} 0, & x < a, \\[4pt] \dfrac{x - a}{b - a}, & a \le x \le b, \\[4pt] 1, & x > b. \end{cases}$$
+
+This is a straight line from 0 to 1 -- a visual fingerprint of uniformity.
+
+### 5.1.3 Deriving the Moments
+
+**Mean.**
+
+$$E[X] = \int_a^b x \cdot \frac{1}{b-a}\,dx = \frac{1}{b-a} \cdot \frac{x^2}{2}\bigg|_a^b = \frac{b^2 - a^2}{2(b-a)} = \frac{a + b}{2}.$$
+
+The midpoint of the interval -- exactly what symmetry suggests.
+
+**Variance.** First compute $E[X^2]$:
+
+$$E[X^2] = \int_a^b x^2 \cdot \frac{1}{b-a}\,dx = \frac{1}{b-a} \cdot \frac{x^3}{3}\bigg|_a^b = \frac{b^3 - a^3}{3(b-a)} = \frac{a^2 + ab + b^2}{3}.$$
+
+Then $\text{Var}(X) = E[X^2] - (E[X])^2$:
+
+$$\text{Var}(X) = \frac{a^2 + ab + b^2}{3} - \left(\frac{a+b}{2}\right)^2 = \frac{(b-a)^2}{12}.$$
+
+### 5.1.4 The Inverse Transform Method
+
+This is one of the most elegant ideas in computational statistics, and the uniform distribution sits at its heart.
+
+**Theorem (Inverse Transform).** If $U \sim \text{Uniform}(0, 1)$ and $F$ is a continuous, strictly increasing CDF, then the random variable $X = F^{-1}(U)$ has CDF $F$.
+
+**Proof.** We need to show $P(X \le x) = F(x)$.
+
+$$P(X \le x) = P(F^{-1}(U) \le x) = P(U \le F(x)) = F(x),$$
+
+where the last step uses the fact that $U \sim \text{Uniform}(0, 1)$ and $F(x) \in [0, 1]$, so $P(U \le y) = y$ for any $y \in [0, 1]$. $\square$
+
+This theorem tells us that **every continuous distribution can be simulated from uniform random numbers**. The function `runif()` is the engine of all simulation in R.
+
+### 5.1.5 R: Simulating and Visualising the Uniform
+
+```{r uniform-pdf-cdf, fig.cap="PDF and CDF of the Uniform(0, 1) distribution."}
+box::use(ggplot2)
+box::use(data.table)
+
+x_seq <- seq(-0.5, 1.5, length.out = 500)
+df <- data.table$data.table(
+  x = rep(x_seq, 2),
+  y = c(dunif(x_seq, 0, 1), punif(x_seq, 0, 1)),
+  panel = rep(c("PDF: f(x)", "CDF: F(x)"), each = length(x_seq))
+)
+
+ggplot2$ggplot(df, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+  ggplot2$facet_wrap(~panel, scales = "free_y") +
+  ggplot2$labs(x = "x", y = NULL,
+    title = "Uniform(0, 1) Distribution") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
+  )
+```
+
+### 5.1.6 Inverse Transform in Action
+
+Let us simulate exponential random variables using *only* `runif()` -- before we even meet the exponential distribution formally. We will derive the exponential CDF below; for now, accept that $F(x) = 1 - e^{-\lambda x}$, so $F^{-1}(u) = -\ln(1-u)/\lambda$.
+
+```{r inverse-transform-demo, fig.cap="Exponential(2) variates generated via the inverse transform method, compared to the theoretical density."}
+set.seed(42)
+n_sim <- 10000
+lambda <- 2
+
+u <- runif(n_sim)
+x_inv <- -log(1 - u) / lambda
+
+df_inv <- data.table$data.table(x = x_inv)
+x_theory <- seq(0, 4, length.out = 300)
+df_theory <- data.table$data.table(x = x_theory, y = dexp(x_theory, rate = lambda))
+
+ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = df_inv,
+    ggplot2$aes(x = x, y = ggplot2::after_stat(density)),
+    bins = 60, fill = "#0072B2", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_line(
+    data = df_theory,
+    ggplot2$aes(x = x, y = y),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = "x", y = "Density",
+    title = "Inverse transform: simulated Exp(2) vs theoretical density"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The histogram matches the theoretical curve beautifully. The inverse transform method works because `runif()` provides the raw randomness, and the inverse CDF shapes it into any distribution we desire.
+
+---
+
+## 5.2 The Exponential Distribution
+
+### 5.2.1 Derivation from the Poisson Process
+
+In Chapter 4, Part 3, we derived the Poisson distribution as the count of events in a fixed interval, assuming events occur independently at constant rate $\lambda$. Now we ask a different question: **how long do we wait for the first event?**
+
+Let $T$ be the waiting time until the first event. We derive its distribution by finding the *survival function* $P(T > t)$ -- the probability of *no* events in $[0, t]$.
+
+From the Poisson model, the number of events in $[0, t]$ is $N(t) \sim \text{Pois}(\lambda t)$. So:
+
+$$P(T > t) = P(N(t) = 0) = \frac{(\lambda t)^0 e^{-\lambda t}}{0!} = e^{-\lambda t}, \quad t \ge 0.$$
+
+The CDF is therefore:
+
+$$F(t) = P(T \le t) = 1 - e^{-\lambda t}, \quad t \ge 0.$$
+
+Differentiating gives the PDF:
+
+$$f(t) = \lambda e^{-\lambda t}, \quad t \ge 0.$$
+
+This is the **exponential distribution** with rate $\lambda$, written $T \sim \text{Exp}(\lambda)$.
+
+### 5.2.2 Moments
+
+**Mean.** Using integration by parts:
+
+$$E[T] = \int_0^\infty t \lambda e^{-\lambda t}\,dt = \frac{1}{\lambda}.$$
+
+The average waiting time is the reciprocal of the rate -- intuitive. If buses arrive at rate 3 per hour ($\lambda = 3$), you wait on average $1/3$ of an hour (20 minutes).
+
+**Variance.** Similarly:
+
+$$E[T^2] = \int_0^\infty t^2 \lambda e^{-\lambda t}\,dt = \frac{2}{\lambda^2}, \qquad \text{Var}(T) = \frac{2}{\lambda^2} - \frac{1}{\lambda^2} = \frac{1}{\lambda^2}.$$
+
+The standard deviation equals the mean: $\text{SD}(T) = 1/\lambda$.
+
+### 5.2.3 The Memoryless Property
+
+The exponential distribution is the *only* continuous distribution with the memoryless property. This is its defining characteristic.
+
+**Theorem.** If $T \sim \text{Exp}(\lambda)$, then for all $s, t \ge 0$:
+
+$$P(T > s + t \mid T > s) = P(T > t).$$
+
+**Proof.**
+
+$$P(T > s + t \mid T > s) = \frac{P(T > s + t)}{P(T > s)} = \frac{e^{-\lambda(s+t)}}{e^{-\lambda s}} = e^{-\lambda t} = P(T > t). \quad \square$$
+
+Given that you have already waited $s$ units without an event, the remaining waiting time has the *same* distribution as if you had just started. The process has no memory.
+
+**Connection to the geometric distribution.** Recall from Chapter 4 that the geometric distribution is the *discrete* memoryless distribution: the number of Bernoulli trials until the first success. The exponential is its continuous analogue -- the waiting time until the first event in a Poisson process.
+
+### 5.2.4 R: Simulating the Poisson Process
+
+We simulate a Poisson process and extract the inter-arrival times, verifying they follow an exponential distribution.
+
+```{r poisson-process-sim, fig.cap="Inter-arrival times from a simulated Poisson process with rate 3 per unit time. The histogram matches the Exp(3) density."}
+set.seed(42)
+lambda <- 3
+n_events <- 5000
+
+# Simulate inter-arrival times directly (they are Exp by definition)
+inter_arrivals <- rexp(n_events, rate = lambda)
+arrival_times <- cumsum(inter_arrivals)
+
+# Build from scratch: use only runif()
+inter_arrivals_scratch <- -log(runif(n_events)) / lambda
+
+df_ia <- data.table$data.table(x = inter_arrivals_scratch)
+x_theory <- seq(0, 3, length.out = 300)
+df_th <- data.table$data.table(x = x_theory, y = dexp(x_theory, rate = lambda))
+
+ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = df_ia,
+    ggplot2$aes(x = x, y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_line(
+    data = df_th,
+    ggplot2$aes(x = x, y = y),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = "Inter-arrival time", y = "Density",
+    title = "Poisson process inter-arrival times vs Exp(3) density"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r poisson-process-check}
+# Verify mean and variance
+mean(inter_arrivals_scratch)   # should be ≈ 1/3
+var(inter_arrivals_scratch)    # should be ≈ 1/9
+```
+
+The sample moments match the theoretical values $E[T] = 1/\lambda = 1/3$ and $\text{Var}(T) = 1/\lambda^2 = 1/9$.
+
+### 5.2.5 Interactive: Exponential Rate Slider
+
+Adjust the rate parameter $\lambda$ to see how the exponential density changes shape. A higher rate concentrates mass near zero (shorter waiting times).
+
+<InteractivePlot
+  controls={[
+    { id: "lambda", type: "range", label: "λ (rate)", min: 0.2, max: 5, step: 0.1, default: 1 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var lam = params.lambda;
+    var w = canvas.width, h = canvas.height;
+    var pad = 50;
+
+    // Axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - 10, h - pad);
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(pad, 10);
+    ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = '#333';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('x', w / 2, h - 5);
+    ctx.save();
+    ctx.translate(15, h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('f(x)', 0, 0);
+    ctx.restore();
+
+    // Title
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('Exp(λ = ' + lam.toFixed(1) + ')   Mean = ' + (1/lam).toFixed(2), w / 2, 25);
+
+    // Plot region
+    var xMax = 5;
+    var yMax = lam > 1 ? lam * 1.1 : 1.2;
+    var plotW = w - pad - 20;
+    var plotH = h - pad - 40;
+
+    function toCanvasX(x) { return pad + (x / xMax) * plotW; }
+    function toCanvasY(y) { return (h - pad) - (y / yMax) * plotH; }
+
+    // Tick marks
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#666';
+    for (var tx = 0; tx <= xMax; tx++) {
+      var cx = toCanvasX(tx);
+      ctx.beginPath(); ctx.moveTo(cx, h - pad); ctx.lineTo(cx, h - pad + 5); ctx.stroke();
+      ctx.fillText(tx.toString(), cx, h - pad + 18);
+    }
+
+    // PDF curve
+    ctx.strokeStyle = '#0072B2';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    var first = true;
+    for (var i = 0; i <= 400; i++) {
+      var x = (i / 400) * xMax;
+      var y = lam * Math.exp(-lam * x);
+      var cx = toCanvasX(x);
+      var cy = toCanvasY(y);
+      if (first) { ctx.moveTo(cx, cy); first = false; }
+      else { ctx.lineTo(cx, cy); }
+    }
+    ctx.stroke();
+
+    // Fill area
+    ctx.fillStyle = 'rgba(0, 114, 178, 0.15)';
+    ctx.beginPath();
+    ctx.moveTo(toCanvasX(0), toCanvasY(0));
+    for (var i = 0; i <= 400; i++) {
+      var x = (i / 400) * xMax;
+      var y = lam * Math.exp(-lam * x);
+      ctx.lineTo(toCanvasX(x), toCanvasY(y));
+    }
+    ctx.lineTo(toCanvasX(xMax), toCanvasY(0));
+    ctx.closePath();
+    ctx.fill();
+
+    // Mean line
+    var meanX = 1 / lam;
+    if (meanX <= xMax) {
+      ctx.strokeStyle = '#D55E00';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(toCanvasX(meanX), toCanvasY(0));
+      ctx.lineTo(toCanvasX(meanX), toCanvasY(lam * Math.exp(-1)));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#D55E00';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('μ = 1/λ', toCanvasX(meanX) + 5, toCanvasY(lam * Math.exp(-1)) - 5);
+    }
+  `}
+  width={600}
+  Height={400}
+/>
+
+---
+
+## 5.3 The Gamma Distribution
+
+### 5.3.1 Crash Course: The Gamma Function
+
+Before meeting the Gamma *distribution*, we need the Gamma *function* -- a beautiful piece of mathematics that extends the factorial to non-integer arguments.
+
+**Definition.** For $\alpha > 0$:
+
+$$\Gamma(\alpha) = \int_0^\infty t^{\alpha - 1} e^{-t}\,dt.$$
+
+**Key properties:**
+
+1. **Recursion:** $\Gamma(\alpha + 1) = \alpha \cdot \Gamma(\alpha)$ (proved by integration by parts).
+2. **Factorial connection:** $\Gamma(n) = (n - 1)!$ for positive integers $n$.
+3. **Special value:** $\Gamma(1/2) = \sqrt{\pi}$.
+
+**Proof of the recursion.** Apply integration by parts with $u = t^{\alpha}$ and $dv = e^{-t}\,dt$:
+
+$$\Gamma(\alpha + 1) = \int_0^\infty t^\alpha e^{-t}\,dt = \left[-t^\alpha e^{-t}\right]_0^\infty + \alpha \int_0^\infty t^{\alpha-1} e^{-t}\,dt = \alpha \cdot \Gamma(\alpha).$$
+
+**Proof that $\Gamma(1) = 1$:**
+
+$$\Gamma(1) = \int_0^\infty e^{-t}\,dt = 1.$$
+
+Combining: $\Gamma(2) = 1 \cdot \Gamma(1) = 1 = 1!$, $\Gamma(3) = 2 \cdot \Gamma(2) = 2 = 2!$, and in general $\Gamma(n) = (n-1)!$.
+
+**Why $\Gamma(1/2) = \sqrt{\pi}$.** Substitute $t = u^2$:
+
+$$\Gamma(1/2) = \int_0^\infty t^{-1/2} e^{-t}\,dt = 2\int_0^\infty e^{-u^2}\,du = \sqrt{\pi},$$
+
+where the last step uses the Gaussian integral $\int_0^\infty e^{-u^2}\,du = \sqrt{\pi}/2$.
+
+```{r gamma-function-plot, fig.cap="The Gamma function Γ(α) for positive real values of α. Integer values recover the factorial: Γ(n) = (n−1)!"}
+box::use(ggplot2)
+box::use(data.table)
+
+alpha_seq <- seq(0.1, 5.5, length.out = 500)
+gamma_vals <- gamma(alpha_seq)
+
+df_gamma <- data.table$data.table(alpha = alpha_seq, gamma_val = gamma_vals)
+df_ints <- data.table$data.table(
+  alpha = 1:5,
+  gamma_val = factorial(0:4),
+  label = paste0("Γ(", 1:5, ") = ", factorial(0:4))
+)
+
+ggplot2$ggplot(df_gamma, ggplot2$aes(x = alpha, y = gamma_val)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+  ggplot2$geom_point(data = df_ints, colour = "#D55E00", size = 3.5) +
+  ggplot2$geom_text(data = df_ints,
+    ggplot2$aes(label = label),
+    nudge_x = 0.35, nudge_y = 1, size = 3.5, colour = "#D55E00") +
+  ggplot2$coord_cartesian(ylim = c(0, 30)) +
+  ggplot2$labs(
+    x = expression(alpha), y = expression(Gamma(alpha)),
+    title = "The Gamma function"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 5.3.2 The Gamma Distribution: Sum of Exponentials
+
+The Gamma distribution arises naturally as the waiting time for the $\alpha$-th event in a Poisson process.
+
+**Setup.** If $T_1, T_2, \ldots, T_\alpha$ are independent $\text{Exp}(\lambda)$ random variables (inter-arrival times), then
+
+$$S_\alpha = T_1 + T_2 + \cdots + T_\alpha \sim \text{Gamma}(\alpha, \lambda).$$
+
+**PDF derivation (via MGF).** The MGF of $T_i \sim \text{Exp}(\lambda)$ is $M_{T_i}(t) = \frac{\lambda}{\lambda - t}$ for $t < \lambda$. By independence:
+
+$$M_{S_\alpha}(t) = \left(\frac{\lambda}{\lambda - t}\right)^\alpha.$$
+
+This is the MGF of the Gamma distribution. Inverting (or deriving directly from the convolution), the PDF is:
+
+$$f(x; \alpha, \lambda) = \frac{\lambda^\alpha}{\Gamma(\alpha)} x^{\alpha - 1} e^{-\lambda x}, \quad x > 0.$$
+
+**Verify it integrates to 1.** Substitute $u = \lambda x$:
+
+$$\int_0^\infty \frac{\lambda^\alpha}{\Gamma(\alpha)} x^{\alpha-1} e^{-\lambda x}\,dx = \frac{1}{\Gamma(\alpha)} \int_0^\infty u^{\alpha-1} e^{-u}\,du = \frac{\Gamma(\alpha)}{\Gamma(\alpha)} = 1. \quad \checkmark$$
+
+### 5.3.3 Moments of the Gamma
+
+**Mean:** $E[X] = \alpha / \lambda$ (sum of $\alpha$ exponentials each with mean $1/\lambda$).
+
+**Variance:** $\text{Var}(X) = \alpha / \lambda^2$ (sum of $\alpha$ independent variables each with variance $1/\lambda^2$).
+
+### 5.3.4 Special Cases and Parametrisation
+
+| Distribution | Gamma parameters |
+|:-------------|:-----------------|
+| $\text{Exp}(\lambda)$ | $\text{Gamma}(1, \lambda)$ |
+| $\chi^2_k$ (chi-square) | $\text{Gamma}(k/2, 1/2)$ |
+| $\text{Erlang}(k, \lambda)$ | $\text{Gamma}(k, \lambda)$ with integer $k$ |
+
+**Parametrisation warning.** Some texts use a *scale* parameter $\beta = 1/\lambda$ (so $E[X] = \alpha \beta$). R uses `shape` = $\alpha$ and `rate` = $\lambda$ (or equivalently `scale` = $1/\lambda$). We shall consistently use the rate parametrisation in this book.
+
+### 5.3.5 R: Sum of Exponentials is Gamma
+
+We verify the key result empirically: the sum of $\alpha$ independent $\text{Exp}(\lambda)$ variables follows a $\text{Gamma}(\alpha, \lambda)$ distribution.
+
+```{r sum-exp-gamma, fig.cap="Sum of α = 5 independent Exp(2) variables (histogram) vs the Gamma(5, 2) density (orange curve)."}
+set.seed(42)
+alpha <- 5
+lambda <- 2
+n_sim <- 20000
+
+# Build from scratch: sum of exponentials using runif only
+sums <- replicate(n_sim, {
+  u <- runif(alpha)
+  sum(-log(u) / lambda)
+})
+
+df_sums <- data.table$data.table(x = sums)
+x_theory <- seq(0, 6, length.out = 300)
+df_th <- data.table$data.table(x = x_theory, y = dgamma(x_theory, shape = alpha, rate = lambda))
+
+ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = df_sums,
+    ggplot2$aes(x = x, y = ggplot2::after_stat(density)),
+    bins = 60, fill = "#0072B2", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_line(
+    data = df_th,
+    ggplot2$aes(x = x, y = y),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = "x", y = "Density",
+    title = "Sum of 5 independent Exp(2) variables ≈ Gamma(5, 2)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r gamma-moments-check}
+# Theoretical: mean = α/λ = 2.5, var = α/λ² = 1.25
+mean(sums)
+var(sums)
+```
+
+### 5.3.6 Gamma Family: Shape Gallery
+
+Different values of the shape parameter $\alpha$ produce strikingly different density shapes -- from the exponential ($\alpha = 1$) to bell-shaped curves for larger $\alpha$.
+
+```{r gamma-shapes, fig.cap="Gamma densities for various shape parameters α, all with rate λ = 1. As α grows, the density becomes more symmetric and bell-shaped."}
+shapes <- c(0.5, 1, 2, 5, 10)
+x_seq <- seq(0.001, 20, length.out = 500)
+
+df_shapes <- data.table$rbindlist(lapply(shapes, function(a) {
+  data.table$data.table(
+    x = x_seq,
+    y = dgamma(x_seq, shape = a, rate = 1),
+    alpha = paste0("α = ", a)
+  )
+}))
+
+ggplot2$ggplot(df_shapes, ggplot2$aes(x = x, y = y, colour = alpha)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(
+    "#E69F00", "#D55E00", "#0072B2", "#009E73", "#CC79A7"
+  )) +
+  ggplot2$labs(
+    x = "x", y = "Density", colour = "Shape",
+    title = "The Gamma family (rate λ = 1)"
+  ) +
+  ggplot2$coord_cartesian(xlim = c(0, 18), ylim = c(0, 0.7)) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "right")
+```
+
+For $\alpha < 1$, the density is J-shaped (infinite at zero). For $\alpha = 1$, it is the exponential. For $\alpha > 1$, the density has a mode at $(\alpha - 1)/\lambda$ and becomes increasingly symmetric as $\alpha$ grows -- a preview of the central limit theorem.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting continuous distributions to a non-technical audience:
+
+- For the **uniform**, say "equally likely to be anywhere in the range" rather than "constant PDF on $[a, b]$."
+- For the **exponential**, use the waiting-time story: "On average you wait 20 minutes, and the chance of waiting longer than 40 minutes is about 13.5%." The memoryless property can be phrased as: "How long you've already waited doesn't change how much longer you can expect to wait."
+- For the **Gamma**, frame it as "the time until the $k$-th event": "If buses arrive randomly at 3 per hour, the Gamma tells us how long until the 5th bus arrives."
+- Always accompany a distribution with a histogram of real or simulated data. A density curve alone is abstract; a histogram gives it tangible meaning.
+
+---
+
+## Quick Reference
+
+| Property | Uniform($a, b$) | Exponential($\lambda$) | Gamma($\alpha, \lambda$) |
+|:---------|:-----------------|:-----------------------|:------------------------|
+| **Setup** | Equal probability on $[a,b]$ | Time to first Poisson event | Time to $\alpha$-th Poisson event |
+| **PDF** | $\frac{1}{b-a}$ on $[a,b]$ | $\lambda e^{-\lambda x}$, $x \ge 0$ | $\frac{\lambda^\alpha}{\Gamma(\alpha)} x^{\alpha-1} e^{-\lambda x}$ |
+| **CDF** | $\frac{x-a}{b-a}$ on $[a,b]$ | $1 - e^{-\lambda x}$ | No closed form (use `pgamma`) |
+| **E[X]** | $\frac{a+b}{2}$ | $\frac{1}{\lambda}$ | $\frac{\alpha}{\lambda}$ |
+| **Var(X)** | $\frac{(b-a)^2}{12}$ | $\frac{1}{\lambda^2}$ | $\frac{\alpha}{\lambda^2}$ |
+| **MGF** | $\frac{e^{tb} - e^{ta}}{t(b-a)}$ | $\frac{\lambda}{\lambda - t}$ | $\left(\frac{\lambda}{\lambda - t}\right)^\alpha$ |
+| **Key property** | Basis of all simulation | Memoryless | Sum of exponentials |
+| **R functions** | `dunif`, `punif`, `runif` | `dexp`, `pexp`, `rexp` | `dgamma`, `pgamma`, `rgamma` |
+
+---
+
+## Exercises
+
+### Pen-and-Paper Exercises
+
+**Exercise 5.1.** Let $X \sim \text{Uniform}(2, 8)$. Compute $P(3 < X < 6)$, $E[X]$, and $\text{Var}(X)$ directly from the formulae.
+
+**Exercise 5.2.** Prove that if $X \sim \text{Exp}(\lambda)$, then $Y = cX \sim \text{Exp}(\lambda/c)$ for any constant $c > 0$. *(Hint: compute the CDF of $Y$.)*
+
+**Exercise 5.3.** Suppose calls arrive at a call centre as a Poisson process at rate 4 per minute. What is the probability of waiting more than 30 seconds for the next call? What is the probability of waiting more than 1 minute given that you have already waited 30 seconds?
+
+**Exercise 5.4.** Show that the Gamma PDF integrates to 1 by making the substitution $u = \lambda x$.
+
+**Exercise 5.5.** Using the MGF of the Gamma distribution, derive $E[X]$ and $E[X^2]$ (and hence $\text{Var}(X)$) by evaluating $M'(0)$ and $M''(0)$.
+
+### R Exercises
+
+**Exercise 5.6.** Write a function `my_runif(n, a, b)` that generates $n$ uniform random variables on $[a, b]$ using only the system's $\text{Uniform}(0, 1)$ generator `runif(n)`. Verify your function by comparing a histogram of 50,000 draws against the theoretical density.
+
+```{r ex-5-6, eval=FALSE}
+my_runif <- function(n, a, b) {
+  a + (b - a) * runif(n)
+}
+```
+
+**Exercise 5.7.** Using the inverse transform method, write a function `my_rexp(n, lambda)` that generates exponential random variables using only `runif()`. Compare 10,000 draws to R's `rexp()` using Q-Q plots.
+
+```{r ex-5-7, eval=FALSE}
+my_rexp <- function(n, lambda) {
+  -log(runif(n)) / lambda
+}
+```
+
+**Exercise 5.8.** Simulate 50,000 realisations of $S = T_1 + T_2 + T_3$ where each $T_i \sim \text{Exp}(1)$. Overlay the $\text{Gamma}(3, 1)$ density on the histogram. Compute the sample mean and variance and compare to the theoretical values.
+
+**Exercise 5.9.** The time between earthquakes in a certain region follows an exponential distribution with mean 2 years. What is the probability of at least 3 earthquakes in a 5-year period? *(Hint: the count follows a Poisson distribution. What is $\lambda$?)*
+
+### Spot-the-Error Exercises
+
+**Exercise 5.10.** A student writes: "The exponential distribution has $P(T = 5) = \lambda e^{-5\lambda}$." What is the error?
+
+*(For a continuous distribution, $P(T = t) = 0$ for any specific value $t$. The expression $\lambda e^{-5\lambda}$ is the density $f(5)$, not the probability. To get a probability, integrate the PDF over an interval.)*
+
+**Exercise 5.11.** A colleague claims: "I've been waiting at this bus stop for 30 minutes with no bus. By the memoryless property, the expected additional wait is still $1/\lambda$, so on average I'll wait a total of $30 + 1/\lambda$ minutes. This means the memoryless property makes the expected total wait *longer* than $1/\lambda$ -- something is wrong."
+
+*Where is the flaw in this reasoning?* *(Hint: the unconditional expected wait is indeed $1/\lambda$. The paradox arises from conflating the conditional expectation given $T > 30$ with the unconditional expectation.)*

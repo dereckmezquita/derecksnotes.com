@@ -1,0 +1,451 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 16: Multiple Linear Regression"
+part: "Part 1: Matrix Formulation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, linear-algebra, matrix, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 16 -- Multiple Linear Regression
+
+## Part 1: Matrix Formulation
+
+Simple linear regression relates a response to a single predictor. In practice, outcomes are influenced by many variables simultaneously. Multiple linear regression extends the framework to $p - 1$ predictors using the language of linear algebra developed in Chapter 14. The matrix formulation is not merely notational convenience -- it reveals the deep geometric structure of regression as **orthogonal projection**, connects the algebra to the geometry, and makes implementation both elegant and efficient.
+
+---
+
+## 16.1 The Model in Matrix Form
+
+### 16.1.1 From Scalar to Matrix
+
+With $n$ observations and $p - 1$ predictors (plus an intercept), the model for observation $i$ is:
+
+$$Y_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \cdots + \beta_{p-1} x_{i,p-1} + \varepsilon_i$$
+
+We can write all $n$ equations simultaneously. Define:
+
+$$\mathbf{Y} = \begin{pmatrix} Y_1 \\ Y_2 \\ \vdots \\ Y_n \end{pmatrix}, \quad \mathbf{X} = \begin{pmatrix} 1 & x_{11} & x_{12} & \cdots & x_{1,p-1} \\ 1 & x_{21} & x_{22} & \cdots & x_{2,p-1} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{n1} & x_{n2} & \cdots & x_{n,p-1} \end{pmatrix}$$
+
+$$\boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_{p-1} \end{pmatrix}, \quad \boldsymbol{\varepsilon} = \begin{pmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \vdots \\ \varepsilon_n \end{pmatrix}$$
+
+Then the entire model is:
+
+$$\boxed{\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}}$$
+
+where $\mathbf{Y}$ is $n \times 1$, $\mathbf{X}$ is $n \times p$, $\boldsymbol{\beta}$ is $p \times 1$, and $\boldsymbol{\varepsilon}$ is $n \times 1$.
+
+### 16.1.2 Assumptions in Matrix Notation
+
+1. $E[\boldsymbol{\varepsilon}] = \mathbf{0}$ (zero mean errors).
+2. $\text{Cov}(\boldsymbol{\varepsilon}) = \sigma^2 \mathbf{I}_n$ (independence and homoscedasticity).
+3. $\text{rank}(\mathbf{X}) = p$ (full column rank -- no perfect multicollinearity).
+
+Under normality, we additionally assume $\boldsymbol{\varepsilon} \sim N(\mathbf{0}, \sigma^2\mathbf{I}_n)$.
+
+### 16.1.3 What Full Rank Means
+
+The condition $\text{rank}(\mathbf{X}) = p$ requires that $n \ge p$ (at least as many observations as parameters) and that no column of $\mathbf{X}$ is a linear combination of the others. If this fails, $\mathbf{X}'\mathbf{X}$ is singular and the OLS solution does not exist uniquely.
+
+---
+
+## 16.2 Deriving $\hat{\boldsymbol{\beta}}$ as a Minimiser
+
+### 16.2.1 The Objective Function
+
+The sum of squared residuals in matrix form is:
+
+$$S(\mathbf{b}) = (\mathbf{Y} - \mathbf{X}\mathbf{b})'(\mathbf{Y} - \mathbf{X}\mathbf{b})$$
+
+Expanding:
+
+$$S(\mathbf{b}) = \mathbf{Y}'\mathbf{Y} - 2\mathbf{b}'\mathbf{X}'\mathbf{Y} + \mathbf{b}'\mathbf{X}'\mathbf{X}\mathbf{b}$$
+
+### 16.2.2 Taking the Matrix Derivative
+
+The gradient of $S$ with respect to $\mathbf{b}$ is (using the matrix calculus identities from Chapter 14):
+
+$$\frac{\partial S}{\partial \mathbf{b}} = -2\mathbf{X}'\mathbf{Y} + 2\mathbf{X}'\mathbf{X}\mathbf{b}$$
+
+Setting this to zero:
+
+$$\mathbf{X}'\mathbf{X}\mathbf{b} = \mathbf{X}'\mathbf{Y}$$
+
+These are the **normal equations** in matrix form. If $\mathbf{X}$ has full column rank, then $\mathbf{X}'\mathbf{X}$ is invertible, and:
+
+$$\boxed{\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}}$$
+
+### 16.2.3 Verifying the Minimum
+
+The Hessian is $\partial^2 S/\partial\mathbf{b}\partial\mathbf{b}' = 2\mathbf{X}'\mathbf{X}$, which is positive definite when $\text{rank}(\mathbf{X}) = p$. So the critical point is indeed a global minimum.
+
+---
+
+## 16.3 $\hat{\boldsymbol{\beta}}$ as Orthogonal Projection
+
+### 16.3.1 The Column Space Interpretation
+
+This is the deepest insight of regression, and it connects directly to Chapter 14.
+
+The vector $\mathbf{Y}$ lives in $\mathbb{R}^n$. The columns of $\mathbf{X}$ span a $p$-dimensional subspace $\mathcal{C}(\mathbf{X})$ (the **column space** of $\mathbf{X}$). Any fitted value vector $\hat{\mathbf{Y}} = \mathbf{X}\mathbf{b}$ lies in $\mathcal{C}(\mathbf{X})$.
+
+The OLS solution chooses the $\mathbf{b}$ that makes $\hat{\mathbf{Y}}$ as close to $\mathbf{Y}$ as possible (minimises $\|\mathbf{Y} - \hat{\mathbf{Y}}\|^2$). But this is precisely the **orthogonal projection** of $\mathbf{Y}$ onto $\mathcal{C}(\mathbf{X})$.
+
+### 16.3.2 The Projection Proof
+
+The residual vector is $\mathbf{e} = \mathbf{Y} - \hat{\mathbf{Y}} = \mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}}$. For $\hat{\mathbf{Y}}$ to be the orthogonal projection, we need $\mathbf{e}$ to be orthogonal to every vector in $\mathcal{C}(\mathbf{X})$, which means:
+
+$$\mathbf{X}'\mathbf{e} = \mathbf{0}$$
+
+Let us verify: $\mathbf{X}'\mathbf{e} = \mathbf{X}'(\mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}}) = \mathbf{X}'\mathbf{Y} - \mathbf{X}'\mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{X}'\mathbf{Y} - \mathbf{X}'\mathbf{Y} = \mathbf{0}$. $\square$
+
+This is exactly the normal equations! The normal equations are the algebraic statement that the residual vector is orthogonal to the column space of $\mathbf{X}$.
+
+### 16.3.3 The Hat Matrix
+
+The **hat matrix** (or projection matrix) is:
+
+$$\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$$
+
+and the fitted values are:
+
+$$\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$$
+
+The name "hat matrix" comes from the fact that it puts a hat on $\mathbf{Y}$.
+
+**Properties of $\mathbf{H}$**:
+
+1. $\mathbf{H}$ is **symmetric**: $\mathbf{H}' = \mathbf{H}$.
+2. $\mathbf{H}$ is **idempotent**: $\mathbf{H}^2 = \mathbf{H}$ (projecting twice is the same as projecting once).
+3. $\text{rank}(\mathbf{H}) = \text{tr}(\mathbf{H}) = p$.
+4. The eigenvalues of $\mathbf{H}$ are all 0 or 1.
+
+Similarly, $\mathbf{I} - \mathbf{H}$ projects onto the orthogonal complement of $\mathcal{C}(\mathbf{X})$, and:
+
+$$\mathbf{e} = (\mathbf{I} - \mathbf{H})\mathbf{Y}$$
+
+---
+
+## 16.4 Implementation from Scratch
+
+Let us implement the matrix OLS formula directly in R.
+
+```{r matrix-ols-scratch}
+#' Multiple linear regression via matrix OLS -- from scratch
+#' @param X design matrix (WITHOUT intercept column)
+#' @param y response vector
+#' @return named list with coefficients, fitted, residuals, hat matrix diagonal
+my_matrix_ols <- function(X, y) {
+  n <- length(y)
+  # Add intercept column
+  X_mat <- cbind(1, as.matrix(X))
+  p <- ncol(X_mat)
+
+  # Normal equations: beta_hat = (X'X)^{-1} X'y
+  XtX <- crossprod(X_mat)           # X'X
+  Xty <- crossprod(X_mat, y)        # X'y
+  XtX_inv <- solve(XtX)             # (X'X)^{-1}
+  beta_hat <- XtX_inv %*% Xty       # (X'X)^{-1} X'y
+
+  fitted <- X_mat %*% beta_hat
+  residuals <- y - fitted
+
+  # Hat matrix diagonal (for diagnostics)
+  H_diag <- rowSums((X_mat %*% XtX_inv) * X_mat)
+
+  SSE <- sum(residuals^2)
+  sigma2_hat <- SSE / (n - p)
+
+  list(
+    coefficients = drop(beta_hat),
+    fitted = drop(fitted),
+    residuals = drop(residuals),
+    H_diag = H_diag,
+    sigma2 = sigma2_hat,
+    XtX_inv = XtX_inv,
+    n = n,
+    p = p,
+    SSE = SSE
+  )
+}
+```
+
+### 16.4.1 Testing on the mtcars Data
+
+```{r mtcars-scratch}
+data_dir <- "../../../data"
+mtcars_dt <- data.table$fread(file.path(data_dir, "classic/mtcars.csv"))
+
+# Predict mpg from hp, wt, and qsec
+X <- mtcars_dt[, .(hp, wt, qsec)]
+y <- mtcars_dt$mpg
+
+fit_scratch <- my_matrix_ols(X, y)
+fit_lm <- lm(mpg ~ hp + wt + qsec, data = mtcars_dt)
+
+# Compare coefficients
+data.frame(
+  parameter = c("intercept", "hp", "wt", "qsec"),
+  from_scratch = fit_scratch$coefficients,
+  from_lm = coef(fit_lm)
+)
+```
+
+The values agree to machine precision.
+
+### 16.4.2 Verifying the Projection Properties
+
+```{r projection-verify}
+X_mat <- cbind(1, as.matrix(mtcars_dt[, .(hp, wt, qsec)]))
+e <- fit_scratch$residuals
+
+# X'e should be zero
+Xte <- crossprod(X_mat, e)
+c(
+  "max |X'e|" = max(abs(Xte)),
+  "sum of residuals" = sum(e),
+  "trace of H" = sum(fit_scratch$H_diag)
+)
+```
+
+$\mathbf{X}'\mathbf{e} \approx \mathbf{0}$ (up to floating-point error), the residuals sum to zero, and $\text{tr}(\mathbf{H}) = p = 4$ (the number of parameters).
+
+---
+
+## 16.5 The Geometry in Pictures
+
+### 16.5.1 Visualising Projection in 2D
+
+We can illustrate the projection idea in $\mathbb{R}^2$ with a toy example.
+
+```{r projection-2d, fig.cap="Orthogonal projection in R^2. The vector y is projected onto the subspace spanned by x. The residual e is perpendicular to x."}
+set.seed(42)
+# Column space is span of x = (2, 1)
+x_vec <- c(2, 1)
+y_vec <- c(1, 3)
+
+# Projection: proj_x(y) = (x'y / x'x) * x
+proj_coef <- sum(x_vec * y_vec) / sum(x_vec^2)
+y_hat <- proj_coef * x_vec
+e_vec <- y_vec - y_hat
+
+arrow_data <- data.table$data.table(
+  x0 = c(0, 0, 0, y_hat[1]),
+  y0 = c(0, 0, 0, y_hat[2]),
+  x1 = c(y_vec[1], y_hat[1], x_vec[1] * 1.5, y_vec[1]),
+  y1 = c(y_vec[2], y_hat[2], x_vec[2] * 1.5, y_vec[2]),
+  label = c("y", "y_hat", "Col(X)", "e")
+)
+
+ggplot2$ggplot() +
+  ggplot2$geom_segment(
+    data = arrow_data,
+    ggplot2$aes(x = x0, y = y0, xend = x1, yend = y1, colour = label),
+    arrow = ggplot2$arrow(length = ggplot2$unit(0.3, "cm")),
+    linewidth = 1.2
+  ) +
+  ggplot2$scale_colour_manual(values = c(
+    "y" = "#0072B2", "y_hat" = "#D55E00",
+    "Col(X)" = "grey50", "e" = "#009E73"
+  )) +
+  ggplot2$coord_fixed() +
+  ggplot2$labs(
+    x = expression(e[1]),
+    y = expression(e[2]),
+    title = "Orthogonal projection: regression as geometry"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 16.5.2 Partial Regression (Added Variable) Plots
+
+With multiple predictors, we cannot plot $Y$ against all of them simultaneously. **Added variable plots** (or partial regression plots) show the relationship between $Y$ and one predictor **after removing the effects of all other predictors**.
+
+```{r avplot, fig.cap="Added variable plot for 'wt' in the mtcars model. The slope of this scatter plot equals the coefficient on wt in the multiple regression."}
+# Partial regression for wt
+# 1. Regress wt on the other predictors
+resid_wt <- residuals(lm(wt ~ hp + qsec, data = mtcars_dt))
+# 2. Regress mpg on the other predictors
+resid_mpg <- residuals(lm(mpg ~ hp + qsec, data = mtcars_dt))
+
+av_data <- data.table$data.table(resid_wt = resid_wt, resid_mpg = resid_mpg)
+
+ggplot2$ggplot(av_data, ggplot2$aes(x = resid_wt, y = resid_mpg)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.6, size = 2) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 1
+  ) +
+  ggplot2$labs(
+    x = "wt | others",
+    y = "mpg | others",
+    title = sprintf(
+      "Added variable plot for wt (slope = %.3f)",
+      coef(fit_lm)["wt"]
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The slope of the line in this plot equals the coefficient on `wt` in the full multiple regression -- this is the **Frisch-Waugh-Lovell theorem**.
+
+---
+
+## 16.6 The NHANES Example
+
+Let us fit a multiple regression predicting BMI from Age, Height, and Weight using NHANES data.
+
+```{r nhanes-mlr}
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes_clean <- nhanes[
+  complete.cases(nhanes[, .(BMI, Age, Height, Weight)]) & Age >= 18
+]
+
+fit_nhanes <- lm(BMI ~ Age + Height + Weight, data = nhanes_clean)
+summary(fit_nhanes)
+```
+
+```{r nhanes-scratch}
+X_nh <- nhanes_clean[, .(Age, Height, Weight)]
+y_nh <- nhanes_clean$BMI
+
+fit_nh_scratch <- my_matrix_ols(X_nh, y_nh)
+
+data.frame(
+  parameter = c("intercept", "Age", "Height", "Weight"),
+  from_scratch = fit_nh_scratch$coefficients,
+  from_lm = coef(fit_nhanes)
+)
+```
+
+```{r nhanes-fit-plot, fig.cap="Observed vs fitted BMI from the multiple regression. Perfect predictions would lie on the diagonal. The model explains a large proportion of BMI variation."}
+nhanes_clean[, fitted_bmi := fitted(fit_nhanes)]
+
+ggplot2$ggplot(nhanes_clean, ggplot2$aes(x = fitted_bmi, y = BMI)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.1, size = 1) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Fitted BMI",
+    y = "Observed BMI",
+    title = "Observed vs fitted BMI (NHANES)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 16.7 Computational Considerations
+
+### 16.7.1 Why Not Invert $\mathbf{X}'\mathbf{X}$ Directly?
+
+In practice, explicitly forming and inverting $\mathbf{X}'\mathbf{X}$ is numerically unstable for ill-conditioned problems. R's `lm()` uses the **QR decomposition**: $\mathbf{X} = \mathbf{Q}\mathbf{R}$ where $\mathbf{Q}$ is orthogonal and $\mathbf{R}$ is upper triangular. Then:
+
+$$\hat{\boldsymbol{\beta}} = \mathbf{R}^{-1}\mathbf{Q}'\mathbf{Y}$$
+
+which is solved by back-substitution (fast and stable).
+
+```{r qr-demo}
+X_mat <- cbind(1, as.matrix(mtcars_dt[, .(hp, wt, qsec)]))
+
+# QR decomposition
+qr_obj <- qr(X_mat)
+Q <- qr.Q(qr_obj)
+R <- qr.R(qr_obj)
+
+# Solve via back-substitution
+beta_qr <- backsolve(R, crossprod(Q, mtcars_dt$mpg))
+
+data.frame(
+  parameter = c("intercept", "hp", "wt", "qsec"),
+  normal_eq = fit_scratch$coefficients,
+  qr_method = drop(beta_qr)
+)
+```
+
+### 16.7.2 Condition Number
+
+The **condition number** of $\mathbf{X}'\mathbf{X}$ measures how sensitive the solution is to small perturbations in the data. A large condition number signals potential numerical problems (and often multicollinearity):
+
+```{r condition-number}
+XtX <- crossprod(X_mat)
+kappa(XtX)
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining multiple regression:
+
+- **Use the projection metaphor.** "We are finding the closest point to the data within the space of all possible linear combinations of our predictors."
+- **Explain partial effects.** "The coefficient on weight tells us the effect of weight *holding horsepower and quarter-mile time constant*."
+- **Do not present raw matrix algebra.** Stakeholders care about the coefficients and their interpretation, not about $(X'X)^{-1}$.
+- **Added variable plots** are excellent for showing partial relationships to a technical audience.
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **Model** | $\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$ |
+| **OLS estimator** | $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$ |
+| **Hat matrix** | $\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$ |
+| **Fitted values** | $\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$ |
+| **Residuals** | $\mathbf{e} = (\mathbf{I} - \mathbf{H})\mathbf{Y}$ |
+| **Normal equations** | $\mathbf{X}'\mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{X}'\mathbf{Y}$ |
+| **Key insight** | $\hat{\mathbf{Y}}$ is the orthogonal projection of $\mathbf{Y}$ onto $\mathcal{C}(\mathbf{X})$ |
+
+---
+
+## Exercises
+
+1. **Derive from scratch.** Starting from $S(\mathbf{b}) = (\mathbf{Y} - \mathbf{X}\mathbf{b})'(\mathbf{Y} - \mathbf{X}\mathbf{b})$, expand, differentiate, and solve. Verify that the Hessian $2\mathbf{X}'\mathbf{X}$ is positive definite under the full-rank assumption.
+
+2. **Hat matrix properties.** Prove that $\mathbf{H}$ is idempotent ($\mathbf{H}^2 = \mathbf{H}$) and symmetric. Show that $\text{tr}(\mathbf{H}) = p$.
+
+3. **Frisch-Waugh-Lovell.** Using the mtcars data, verify numerically that the coefficient on `wt` in `lm(mpg ~ hp + wt + qsec)` equals the slope from regressing the residuals of `mpg ~ hp + qsec` on the residuals of `wt ~ hp + qsec`.
+
+4. **Numerical stability.** Create a design matrix with highly correlated columns (e.g., $x_2 = x_1 + 0.001 \cdot z$ where $z$ is noise). Compute $(\mathbf{X}'\mathbf{X})^{-1}$ directly and via the QR decomposition. Compare the condition numbers and the coefficient estimates.
+
+5. **Simple as special case.** Show that for simple linear regression ($p = 2$, with $\mathbf{X} = [\mathbf{1} \; \mathbf{x}]$), the matrix formula $(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$ reduces to the scalar formulae $\hat{\beta}_1 = S_{xy}/S_{xx}$ and $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$.
+
+6. **NHANES extension.** Add `Gender` (as a factor) and `Pulse` to the NHANES BMI model. Construct the design matrix by hand (dummy-coding Gender), verify that your `my_matrix_ols()` agrees with `lm()`, and interpret all coefficients.

@@ -1,0 +1,434 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 9: Interval Estimation"
+part: "Part 3: Pivotal Quantities and Sample Size"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, estimation, confidence-intervals, sample-size, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+```{r data-path, include=FALSE}
+data_dir <- "../../../data"
+```
+
+# Chapter 9 -- Interval Estimation
+
+## Part 3: Pivotal Quantities and Sample Size
+
+In Parts 1 and 2 we derived confidence intervals for means, proportions, and variances using slightly different arguments each time. Now we step back and ask: *is there a single recipe that produces all of these intervals?* The answer is yes -- the method of **pivotal quantities** provides a unified framework. We then apply this framework to the practical problem of **sample-size determination**: before collecting data, how large must $n$ be to achieve a desired precision?
+
+We close the chapter with a real-world application: estimating a treatment effect from the Streptomycin Trial for pulmonary tuberculosis.
+
+---
+
+## 9.9 Pivotal Quantities: The General Method
+
+### 9.9.1 Definition
+
+A **pivotal quantity** (or simply a *pivot*) is a function $Q(\mathbf{X}, \theta)$ of the data $\mathbf{X} = (X_1, \ldots, X_n)$ and the parameter $\theta$ whose distribution **does not depend on** $\theta$ or any other unknown parameter.
+
+Formally, $Q$ is a pivot for $\theta$ if $Q(\mathbf{X}, \theta) \sim F$ where $F$ is a completely known distribution.
+
+### 9.9.2 Why Pivots Work
+
+If we can find a pivot $Q$ and known quantiles $q_L, q_U$ such that $P(q_L \le Q \le q_U) = 1 - \alpha$, then we can algebraically "invert" the inequality to isolate $\theta$, yielding a confidence interval.
+
+The recipe:
+
+1. **Identify a pivot** $Q(\mathbf{X}, \theta)$ with a known distribution.
+2. **Choose quantiles** $q_L$ and $q_U$ such that $P(q_L \le Q \le q_U) = 1 - \alpha$.
+3. **Invert** the inequality to obtain $L(\mathbf{X}) \le \theta \le U(\mathbf{X})$.
+
+### 9.9.3 Unifying the Intervals We Already Know
+
+| Parameter | Pivot | Known Distribution | Inversion |
+|:----------|:------|:-------------------|:----------|
+| $\mu$ (known $\sigma$) | $Z = \frac{\bar{X} - \mu}{\sigma/\sqrt{n}}$ | $N(0,1)$ | Z-interval |
+| $\mu$ (unknown $\sigma$) | $T = \frac{\bar{X} - \mu}{S/\sqrt{n}}$ | $t_{n-1}$ | t-interval |
+| $\sigma^2$ (Normal) | $Q = \frac{(n-1)S^2}{\sigma^2}$ | $\chi^2_{n-1}$ | Chi-square interval |
+| $p$ (proportion) | $Z = \frac{\hat{p} - p}{\sqrt{p(1-p)/n}}$ | $N(0,1)$ approx. | Wilson interval |
+
+Every CI in this chapter was obtained by the same three steps. The only difference is the pivot and its distribution. Once you recognise this pattern, constructing a CI for a *new* parameter becomes straightforward -- provided you can find a suitable pivot.
+
+### 9.9.4 A New Example: Exponential Rate Parameter
+
+Let $X_1, \ldots, X_n \overset{\text{iid}}{\sim} \text{Exp}(\lambda)$. Then $\sum X_i \sim \text{Gamma}(n, 1/\lambda)$, and equivalently $2\lambda \sum X_i \sim \chi^2_{2n}$ (since $2\lambda X_i \sim \text{Exp}(1/2) = \chi^2_2$).
+
+So a pivot is:
+
+$$Q = 2\lambda \sum_{i=1}^n X_i = 2\lambda n \bar{X} \sim \chi^2_{2n}.$$
+
+Invert $P(\chi^2_L \le 2\lambda n \bar{X} \le \chi^2_U) = 1 - \alpha$:
+
+$$\frac{\chi^2_L}{2n\bar{X}} \le \lambda \le \frac{\chi^2_U}{2n\bar{X}}.$$
+
+```{r exp-ci-scratch}
+set.seed(42)
+
+#' CI for the rate parameter of an Exponential distribution
+#' @param x numeric vector of Exp(lambda) observations
+#' @param conf confidence level
+#' @return named vector: lower, upper, lambda_hat
+my_exp_rate_ci <- function(x, conf = 0.95) {
+  n <- length(x)
+  xbar <- mean(x)
+  alpha <- 1 - conf
+  chi2_lo <- qchisq(alpha / 2, df = 2 * n)
+  chi2_hi <- qchisq(1 - alpha / 2, df = 2 * n)
+  c(
+    lower = chi2_lo / (2 * n * xbar),
+    upper = chi2_hi / (2 * n * xbar),
+    lambda_hat = 1 / xbar
+  )
+}
+
+# Simulate Exp(lambda = 0.5) data
+x_exp <- rexp(40, rate = 0.5)
+my_exp_rate_ci(x_exp)
+```
+
+The true rate is $\lambda = 0.5$. The CI should contain it.
+
+### 9.9.5 When No Exact Pivot Exists
+
+Not every problem admits a clean pivot. In such cases we have several options:
+
+- **Approximate pivots** via the CLT (as with the proportion).
+- **Likelihood-based intervals** using the asymptotic Normality of the MLE (covered in Chapter 8, Part 2).
+- **Bootstrap intervals** (Chapter 13).
+
+The pivotal method remains the gold standard when available because it produces *exact* CIs (no large-sample approximation needed).
+
+---
+
+## 9.10 Sample-Size Determination
+
+### 9.10.1 The Question
+
+Before collecting data, we often need to decide how many observations to gather. The answer depends on three quantities:
+
+1. **Desired margin of error** $E$: how precise do we want the estimate to be?
+2. **Confidence level** $1 - \alpha$: how confident must we be?
+3. **Population variability** $\sigma$ (or a preliminary estimate thereof).
+
+### 9.10.2 Derivation for Means
+
+From the Z-interval, the margin of error is $E = z_{\alpha/2} \cdot \sigma / \sqrt{n}$. Solve for $n$:
+
+$$n = \left(\frac{z_{\alpha/2} \cdot \sigma}{E}\right)^2.$$
+
+Since $n$ must be an integer, we round up: $n = \lceil (z_{\alpha/2} \cdot \sigma / E)^2 \rceil$.
+
+### 9.10.3 Derivation for Proportions
+
+For the Wald interval, $E = z_{\alpha/2} \sqrt{p(1-p)/n}$. Solve for $n$:
+
+$$n = \left(\frac{z_{\alpha/2}}{E}\right)^2 p(1-p).$$
+
+Since $p$ is unknown before the study, we use the **worst-case** value $p = 0.5$, which maximises $p(1-p) = 0.25$:
+
+$$n = \frac{z_{\alpha/2}^2}{4E^2}.$$
+
+### 9.10.4 Implementation
+
+```{r sample-size-functions}
+#' Required sample size for estimating a mean
+#' @param E desired margin of error
+#' @param sigma known or estimated population SD
+#' @param conf confidence level
+#' @return integer sample size (rounded up)
+sample_size_mean <- function(E, sigma, conf = 0.95) {
+  z <- qnorm(1 - (1 - conf) / 2)
+  ceiling((z * sigma / E)^2)
+}
+
+#' Required sample size for estimating a proportion
+#' @param E desired margin of error
+#' @param p anticipated proportion (default 0.5 for worst-case)
+#' @param conf confidence level
+#' @return integer sample size (rounded up)
+sample_size_prop <- function(E, p = 0.5, conf = 0.95) {
+  z <- qnorm(1 - (1 - conf) / 2)
+  ceiling(z^2 * p * (1 - p) / E^2)
+}
+
+# Example: mean, sigma = 10, margin of error = 1, 95% confidence
+sample_size_mean(E = 1, sigma = 10, conf = 0.95)
+
+# Example: proportion, worst-case, margin of error = 0.03
+sample_size_prop(E = 0.03)
+```
+
+For the mean example, $n = 385$ -- which matches the standard textbook answer. For a proportion with a 3-percentage-point margin, $n = 1068$, explaining why national polls typically survey about 1000 people.
+
+### 9.10.5 The Tradeoff Surface
+
+```{r sample-size-surface, fig.cap="Required sample size as a function of margin of error, for three confidence levels. Higher confidence and smaller margins demand dramatically larger samples."}
+E_seq <- seq(0.5, 5, by = 0.1)
+sigma <- 10
+
+ss_dt <- data.table$data.table(
+  E = rep(E_seq, 3),
+  conf = rep(c("90%", "95%", "99%"), each = length(E_seq)),
+  n = c(
+    sapply(E_seq, function(e) sample_size_mean(e, sigma, 0.90)),
+    sapply(E_seq, function(e) sample_size_mean(e, sigma, 0.95)),
+    sapply(E_seq, function(e) sample_size_mean(e, sigma, 0.99))
+  )
+)
+
+ggplot2$ggplot(ss_dt, ggplot2$aes(x = E, y = n, colour = conf)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c("90%" = "#009E73",
+    "95%" = "#0072B2", "99%" = "#D55E00")) +
+  ggplot2$labs(
+    x = "Margin of Error (E)",
+    y = "Required Sample Size (n)",
+    colour = "Confidence Level",
+    title = "Sample size vs. margin of error (sigma = 10)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$scale_y_continuous(labels = function(x) format(x, big.mark = ","))
+```
+
+The explosion in sample size for small margins of error is the "quadrupling rule" in action: halving $E$ quadruples $n$.
+
+### 9.10.6 Practical Considerations
+
+- The formula for means requires a preliminary estimate of $\sigma$. Options include pilot studies, prior research, or the range rule of thumb ($\sigma \approx \text{range}/4$).
+- For proportions, using $p = 0.5$ is conservative. If you have prior information that $p \approx 0.1$, the required sample size is much smaller.
+- These formulae assume simple random sampling. More complex designs (stratified, clustered) require adjustments.
+
+---
+
+## 9.11 Case Study: The Streptomycin Trial for Tuberculosis
+
+### 9.11.1 Background
+
+The 1948 British Medical Research Council trial of streptomycin for pulmonary tuberculosis was one of the first properly randomised controlled trials. Patients were randomly assigned to streptomycin treatment or bed rest (control). One outcome measured was improvement after 6 months, classified as "considerable improvement," "moderate/slight improvement," or "deterioration/death."
+
+We will construct a confidence interval for the difference in improvement rates between the treatment and control groups.
+
+### 9.11.2 Data
+
+```{r strep-data}
+# Streptomycin trial data (simplified)
+# Source: Hill (1948), BMJ
+strep_dt <- data.table$data.table(
+  group = c("Streptomycin", "Control"),
+  n = c(55, 52),
+  improved = c(28, 14),
+  deteriorated = c(14, 22)
+)
+
+strep_dt[, prop_improved := improved / n]
+strep_dt
+```
+
+### 9.11.3 CI for the Difference in Proportions
+
+For two independent proportions $\hat{p}_1$ and $\hat{p}_2$, the standard error of the difference is:
+
+$$\text{SE}(\hat{p}_1 - \hat{p}_2) = \sqrt{\frac{\hat{p}_1(1-\hat{p}_1)}{n_1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2}}.$$
+
+The CI for $p_1 - p_2$ is:
+
+$$(\hat{p}_1 - \hat{p}_2) \pm z_{\alpha/2} \cdot \text{SE}(\hat{p}_1 - \hat{p}_2).$$
+
+```{r strep-ci}
+#' CI for difference in two proportions
+#' @param x1 successes in group 1
+#' @param n1 total in group 1
+#' @param x2 successes in group 2
+#' @param n2 total in group 2
+#' @param conf confidence level
+#' @return named vector
+my_prop_diff_ci <- function(x1, n1, x2, n2, conf = 0.95) {
+  p1 <- x1 / n1
+  p2 <- x2 / n2
+  diff <- p1 - p2
+  se <- sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+  z <- qnorm(1 - (1 - conf) / 2)
+  me <- z * se
+  c(lower = diff - me, upper = diff + me, diff = diff, se = se)
+}
+
+strep_ci <- my_prop_diff_ci(28, 55, 14, 52)
+strep_ci
+```
+
+### 9.11.4 Interpretation
+
+```{r strep-interpret}
+cat(sprintf(
+  "Treatment effect: %.1f percentage points (95%% CI: %.1f to %.1f)\n",
+  100 * strep_ci["diff"],
+  100 * strep_ci["lower"],
+  100 * strep_ci["upper"]
+))
+```
+
+The streptomycin group had a considerably higher improvement rate. The 95% CI for the difference does not include zero, suggesting a genuine treatment benefit. The interval tells us that the treatment effect could plausibly be as small as about 5 percentage points or as large as about 37 percentage points -- a wide range reflecting the modest sample sizes of this pioneering trial.
+
+### 9.11.5 Visualising the Result
+
+```{r strep-plot, fig.cap="Improvement rates in the Streptomycin Trial with 95% Wilson CIs for each group. The streptomycin arm shows a meaningfully higher improvement rate than the bed-rest control."}
+# Add Wilson CIs for each group
+wilson_strep <- my_wilson_interval <- function(x, n, conf = 0.95) {
+  phat <- x / n
+  z <- qnorm(1 - (1 - conf) / 2)
+  z2 <- z^2
+  denom <- n + z2
+  centre <- (n * phat + z2 / 2) / denom
+  hw <- z / denom * sqrt(n * phat * (1 - phat) + z2 / 4)
+  c(lower = centre - hw, upper = centre + hw, centre = centre)
+}
+
+w1 <- my_wilson_interval(28, 55)
+w2 <- my_wilson_interval(14, 52)
+
+strep_plot_dt <- data.table$data.table(
+  group = c("Streptomycin", "Control"),
+  prop = c(28/55, 14/52),
+  lower = c(w1["lower"], w2["lower"]),
+  upper = c(w1["upper"], w2["upper"])
+)
+
+ggplot2$ggplot(strep_plot_dt, ggplot2$aes(x = group, y = prop)) +
+  ggplot2$geom_point(size = 4, colour = "#0072B2") +
+  ggplot2$geom_errorbar(ggplot2$aes(ymin = lower, ymax = upper),
+    width = 0.15, linewidth = 0.8, colour = "#0072B2") +
+  ggplot2$scale_y_continuous(limits = c(0, 0.8),
+    labels = function(x) paste0(round(100 * x), "%")) +
+  ggplot2$labs(
+    x = "",
+    y = "Proportion with Considerable Improvement",
+    title = "Streptomycin Trial (1948): Improvement Rates with 95% Wilson CIs"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 9.12 How Large a Sample for the Next Trial?
+
+Suppose we wish to design a follow-up trial that detects a difference as small as 15 percentage points with a margin of error of $\pm 5$ percentage points at 95% confidence. Using the worst-case $p = 0.5$:
+
+```{r next-trial-size}
+# Sample size per group for a proportion difference
+# Approximate: treat as single proportion with E = 0.05
+sample_size_prop <- function(E, p = 0.5, conf = 0.95) {
+  z <- qnorm(1 - (1 - conf) / 2)
+  ceiling(z^2 * p * (1 - p) / E^2)
+}
+
+n_per_group <- sample_size_prop(E = 0.05, p = 0.5)
+cat(sprintf("Required sample size per group: %d\n", n_per_group))
+cat(sprintf("Total trial size: %d\n", 2 * n_per_group))
+```
+
+About 385 per group, or 770 total -- substantially larger than the original 107-patient trial. This is the cost of demanding greater precision.
+
+---
+
+## 9.13 When Pivots Fail: A Preview
+
+Not all parameters admit clean pivots. Consider the **median** of a continuous distribution, or the **ratio of two variances** from non-Normal populations. In these cases, the approaches include:
+
+- **Likelihood ratio intervals** (using Wilks' theorem; Chapter 10).
+- **Bootstrap confidence intervals** (Chapter 13).
+- **Bayesian credible intervals** (Chapter 22).
+
+Each approach has its merits. The pivot method is the simplest and most transparent when it applies, which is why we emphasise it here. But recognising its limits is important -- and we will address those limits in later chapters.
+
+---
+
+## Communicating to Stakeholders
+
+When discussing sample-size calculations and pivots:
+
+- Frame sample size in terms of cost: "To achieve a margin of error of 2 percentage points, we need about 2400 participants. At a cost of $£50$ per participant, that is a $£120{,}000$ study."
+- Use the "quadrupling rule" as a rule of thumb: "Cutting the margin of error in half means quadrupling the budget."
+- For the Streptomycin trial, translate the CI into practical terms: "Streptomycin improved the proportion of patients showing considerable improvement by roughly 24 percentage points, though the true effect could be anywhere between about 5 and 37 percentage points."
+- Never present a sample-size calculation without stating the assumptions (anticipated effect size, variability, confidence level). These are judgement calls, and stakeholders should understand what drives the number.
+
+---
+
+## Quick Reference
+
+| Concept | Key Formula / Idea |
+|:--------|:-------------------|
+| **Pivotal quantity** | $Q(\mathbf{X}, \theta)$ with distribution free of unknowns |
+| **Pivot recipe** | Find $Q$, choose quantiles, invert |
+| **Sample size (mean)** | $n = \lceil (z_{\alpha/2}\,\sigma / E)^2 \rceil$ |
+| **Sample size (proportion)** | $n = \lceil z_{\alpha/2}^2 \, p(1-p) / E^2 \rceil$; worst-case $p=0.5$ |
+| **Quadrupling rule** | Halving $E$ quadruples $n$ |
+| **Two-proportion CI** | $(\hat{p}_1 - \hat{p}_2) \pm z_{\alpha/2}\sqrt{\hat{p}_1(1-\hat{p}_1)/n_1 + \hat{p}_2(1-\hat{p}_2)/n_2}$ |
+
+---
+
+## Exercises
+
+**Conceptual**
+
+1. In your own words, explain what makes a function $Q(\mathbf{X}, \theta)$ a pivotal quantity. Why is it essential that the distribution of $Q$ does not depend on $\theta$?
+
+2. The "quadrupling rule" says halving the margin of error requires four times as many observations. Derive this from the sample-size formula for means.
+
+3. A pilot study of $n = 20$ produces $S = 12$. You want a 95% CI for $\mu$ with a margin of error of 2. How large must the full study be? Discuss the circularity of using $S$ from the pilot in a formula that assumes known $\sigma$.
+
+4. Why is $p = 0.5$ the "worst case" for sample-size calculations for proportions? Plot $p(1-p)$ over $(0, 1)$ to support your answer.
+
+**Proofs and Derivations**
+
+5. Let $X_1, \ldots, X_n \sim \text{Exp}(\lambda)$. Show that $2\lambda \sum X_i \sim \chi^2_{2n}$ and derive the exact CI for $\lambda$ using the pivotal method.
+
+6. Let $X_1, \ldots, X_n \sim \text{Uniform}(0, \theta)$. Show that $X_{(n)}/\theta$ is a pivot, where $X_{(n)}$ is the sample maximum. Derive a CI for $\theta$.
+
+7. Prove that the sample-size formula $n = (z_{\alpha/2}\,\sigma/E)^2$ is obtained by inverting the margin-of-error expression for the Z-interval.
+
+**Computational**
+
+8. Using the Streptomycin trial data, compute a 99% CI for the difference in improvement rates. How does it compare to the 95% CI?
+
+9. Write a function that computes the required sample size for a proportion using the Wilson margin of error (rather than the Wald margin). Compare the results to the Wald-based formula for $p = 0.05$ and $E = 0.02$.
+
+10. Simulate 5000 samples of size $n = 40$ from an $\text{Exp}(0.5)$ distribution. For each, compute the exact CI for $\lambda$ using the chi-square pivot from Section 9.9.4. Report the empirical coverage -- it should be very close to 95% because this is an *exact* pivot.

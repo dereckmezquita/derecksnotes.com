@@ -1,0 +1,746 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 10: Hypothesis Testing Framework"
+part: "Part 2: Errors and Power"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, power, type-I-error, type-II-error, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 10 -- Hypothesis Testing Framework
+
+## Part 2: Errors and Power
+
+In Part 1 we developed the logic of testing and the p-value. But every decision carries risk. When we reject $H_0$, we might be wrong -- the null might actually be true. When we fail to reject, we might be missing a real effect. These two kinds of mistakes have names, precise probabilities, and a deep relationship with one another. Understanding them is essential for designing studies that can actually answer the questions we care about.
+
+---
+
+## 10.5 Type I and Type II Errors
+
+### 10.5.1 The Decision Table
+
+Every hypothesis test has four possible outcomes:
+
+|  | **$H_0$ true** | **$H_0$ false** |
+|:--|:--|:--|
+| **Reject $H_0$** | Type I error (false positive) | Correct decision (true positive) |
+| **Fail to reject $H_0$** | Correct decision (true negative) | Type II error (false negative) |
+
+- **Type I error ($\alpha$):** Rejecting $H_0$ when it is actually true. The probability of this is the significance level $\alpha$.
+- **Type II error ($\beta$):** Failing to reject $H_0$ when it is actually false. The probability of this depends on the true parameter value.
+
+### 10.5.2 Formal Definitions
+
+Let $\mathcal{R}$ be the rejection region and $\mathbf{X} = (X_1, \ldots, X_n)$ the data.
+
+$$\alpha = P_{\theta_0}(\mathbf{X} \in \mathcal{R}) = P(\text{reject } H_0 \mid H_0 \text{ true})$$
+
+$$\beta(\theta) = P_{\theta}(\mathbf{X} \notin \mathcal{R}) = P(\text{fail to reject } H_0 \mid \theta \text{ is the true parameter})$$
+
+for $\theta \in \Theta_0^c$ (i.e., under the alternative).
+
+### 10.5.3 The Trade-off
+
+There is an unavoidable tension between $\alpha$ and $\beta$. For a fixed sample size $n$:
+
+- Decreasing $\alpha$ (fewer false positives) *increases* $\beta$ (more false negatives). We become harder to convince, so we miss more real effects.
+- Decreasing $\beta$ (fewer false negatives) *increases* $\alpha$ (more false positives). We become easier to convince, so we make more false alarms.
+
+The only way to reduce **both** simultaneously is to increase the sample size $n$. More data gives us more information, breaking the trade-off.
+
+### 10.5.4 Deriving $\alpha$ and $\beta$ for the Z-test
+
+Consider $X_1, \ldots, X_n \overset{iid}{\sim} N(\mu, \sigma^2)$ with $\sigma$ known. Test $H_0: \mu = \mu_0$ vs. $H_1: \mu \neq \mu_0$ at level $\alpha$.
+
+The rejection region is $|Z| > z_{\alpha/2}$, where $Z = (\bar{X} - \mu_0) / (\sigma/\sqrt{n})$.
+
+**Type I error:** Under $H_0$, $Z \sim N(0, 1)$, so:
+
+$$\alpha = P(|Z| > z_{\alpha/2}) = 2 \cdot P(Z > z_{\alpha/2}) = 2 \cdot (\alpha/2) = \alpha. \quad \checkmark$$
+
+This is by construction -- we *chose* the critical value to give exactly this Type I error rate.
+
+**Type II error:** Suppose the true mean is $\mu_1 \neq \mu_0$. Under $\mu_1$:
+
+$$Z = \frac{\bar{X} - \mu_0}{\sigma/\sqrt{n}} \sim N\!\left(\frac{\mu_1 - \mu_0}{\sigma/\sqrt{n}},\; 1\right).$$
+
+Let $\delta = (\mu_1 - \mu_0) / (\sigma/\sqrt{n})$ be the non-centrality parameter. Then:
+
+$$\beta(\mu_1) = P(|Z| \leq z_{\alpha/2} \mid \mu = \mu_1)$$
+
+$$= P(-z_{\alpha/2} \leq Z \leq z_{\alpha/2} \mid Z \sim N(\delta, 1))$$
+
+$$= \Phi(z_{\alpha/2} - \delta) - \Phi(-z_{\alpha/2} - \delta).$$
+
+
+``` r
+# Compute beta for specific values
+mu_0 <- 0
+mu_1 <- 0.5
+sigma <- 1
+n <- 30
+alpha <- 0.05
+
+z_crit <- qnorm(1 - alpha / 2)
+delta <- (mu_1 - mu_0) / (sigma / sqrt(n))
+
+beta <- pnorm(z_crit - delta) - pnorm(-z_crit - delta)
+
+data.frame(
+  quantity = c("z_crit", "delta (non-centrality)", "beta (Type II error)", "Power (1 - beta)"),
+  value = round(c(z_crit, delta, beta, 1 - beta), 4)
+)
+```
+
+```
+                quantity  value
+1                 z_crit 1.9600
+2 delta (non-centrality) 2.7386
+3   beta (Type II error) 0.2181
+4       Power (1 - beta) 0.7819
+```
+
+---
+
+## 10.6 Power
+
+### 10.6.1 Definition
+
+The **power** of a test against a specific alternative $\theta_1$ is the probability of correctly rejecting $H_0$ when $\theta_1$ is the true parameter:
+
+$$\text{Power}(\theta_1) = 1 - \beta(\theta_1) = P_{\theta_1}(\mathbf{X} \in \mathcal{R}).$$
+
+Power is the probability of detecting a real effect. It depends on four quantities:
+
+1. **Effect size** $|\theta_1 - \theta_0|$: larger effects are easier to detect.
+2. **Sample size** $n$: more data means more power.
+3. **Significance level** $\alpha$: a more lenient threshold gives higher power (but more false positives).
+4. **Variability** $\sigma$: less noisy data means higher power.
+
+### 10.6.2 The Power Function
+
+The **power function** maps each possible parameter value to the probability of rejection:
+
+$$\pi(\theta) = P_\theta(\mathbf{X} \in \mathcal{R}).$$
+
+Note that $\pi(\theta_0) = \alpha$ (rejection under the null is a Type I error) and for $\theta \in \Theta_0^c$, $\pi(\theta)$ is the power. A good test has a power function that is close to $\alpha$ near $\theta_0$ and rises steeply towards 1 as $\theta$ moves away from $\theta_0$.
+
+### 10.6.3 Deriving the Power Function for the Z-test
+
+Continuing the two-sided z-test example:
+
+$$\pi(\mu) = 1 - \left[\Phi(z_{\alpha/2} - \delta(\mu)) - \Phi(-z_{\alpha/2} - \delta(\mu))\right]$$
+
+where $\delta(\mu) = (\mu - \mu_0)/(\sigma/\sqrt{n})$.
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+mu_0 <- 0
+sigma <- 1
+alpha <- 0.05
+z_crit <- qnorm(1 - alpha / 2)
+
+mu_grid <- seq(-1.5, 1.5, length.out = 300)
+n_values <- c(10, 30, 100)
+
+power_data <- data.table$rbindlist(lapply(n_values, function(n) {
+  delta <- (mu_grid - mu_0) / (sigma / sqrt(n))
+  power <- 1 - (pnorm(z_crit - delta) - pnorm(-z_crit - delta))
+  data.table$data.table(
+    mu = mu_grid,
+    power = power,
+    n = sprintf("n = %d", n)
+  )
+}))
+
+power_data[, n := factor(n, levels = sprintf("n = %d", n_values))]
+
+ggplot2$ggplot(power_data, ggplot2$aes(x = mu, y = power, colour = n)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_hline(yintercept = alpha, linetype = "dashed", colour = "grey50") +
+  ggplot2$annotate("text", x = -1.3, y = alpha + 0.04,
+                   label = sprintf("alpha = %.2f", alpha), size = 3.5) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(
+    x = expression(mu), y = "Power",
+    title = "Power function for two-sided z-test",
+    colour = "Sample size"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/power-function-1.png" alt="Power function for the two-sided z-test of H0: mu = 0 at alpha = 0.05. The power equals alpha at mu = 0 (the null) and rises symmetrically as mu moves away from 0 in either direction. Larger sample sizes produce steeper power curves.">
+	Power function for the two-sided z-test of H0: mu = 0 at alpha = 0.05. The power equals alpha at mu = 0 (the null) and rises symmetrically as mu moves away from 0 in either direction. Larger sample sizes produce steeper power curves.
+</Figure>
+
+Key observations:
+
+- At $\mu = 0$, the power equals $\alpha = 0.05$ for all sample sizes.
+- The curves are symmetric about $\mu_0 = 0$.
+- Larger $n$ produces a steeper curve -- the test becomes more sensitive.
+- For any fixed alternative $\mu_1 \neq 0$, the power increases with $n$.
+
+---
+
+## 10.7 Visualising $\alpha$, $\beta$, and Power
+
+The most instructive way to understand the error rates is to overlay the null and alternative distributions and shade the relevant areas.
+
+
+``` r
+mu_0 <- 0
+mu_1 <- 2
+sigma <- 1
+n <- 25
+se <- sigma / sqrt(n)
+alpha <- 0.05
+z_crit <- qnorm(1 - alpha / 2)
+
+# Critical values on the x-bar scale
+crit_lo <- mu_0 - z_crit * se
+crit_hi <- mu_0 + z_crit * se
+
+x_seq <- seq(mu_0 - 4 * se, mu_1 + 4 * se, length.out = 600)
+
+df_null <- data.table$data.table(
+  x = x_seq,
+  y = dnorm(x_seq, mean = mu_0, sd = se),
+  dist = "Null (mu = 0)"
+)
+
+df_alt <- data.table$data.table(
+  x = x_seq,
+  y = dnorm(x_seq, mean = mu_1, sd = se),
+  dist = "Alternative (mu = 2)"
+)
+
+ggplot2$ggplot() +
+  # Alpha: rejection region under null
+  ggplot2$geom_area(
+    data = df_null[x >= crit_hi],
+    ggplot2$aes(x = x, y = y),
+    fill = "#D55E00", alpha = 0.4
+  ) +
+  ggplot2$geom_area(
+    data = df_null[x <= crit_lo],
+    ggplot2$aes(x = x, y = y),
+    fill = "#D55E00", alpha = 0.4
+  ) +
+  # Beta: fail-to-reject region under alternative
+  ggplot2$geom_area(
+    data = df_alt[x >= crit_lo & x <= crit_hi],
+    ggplot2$aes(x = x, y = y),
+    fill = "#009E73", alpha = 0.3
+  ) +
+  # Distribution curves
+  ggplot2$geom_line(
+    data = df_null,
+    ggplot2$aes(x = x, y = y),
+    colour = "#0072B2", linewidth = 1
+  ) +
+  ggplot2$geom_line(
+    data = df_alt,
+    ggplot2$aes(x = x, y = y),
+    colour = "#CC79A7", linewidth = 1
+  ) +
+  # Critical value lines
+  ggplot2$geom_vline(xintercept = c(crit_lo, crit_hi),
+                     linetype = "dashed", colour = "grey40") +
+  # Annotations
+  ggplot2$annotate("text", x = crit_hi + 0.08, y = max(df_null$y) * 0.6,
+                   label = "alpha/2", colour = "#D55E00", size = 4, fontface = "bold") +
+  ggplot2$annotate("text", x = (crit_lo + crit_hi) / 2, y = max(df_alt$y) * 0.35,
+                   label = "beta", colour = "#009E73", size = 4.5, fontface = "bold") +
+  ggplot2$annotate("text", x = mu_0, y = max(df_null$y) * 1.08,
+                   label = "Null", colour = "#0072B2", size = 4) +
+  ggplot2$annotate("text", x = mu_1, y = max(df_alt$y) * 1.08,
+                   label = "Alternative", colour = "#CC79A7", size = 4) +
+  ggplot2$labs(
+    x = expression(bar(X)),
+    y = "Density",
+    title = "Type I error (alpha), Type II error (beta), and power"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/alpha-beta-visual-1.png" alt="Two overlapping normal distributions: the null (mu = 0, blue) and the alternative (mu = 2, red). The rejection region is defined by the null distribution. Alpha (orange shading, right tail) is the probability of rejection under the null. Beta (green shading) is the probability of failing to reject under the alternative. Power is 1 - beta.">
+	Two overlapping normal distributions: the null (mu = 0, blue) and the alternative (mu = 2, red). The rejection region is defined by the null distribution. Alpha (orange shading, right tail) is the probability of rejection under the null. Beta (green shading) is the probability of failing to reject under the alternative. Power is 1 - beta.
+</Figure>
+
+
+``` r
+# Compute exact values
+beta_val <- pnorm(crit_hi, mean = mu_1, sd = se) - pnorm(crit_lo, mean = mu_1, sd = se)
+power_val <- 1 - beta_val
+
+data.frame(
+  quantity = c("alpha", "beta", "Power (1 - beta)",
+               "Critical values (x-bar scale)"),
+  value = c(
+    sprintf("%.4f", alpha),
+    sprintf("%.4f", beta_val),
+    sprintf("%.4f", power_val),
+    sprintf("[%.4f, %.4f]", crit_lo, crit_hi)
+  )
+)
+```
+
+```
+                       quantity             value
+1                         alpha            0.0500
+2                          beta            0.0000
+3              Power (1 - beta)            1.0000
+4 Critical values (x-bar scale) [-0.3920, 0.3920]
+```
+
+---
+
+## 10.8 Power Curves: Effect Size, Sample Size, and $\alpha$
+
+### 10.8.1 Computing Power Curves
+
+
+``` r
+alpha <- 0.05
+z_crit <- qnorm(1 - alpha / 2)
+sigma <- 1
+
+effect_sizes <- c(0.2, 0.5, 0.8, 1.0)  # Cohen's d values
+n_grid <- seq(5, 200, by = 1)
+
+power_grid <- data.table$rbindlist(lapply(effect_sizes, function(d) {
+  delta <- d * sqrt(n_grid)  # non-centrality on the z scale
+  power <- 1 - (pnorm(z_crit - delta) - pnorm(-z_crit - delta))
+  data.table$data.table(
+    n = n_grid,
+    power = power,
+    effect = sprintf("d = %.1f (%s)", d,
+                     c("0.2" = "small", "0.5" = "medium",
+                       "0.8" = "large", "1.0" = "very large")[as.character(d)])
+  )
+}))
+
+ggplot2$ggplot(power_grid, ggplot2$aes(x = n, y = power, colour = effect)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_hline(yintercept = 0.80, linetype = "dashed", colour = "grey50") +
+  ggplot2$annotate("text", x = 180, y = 0.83, label = "80% power convention",
+                   size = 3.5, colour = "grey40") +
+  ggplot2$scale_colour_manual(values = c("#E69F00", "#56B4E9", "#009E73", "#CC79A7")) +
+  ggplot2$labs(
+    x = "Sample size (n)",
+    y = "Power",
+    title = "Power curves by effect size (two-sided z-test, alpha = 0.05)",
+    colour = "Effect size"
+  ) +
+  ggplot2$coord_cartesian(ylim = c(0, 1)) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/power-curves-grid-1.png" alt="Power as a function of sample size for various effect sizes (Cohen&#39;s d = delta/sigma) at alpha = 0.05. Detecting small effects requires substantially larger samples than detecting large ones.">
+	Power as a function of sample size for various effect sizes (Cohen's d = delta/sigma) at alpha = 0.05. Detecting small effects requires substantially larger samples than detecting large ones.
+</Figure>
+
+### 10.8.2 Sample Size Determination
+
+A common design question is: "How many observations do I need to achieve 80% power for a given effect size?" We can derive the formula from the power equation.
+
+For a two-sided z-test at level $\alpha$ with power $1 - \beta$ against $|\mu_1 - \mu_0| = \Delta$:
+
+$$n = \left(\frac{(z_{\alpha/2} + z_\beta) \sigma}{\Delta}\right)^2$$
+
+
+``` r
+# Required sample size for 80% power
+alpha <- 0.05
+beta <- 0.20
+sigma <- 1
+delta_values <- c(0.2, 0.5, 0.8, 1.0)
+
+z_alpha2 <- qnorm(1 - alpha / 2)
+z_beta <- qnorm(1 - beta)
+
+n_required <- ceiling(((z_alpha2 + z_beta) * sigma / delta_values)^2)
+
+data.frame(
+  effect_size = delta_values,
+  n_required = n_required,
+  label = c("Small", "Medium", "Large", "Very large")
+)
+```
+
+```
+  effect_size n_required      label
+1         0.2        197      Small
+2         0.5         32     Medium
+3         0.8         13      Large
+4         1.0          8 Very large
+```
+
+To detect a small effect ($d = 0.2$) with 80% power, we need approximately 196 observations. For a large effect ($d = 0.8$), only 13 suffice. This explains why pilot studies often fail to find small effects -- they are drastically underpowered.
+
+---
+
+## 10.9 The Effect of $\alpha$ on Power
+
+
+``` r
+d <- 0.5
+n <- 30
+sigma <- 1
+
+alpha_grid <- seq(0.001, 0.20, length.out = 200)
+
+power_alpha <- sapply(alpha_grid, function(a) {
+  z_c <- qnorm(1 - a / 2)
+  delta <- d * sqrt(n)
+  1 - (pnorm(z_c - delta) - pnorm(-z_c - delta))
+})
+
+df_alpha <- data.table$data.table(alpha = alpha_grid, power = power_alpha)
+
+ggplot2$ggplot(df_alpha, ggplot2$aes(x = alpha, y = power)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = 0.05, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$geom_hline(yintercept = 0.80, linetype = "dashed", colour = "#009E73") +
+  ggplot2$annotate("text", x = 0.065, y = 0.5, label = "alpha = 0.05",
+                   colour = "#D55E00", size = 3.5, angle = 90) +
+  ggplot2$annotate("text", x = 0.15, y = 0.83, label = "80% power",
+                   colour = "#009E73", size = 3.5) +
+  ggplot2$labs(
+    x = expression(alpha), y = "Power",
+    title = sprintf("Power vs. alpha (d = %.1f, n = %d)", d, n)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/alpha-power-tradeoff-1.png" alt="Power as a function of alpha for a fixed effect size (d = 0.5) and sample size (n = 30). A more stringent alpha (smaller threshold) reduces power. The dashed lines mark the conventional alpha = 0.05 and the 80% power level.">
+	Power as a function of alpha for a fixed effect size (d = 0.5) and sample size (n = 30). A more stringent alpha (smaller threshold) reduces power. The dashed lines mark the conventional alpha = 0.05 and the 80% power level.
+</Figure>
+
+---
+
+## 10.10 Simulation: Power in Action
+
+
+
+
+``` r
+set.seed(42)
+n <- 30
+sigma <- 1
+mu_0 <- 0
+alpha <- 0.05
+n_sim <- 10000
+
+mu_values <- seq(0, 1, by = 0.1)
+
+sim_power <- sapply(mu_values, function(mu_true) {
+  p_vals <- replicate(n_sim, {
+    x <- rnorm(n, mean = mu_true, sd = sigma)
+    z <- (mean(x) - mu_0) / (sigma / sqrt(n))
+    2 * (1 - pnorm(abs(z)))
+  })
+  mean(p_vals <= alpha)
+})
+
+# Theoretical power
+z_crit <- qnorm(1 - alpha / 2)
+theory_power <- sapply(mu_values, function(mu) {
+  delta <- (mu - mu_0) / (sigma / sqrt(n))
+  1 - (pnorm(z_crit - delta) - pnorm(-z_crit - delta))
+})
+
+power_comp <- data.table$data.table(
+  mu = mu_values,
+  simulated = sim_power,
+  theoretical = theory_power
+)
+
+ggplot2$ggplot(power_comp) +
+  ggplot2$geom_line(ggplot2$aes(x = mu, y = theoretical),
+                    colour = "#D55E00", linewidth = 1) +
+  ggplot2$geom_point(ggplot2$aes(x = mu, y = simulated),
+                     colour = "#0072B2", size = 3) +
+  ggplot2$labs(
+    x = expression(mu[true]),
+    y = "Rejection rate / Power",
+    title = "Simulated (blue points) vs. theoretical (orange line) power"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/power-simulation-1.png" alt="Simulated rejection rates across 10,000 experiments for different true means. When mu = 0 (the null), the rejection rate equals alpha. As the true mean increases, the rejection rate (power) increases.">
+	Simulated rejection rates across 10,000 experiments for different true means. When mu = 0 (the null), the rejection rate equals alpha. As the true mean increases, the rejection rate (power) increases.
+</Figure>
+
+The agreement between simulation and theory confirms our derivation.
+
+---
+
+## 10.11 Interactive: Watch Power Change
+
+<InteractivePlot>
+
+<!--html_preserve--><div id="power-interactive-container" style="max-width:750px; margin:auto; font-family: sans-serif;">
+<div style="display:flex; gap:30px; flex-wrap:wrap; margin-bottom:15px;">
+<div>
+<label>
+Effect size (d): 
+<span id="d-display">0.50</span>
+</label>
+<br/>
+<input id="d-slider" type="range" min="0" max="2" step="0.05" value="0.5" style="width:200px;"/>
+</div>
+<div>
+<label>
+Sample size (n): 
+<span id="n-display">30</span>
+</label>
+<br/>
+<input id="n-slider" type="range" min="5" max="200" step="1" value="30" style="width:200px;"/>
+</div>
+<div>
+<label>
+Alpha: 
+<span id="a-display">0.050</span>
+</label>
+<br/>
+<input id="a-slider" type="range" min="0.001" max="0.20" step="0.001" value="0.05" style="width:200px;"/>
+</div>
+</div>
+<div id="power-readout" style="font-size:1.3em; font-weight:bold; margin-bottom:10px; color:#0072B2;">Power = ...</div>
+<canvas id="power-canvas" width="720" Height="420" style="border:1px solid #ddd; background:#fff; width:100%; max-width:720px;"></canvas>
+<script>
+    (function() {
+      var canvas = document.getElementById('power-canvas');
+      var ctx = canvas.getContext('2d');
+      var dSlider = document.getElementById('d-slider');
+      var nSlider = document.getElementById('n-slider');
+      var aSlider = document.getElementById('a-slider');
+      var dDisp = document.getElementById('d-display');
+      var nDisp = document.getElementById('n-display');
+      var aDisp = document.getElementById('a-display');
+      var readout = document.getElementById('power-readout');
+
+      function normalCDF(x) {
+        var t = 1 / (1 + 0.2316419 * Math.abs(x));
+        var d = 0.3989422804014327;
+        var p = d * Math.exp(-x * x / 2) *
+          (t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))));
+        return x > 0 ? 1 - p : p;
+      }
+
+      function normalPDF(x, mu, sd) {
+        var z = (x - mu) / sd;
+        return Math.exp(-0.5 * z * z) / (sd * Math.sqrt(2 * Math.PI));
+      }
+
+      function qnorm(p) {
+        // Rational approximation (Abramowitz & Stegun 26.2.23)
+        if (p <= 0) return -Infinity;
+        if (p >= 1) return Infinity;
+        if (p === 0.5) return 0;
+        var sign = p < 0.5 ? -1 : 1;
+        var pp = p < 0.5 ? p : 1 - p;
+        var t = Math.sqrt(-2 * Math.log(pp));
+        var c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+        var d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+        return sign * (t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t));
+      }
+
+      function computePower(d, n, alpha) {
+        var zc = qnorm(1 - alpha / 2);
+        var delta = d * Math.sqrt(n);
+        return 1 - (normalCDF(zc - delta) - normalCDF(-zc - delta));
+      }
+
+      function draw() {
+        var d = parseFloat(dSlider.value);
+        var n = parseInt(nSlider.value);
+        var alpha = parseFloat(aSlider.value);
+        dDisp.textContent = d.toFixed(2);
+        nDisp.textContent = n;
+        aDisp.textContent = alpha.toFixed(3);
+
+        var power = computePower(d, n, alpha);
+        readout.textContent = 'Power = ' + (power * 100).toFixed(1) + '%';
+
+        var W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+
+        // Plot: null and alternative distributions
+        var se = 1 / Math.sqrt(n);
+        var mu0 = 0, mu1 = d;
+        var zc = qnorm(1 - alpha / 2);
+        var critHi = mu0 + zc * se;
+        var critLo = mu0 - zc * se;
+
+        var xMin = Math.min(mu0 - 4*se, mu1 - 4*se);
+        var xMax = Math.max(mu0 + 4*se, mu1 + 4*se);
+
+        var pad = {l:55, r:15, t:15, b:35};
+        var pw = W - pad.l - pad.r;
+        var ph = H - pad.t - pad.b;
+
+        function toX(val) { return pad.l + (val - xMin) / (xMax - xMin) * pw; }
+
+        // Find y-max
+        var yMax = Math.max(normalPDF(mu0, mu0, se), normalPDF(mu1, mu1, se)) * 1.1;
+        function toY(val) { return pad.t + ph - (val / yMax) * ph; }
+
+        // Draw beta region (under alt, between crits)
+        ctx.fillStyle = 'rgba(0, 158, 115, 0.25)';
+        ctx.beginPath();
+        for (var px = 0; px <= pw; px++) {
+          var xv = xMin + px / pw * (xMax - xMin);
+          if (xv >= critLo && xv <= critHi) {
+            var yv = normalPDF(xv, mu1, se);
+            if (px === 0 || xv - (xMin + (px-1)/pw*(xMax-xMin)) > critLo - xMin) {
+              ctx.moveTo(toX(critLo), toY(0));
+            }
+            ctx.lineTo(toX(xv), toY(yv));
+          }
+        }
+        ctx.lineTo(toX(critHi), toY(0));
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw alpha region (under null, outside crits)
+        ctx.fillStyle = 'rgba(213, 94, 0, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(toX(critHi), toY(0));
+        for (var px = 0; px <= pw; px++) {
+          var xv = xMin + px / pw * (xMax - xMin);
+          if (xv >= critHi) ctx.lineTo(toX(xv), toY(normalPDF(xv, mu0, se)));
+        }
+        ctx.lineTo(toX(xMax), toY(0));
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(toX(xMin), toY(0));
+        for (var px = 0; px <= pw; px++) {
+          var xv = xMin + px / pw * (xMax - xMin);
+          if (xv <= critLo) ctx.lineTo(toX(xv), toY(normalPDF(xv, mu0, se)));
+        }
+        ctx.lineTo(toX(critLo), toY(0));
+        ctx.closePath();
+        ctx.fill();
+
+        // Null curve
+        ctx.strokeStyle = '#0072B2'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (var px = 0; px <= pw; px++) {
+          var xv = xMin + px / pw * (xMax - xMin);
+          var yv = normalPDF(xv, mu0, se);
+          if (px === 0) ctx.moveTo(toX(xv), toY(yv));
+          else ctx.lineTo(toX(xv), toY(yv));
+        }
+        ctx.stroke();
+
+        // Alt curve
+        ctx.strokeStyle = '#CC79A7'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (var px = 0; px <= pw; px++) {
+          var xv = xMin + px / pw * (xMax - xMin);
+          var yv = normalPDF(xv, mu1, se);
+          if (px === 0) ctx.moveTo(toX(xv), toY(yv));
+          else ctx.lineTo(toX(xv), toY(yv));
+        }
+        ctx.stroke();
+
+        // Crit lines
+        ctx.strokeStyle = '#666'; ctx.lineWidth = 1; ctx.setLineDash([5,5]);
+        ctx.beginPath();
+        ctx.moveTo(toX(critLo), toY(0)); ctx.lineTo(toX(critLo), toY(yMax*0.95));
+        ctx.moveTo(toX(critHi), toY(0)); ctx.lineTo(toX(critHi), toY(yMax*0.95));
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Labels
+        ctx.fillStyle = '#0072B2'; ctx.font = '13px sans-serif';
+        ctx.fillText('Null', toX(mu0) - 12, toY(normalPDF(mu0, mu0, se)) - 8);
+        ctx.fillStyle = '#CC79A7';
+        ctx.fillText('Alternative', toX(mu1) - 25, toY(normalPDF(mu1, mu1, se)) - 8);
+
+        ctx.fillStyle = '#D55E00'; ctx.font = '12px sans-serif';
+        ctx.fillText('alpha', toX(critHi) + 5, toY(yMax * 0.4));
+        ctx.fillStyle = '#009E73';
+        ctx.fillText('beta', toX((critLo + critHi)/2) - 10, toY(normalPDF((critLo+critHi)/2, mu1, se) * 0.5));
+
+        // Axes
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph);
+        ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l, pad.t);
+        ctx.stroke();
+      }
+
+      dSlider.addEventListener('input', draw);
+      nSlider.addEventListener('input', draw);
+      aSlider.addEventListener('input', draw);
+      draw();
+    })();
+  </script>
+</div><!--/html_preserve-->
+
+</InteractivePlot>
+
+Drag the sliders to see how effect size, sample size, and significance level jointly determine power. Watch the alternative distribution shift and the beta region shrink as you increase the effect size or sample size.
+
+---
+
+## Communicating to Stakeholders
+
+When discussing power and errors with a non-technical audience:
+
+- Use the legal analogy: "A Type I error is convicting an innocent person. A Type II error is acquitting a guilty person. Society deems false conviction worse, so we set a high bar for evidence -- just as we use a small alpha."
+- Explain power as "the test's ability to detect a real effect." A study with 20% power has only a 1-in-5 chance of finding an effect that truly exists. This is like searching for your keys with your eyes half shut.
+- When presenting sample size calculations: "We need 196 participants to have an 80% chance of detecting a small effect. With only 30 participants, we would have less than a 20% chance."
+- Always present power analyses alongside study results. A non-significant result from a low-powered study tells us very little.
+
+---
+
+## Quick Reference
+
+| Concept | Formula / Definition |
+|:--------|:---------------------|
+| **Type I error ($\alpha$)** | $P(\text{reject } H_0 \mid H_0 \text{ true})$ |
+| **Type II error ($\beta$)** | $P(\text{fail to reject } H_0 \mid H_0 \text{ false})$ |
+| **Power** | $1 - \beta = P(\text{reject } H_0 \mid H_0 \text{ false})$ |
+| **Power function** | $\pi(\theta) = P_\theta(\mathbf{X} \in \mathcal{R})$ |
+| **Sample size (z-test)** | $n = \left(\frac{(z_{\alpha/2} + z_\beta)\sigma}{\Delta}\right)^2$ |
+| **Non-centrality** | $\delta = (\mu_1 - \mu_0)/(\sigma/\sqrt{n})$ |
+| **Convention** | 80% power is standard; 90% for confirmatory studies |
+
+---
+
+## Exercises
+
+1. For a two-sided z-test with $\sigma = 2$, $\alpha = 0.05$, and $n = 50$, compute the power against $\mu_1 = 0.5$ (assuming $\mu_0 = 0$). Then compute the required $n$ for 80% power.
+
+2. A clinical trial is designed to detect a difference of 5 mmHg in systolic blood pressure with $\sigma = 15$ and $\alpha = 0.01$. What sample size is required for 90% power? What happens if we relax to $\alpha = 0.05$?
+
+3. Prove that for a one-sided z-test ($H_1: \mu > \mu_0$), the power function is:
+$$\pi(\mu) = 1 - \Phi\!\left(z_\alpha - \frac{\mu - \mu_0}{\sigma/\sqrt{n}}\right).$$
+
+4. Simulate 5,000 experiments with $n = 15$, $\mu = 0.3$, $\sigma = 1$, and $\alpha = 0.05$. Estimate the power by the rejection rate. Now increase to $n = 50$ and $n = 150$. Plot the three simulated power estimates alongside the theoretical values.
+
+5. A researcher plans a study but can only recruit 40 participants. With $\sigma = 1$ and $\alpha = 0.05$, what is the minimum detectable effect size at 80% power? (Hint: rearrange the sample-size formula.)
+
+6. Using the interactive visualisation, find approximately what sample size is needed to achieve 90% power for an effect size of $d = 0.3$ at $\alpha = 0.05$. Verify your answer using the sample-size formula.
+
+7. Explain, in plain language suitable for a research ethics committee, why conducting an underpowered study can be considered unethical.

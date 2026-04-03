@@ -1,0 +1,580 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 22: Bayesian Thinking"
+part: "Part 2: Credible Intervals and Testing"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, bayesian, credible-intervals, bayes-factor, prior-selection, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 22 -- Bayesian Thinking
+
+## Part 2: Credible Intervals and Testing
+
+In Part 1 we derived conjugate posteriors and computed point summaries. But a single number discards most of the information in the posterior. In this part we construct **credible intervals** -- the Bayesian analogue of confidence intervals -- and develop **Bayes factors** for hypothesis testing. We also address the critical question of how to choose a prior.
+
+---
+
+## 22.5 Prior Selection
+
+### 22.5.1 Types of Priors
+
+The choice of prior is both the strength and the controversy of Bayesian inference. We distinguish four broad categories.
+
+**Informative priors.** Encode genuine domain knowledge. Example: a clinician knows from previous studies that the treatment effect is likely between 0.1 and 0.4, so uses $\text{Beta}(10, 20)$.
+
+**Weakly informative priors.** Gently regularise without dominating the data. They encode knowledge of the parameter's scale and sign but remain deliberately vague. Example: for a logistic regression coefficient, $N(0, 2.5)$ centres on zero but allows substantial effects.
+
+**Flat (non-informative) priors.** Attempt to "let the data speak". The uniform prior $\pi(\theta) \propto 1$ is the simplest. Jeffreys prior $\pi(\theta) \propto \sqrt{I(\theta)}$ is invariant to reparametrisation.
+
+**Improper priors.** $\pi(\theta) \propto 1$ on $(-\infty, \infty)$ does not integrate to 1 -- it is not a true probability distribution. Nevertheless, if the posterior is proper (integrates to a finite constant), the analysis is valid.
+
+### 22.5.2 Sensitivity Analysis
+
+If the posterior changes dramatically under different reasonable priors, the data are not informative enough to drive conclusions. **Sensitivity analysis** fits the model under several priors and compares results.
+
+
+``` r
+set.seed(42)
+
+run_sensitivity <- function(n, true_p = 0.65) {
+  y <- rbinom(1, n, true_p)
+  priors <- list(
+    list(a = 1, b = 1, label = "Flat Beta(1,1)"),
+    list(a = 0.5, b = 0.5, label = "Jeffreys Beta(0.5,0.5)"),
+    list(a = 5, b = 15, label = "Sceptical Beta(5,15)")
+  )
+  p_grid <- seq(0, 1, length.out = 400)
+  res <- list()
+  for (pr in priors) {
+    a_post <- pr$a + y
+    b_post <- pr$b + n - y
+    res[[length(res) + 1]] <- data.table$data.table(
+      p = p_grid,
+      density = dbeta(p_grid, a_post, b_post),
+      prior = pr$label,
+      n_label = paste0("n = ", n)
+    )
+  }
+  data.table$rbindlist(res)
+}
+
+sens_dt <- data.table$rbindlist(lapply(c(5, 20, 100), run_sensitivity))
+sens_dt[, n_label := factor(n_label, levels = c("n = 5", "n = 20", "n = 100"))]
+
+ggplot2$ggplot(sens_dt, ggplot2$aes(x = p, y = density, colour = prior)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$facet_wrap(~ n_label, scales = "free_y") +
+  ggplot2$labs(
+    x = "p", y = "Density",
+    title = "Sensitivity analysis: priors converge as data accumulate",
+    colour = "Prior"
+  ) +
+  ggplot2$theme_minimal(base_size = 12) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sensitivity-analysis-1.png" alt="Prior sensitivity analysis: three different priors yield increasingly similar posteriors as sample size grows.">
+	Prior sensitivity analysis: three different priors yield increasingly similar posteriors as sample size grows.
+</Figure>
+
+**Key insight.** With $n = 100$, the three posteriors are nearly indistinguishable. The data overwhelm the prior -- a property called **likelihood dominance**.
+
+---
+
+## 22.6 Credible Intervals
+
+### 22.6.1 Definition
+
+A **$100(1-\alpha)\%$ credible interval** $[l, u]$ satisfies:
+
+$$P(\theta \in [l, u] \mid \mathbf{y}) = 1 - \alpha$$
+
+This is a direct probability statement about $\theta$ -- unlike a confidence interval, which is a statement about the procedure.
+
+### 22.6.2 Equal-Tailed Credible Interval (ETI)
+
+The simplest choice: set $l$ and $u$ to the $\alpha/2$ and $1 - \alpha/2$ quantiles of the posterior.
+
+
+``` r
+alpha_post <- 14
+beta_post <- 13
+
+eti_lower <- qbeta(0.025, alpha_post, beta_post)
+eti_upper <- qbeta(0.975, alpha_post, beta_post)
+sprintf("95%% ETI: [%.4f, %.4f]", eti_lower, eti_upper)
+```
+
+```
+[1] "95% ETI: [0.3337, 0.7007]"
+```
+
+### 22.6.3 Highest Posterior Density (HPD) Interval
+
+The **HPD interval** is the shortest interval containing $1 - \alpha$ posterior probability. For unimodal, symmetric posteriors it coincides with the ETI. For skewed posteriors it is shorter.
+
+For the Beta posterior, we can find the HPD numerically:
+
+
+``` r
+beta_hpd <- function(alpha_par, beta_par, level = 0.95) {
+  target <- 1 - level
+  opt <- optimise(function(lo) {
+    hi <- qbeta(pbeta(lo, alpha_par, beta_par) + level, alpha_par, beta_par)
+    hi - lo
+  }, lower = 0, upper = qbeta(target, alpha_par, beta_par))
+  lo <- opt$minimum
+  hi <- qbeta(pbeta(lo, alpha_par, beta_par) + level, alpha_par, beta_par)
+  c(lower = lo, upper = hi)
+}
+
+hpd <- beta_hpd(alpha_post, beta_post)
+sprintf("95%% HPD: [%.4f, %.4f]", hpd["lower"], hpd["upper"])
+```
+
+```
+[1] "95% HPD: [0.3346, 0.7016]"
+```
+
+### 22.6.4 Credible vs Confidence Intervals: A Precise Comparison
+
+| Property | Confidence interval | Credible interval |
+|:---------|:-------------------|:-----------------|
+| **Probability statement** | "95% of CIs constructed this way contain $\theta$" | "$P(\theta \in [l, u] \mid \mathbf{y}) = 0.95$" |
+| **What is random** | The interval endpoints | The parameter $\theta$ |
+| **Interpretation** | Frequentist: procedure-level coverage | Bayesian: direct probability about $\theta$ |
+| **Depends on prior?** | No | Yes |
+| **Can be one-sided?** | Yes | Yes |
+| **Asymptotically** | Often coincide (Bernstein-von Mises theorem) | Often coincide |
+
+**The Bernstein-von Mises theorem** states that under regularity conditions, the posterior distribution converges to a normal distribution centred at the MLE with variance equal to the inverse Fisher information -- the same distribution as the sampling distribution of the MLE. Thus for large samples, Bayesian credible intervals and frequentist confidence intervals are approximately the same.
+
+
+``` r
+set.seed(42)
+n_comp <- 20
+y_comp <- 12
+p_hat <- y_comp / n_comp
+
+freq_se <- sqrt(p_hat * (1 - p_hat) / n_comp)
+freq_ci <- p_hat + c(-1, 1) * 1.96 * freq_se
+
+bayes_ci <- qbeta(c(0.025, 0.975), 1 + y_comp, 1 + n_comp - y_comp)
+
+comp_df <- data.frame(
+  method = c("Frequentist (Wald)", "Bayesian (flat prior)"),
+  estimate = c(p_hat, (1 + y_comp) / (2 + n_comp)),
+  lower = c(freq_ci[1], bayes_ci[1]),
+  upper = c(freq_ci[2], bayes_ci[2])
+)
+
+ggplot2$ggplot(comp_df, ggplot2$aes(x = method, y = estimate, ymin = lower, ymax = upper, colour = method)) +
+  ggplot2$geom_pointrange(linewidth = 1.2, size = 1.5) +
+  ggplot2$coord_flip() +
+  ggplot2$labs(
+    y = "p", x = NULL,
+    title = "Frequentist CI vs Bayesian credible interval (n = 20, y = 12)"
+  ) +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/ci-vs-cri-1.png" alt="Comparison of the 95% frequentist confidence interval and the 95% Bayesian credible interval for a proportion. With moderate data, they nearly overlap.">
+	Comparison of the 95% frequentist confidence interval and the 95% Bayesian credible interval for a proportion. With moderate data, they nearly overlap.
+</Figure>
+
+---
+
+## 22.7 Bayes Factors
+
+### 22.7.1 Definition
+
+The **Bayes factor** compares two hypotheses (or models) via their marginal likelihoods:
+
+$$\text{BF}_{10} = \frac{m_1(\mathbf{y})}{m_0(\mathbf{y})} = \frac{\int f(\mathbf{y} \mid \theta_1, M_1) \, \pi_1(\theta_1) \, d\theta_1}{\int f(\mathbf{y} \mid \theta_0, M_0) \, \pi_0(\theta_0) \, d\theta_0}$$
+
+$\text{BF}_{10} > 1$ favours $M_1$; $\text{BF}_{10} < 1$ favours $M_0$. It updates the prior odds to posterior odds:
+
+$$\underbrace{\frac{P(M_1 \mid \mathbf{y})}{P(M_0 \mid \mathbf{y})}}_{\text{posterior odds}} = \text{BF}_{10} \times \underbrace{\frac{P(M_1)}{P(M_0)}}_{\text{prior odds}}$$
+
+### 22.7.2 Interpretation Scale (Kass and Raftery 1995)
+
+| $\text{BF}_{10}$ | Evidence for $M_1$ |
+|:-----------------|:-------------------|
+| 1 -- 3.2 | Not worth more than a bare mention |
+| 3.2 -- 10 | Substantial |
+| 10 -- 100 | Strong |
+| > 100 | Decisive |
+
+### 22.7.3 Analytic Bayes Factor: Beta-Binomial
+
+For testing $H_0: p = p_0$ vs $H_1: p \sim \text{Beta}(\alpha, \beta)$:
+
+$$m_0(\mathbf{y}) = \binom{n}{y} p_0^y (1 - p_0)^{n-y}$$
+
+$$m_1(\mathbf{y}) = \binom{n}{y} \frac{B(\alpha + y, \beta + n - y)}{B(\alpha, \beta)}$$
+
+where $B(\cdot, \cdot)$ is the Beta function.
+
+
+``` r
+n_bf <- 20
+y_bf <- 12
+p0 <- 0.5
+
+log_m0 <- dbinom(y_bf, n_bf, p0, log = TRUE)
+
+alpha_bf <- 1
+beta_bf <- 1
+log_m1 <- lchoose(n_bf, y_bf) + lbeta(alpha_bf + y_bf, beta_bf + n_bf - y_bf) - lbeta(alpha_bf, beta_bf)
+
+bf_10 <- exp(log_m1 - log_m0)
+sprintf("Bayes factor BF_10 = %.3f", bf_10)
+sprintf("Evidence: %s", ifelse(bf_10 > 10, "Strong", ifelse(bf_10 > 3.2, "Substantial", "Weak")))
+```
+
+```
+[1] "Bayes factor BF_10 = 0.396"
+[1] "Evidence: Weak"
+```
+
+### 22.7.4 Bayes Factors vs p-values
+
+Bayes factors and $p$-values can disagree. A $p$-value of 0.05 often corresponds to a Bayes factor of only 3-5 -- merely "substantial" evidence, not the "strong" evidence many researchers assume.
+
+
+``` r
+set.seed(42)
+ns <- seq(10, 200, by = 5)
+results <- data.table$data.table(
+  n = integer(0), p_value = numeric(0), bayes_factor = numeric(0)
+)
+
+for (n_sim in ns) {
+  for (trial in 1:20) {
+    y_sim <- rbinom(1, n_sim, 0.6)
+    pval <- binom.test(y_sim, n_sim, p = 0.5, alternative = "greater")$p.value
+    log_m0_sim <- dbinom(y_sim, n_sim, 0.5, log = TRUE)
+    log_m1_sim <- lchoose(n_sim, y_sim) + lbeta(1 + y_sim, 1 + n_sim - y_sim) - lbeta(1, 1)
+    bf_sim <- exp(log_m1_sim - log_m0_sim)
+    results <- data.table$rbindlist(list(results, data.table$data.table(
+      n = n_sim, p_value = pval, bayes_factor = bf_sim
+    )))
+  }
+}
+
+ggplot2$ggplot(results, ggplot2$aes(x = -log10(p_value), y = log10(bayes_factor))) +
+  ggplot2$geom_point(alpha = 0.3, colour = "#0072B2") +
+  ggplot2$geom_hline(yintercept = log10(3.2), linetype = "dashed", colour = "#D55E00") +
+  ggplot2$geom_vline(xintercept = -log10(0.05), linetype = "dashed", colour = "#009E73") +
+  ggplot2$labs(
+    x = expression(-log[10](p)),
+    y = expression(log[10](BF[10])),
+    title = "Bayes factors vs p-values: p = 0.05 often corresponds to modest Bayes factors"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/bf-vs-pvalue-1.png" alt="Relationship between one-sided p-values and Bayes factors for testing a proportion equals 0.5. The dashed horizontal line marks BF = 3.2 (substantial evidence).">
+	Relationship between one-sided p-values and Bayes factors for testing a proportion equals 0.5. The dashed horizontal line marks BF = 3.2 (substantial evidence).
+</Figure>
+
+---
+
+## 22.8 Real Data: NHANES Diabetes Prevalence
+
+Let us estimate the prevalence of diabetes in the NHANES sample using Bayesian methods.
+
+
+``` r
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+nhanes_diab <- nhanes[!is.na(Diabetes)]
+nhanes_diab[, diab := as.integer(Diabetes == "Yes")]
+
+n_diab <- nrow(nhanes_diab)
+y_diab <- sum(nhanes_diab$diab)
+sprintf("Observed: %d diabetes cases out of %d (prevalence = %.3f)", y_diab, n_diab, y_diab / n_diab)
+```
+
+```
+[1] "Observed: 760 diabetes cases out of 10000 (prevalence = 0.076)"
+```
+
+
+``` r
+priors_diab <- list(
+  list(a = 1, b = 1, label = "Flat"),
+  list(a = 2, b = 18, label = "Informative: Beta(2,18) ~ 10%"),
+  list(a = 0.5, b = 0.5, label = "Jeffreys")
+)
+
+p_grid <- seq(0, 0.2, length.out = 500)
+diab_list <- list()
+
+for (pr in priors_diab) {
+  a_post <- pr$a + y_diab
+  b_post <- pr$b + n_diab - y_diab
+  diab_list[[length(diab_list) + 1]] <- data.table$data.table(
+    p = p_grid,
+    density = dbeta(p_grid, a_post, b_post),
+    prior = pr$label
+  )
+}
+
+diab_dt <- data.table$rbindlist(diab_list)
+
+ggplot2$ggplot(diab_dt, ggplot2$aes(x = p, y = density, colour = prior)) +
+  ggplot2$geom_line(linewidth = 1.1) +
+  ggplot2$labs(
+    x = "Diabetes prevalence", y = "Posterior density",
+    title = "Bayesian estimation of diabetes prevalence (NHANES)",
+    colour = "Prior"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/nhanes-bayesian-1.png" alt="Bayesian estimation of diabetes prevalence from NHANES. With large n, the prior has negligible influence.">
+	Bayesian estimation of diabetes prevalence from NHANES. With large n, the prior has negligible influence.
+</Figure>
+
+
+``` r
+a_flat <- 1 + y_diab
+b_flat <- 1 + n_diab - y_diab
+
+post_mean_diab <- a_flat / (a_flat + b_flat)
+cri_diab <- qbeta(c(0.025, 0.975), a_flat, b_flat)
+
+sprintf("Posterior mean: %.4f", post_mean_diab)
+sprintf("95%% credible interval: [%.4f, %.4f]", cri_diab[1], cri_diab[2])
+
+p_gt_10 <- 1 - pbeta(0.10, a_flat, b_flat)
+sprintf("P(prevalence > 10%%) = %.4f", p_gt_10)
+```
+
+```
+[1] "Posterior mean: 0.0761"
+[1] "95% credible interval: [0.0710, 0.0814]"
+[1] "P(prevalence > 10%) = 0.0000"
+```
+
+A key advantage of the Bayesian approach: we can directly compute $P(\text{prevalence} > 0.10 \mid \text{data})$. In the frequentist framework, we can only reject or fail to reject a hypothesis -- we cannot make direct probability statements about parameters.
+
+---
+
+## 22.9 Bayesian Analysis of the Scurvy Trial
+
+Let us revisit Lind's scurvy trial and compute Bayes factors comparing each treatment to a null model.
+
+
+``` r
+scurvy <- data.table$fread(file.path(data_dir, "medical/scurvy.csv"))
+
+scurvy[, improved := as.integer(
+  gum_rot_d6 %in% c("0_no_change", "1_mild") |
+  skin_sores_d6 %in% c("0_no_change", "1_mild") |
+  weakness_of_the_knees_d6 %in% c("0_no_change", "1_mild")
+)]
+
+treat_summary <- scurvy[, .(n = .N, y = sum(improved, na.rm = TRUE)), by = treatment]
+
+treat_summary[, `:=`(
+  mle = y / n,
+  post_mean = (1 + y) / (2 + n),
+  cri_lower = qbeta(0.025, 1 + y, 1 + n - y),
+  cri_upper = qbeta(0.975, 1 + y, 1 + n - y)
+)]
+
+treat_summary[, bf_vs_50 := {
+  log_m0 <- dbinom(y, n, 0.5, log = TRUE)
+  log_m1 <- lchoose(n, y) + lbeta(1 + y, 1 + n - y) - lbeta(1, 1)
+  round(exp(log_m1 - log_m0), 3)
+}, by = treatment]
+
+knitr::kable(
+  treat_summary[, .(treatment, n, y, mle = round(mle, 3), post_mean = round(post_mean, 3),
+                     cri_lower = round(cri_lower, 3), cri_upper = round(cri_upper, 3), bf_vs_50)],
+  caption = "Bayesian analysis of Lind's scurvy trial (flat prior, BF against p = 0.5)."
+)
+```
+
+
+
+Table: Bayesian analysis of Lind's scurvy trial (flat prior, BF against p = 0.5).
+
+|treatment            |  n|  y| mle| post_mean| cri_lower| cri_upper| bf_vs_50|
+|:--------------------|--:|--:|---:|---------:|---------:|---------:|--------:|
+|cider                |  2|  1| 0.5|      0.50|     0.094|     0.906|    0.667|
+|dilute_sulfuric_acid |  2|  1| 0.5|      0.50|     0.094|     0.906|    0.667|
+|vinegar              |  2|  0| 0.0|      0.25|     0.008|     0.708|    1.333|
+|sea_water            |  2|  0| 0.0|      0.25|     0.008|     0.708|    1.333|
+|citrus               |  2|  1| 0.5|      0.50|     0.094|     0.906|    0.667|
+|purgative_mixture    |  2|  0| 0.0|      0.25|     0.008|     0.708|    1.333|
+
+With only 2 patients per group, the Bayes factors are modest. The Bayesian analysis correctly expresses our uncertainty -- a strength when sample sizes are small.
+
+---
+
+## 22.10 Predictive Distributions
+
+The **posterior predictive distribution** integrates out parameter uncertainty to predict new data:
+
+$$p(\tilde{y} \mid \mathbf{y}) = \int f(\tilde{y} \mid \theta) \, \pi(\theta \mid \mathbf{y}) \, d\theta$$
+
+For the Beta-Binomial model, the posterior predictive for a single new trial is:
+
+$$P(\tilde{Y} = 1 \mid \mathbf{y}) = E[p \mid \mathbf{y}] = \frac{\alpha + y}{\alpha + \beta + n}$$
+
+More generally, $\tilde{Y} \mid \mathbf{y} \sim \text{Beta-Binomial}(m, \alpha + y, \beta + n - y)$ for $m$ new trials. This distribution is **wider** than the plug-in Binomial because it accounts for parameter uncertainty.
+
+
+``` r
+set.seed(42)
+m_new <- 30
+a_pred <- 14
+b_pred <- 13
+
+n_mc <- 50000
+p_draws <- rbeta(n_mc, a_pred, b_pred)
+y_pred_bayes <- rbinom(n_mc, m_new, p_draws)
+y_pred_plugin <- rbinom(n_mc, m_new, a_pred / (a_pred + b_pred))
+
+pred_dt <- data.table$data.table(
+  y = c(y_pred_bayes, y_pred_plugin),
+  method = rep(c("Posterior predictive", "Plug-in (MLE)"), each = n_mc)
+)
+
+ggplot2$ggplot(pred_dt, ggplot2$aes(x = y, fill = method)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    binwidth = 1, position = "identity", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$labs(
+    x = "Number of successes in 30 new trials",
+    y = "Density",
+    title = "Posterior predictive vs plug-in prediction",
+    fill = "Method"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/predictive-1.png" alt="Posterior predictive distribution vs plug-in prediction. The Bayesian prediction (blue) has heavier tails, reflecting parameter uncertainty.">
+	Posterior predictive distribution vs plug-in prediction. The Bayesian prediction (blue) has heavier tails, reflecting parameter uncertainty.
+</Figure>
+
+---
+
+## 22.11 Bayesian Inference for the Normal Mean (Unknown Variance)
+
+When $\sigma^2$ is also unknown, we use the **Normal-Inverse-Gamma** conjugate family. With priors:
+
+$$\mu \mid \sigma^2 \sim N(\mu_0, \sigma^2 / \kappa_0), \qquad \sigma^2 \sim \text{Inv-Gamma}(\nu_0 / 2, \nu_0 \sigma_0^2 / 2)$$
+
+the marginal posterior of $\mu$ (integrating out $\sigma^2$) is a **$t$-distribution**:
+
+$$\mu \mid \mathbf{y} \sim t_{\nu_n}\!\left(\mu_n, \frac{\sigma_n^2}{\kappa_n}\right)$$
+
+This mirrors the frequentist result: when the population variance is unknown, inference about $\mu$ follows a $t$-distribution rather than a normal.
+
+
+``` r
+set.seed(42)
+y_data <- rnorm(25, mean = 100, sd = 15)
+n_nig <- length(y_data)
+y_bar_nig <- mean(y_data)
+s2_nig <- var(y_data)
+
+mu_0 <- 90
+kappa_0 <- 1
+nu_0 <- 1
+sigma2_0 <- 100
+
+kappa_n <- kappa_0 + n_nig
+nu_n <- nu_0 + n_nig
+mu_n <- (kappa_0 * mu_0 + n_nig * y_bar_nig) / kappa_n
+sigma2_n <- (nu_0 * sigma2_0 + (n_nig - 1) * s2_nig +
+             kappa_0 * n_nig / kappa_n * (y_bar_nig - mu_0)^2) / nu_n
+
+sprintf("Posterior for mu: t(%d) with location = %.2f, scale = %.2f",
+        nu_n, mu_n, sqrt(sigma2_n / kappa_n))
+
+cri_mu <- mu_n + qt(c(0.025, 0.975), nu_n) * sqrt(sigma2_n / kappa_n)
+sprintf("95%% credible interval for mu: [%.2f, %.2f]", cri_mu[1], cri_mu[2])
+```
+
+```
+[1] "Posterior for mu: t(26) with location = 102.32, scale = 3.74"
+[1] "95% credible interval for mu: [94.63, 110.02]"
+```
+
+---
+
+## 22.12 When Bayesian and Frequentist Agree (and Disagree)
+
+For regular problems with large samples, the Bernstein-von Mises theorem guarantees convergence. The two approaches diverge most when:
+
+1. **Small samples** -- the prior has genuine influence.
+2. **Boundary parameters** -- e.g., testing whether a variance component is zero.
+3. **Multiple testing** -- the Bayesian approach naturally incorporates prior probabilities of hypotheses.
+4. **Sequential analysis** -- Bayesian methods do not require adjustment for optional stopping.
+
+---
+
+## Communicating to Stakeholders
+
+- **Credible intervals are intuitive.** "We are 95% confident that the true rate lies between 8.2% and 12.1%." This is exactly what stakeholders already think a confidence interval means.
+- **Bayes factors quantify evidence.** "The data are 15 times more consistent with the treatment working than with it having no effect." This is more interpretable than "p < 0.05".
+- **Report sensitivity.** "We tried three different starting assumptions. All three gave prevalence estimates between 9.5% and 10.3%, so the conclusion is robust."
+- **Predictions account for uncertainty.** "Our forecast for next quarter accounts not just for sampling variability but also for our remaining uncertainty about the underlying rate."
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Equal-tailed CI** | $[q_{\alpha/2}, q_{1-\alpha/2}]$ of the posterior |
+| **HPD interval** | Shortest interval with $1-\alpha$ probability |
+| **Credible vs confidence** | Credible: probability about $\theta$; Confidence: about procedure |
+| **Bayes factor** | $\text{BF}_{10} = m_1(\mathbf{y}) / m_0(\mathbf{y})$ |
+| **BF interpretation** | > 10 strong, > 100 decisive (Kass & Raftery) |
+| **Posterior predictive** | $p(\tilde{y} \mid \mathbf{y}) = \int f(\tilde{y} \mid \theta) \pi(\theta \mid \mathbf{y}) d\theta$ |
+| **Sensitivity analysis** | Compare posteriors under different priors |
+| **Bernstein-von Mises** | Posterior $\to$ Normal(MLE, $1/I(\hat\theta)$) as $n \to \infty$ |
+| **Flat prior** | $\pi(\theta) \propto 1$; posterior $\propto$ likelihood |
+| **Jeffreys prior** | $\pi(\theta) \propto \sqrt{I(\theta)}$; reparametrisation invariant |
+
+---
+
+## Exercises
+
+1. **HPD vs ETI.** For $p \mid \mathbf{y} \sim \text{Beta}(3, 12)$, compute both the 95% equal-tailed credible interval and the 95% HPD interval. Verify that the HPD is shorter. Plot both on the posterior density.
+
+2. **Bayes factor computation.** You observe $y = 8$ successes in $n = 10$ trials. Compute $\text{BF}_{10}$ for $H_0: p = 0.5$ vs $H_1: p \sim \text{Beta}(1, 1)$. How does the Bayes factor change if $H_1$ uses $\text{Beta}(10, 10)$?
+
+3. **Posterior predictive check.** Generate 100 observations from $\text{Poisson}(3)$. Fit the Gamma-Poisson model with $\text{Gamma}(2, 1)$ prior. Draw 1000 posterior predictive datasets and compare the distribution of the maximum count to the observed maximum.
+
+4. **Prior sensitivity for NHANES.** Estimate diabetes prevalence using priors $\text{Beta}(1, 1)$, $\text{Beta}(1, 9)$ (US adult prevalence ~ 10%), and $\text{Beta}(5, 5)$ (centred at 50%). How many observations does it take for the sceptical $\text{Beta}(5, 5)$ posterior to match the flat posterior within 0.01?
+
+5. **Bernstein-von Mises.** For $n = 10, 50, 200$, generate binomial data with $p = 0.4$ and compute both the 95% Wald confidence interval and the 95% posterior credible interval (flat prior). Plot both as a function of $n$ and verify convergence.
+
+6. **Bayes factor paradox.** Consider testing $H_0: \mu = 0$ vs $H_1: \mu \sim N(0, \tau^2)$ with data $\bar{y} = 2, n = 25, \sigma = 5$. Compute the Bayes factor as a function of $\tau$ for $\tau \in \{0.1, 1, 5, 10, 100\}$. Explain why the Bayes factor favours $H_0$ when $\tau$ is very large (Bartlett's paradox).

@@ -1,0 +1,142 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 21: Poisson and Count Models"
+part: "Part 1: Poisson Regression"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, poisson-regression, count-data, glm, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 21 -- Poisson and Count Models
+
+## Part 1: Poisson Regression
+
+Count data are everywhere: the number of insurance claims filed per year, the number of incidents on a ship, the number of publications by a scientist. These outcomes are non-negative integers, often right-skewed, and frequently have variance that increases with the mean. Ordinary linear regression is the wrong tool -- it predicts negative counts and assumes constant variance. **Poisson regression** is the natural starting point for modelling count data.
+
+In this chapter we derive Poisson regression from the exponential family framework developed in Chapter 19, interpret coefficients as **rate ratios**, handle exposure via offsets, and fit models to real data using `glm(..., family = poisson)`.
+
+---
+
+## 21.1 The Log Link as Canonical for Poisson
+
+### 21.1.1 Review
+
+Recall from Chapter 19 that the Poisson PMF in exponential family form is:
+
+$$P(Y = y \mid \lambda) = \frac{1}{y!} \exp\bigl[y \log \lambda - \lambda\bigr]$$
+
+The canonical parameter is $\theta = \log \lambda$, so the **canonical link** for the Poisson family is the **log link**:
+
+$$g(\mu) = \log \mu$$
+
+The inverse link is:
+
+$$\mu = g^{-1}(\eta) = e^{\eta}$$
+
+### 21.1.2 The Model
+
+The Poisson regression model is:
+
+$$Y_i \sim \text{Poisson}(\mu_i), \qquad \log \mu_i = \mathbf{x}_i^\top \boldsymbol{\beta}$$
+
+or equivalently:
+
+$$\mu_i = \exp(\mathbf{x}_i^\top \boldsymbol{\beta}) = \exp(\beta_0 + \beta_1 x_{i1} + \cdots + \beta_p x_{ip})$$
+
+Because $\mu_i = E[Y_i]$ and $\text{Var}(Y_i) = \mu_i$ for the Poisson distribution, the mean-variance relationship is fixed: **the variance equals the mean**. This is both a strength (parsimony) and a weakness (rigidity) that we address in Part 2.
+
+---
+
+## 21.2 Deriving the Log-Likelihood
+
+For independent observations $y_1, \ldots, y_n$:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \bigl[y_i \log \mu_i - \mu_i - \log(y_i!)\bigr]$$
+
+Substituting $\log \mu_i = \mathbf{x}_i^\top \boldsymbol{\beta}$:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \bigl[y_i \mathbf{x}_i^\top \boldsymbol{\beta} - \exp(\mathbf{x}_i^\top \boldsymbol{\beta})\bigr] + \text{const}$$
+
+The score equations are:
+
+$$\frac{\partial \ell}{\partial \beta_j} = \sum_{i=1}^n (y_i - \mu_i) x_{ij} = 0$$
+
+These are the same score equations we derived for the GLM in Chapter 19, confirming that Poisson regression is a special case of the GLM framework.
+
+---
+
+## 21.3 Interpreting Coefficients as Rate Ratios
+
+### 21.3.1 The Multiplicative Structure
+
+Because $\mu_i = e^{\beta_0 + \beta_1 x_{i1} + \cdots}$, a one-unit increase in $x_j$ multiplies the mean by $e^{\beta_j}$:
+
+$$\frac{\mu(x_j + 1)}{\mu(x_j)} = e^{\beta_j}$$
+
+This is the **rate ratio** (or **incidence rate ratio**) -- the Poisson analogue of the odds ratio in logistic regression.
+
+- $e^{\beta_j} > 1$: predictor increases the rate.
+- $e^{\beta_j} = 1$: no effect.
+- $e^{\beta_j} < 1$: predictor decreases the rate.
+
+### 21.3.2 Example: Insurance Claims
+
+
+``` r
+data_dir <- "../../../data"
+claims <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
+str(claims)
+```
+
+```
+Classes 'data.table' and 'data.frame':	64 obs. of  5 variables:
+ $ District: int  1 1 1 1 1 1 1 1 1 1 ...
+ $ Group   : chr  "<1l" "<1l" "<1l" "<1l" ...
+ $ Age     : chr  "<25" "25-29" "30-35" ">35" ...
+ $ Holders : int  197 264 246 1680 284 536 696 3582 133 286 ...
+ $ Claims  : int  38 35 20 156 63 84 89 400 19 52 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

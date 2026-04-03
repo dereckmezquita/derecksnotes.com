@@ -1,0 +1,103 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 21: Poisson and Count Models"
+part: "Part 2: Overdispersion and Extensions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, overdispersion, negative-binomial, zero-inflation, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 21 -- Poisson and Count Models
+
+## Part 2: Overdispersion and Extensions
+
+In Part 1 we fitted Poisson regression models and interpreted coefficients as rate ratios. The Poisson model imposes a strong constraint: $\text{Var}(Y) = E[Y]$. Real count data frequently violate this -- the variance exceeds the mean. This phenomenon is called **overdispersion**, and ignoring it leads to standard errors that are too small, confidence intervals that are too narrow, and $p$-values that are too small.
+
+In this part we develop three strategies for handling overdispersion: the quasi-Poisson approach, the negative binomial model (derived as a Poisson-Gamma mixture), and zero-inflated models for data with excess zeros.
+
+---
+
+## 21.5 Diagnosing Overdispersion
+
+### 21.5.1 The Dispersion Parameter
+
+For a Poisson GLM, the **dispersion parameter** $\phi$ should equal 1. We estimate it as:
+
+$$\hat{\phi} = \frac{1}{n - p} \sum_{i=1}^n \frac{(y_i - \hat{\mu}_i)^2}{\hat{\mu}_i} = \frac{X^2_P}{n - p}$$
+
+where $X^2_P$ is the Pearson chi-squared statistic. If $\hat{\phi} \gg 1$, we have overdispersion. If $\hat{\phi} < 1$, we have underdispersion (rarer).
+
+
+``` r
+data_dir <- "../../../data"
+pubs <- data.table$fread(file.path(data_dir, "count/biochemist_publications.csv"))
+str(pubs)
+```
+
+```
+Classes 'data.table' and 'data.frame':	915 obs. of  6 variables:
+ $ articles       : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ female         : int  1 1 0 1 1 0 1 0 1 1 ...
+ $ married        : int  0 0 1 1 1 0 0 0 1 1 ...
+ $ kids5          : int  0 1 0 0 0 1 1 1 0 2 ...
+ $ phd_prestige   : num  3.84 3.43 1.61 3.09 4.17 2.64 2.26 2.98 3.6 3.6 ...
+ $ mentor_articles: int  7 10 8 8 11 6 10 5 11 9 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

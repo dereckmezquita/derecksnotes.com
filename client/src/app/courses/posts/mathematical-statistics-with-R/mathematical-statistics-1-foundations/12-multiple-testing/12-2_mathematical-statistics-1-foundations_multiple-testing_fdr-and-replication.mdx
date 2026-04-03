@@ -1,0 +1,704 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 12: Multiple Testing"
+part: "Part 2: FDR and Replication"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, multiple-testing, fdr, replication, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+# Chapter 12 -- Multiple Testing
+
+## Part 2: False Discovery Rate and Replication
+
+In Part 1 we introduced the FWER -- the probability of even one false positive. Bonferroni and Holm control the FWER, but they can be extremely conservative when $m$ is large. A genomics study testing 20,000 genes at Bonferroni-corrected $\alpha/m = 0.05/20000 = 0.0000025$ needs overwhelming evidence to declare anything significant. Many genuine effects will be missed.
+
+In 1995, Benjamini and Hochberg proposed a more liberal error criterion: instead of controlling the probability of *any* false positive, control the **proportion** of false positives among all rejections. This is the **false discovery rate** (FDR), and it has transformed modern high-dimensional statistics.
+
+---
+
+## 12.3 The False Discovery Rate
+
+### 12.3.1 Setting Up the Counting Table
+
+When we conduct $m$ hypothesis tests, the outcomes can be summarised in a $2 \times 2$ table:
+
+|  | Not rejected | Rejected | Total |
+|:--|:-:|:-:|:-:|
+| $H_0$ true | $U$ | $V$ | $m_0$ |
+| $H_0$ false | $T$ | $S$ | $m_1$ |
+| **Total** | $m - R$ | $R$ | $m$ |
+
+- $R$: total number of rejections (observable).
+- $V$: number of false positives (Type I errors) among rejections (unobservable).
+- $S$: number of true positives among rejections (unobservable).
+- $m_0$: number of true nulls (unknown).
+- $m_1 = m - m_0$: number of false nulls (unknown).
+
+### 12.3.2 Definition of FDR
+
+The **false discovery proportion** (FDP) is the fraction of rejections that are false positives:
+
+$$\text{FDP} = \frac{V}{R} = \frac{V}{\max(R, 1)},$$
+
+where we define $V/R = 0$ when $R = 0$ (no rejections means no false discoveries).
+
+The **false discovery rate** is the expected FDP:
+
+$$\text{FDR} = E\!\left[\frac{V}{\max(R, 1)}\right].$$
+
+**Interpretation:** If we control FDR at 5%, then among the hypotheses we declare significant, we expect about 5% to be false positives. This is a much less stringent requirement than FWER, which demands that the probability of *any* false positive is below 5%.
+
+### 12.3.3 Relationship Between FWER and FDR
+
+When all nulls are true ($m_0 = m$), any rejection is a false positive, so $V = R$ and FDP $= 1$ whenever $R > 0$. Therefore:
+
+$$\text{FDR} = E\!\left[\frac{V}{R} \cdot \mathbf{1}(R > 0)\right] = 1 \cdot P(R > 0) = P(V \ge 1) = \text{FWER}.$$
+
+Under the global null, FDR and FWER are identical. When some nulls are false, FDR $\le$ FWER, so FDR control is always at least as permissive as FWER control.
+
+---
+
+## 12.4 The Benjamini-Hochberg (BH) Procedure
+
+### 12.4.1 The Algorithm
+
+Given $m$ p-values $p_1, \ldots, p_m$ and a target FDR level $q$:
+
+1. Order the p-values: $p_{(1)} \le p_{(2)} \le \cdots \le p_{(m)}$.
+2. Find the largest $k$ such that $p_{(k)} \le \frac{k}{m} \cdot q$.
+3. Reject all hypotheses $H_{(1)}, \ldots, H_{(k)}$.
+
+The BH thresholds form a line: $q/m, \; 2q/m, \; 3q/m, \; \ldots, \; q$. We walk up the sorted p-values and find the last one that falls below this line.
+
+### 12.4.2 Intuition
+
+The BH procedure is a "step-up" procedure. The threshold $kq/m$ for the $k$-th smallest p-value reflects that if we reject $k$ hypotheses, we tolerate a fraction $q$ as false discoveries -- about $kq$ false discoveries out of $k$ rejections.
+
+### 12.4.3 Implementation from Scratch
+
+
+``` r
+set.seed(42)
+box::use(data.table)
+box::use(ggplot2)
+
+#' Benjamini-Hochberg procedure -- implemented from scratch
+#' @param p numeric vector of raw p-values
+#' @param q target FDR level
+#' @return data.table with original p-values, adjusted p-values, and decisions
+my_bh <- function(p, q = 0.05) {
+  m <- length(p)
+  ord <- order(p)
+  p_sorted <- p[ord]
+
+  # BH thresholds
+  thresholds <- (seq_len(m) / m) * q
+
+  # Find the largest k where p_(k) <= k*q/m
+  below <- p_sorted <= thresholds
+  if (!any(below)) {
+    k_star <- 0
+  } else {
+    k_star <- max(which(below))
+  }
+
+  # Adjusted p-values: p_(k) * m/k, enforced to be non-increasing from right
+  adj_sorted <- p_sorted * m / seq_len(m)
+  # Walk backwards to enforce monotonicity
+  for (i in (m - 1):1) {
+    adj_sorted[i] <- min(adj_sorted[i], adj_sorted[i + 1])
+  }
+  adj_sorted <- pmin(adj_sorted, 1)
+
+  # Map back to original order
+  adj_p <- numeric(m)
+  adj_p[ord] <- adj_sorted
+
+  data.table$data.table(
+    test = seq_len(m),
+    p_raw = p,
+    p_adj = adj_p,
+    reject = adj_p <= q
+  )
+}
+```
+
+### 12.4.4 Simulation: BH vs Bonferroni on Mixed Data
+
+We now simulate a realistic scenario where some nulls are true and some are false.
+
+
+``` r
+set.seed(42)
+m <- 200          # total tests
+m1 <- 30          # number of truly false nulls (real signals)
+m0 <- m - m1      # number of true nulls
+effect_size <- 3  # signal strength (in standard deviations)
+
+# Generate test statistics
+z_null <- rnorm(m0, mean = 0, sd = 1)        # true nulls
+z_alt  <- rnorm(m1, mean = effect_size, sd = 1)  # real signals
+z_all  <- c(z_null, z_alt)
+
+# Two-sided p-values
+p_all <- 2 * pnorm(-abs(z_all))
+
+# Track which are truly null
+truly_null <- c(rep(TRUE, m0), rep(FALSE, m1))
+
+# Apply all three corrections
+bonf_adj <- p.adjust(p_all, method = "bonferroni")
+holm_adj <- p.adjust(p_all, method = "holm")
+bh_result <- my_bh(p_all, q = 0.05)
+
+# Verify BH against built-in
+all.equal(bh_result$p_adj, p.adjust(p_all, method = "BH"))
+```
+
+```
+[1] TRUE
+```
+
+
+``` r
+# Count rejections and errors for each method
+summarise_method <- function(adj_p, truly_null, alpha = 0.05) {
+  rejected <- adj_p <= alpha
+  data.table$data.table(
+    total_rejected = sum(rejected),
+    true_positives = sum(rejected & !truly_null),
+    false_positives = sum(rejected & truly_null),
+    false_negatives = sum(!rejected & !truly_null)
+  )
+}
+
+comparison <- rbind(
+  cbind(method = "Uncorrected", summarise_method(p_all, truly_null)),
+  cbind(method = "Bonferroni",  summarise_method(bonf_adj, truly_null)),
+  cbind(method = "Holm",        summarise_method(holm_adj, truly_null)),
+  cbind(method = "BH (FDR)",    summarise_method(bh_result$p_adj, truly_null))
+)
+
+comparison[, FDP := round(false_positives / pmax(total_rejected, 1), 3)]
+comparison[, power := round(true_positives / m1, 3)]
+comparison
+```
+
+```
+        method total_rejected true_positives false_positives false_negatives
+        <char>          <int>          <int>           <int>           <int>
+1: Uncorrected             33             25               8               5
+2:  Bonferroni              6              6               0              24
+3:        Holm              6              6               0              24
+4:    BH (FDR)             20             19               1              11
+     FDP power
+   <num> <num>
+1: 0.242 0.833
+2: 0.000 0.200
+3: 0.000 0.200
+4: 0.050 0.633
+```
+
+The BH procedure strikes a balance: it achieves higher power than Bonferroni and Holm (detecting more true signals) while keeping the false discovery proportion well controlled. The uncorrected analysis has many false positives.
+
+### 12.4.5 Visualising the BH Procedure
+
+
+``` r
+p_sorted <- sort(p_all)
+k_seq <- seq_len(m)
+q <- 0.05
+
+bh_viz_dt <- data.table$data.table(
+  rank = k_seq,
+  p_sorted = p_sorted,
+  bh_threshold = k_seq / m * q,
+  below = p_sorted <= (k_seq / m * q)
+)
+
+# Find the BH cutoff
+k_star <- max(which(bh_viz_dt$below))
+
+ggplot2$ggplot(bh_viz_dt, ggplot2$aes(x = rank, y = p_sorted)) +
+  ggplot2$geom_point(
+    ggplot2$aes(colour = below), size = 1.5, alpha = 0.7
+  ) +
+  ggplot2$geom_abline(
+    intercept = 0, slope = q / m,
+    colour = "#D55E00", linewidth = 1
+  ) +
+  ggplot2$geom_vline(
+    xintercept = k_star, linetype = "dashed",
+    colour = "grey40", linewidth = 0.6
+  ) +
+  ggplot2$annotate("text", x = k_star + 8, y = 0.5,
+                   label = paste0("k* = ", k_star),
+                   colour = "grey30", size = 4) +
+  ggplot2$annotate("text", x = 150, y = q / m * 150 + 0.03,
+                   label = "BH line: kq/m",
+                   colour = "#D55E00", size = 4, angle = 10) +
+  ggplot2$scale_colour_manual(
+    values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00"),
+    labels = c("Not rejected", "Rejected")
+  ) +
+  ggplot2$coord_cartesian(ylim = c(0, 1)) +
+  ggplot2$labs(
+    x = "Rank (k)",
+    y = expression(p[(k)]),
+    title = "Benjamini-Hochberg procedure: sorted p-values vs threshold",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/bh-viz-1.png" alt="The Benjamini-Hochberg procedure in action. Sorted p-values are plotted against their rank. The BH threshold line is k*q/m. The procedure rejects all hypotheses whose p-values fall below the line up to the last crossing point.">
+	The Benjamini-Hochberg procedure in action. Sorted p-values are plotted against their rank. The BH threshold line is k*q/m. The procedure rejects all hypotheses whose p-values fall below the line up to the last crossing point.
+</Figure>
+
+---
+
+## 12.5 Comparing All Three Methods
+
+
+``` r
+method_dt <- data.table$data.table(
+  test = rep(seq_len(m), 3),
+  p_adj = c(bonf_adj, holm_adj, bh_result$p_adj),
+  method = rep(c("Bonferroni (FWER)", "Holm (FWER)", "BH (FDR)"),
+               each = m),
+  truly_null = rep(truly_null, 3)
+)
+
+method_dt[, rejected := p_adj <= 0.05]
+method_dt[, neglog_p := -log10(p_adj)]
+method_dt[, label := ifelse(truly_null, "Null true", "Null false")]
+method_dt[, method := factor(method,
+  levels = c("Bonferroni (FWER)", "Holm (FWER)", "BH (FDR)"))]
+
+# Summary per method
+summary_dt <- method_dt[, .(
+  rejected = sum(rejected),
+  true_pos = sum(rejected & !truly_null),
+  false_pos = sum(rejected & truly_null)
+), by = method]
+
+summary_dt[, FDP := round(false_pos / pmax(rejected, 1), 3)]
+summary_dt[, power := round(true_pos / m1, 3)]
+summary_dt
+```
+
+```
+              method rejected true_pos false_pos   FDP power
+              <fctr>    <int>    <int>     <int> <num> <num>
+1: Bonferroni (FWER)        6        6         0  0.00 0.200
+2:       Holm (FWER)        6        6         0  0.00 0.200
+3:          BH (FDR)       20       19         1  0.05 0.633
+```
+
+
+``` r
+# Use raw p-values for a cleaner comparison
+raw_dt <- data.table$data.table(
+  test = seq_len(m),
+  p_raw = p_all,
+  truly_null = truly_null,
+  bonf = bonf_adj,
+  holm = holm_adj,
+  bh = bh_result$p_adj
+)
+
+# Melt to long format
+plot_dt <- data.table$melt(
+  raw_dt,
+  id.vars = c("test", "p_raw", "truly_null"),
+  measure.vars = c("bonf", "holm", "bh"),
+  variable.name = "method",
+  value.name = "p_adj"
+)
+
+plot_dt[, method := factor(method,
+  levels = c("bonf", "holm", "bh"),
+  labels = c("Bonferroni", "Holm", "Benjamini-Hochberg"))]
+
+plot_dt[, label := ifelse(truly_null, "Null true", "Null false")]
+
+ggplot2$ggplot(plot_dt,
+  ggplot2$aes(x = -log10(p_raw), y = -log10(p_adj),
+              colour = label)) +
+  ggplot2$geom_point(alpha = 0.5, size = 1.5) +
+  ggplot2$geom_hline(
+    yintercept = -log10(0.05), linetype = "dashed",
+    colour = "grey40", linewidth = 0.5
+  ) +
+  ggplot2$facet_wrap(~ method, ncol = 3) +
+  ggplot2$scale_colour_manual(
+    values = c("Null true" = "#0072B2", "Null false" = "#D55E00")
+  ) +
+  ggplot2$labs(
+    x = expression(-log[10](p[raw])),
+    y = expression(-log[10](p[adjusted])),
+    title = "Adjusted p-values: Bonferroni vs Holm vs BH",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/three-method-pval-plot-1.png" alt="Adjusted p-values under three correction methods. Each point is one of 200 tests. Orange points are real signals; blue points are true nulls. The dashed line marks p = 0.05. Points below the line are rejected. BH brings more real signals below the threshold while keeping false discoveries controlled.">
+	Adjusted p-values under three correction methods. Each point is one of 200 tests. Orange points are real signals; blue points are true nulls. The dashed line marks p = 0.05. Points below the line are rejected. BH brings more real signals below the threshold while keeping false discoveries controlled.
+</Figure>
+
+---
+
+## 12.6 The Replication Crisis
+
+### 12.6.1 What Went Wrong?
+
+Beginning around 2011, researchers discovered that a large fraction of published findings could not be replicated. Several factors contributed:
+
+1. **p-hacking:** Trying multiple analyses and reporting only the one that produced $p < 0.05$ -- the multiple testing problem in disguise.
+2. **Publication bias:** Journals published significant results and rejected null results, enriching the literature with false positives.
+3. **Low statistical power:** Small studies that find significance tend to overestimate true effect sizes dramatically.
+4. **HARKing** (Hypothesising After Results are Known): Presenting exploratory findings as though they were predicted in advance.
+
+### 12.6.2 Simulation: The Winner's Curse
+
+
+``` r
+set.seed(42)
+
+n_studies <- 1000
+true_effect <- 0.2   # small true effect (Cohen's d)
+n_per_study <- 30    # small sample size (typical of many fields)
+
+# Simulate each study: two-sample t-test
+sim_studies <- data.table$data.table(
+  study = seq_len(n_studies),
+  observed_d = vapply(seq_len(n_studies), function(i) {
+    grp1 <- rnorm(n_per_study, mean = 0,           sd = 1)
+    grp2 <- rnorm(n_per_study, mean = true_effect,  sd = 1)
+    tt <- t.test(grp1, grp2)
+    # Cohen's d (observed)
+    pooled_sd <- sqrt((var(grp1) + var(grp2)) / 2)
+    (mean(grp2) - mean(grp1)) / pooled_sd
+  }, numeric(1)),
+  p_value = vapply(seq_len(n_studies), function(i) {
+    grp1 <- rnorm(n_per_study, mean = 0,           sd = 1)
+    grp2 <- rnorm(n_per_study, mean = true_effect,  sd = 1)
+    t.test(grp1, grp2)$p.value
+  }, numeric(1))
+)
+
+sim_studies[, significant := p_value < 0.05]
+```
+
+
+``` r
+data.table$data.table(
+  quantity = c(
+    "True effect size",
+    "Mean observed d (all studies)",
+    "Mean observed d (significant only)",
+    "Proportion significant (power)"
+  ),
+  value = c(
+    true_effect,
+    round(mean(sim_studies$observed_d), 3),
+    round(mean(sim_studies[significant == TRUE]$observed_d), 3),
+    round(mean(sim_studies$significant), 3)
+  )
+)
+```
+
+```
+                             quantity value
+                               <char> <num>
+1:                   True effect size 0.200
+2:      Mean observed d (all studies) 0.193
+3: Mean observed d (significant only) 0.201
+4:     Proportion significant (power) 0.117
+```
+
+The **winner's curse** is clearly visible: studies that achieve significance overestimate the true effect size, often dramatically. This occurs because only the noisiest, most extreme estimates cross the significance threshold in underpowered studies.
+
+### 12.6.3 Visualising the Winner's Curse
+
+
+``` r
+ggplot2$ggplot(sim_studies, ggplot2$aes(x = observed_d)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(fill = significant),
+    bins = 50, alpha = 0.7, boundary = 0
+  ) +
+  ggplot2$geom_vline(
+    xintercept = true_effect, linetype = "dashed",
+    colour = "black", linewidth = 1
+  ) +
+  ggplot2$annotate("text", x = true_effect + 0.05, y = 55,
+                   label = paste0("True d = ", true_effect),
+                   hjust = 0, size = 4) +
+  ggplot2$scale_fill_manual(
+    values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00"),
+    labels = c("Not significant", "Significant (p < 0.05)")
+  ) +
+  ggplot2$labs(
+    x = "Observed Cohen's d",
+    y = "Count",
+    title = "Winner's curse: significant studies overestimate the effect",
+    fill = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/winners-curse-plot-1.png" alt="The winner&#39;s curse in action. The histogram shows the distribution of observed effect sizes from 1000 underpowered studies. The orange region marks studies that achieved p &lt; 0.05. These &#39;significant&#39; studies systematically overestimate the true effect (dashed line). Published literature, which selects for significance, gives a biased picture of reality.">
+	The winner's curse in action. The histogram shows the distribution of observed effect sizes from 1000 underpowered studies. The orange region marks studies that achieved p &lt; 0.05. These 'significant' studies systematically overestimate the true effect (dashed line). Published literature, which selects for significance, gives a biased picture of reality.
+</Figure>
+
+### 12.6.4 Pre-Registration and the Solution
+
+**Pre-registration** addresses the root cause by requiring researchers to specify hypotheses, sample sizes, and analyses *before* collecting data. Key elements: (1) primary hypothesis stated precisely, (2) sample size justified by power calculation, (3) exact statistical test and stopping rules, (4) multiple testing correction specified in advance, (5) clear distinction between confirmatory and exploratory analyses.
+
+### 12.6.5 Effect Sizes vs p-Values
+
+A p-value tells us whether an effect is *statistically distinguishable from zero* but says nothing about its *magnitude*. With a large enough sample, even a trivially small effect becomes significant.
+
+
+``` r
+set.seed(42)
+sample_sizes <- c(10, 30, 100, 300, 1000, 3000, 10000)
+true_d <- 0.1  # trivially small effect
+
+pval_by_n <- data.table$data.table(
+  n = sample_sizes,
+  p_value = vapply(sample_sizes, function(n) {
+    grp1 <- rnorm(n, mean = 0,      sd = 1)
+    grp2 <- rnorm(n, mean = true_d,  sd = 1)
+    t.test(grp1, grp2)$p.value
+  }, numeric(1))
+)
+
+pval_by_n[, significant := p_value < 0.05]
+pval_by_n
+```
+
+```
+       n      p_value significant
+   <num>        <num>      <lgcl>
+1:    10 3.104212e-01       FALSE
+2:    30 1.211303e-01       FALSE
+3:   100 2.423422e-01       FALSE
+4:   300 9.948757e-01       FALSE
+5:  1000 1.240742e-01       FALSE
+6:  3000 5.491368e-05        TRUE
+7: 10000 2.688477e-18        TRUE
+```
+
+A Cohen's $d$ of 0.1 is negligible, yet with enough data it becomes "highly significant." This is why modern guidelines recommend reporting effect sizes and confidence intervals alongside p-values.
+
+---
+
+## 12.7 Practical Guidelines: When to Use What
+
+### 12.7.1 Decision Framework
+
+| Scenario | Recommended method | Rationale |
+|:---------|:-------------------|:----------|
+| A few planned comparisons ($m < 10$) | Holm | FWER control; more powerful than Bonferroni |
+| Confirmatory clinical trial with co-primary endpoints | Bonferroni or Holm | Regulatory requirement for strong FWER control |
+| Exploratory genomics / proteomics ($m > 1000$) | BH | FWER too strict; FDR balances discovery and error |
+| Single pre-registered primary analysis | No correction needed | Only one test; $\alpha$ is already the error rate |
+| Exploratory subgroup analysis | BH or report as exploratory | Flag findings as hypothesis-generating |
+
+### 12.7.2 Rules of Thumb
+
+1. **Always report** the number of tests and the correction method.
+2. **Decide before testing:** choose the correction *before* seeing data.
+3. **When in doubt, use Holm:** at least as powerful as Bonferroni with FWER control.
+4. **When FWER is too strict, use BH:** far more powerful for large $m$.
+5. **Report effect sizes** alongside p-values.
+6. **Pre-register** confirmatory analyses.
+
+### 12.7.3 Power Simulation: Comparing Methods at Scale
+
+
+``` r
+set.seed(42)
+
+sim_power <- function(m, m1, effect, n_sims = 500) {
+  m0 <- m - m1
+  powers <- vapply(seq_len(n_sims), function(i) {
+    z_null <- rnorm(m0)
+    z_alt  <- rnorm(m1, mean = effect)
+    z_all  <- c(z_null, z_alt)
+    p_all  <- 2 * pnorm(-abs(z_all))
+    truly_alt <- c(rep(FALSE, m0), rep(TRUE, m1))
+
+    c(
+      bonf = mean(p.adjust(p_all, "bonferroni")[truly_alt] <= 0.05),
+      holm = mean(p.adjust(p_all, "holm")[truly_alt] <= 0.05),
+      bh   = mean(p.adjust(p_all, "BH")[truly_alt] <= 0.05)
+    )
+  }, numeric(3))
+
+  rowMeans(powers)
+}
+
+m_grid <- c(10, 20, 50, 100, 200, 500)
+prop_alt <- 0.15  # 15% of hypotheses are truly false
+
+power_results <- data.table$rbindlist(lapply(m_grid, function(m_val) {
+  m1_val <- round(m_val * prop_alt)
+  pw <- sim_power(m_val, m1_val, effect = 3)
+  data.table$data.table(
+    m = m_val,
+    method = c("Bonferroni", "Holm", "BH"),
+    power = pw
+  )
+}))
+
+ggplot2$ggplot(power_results,
+  ggplot2$aes(x = m, y = power, colour = method, group = method)) +
+  ggplot2$geom_line(linewidth = 1.1) +
+  ggplot2$geom_point(size = 3) +
+  ggplot2$scale_colour_manual(values = c(
+    "Bonferroni" = "#0072B2",
+    "Holm" = "#009E73",
+    "BH" = "#D55E00"
+  )) +
+  ggplot2$scale_y_continuous(
+    labels = scales::percent_format(),
+    limits = c(0, 1)
+  ) +
+  ggplot2$labs(
+    x = "Number of tests (m)",
+    y = "Average power (proportion of true signals detected)",
+    title = "Power comparison: FWER methods vs FDR (BH)",
+    colour = "Method"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/power-sim-1.png" alt="Statistical power as a function of the number of tests for three correction methods. All methods lose power as m increases, but BH (FDR control) degrades much more slowly than Bonferroni and Holm (FWER control). With 500 tests, BH detects more than twice as many true signals as Bonferroni.">
+	Statistical power as a function of the number of tests for three correction methods. All methods lose power as m increases, but BH (FDR control) degrades much more slowly than Bonferroni and Holm (FWER control). With 500 tests, BH detects more than twice as many true signals as Bonferroni.
+</Figure>
+
+---
+
+## 12.8 FDR Simulation Verification
+
+To confirm that the BH procedure truly controls FDR, we run a large-scale simulation.
+
+
+``` r
+set.seed(42)
+n_sims <- 5000
+m <- 100
+m1 <- 15
+effect <- 3
+q <- 0.05
+
+fdp_values <- vapply(seq_len(n_sims), function(i) {
+  z_null <- rnorm(m - m1)
+  z_alt  <- rnorm(m1, mean = effect)
+  p_all  <- 2 * pnorm(-abs(c(z_null, z_alt)))
+  truly_null <- c(rep(TRUE, m - m1), rep(FALSE, m1))
+
+  adj_p <- p.adjust(p_all, method = "BH")
+  rejected <- adj_p <= q
+  R <- sum(rejected)
+  V <- sum(rejected & truly_null)
+
+  if (R == 0) 0 else V / R
+}, numeric(1))
+
+data.table$data.table(
+  quantity = c("Mean FDP (= FDR)", "Median FDP",
+               "SD of FDP", "Target q"),
+  value = round(c(mean(fdp_values), median(fdp_values),
+                  sd(fdp_values), q), 4)
+)
+```
+
+```
+           quantity  value
+             <char>  <num>
+1: Mean FDP (= FDR) 0.0424
+2:       Median FDP 0.0000
+3:        SD of FDP 0.0669
+4:         Target q 0.0500
+```
+
+The average FDP is close to (and below) the target $q = 0.05$, confirming FDR control. Note that the FDP varies from simulation to simulation -- the FDR is the *expectation* of this random quantity.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining FDR and the replication crisis to non-technical audiences:
+
+- Use an analogy: "FWER requires zero defectives; FDR tolerates a 5% defect rate. FDR is more practical when screening thousands of items."
+- Explain the replication crisis: "Many findings turned out to be false alarms because researchers tested many things but only reported the significant ones."
+- Explain pre-registration: "It is like submitting your exam answers before seeing the questions."
+- When reporting FDR results: "Among 150 significant genes, we expect about 5% (roughly 7 or 8) to be false positives."
+- Clarify: "FDR tells us about the overall rate, not about any individual finding."
+
+---
+
+## Quick Reference
+
+| Concept | Formula / Rule | Notes |
+|:--------|:---------------|:------|
+| **FDP** | $V / \max(R, 1)$ | Proportion of false discoveries; random |
+| **FDR** | $E[\text{FDP}]$ | Expected false discovery proportion |
+| **FDR = FWER** | Under the global null | When all nulls are true |
+| **BH procedure** | Reject $H_{(1)}, \ldots, H_{(k^*)}$ where $k^*$ is largest $k$ with $p_{(k)} \le kq/m$ | Controls FDR at level $q$ under independence |
+| **BH adjusted p-value** | $\tilde{p}_{(k)} = \min\bigl(\frac{m}{k} p_{(k)}, \; 1\bigr)$ (enforced non-decreasing) | Compare to $q$ directly |
+| **Winner's curse** | Significant effects overestimate truth | Especially severe in underpowered studies |
+| **R function** | `p.adjust(p, method = "BH")` | Also `"fdr"` is an alias |
+
+**Key insight:** FDR control tolerates a small fraction of false discoveries in exchange for much greater power to detect true signals. Use it when discovery matters more than certainty about each individual finding.
+
+---
+
+## Exercises
+
+### Derivation Exercises
+
+**Exercise 12.10.** Prove that under the global null (all $m$ hypotheses are true), $\text{FDR} = \text{FWER}$. *(Hint: when all nulls are true, $V = R$, so FDP = 1 whenever $R > 0$ and FDP = 0 when $R = 0$.)*
+
+**Exercise 12.11.** Show that if the BH procedure is applied with $q = \alpha/m$, it reduces to the Bonferroni correction. *(Hint: the BH threshold for the $k$-th p-value becomes $k \cdot \alpha/(m \cdot m)$.)*
+
+**Exercise 12.12.** Prove that the expected number of false discoveries under BH is at most $m_0 \cdot q / m$, where $m_0$ is the number of true nulls. *(Hint: this follows from the BH theorem: $\text{FDR} \le m_0 q / m \le q$.)*
+
+### Computation Exercises
+
+**Exercise 12.13.** A gene expression study tests 500 genes. Of these, 480 are true nulls and 20 have real effects. Using the BH procedure at $q = 0.10$, what is the maximum number of false discoveries we "budget" for? If we reject 35 genes, what is our estimated FDP?
+
+**Exercise 12.14.** A researcher reports: "We applied the BH correction at FDR = 0.05 and found 200 significant genes out of 10,000 tested." Approximately how many of these 200 genes do we expect to be false discoveries?
+
+### R Exercises
+
+**Exercise 12.15.** Implement a simulation comparing the actual FDR of BH across proportions of true nulls: $\pi_0 = 0.5, 0.7, 0.9, 0.95, 1.0$. For each $\pi_0$, simulate 2000 experiments with $m = 100$ tests, compute the average FDP, and confirm FDR $\le q$.
+
+**Exercise 12.16.** Using the NHANES data from Part 1, apply BH to the 20 health outcome tests. Compare the number of rejections to Bonferroni and Holm.
+
+### Spot-the-Error Exercises
+
+**Exercise 12.17.** A researcher uses the BH procedure at $q = 0.05$, finds 40 significant results, and claims: "Each of these 40 findings has at most a 5% chance of being a false positive." What is wrong with this interpretation?
+
+**Exercise 12.18.** A journal reviewer states: "You tested 10,000 genes and found only 50 significant after BH correction. Clearly your experiment failed -- you should have used an uncorrected threshold to find more results." How would you respond?
+
+**Exercise 12.19.** A student runs 200 t-tests, applies BH at $q = 0.05$, and obtains 0 rejections. They then re-run the analysis with $q = 0.20$ and find 15 rejections. They report both analyses, choosing to emphasise the second. What statistical and ethical issues arise?

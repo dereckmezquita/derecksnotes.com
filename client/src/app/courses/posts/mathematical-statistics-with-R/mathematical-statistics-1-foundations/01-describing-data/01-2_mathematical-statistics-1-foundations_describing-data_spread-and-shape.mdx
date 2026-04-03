@@ -205,7 +205,7 @@ ggplot2$ggplot(dt_sim, ggplot2$aes(x = value, fill = estimator)) +
   ggplot2$theme(legend.position = "top")
 ```
 
-<Figure src="/courses/mathematical-statistics-1-foundations/bessel-simulation-1.png" alt="Simulation demonstrating Bessel&#39;s correction. We drew 10,000 samples of size n = 10 from N(0, 1) (true variance = 1). The sample variance (dividing by n-1) is unbiased: its average is approximately 1. The naive variance (dividing by n) is biased downward: its average is approximately 0.9.">
+<Figure src="bessel-simulation-1.png" alt="Simulation demonstrating Bessel&#39;s correction. We drew 10,000 samples of size n = 10 from N(0, 1) (true variance = 1). The sample variance (dividing by n-1) is unbiased: its average is approximately 1. The naive variance (dividing by n) is biased downward: its average is approximately 0.9.">
 	Simulation demonstrating Bessel's correction. We drew 10,000 samples of size n = 10 from N(0, 1) (true variance = 1). The sample variance (dividing by n-1) is unbiased: its average is approximately 1. The naive variance (dividing by n) is biased downward: its average is approximately 0.9.
 </Figure>
 
@@ -335,7 +335,7 @@ ggplot2$ggplot(data.frame(x = fl), ggplot2$aes(x = x)) +
   ggplot2$theme_minimal(base_size = 14)
 ```
 
-<Figure src="/courses/mathematical-statistics-1-foundations/spread-visualisation-1.png" alt="Penguin flipper length with multiple measures of spread overlaid. The inner shaded band shows one standard deviation either side of the mean; the outer shaded band shows the IQR; vertical lines mark the range endpoints. The distribution is bimodal (two humps), reflecting the mixture of smaller (Adelie/Chinstrap) and larger (Gentoo) species.">
+<Figure src="spread-visualisation-1.png" alt="Penguin flipper length with multiple measures of spread overlaid. The inner shaded band shows one standard deviation either side of the mean; the outer shaded band shows the IQR; vertical lines mark the range endpoints. The distribution is bimodal (two humps), reflecting the mixture of smaller (Adelie/Chinstrap) and larger (Gentoo) species.">
 	Penguin flipper length with multiple measures of spread overlaid. The inner shaded band shows one standard deviation either side of the mean; the outer shaded band shows the IQR; vertical lines mark the range endpoints. The distribution is bimodal (two humps), reflecting the mixture of smaller (Adelie/Chinstrap) and larger (Gentoo) species.
 </Figure>
 
@@ -396,189 +396,8 @@ $$G_1 = \frac{n}{(n-1)(n-2)} \sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^
 #### Implementing skewness from scratch
 
 
-``` r
-my_skewness <- function(x, adjusted = FALSE) {
-  x <- x[!is.na(x)]
-  n <- length(x)
-  if (n < 3) return(NA_real_)
-
-  xbar <- mean(x)
-  s <- sd(x)
-  z <- (x - xbar) / s
-
-  g1 <- sum(z^3) / n
-
-  if (adjusted) {
-    # Fisher's correction
-    g1 <- g1 * n^2 / ((n - 1) * (n - 2))
-  }
-
-  g1
-}
-
-bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
-height <- nhanes$Height[!is.na(nhanes$Height)]
-
-round(my_skewness(bmi), 4)
-round(my_skewness(height), 4)
-```
-
-```
-[1] 0.9021
-[1] -1.6564
-```
-
-BMI shows clear right skewness (positive value), which accords with what we know: there is a lower bound on BMI (you cannot have zero body mass), but no hard upper bound -- a few individuals have very high BMI values. Height, by contrast, is close to zero, indicating approximate symmetry.
-
-### 1.4.2 Kurtosis
-
-**Kurtosis** measures the heaviness of the tails relative to the centre. It is sometimes loosely described as "peakedness," but tail weight is the more accurate interpretation.
-
-The formula for sample kurtosis is:
-
-$$g_2 = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^4 - 3$$
-
-The subtraction of 3 is a convention that makes the kurtosis of a normal distribution equal to zero. This adjusted value is called **excess kurtosis**. Without the subtraction, the raw kurtosis of a normal distribution is 3.
-
-- **Mesokurtic** (kurtosis $\approx 0$): tails similar to the normal distribution.
-- **Leptokurtic** (kurtosis $> 0$): heavier tails than normal -- more extreme values than expected.
-- **Platykurtic** (kurtosis $< 0$): lighter tails than normal -- fewer extreme values.
-
-The fourth power in the formula amplifies the contribution of extreme observations. Values far from the mean contribute disproportionately to kurtosis.
-
-#### Implementing kurtosis from scratch
 
 
-``` r
-my_kurtosis <- function(x, excess = TRUE) {
-  x <- x[!is.na(x)]
-  n <- length(x)
-  if (n < 4) return(NA_real_)
-
-  xbar <- mean(x)
-  s <- sd(x)
-  z <- (x - xbar) / s
-
-  k <- sum(z^4) / n
-
-  if (excess) k <- k - 3
-
-  k
-}
-
-round(my_kurtosis(bmi), 4)
-round(my_kurtosis(height), 4)
-```
-
-```
-[1] 2.2014
-[1] 2.8909
-```
-
-BMI has positive excess kurtosis -- its tails are heavier than a normal distribution. This means that extreme BMI values (very low or very high) are more common than a normal distribution would predict. Height has kurtosis closer to zero, suggesting its tails are roughly consistent with normality.
-
-### 1.4.3 Visualising Skewness and Kurtosis
 
 
-``` r
-dt_bmi <- data.table$data.table(value = bmi, variable = "BMI")
-dt_height <- data.table$data.table(value = height, variable = "Height (cm)")
-dt_shape <- data.table$rbindlist(list(dt_bmi, dt_height))
 
-# Compute normal reference curves
-norm_curves <- data.table$rbindlist(lapply(
-  list(
-    list(vals = bmi, name = "BMI"),
-    list(vals = height, name = "Height (cm)")
-  ),
-  function(item) {
-    xseq <- seq(min(item$vals), max(item$vals), length.out = 300)
-    data.table$data.table(
-      x = xseq,
-      y = dnorm(xseq, mean = mean(item$vals), sd = sd(item$vals)),
-      variable = item$name
-    )
-  }
-))
-
-# Summary annotations
-shape_labels <- data.table$data.table(
-  variable = c("BMI", "Height (cm)"),
-  label = c(
-    paste0("Skew = ", round(my_skewness(bmi), 2), "\nKurt = ", round(my_kurtosis(bmi), 2)),
-    paste0("Skew = ", round(my_skewness(height), 2), "\nKurt = ", round(my_kurtosis(height), 2))
-  ),
-  x = c(max(bmi) * 0.85, max(height) * 0.99),
-  y = c(0.04, 0.03)
-)
-
-ggplot2$ggplot(dt_shape, ggplot2$aes(x = value)) +
-  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)), bins = 50,
-                 fill = "grey80", colour = "grey50") +
-  ggplot2$geom_density(linewidth = 0.8, colour = "black") +
-  ggplot2$geom_line(data = norm_curves, ggplot2$aes(x = x, y = y),
-            linetype = "dashed", colour = "#E41A1C", linewidth = 0.8) +
-  ggplot2$geom_text(data = shape_labels, ggplot2$aes(x = x, y = y, label = label),
-            hjust = 1, size = 4.5, colour = "#377EB8") +
-  ggplot2$facet_wrap(~variable, scales = "free", ncol = 2) +
-  ggplot2$labs(x = "Value", y = "Density",
-       subtitle = "Solid black: kernel density. Dashed red: normal reference.") +
-  ggplot2$theme_minimal(base_size = 14)
-```
-
-<Figure src="/courses/mathematical-statistics-1-foundations/shape-comparison-1.png" alt="Comparing the shape of two NHANES variables. BMI (left) is right-skewed with heavy tails. Height (right) is approximately symmetric with near-normal tails. The dashed curve overlays a normal distribution with matching mean and standard deviation for reference.">
-	Comparing the shape of two NHANES variables. BMI (left) is right-skewed with heavy tails. Height (right) is approximately symmetric with near-normal tails. The dashed curve overlays a normal distribution with matching mean and standard deviation for reference.
-</Figure>
-
-The dashed red curve shows what the data *would* look like if they were normally distributed with the same mean and standard deviation. For height, the fit is reasonable. For BMI, the asymmetry and heavy right tail are clearly visible.
-
-### 1.4.4 A Word of Caution About Moment-Based Measures
-
-Skewness and kurtosis are computed from the third and fourth **moments** of the data (powers of deviations from the mean). Higher moments amplify the influence of extreme observations. This means:
-
-1. **They are very sensitive to outliers.** A single extreme value can change the skewness or kurtosis dramatically.
-2. **They require large sample sizes to estimate reliably.** With small samples (say $n < 50$), sampling variability in skewness and kurtosis is large, and point estimates should be interpreted cautiously.
-3. **They are not the only way to assess shape.** Graphical methods (histograms, Q-Q plots) are often more informative than a single number. We develop Q-Q plots in Part 3.
-
----
-
-## Communicating to Stakeholders
-
-When explaining spread to non-statisticians:
-
-- **Standard deviation**: "On average, values are about [SD] units away from the mean." For financial audiences: "This stock moves about [SD] per day on average."
-
-- **IQR**: "The middle 50% of values fall between [Q1] and [Q3]." This avoids the complications of outliers and is intuitive for salary ranges, wait times, etc.
-
-- **Skewness**: "The distribution has a long tail to the [right/left]." Show a picture rather than quoting a number. For income data: "Most households earn between X and Y, but a small fraction earn much more, pulling the average up."
-
-- **Kurtosis**: This is rarely worth communicating to non-technical audiences. Instead, say: "Extreme values are [more/less] common than we would expect for a bell curve."
-
----
-
-## Quick Reference
-
-| Measure | Formula | Units | Robust? | When to Use |
-|---------|---------|-------|---------|-------------|
-| Range | $x_{(n)} - x_{(1)}$ | Same as data | No | Quick initial check |
-| Variance ($s^2$) | $\frac{1}{n-1}\sum(x_i-\bar{x})^2$ | Squared units | No | Theoretical work; building block |
-| Std. Deviation ($s$) | $\sqrt{s^2}$ | Same as data | No | Most common measure of spread |
-| IQR | $Q_3 - Q_1$ | Same as data | Yes | Skewed data; outliers present |
-| CV | $s / \bar{x} \times 100\%$ | Dimensionless | No | Comparing variability across variables |
-| Skewness ($g_1$) | $\frac{1}{n}\sum\bigl(\frac{x_i - \bar{x}}{s}\bigr)^3$ | Dimensionless | No | Assessing asymmetry |
-| Kurtosis ($g_2$) | $\frac{1}{n}\sum\bigl(\frac{x_i - \bar{x}}{s}\bigr)^4 - 3$ | Dimensionless | No | Assessing tail heaviness |
-
-**Key R functions:**
-
-- `var(x)` -- sample variance (Bessel-corrected)
-- `sd(x)` -- sample standard deviation
-- `IQR(x)` -- interquartile range
-- `quantile(x, probs)` -- quantiles
-- `range(x)` -- returns c(min, max); use `diff(range(x))` for the range as a single number
-- Base R has no built-in skewness or kurtosis; use our implementations or `e1071::skewness()` and `e1071::kurtosis()`
-
-**Key results:**
-
-- Bessel's correction: dividing by $n - 1$ gives an unbiased estimator of $\sigma^2$; dividing by $n$ underestimates by a factor of $(n-1)/n$.
-- The standard deviation $s$ is *not* an unbiased estimator of $\sigma$ (Jensen's inequality).
-- For approximately normal data: ~68% within 1 SD, ~95% within 2 SDs, ~99.7% within 3 SDs.

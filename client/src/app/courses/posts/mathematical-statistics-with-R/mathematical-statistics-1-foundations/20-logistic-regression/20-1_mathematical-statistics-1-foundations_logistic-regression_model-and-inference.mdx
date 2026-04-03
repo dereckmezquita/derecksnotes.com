@@ -1,0 +1,199 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 20: Logistic Regression"
+part: "Part 1: Model and Inference"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, logistic-regression, glm, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 20 -- Logistic Regression
+
+## Part 1: Model and Inference
+
+Logistic regression is the most widely used model for binary outcomes. In Chapter 19 we developed the GLM framework and saw that the Bernoulli distribution belongs to the exponential family with canonical link equal to the logit. In this chapter we take that abstract machinery and make it concrete: we derive the logistic model from first principles, interpret its parameters in terms of odds and odds ratios, fit it with `glm()`, and conduct formal inference using Wald and likelihood ratio tests.
+
+---
+
+## 20.1 From Exponential Family to Logistic Regression
+
+### 20.1.1 The Derivation
+
+Recall from Chapter 19 that the Bernoulli PMF in exponential family form is:
+
+$$P(Y = y \mid p) = \exp\!\left[y \log\frac{p}{1-p} + \log(1-p)\right]$$
+
+The canonical parameter is $\theta = \log[p/(1-p)]$, the **logit** of $p$. The GLM links this to the linear predictor:
+
+$$\log\frac{p_i}{1 - p_i} = \eta_i = \beta_0 + \beta_1 x_{i1} + \cdots + \beta_p x_{ip}$$
+
+Solving for $p_i$:
+
+$$p_i = \frac{\exp(\eta_i)}{1 + \exp(\eta_i)} = \frac{1}{1 + \exp(-\eta_i)}$$
+
+This is the **logistic function** (or **sigmoid**), and the resulting model is **logistic regression**.
+
+### 20.1.2 Why the Logit Link Is Natural
+
+The logit link arises from requiring $p \in (0, 1)$ while allowing the linear predictor $\eta$ to range over $(-\infty, \infty)$. The logistic function maps the real line onto the unit interval in a smooth, monotone, symmetric fashion.
+
+
+``` r
+eta_grid <- seq(-6, 6, length.out = 300)
+sig_dt <- data.table$data.table(
+  eta = eta_grid,
+  probability = 1 / (1 + exp(-eta_grid))
+)
+
+ggplot2$ggplot(sig_dt, ggplot2$aes(x = eta, y = probability)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+  ggplot2$geom_hline(yintercept = c(0, 0.5, 1), linetype = "dashed", colour = "grey60") +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dotted", colour = "grey60") +
+  ggplot2$labs(
+    x = expression(eta ~ "= linear predictor"),
+    y = expression(p ~ "= probability"),
+    title = "The logistic (sigmoid) function"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="sigmoid-curve-1.png" alt="The logistic (sigmoid) function. It maps any real-valued linear predictor to a probability between 0 and 1.">
+	The logistic (sigmoid) function. It maps any real-valued linear predictor to a probability between 0 and 1.
+</Figure>
+
+---
+
+## 20.2 Odds and Log-Odds
+
+### 20.2.1 Definitions
+
+The **odds** of an event with probability $p$ are:
+
+$$\text{Odds} = \frac{p}{1 - p}$$
+
+If $p = 0.75$, the odds are $3:1$ -- the event is three times as likely to occur as not. The **log-odds** (logit) are simply the natural logarithm of the odds:
+
+$$\text{logit}(p) = \log\frac{p}{1-p}$$
+
+The logistic regression model says that the log-odds are a linear function of the predictors.
+
+### 20.2.2 Odds Ratios
+
+The **odds ratio** (OR) for a one-unit increase in $x_j$ is:
+
+$$\text{OR}_j = \frac{\text{Odds}(x_j + 1)}{\text{Odds}(x_j)} = e^{\beta_j}$$
+
+This is the key interpretive tool for logistic regression: $e^{\beta_j}$ tells us how the odds multiply for every one-unit increase in $x_j$, holding all other predictors constant.
+
+- $\text{OR} > 1$: the odds increase (risk factor).
+- $\text{OR} = 1$: no effect.
+- $\text{OR} < 1$: the odds decrease (protective factor).
+
+---
+
+## 20.3 Fitting the Model with birthwt Data
+
+The `birthwt` dataset records information about 189 births. We model low birth weight ($< 2500\text{g}$) as a function of maternal characteristics.
+
+
+``` r
+data_dir <- "../../../data"
+bwt <- data.table$fread(file.path(data_dir, "classic/birthwt.csv"))
+bwt[, low := as.integer(bwt < 2500)]
+
+fit1 <- glm(low ~ lwt + age + smoke, data = bwt, family = binomial)
+summary(fit1)
+```
+
+```
+
+Call:
+glm(formula = low ~ lwt + age + smoke, family = binomial, data = bwt)
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)  
+(Intercept)  1.368225   1.014262   1.349   0.1773  
+lwt         -0.012139   0.006135  -1.979   0.0479 *
+age         -0.038995   0.032726  -1.192   0.2334  
+smoke        0.670764   0.325878   2.058   0.0396 *
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 234.67  on 188  degrees of freedom
+Residual deviance: 222.88  on 185  degrees of freedom
+AIC: 230.88
+
+Number of Fisher Scoring iterations: 4
+```
+
+### 20.3.1 Coefficient Interpretation
+
+
+``` r
+coefs <- coef(fit1)
+or_table <- data.frame(
+  Predictor = names(coefs),
+  Coefficient = round(coefs, 4),
+  Odds_Ratio = round(exp(coefs), 4),
+  Interpretation = c(
+    "Baseline log-odds when all predictors = 0",
+    "Per 1-lb increase in mother's weight",
+    "Per 1-year increase in age",
+    "Smoking vs non-smoking"
+  )
+)
+rownames(or_table) <- NULL
+knitr::kable(or_table, caption = "Coefficient interpretation for the birthwt logistic regression.")
+```
+
+
+
+Table: Coefficient interpretation for the birthwt logistic regression.
+
+|Predictor   | Coefficient| Odds_Ratio|Interpretation                            |
+|:-----------|-----------:|----------:|:-----------------------------------------|
+|(Intercept) |      1.3682|     3.9284|Baseline log-odds when all predictors = 0 |
+|lwt         |     -0.0121|     0.9879|Per 1-lb increase in mother's weight      |
+|age         |     -0.0390|     0.9618|Per 1-year increase in age                |
+|smoke       |      0.6708|     1.9557|Smoking vs non-smoking                    |
+
+For example, the odds ratio for `smoke` tells us that the odds of low birth weight are approximately 1.96 times higher for smoking mothers compared to non-smoking mothers, holding weight and age constant.
+
+### 20.3.2 Predicted Probabilities
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

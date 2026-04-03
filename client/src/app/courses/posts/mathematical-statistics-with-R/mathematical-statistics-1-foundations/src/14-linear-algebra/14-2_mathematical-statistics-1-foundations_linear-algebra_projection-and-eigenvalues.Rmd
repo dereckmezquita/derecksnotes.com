@@ -1,0 +1,699 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 14: Linear Algebra for Statistics"
+part: "Part 2: Projection and Eigenvalues"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, linear-algebra, projection, eigenvalues, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r dt-helpers, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 14 -- Linear Algebra for Statistics
+
+## Part 2: Projection and Eigenvalues
+
+In Part 1 we established the basic vocabulary of vectors, matrices, and systems. This part develops two ideas that are absolutely central to statistical theory:
+
+1. **Orthogonal projection** -- the geometric operation that *is* ordinary least squares.
+2. **Eigenvalues and eigenvectors** -- the decomposition that powers PCA, quadratic forms, and the multivariate normal.
+
+After this chapter, the formula $\hat{\boldsymbol{\beta}} = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T\mathbf{y}$ will feel less like an algebraic accident and more like an inevitable geometric truth.
+
+---
+
+## 14.11 Orthogonality
+
+### 14.11.1 Orthogonal Vectors
+
+Two vectors $\mathbf{u}$ and $\mathbf{v}$ are **orthogonal** if their dot product is zero:
+
+$$\mathbf{u}^T \mathbf{v} = 0.$$
+
+Geometrically, orthogonal vectors are perpendicular. In statistics, orthogonality means zero correlation (for centred vectors).
+
+### 14.11.2 Orthogonal Complement
+
+Given a subspace $\mathcal{V}$ of $\mathbb{R}^n$, the **orthogonal complement** $\mathcal{V}^{\perp}$ is the set of all vectors orthogonal to every vector in $\mathcal{V}$:
+
+$$\mathcal{V}^{\perp} = \{ \mathbf{w} \in \mathbb{R}^n : \mathbf{w}^T \mathbf{v} = 0 \text{ for all } \mathbf{v} \in \mathcal{V} \}.$$
+
+Every vector $\mathbf{y} \in \mathbb{R}^n$ can be uniquely decomposed as:
+
+$$\mathbf{y} = \underbrace{\hat{\mathbf{y}}}_{\in \mathcal{V}} + \underbrace{\mathbf{e}}_{\in \mathcal{V}^{\perp}},$$
+
+where $\hat{\mathbf{y}}$ is the orthogonal projection of $\mathbf{y}$ onto $\mathcal{V}$ and $\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}}$ is the residual. This decomposition is the geometric heart of regression.
+
+```{r load-packages}
+box::use(data.table)
+box::use(ggplot2)
+
+set.seed(42)
+```
+
+```{r orthogonality-demo}
+# Two orthogonal vectors in R^3
+u <- c(1, 0, 1)
+v <- c(0, 1, 0)
+
+# Verify orthogonality
+t(u) %*% v  # Should be 0
+
+# A non-orthogonal pair
+w <- c(1, 1, 0)
+t(u) %*% w  # Not zero
+```
+
+---
+
+## 14.12 Orthogonal Projection
+
+### 14.12.1 Projection onto a Line
+
+The simplest projection: project vector $\mathbf{y}$ onto the line spanned by vector $\mathbf{a}$. The projection is:
+
+$$\hat{\mathbf{y}} = \frac{\mathbf{a}^T \mathbf{y}}{\mathbf{a}^T \mathbf{a}} \mathbf{a}.$$
+
+The scalar $c = \frac{\mathbf{a}^T \mathbf{y}}{\mathbf{a}^T \mathbf{a}}$ is the coefficient, and $\hat{\mathbf{y}} = c\mathbf{a}$ is the closest point on the line to $\mathbf{y}$.
+
+```{r projection-onto-line}
+a <- c(2, 1)
+y <- c(3, 4)
+
+# Projection coefficient
+c_proj <- as.numeric(t(a) %*% y) / as.numeric(t(a) %*% a)
+c_proj
+
+# Projected vector
+y_hat <- c_proj * a
+y_hat
+
+# Residual
+e <- y - y_hat
+e
+
+# Verify orthogonality: residual is perpendicular to a
+t(a) %*% e  # Should be 0 (or very close)
+```
+
+### 14.12.2 The Projection Matrix: Deriving $\mathbf{P} = \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T$
+
+Now generalise to projecting onto the **column space** of a matrix $\mathbf{X}$ ($n \times p$, full column rank). We want the vector $\hat{\mathbf{y}} \in \text{Col}(\mathbf{X})$ that is closest to $\mathbf{y}$. Since $\hat{\mathbf{y}}$ is in the column space of $\mathbf{X}$, it can be written as $\hat{\mathbf{y}} = \mathbf{X}\hat{\boldsymbol{\beta}}$ for some $\hat{\boldsymbol{\beta}}$.
+
+The key requirement: the residual $\mathbf{e} = \mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}}$ must be orthogonal to every column of $\mathbf{X}$:
+
+$$\mathbf{X}^T \mathbf{e} = \mathbf{0}.$$
+
+Expanding:
+
+$$\mathbf{X}^T (\mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}}) = \mathbf{0}$$
+
+$$\mathbf{X}^T \mathbf{y} = \mathbf{X}^T \mathbf{X} \hat{\boldsymbol{\beta}}$$
+
+$$\hat{\boldsymbol{\beta}} = (\mathbf{X}^T\mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}.$$
+
+This is the OLS estimator. It is not an algebraic trick -- it is the *only* coefficient vector that makes the residual perpendicular to the column space of $\mathbf{X}$.
+
+The **projection matrix** (also called the **hat matrix**) is:
+
+$$\mathbf{P} = \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T.$$
+
+It maps any vector $\mathbf{y}$ to its orthogonal projection onto $\text{Col}(\mathbf{X})$:
+
+$$\hat{\mathbf{y}} = \mathbf{P}\mathbf{y}.$$
+
+### 14.12.3 Properties of the Projection Matrix
+
+The projection matrix $\mathbf{P}$ has remarkable properties:
+
+1. **Symmetric:** $\mathbf{P}^T = \mathbf{P}$.
+2. **Idempotent:** $\mathbf{P}^2 = \mathbf{P}$. (Projecting twice gives the same result as projecting once -- you are already in the subspace.)
+3. **Trace equals rank:** $\text{tr}(\mathbf{P}) = p$ (the number of columns of $\mathbf{X}$). Since the diagonal entries $P_{ii}$ are the leverages $h_{ii}$, this means the leverages sum to $p$.
+4. **The residual-maker matrix** $\mathbf{M} = \mathbf{I} - \mathbf{P}$ is also symmetric and idempotent, and $\text{tr}(\mathbf{M}) = n - p$.
+
+```{r hat-matrix}
+data_dir <- "../../../data"
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+
+pen <- penguins[
+  !is.na(body_mass_g) & !is.na(flipper_length_mm),
+  .(body_mass_g, flipper_length_mm)
+]
+
+# Design matrix with intercept
+n <- nrow(pen)
+X <- cbind(1, pen$flipper_length_mm)
+y <- pen$body_mass_g
+
+# Hat matrix
+P <- X %*% solve(crossprod(X)) %*% t(X)
+
+# Properties
+# 1. Symmetric
+max(abs(P - t(P)))  # Should be ~0
+
+# 2. Idempotent
+max(abs(P %*% P - P))  # Should be ~0
+
+# 3. Trace = p (number of columns = 2)
+sum(diag(P))
+
+# 4. Fitted values = Py
+y_hat <- P %*% y
+head(y_hat)
+
+# Compare with lm()
+fit <- lm(body_mass_g ~ flipper_length_mm, data = pen)
+head(fitted(fit))
+```
+
+### 14.12.4 OLS Is Projection: The Geometric Picture
+
+In simple linear regression with an intercept, the column space of $\mathbf{X}$ is a 2-dimensional plane in $\mathbb{R}^n$. The vector $\mathbf{y}$ (observed responses) lives somewhere in $\mathbb{R}^n$. The fitted values $\hat{\mathbf{y}} = \mathbf{Py}$ are the point on this plane closest to $\mathbf{y}$. The residual vector $\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}}$ is perpendicular to the plane.
+
+This explains:
+
+- **Why $\sum e_i = 0$:** the residual $\mathbf{e}$ is orthogonal to the column of ones in $\mathbf{X}$, which means $\mathbf{1}^T\mathbf{e} = 0$.
+- **Why $\sum e_i x_i = 0$:** the residual is orthogonal to *every* column of $\mathbf{X}$.
+- **The Pythagorean theorem:** $\|\mathbf{y}\|^2 = \|\hat{\mathbf{y}}\|^2 + \|\mathbf{e}\|^2$, i.e., TSS = RegSS + RSS.
+
+```{r pythagorean}
+e <- y - y_hat
+
+# Pythagorean theorem: ||y||^2 = ||y_hat||^2 + ||e||^2
+y_centred <- y - mean(y)
+y_hat_centred <- y_hat - mean(y)
+
+tss <- sum(y_centred^2)
+regss <- sum(y_hat_centred^2)
+rss <- sum(e^2)
+
+tss
+regss + rss  # Should equal TSS
+
+# R-squared
+1 - rss / tss
+summary(fit)$r.squared
+```
+
+### 14.12.5 Interactive: Projection of a Vector onto a Plane
+
+The interactive plot below illustrates orthogonal projection in 3D. The blue vector $\mathbf{y}$ is projected onto the grey plane (the column space). The green vector is $\hat{\mathbf{y}}$ (the projection), and the red vector is $\mathbf{e}$ (the residual), which is perpendicular to the plane.
+
+<InteractivePlot
+  controls={[
+    { id: "yx", type: "range", label: "y (x-component)", min: -3, max: 3, step: 0.1, default: 2 },
+    { id: "yy", type: "range", label: "y (y-component)", min: -3, max: 3, step: 0.1, default: 2.5 },
+    { id: "yz", type: "range", label: "y (z-component)", min: -3, max: 3, step: 0.1, default: 2 },
+    { id: "angle", type: "range", label: "View rotation", min: 0, max: 360, step: 1, default: 30 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var w = canvas.width, h = canvas.height;
+    var cx = w / 2, cy = h * 0.55;
+    var scale = 60;
+
+    var ang = params.angle * Math.PI / 180;
+    var cosA = Math.cos(ang), sinA = Math.sin(ang);
+    var tilt = 0.5;
+
+    function proj3d(x, y, z) {
+      var rx = x * cosA - y * sinA;
+      var ry = (x * sinA + y * cosA) * tilt - z;
+      return [cx + rx * scale, cy + ry * scale];
+    }
+
+    function drawVec(ox, oy, oz, dx, dy, dz, col, lw) {
+      var p0 = proj3d(ox, oy, oz);
+      var p1 = proj3d(ox + dx, oy + dy, oz + dz);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(p0[0], p0[1]);
+      ctx.lineTo(p1[0], p1[1]);
+      ctx.stroke();
+      // Arrowhead
+      var adx = p1[0] - p0[0], ady = p1[1] - p0[1];
+      var len = Math.sqrt(adx*adx + ady*ady);
+      if (len > 5) {
+        var ux = adx/len, uy = ady/len;
+        ctx.beginPath();
+        ctx.moveTo(p1[0], p1[1]);
+        ctx.lineTo(p1[0] - 10*ux + 4*uy, p1[1] - 10*uy - 4*ux);
+        ctx.moveTo(p1[0], p1[1]);
+        ctx.lineTo(p1[0] - 10*ux - 4*uy, p1[1] - 10*uy + 4*ux);
+        ctx.stroke();
+      }
+    }
+
+    // The plane is spanned by (1,0,0) and (0,1,0) (the xy-plane)
+    // Draw the plane as a filled quadrilateral
+    var corners = [[-3,-3,0],[3,-3,0],[3,3,0],[-3,3,0]];
+    ctx.fillStyle = 'rgba(200,200,200,0.3)';
+    ctx.strokeStyle = 'rgba(150,150,150,0.5)';
+    ctx.beginPath();
+    var c0 = proj3d(corners[0][0], corners[0][1], 0);
+    ctx.moveTo(c0[0], c0[1]);
+    for (var i = 1; i < 4; i++) {
+      var ci = proj3d(corners[i][0], corners[i][1], 0);
+      ctx.lineTo(ci[0], ci[1]);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Grid lines on plane
+    ctx.strokeStyle = 'rgba(180,180,180,0.3)';
+    ctx.lineWidth = 0.5;
+    for (var g = -3; g <= 3; g++) {
+      var ga = proj3d(g, -3, 0), gb = proj3d(g, 3, 0);
+      ctx.beginPath(); ctx.moveTo(ga[0], ga[1]); ctx.lineTo(gb[0], gb[1]); ctx.stroke();
+      ga = proj3d(-3, g, 0); gb = proj3d(3, g, 0);
+      ctx.beginPath(); ctx.moveTo(ga[0], ga[1]); ctx.lineTo(gb[0], gb[1]); ctx.stroke();
+    }
+
+    var yx = params.yx, yy = params.yy, yz = params.yz;
+
+    // Projection onto xy-plane: just drop the z component
+    var phx = yx, phy = yy, phz = 0;
+
+    // Residual
+    var ex = yx - phx, ey = yy - phy, ez = yz - phz;
+
+    // Draw y vector (blue)
+    drawVec(0, 0, 0, yx, yy, yz, '#1f77b4', 3);
+    // Draw y_hat (green)
+    drawVec(0, 0, 0, phx, phy, phz, '#2ca02c', 3);
+    // Draw residual (red, from y_hat to y)
+    drawVec(phx, phy, phz, ex, ey, ez, '#d62728', 2.5);
+
+    // Dashed line from y to y_hat (projection line)
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1;
+    var py = proj3d(yx, yy, yz), pyh = proj3d(phx, phy, phz);
+    ctx.beginPath();
+    ctx.moveTo(py[0], py[1]);
+    ctx.lineTo(pyh[0], pyh[1]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Right-angle marker at y_hat
+    var rm = 0.3;
+    var ra = proj3d(phx, phy, phz);
+    var rb = proj3d(phx + rm * 0, phy + rm * 0, phz + rm);
+    var rc = proj3d(phx + rm * 0, phy + rm * 0, 0);
+    // skip right-angle for simplicity at oblique views
+
+    // Labels
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillStyle = '#1f77b4';
+    var ly = proj3d(yx * 1.08, yy * 1.08, yz * 1.08);
+    ctx.fillText('y', ly[0], ly[1]);
+
+    ctx.fillStyle = '#2ca02c';
+    var lyh = proj3d(phx * 1.15, phy * 1.15, 0);
+    ctx.fillText('y\u0302 (projection)', lyh[0], lyh[1]);
+
+    ctx.fillStyle = '#d62728';
+    var le = proj3d(phx + ex * 0.5, phy + ey * 0.5, phz + ez * 0.7);
+    ctx.fillText('e (residual)', le[0] + 5, le[1]);
+
+    ctx.fillStyle = 'rgba(100,100,100,0.7)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Col(X) -- column space', proj3d(2.5, -2.8, 0)[0], proj3d(2.5, -2.8, 0)[1]);
+
+    // Title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Orthogonal projection: y = y\u0302 + e', w / 2, 22);
+
+    // Info
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    var resNorm = Math.sqrt(ex*ex + ey*ey + ez*ez);
+    ctx.fillText('||e|| = ' + resNorm.toFixed(2) + '   ||y\u0302|| = ' + Math.sqrt(phx*phx+phy*phy+phz*phz).toFixed(2), 15, h - 15);
+    ctx.fillText('e \u22A5 Col(X): dot = ' + (ex*1 + ey*0 + ez*0).toFixed(4), 15, h - 35);
+  `}
+/>
+
+---
+
+## 14.13 Eigenvalues and Eigenvectors
+
+### 14.13.1 Definition
+
+A scalar $\lambda$ is an **eigenvalue** of a square matrix $\mathbf{A}$ if there exists a nonzero vector $\mathbf{v}$ (the **eigenvector**) such that:
+
+$$\mathbf{A}\mathbf{v} = \lambda \mathbf{v}.$$
+
+In words: applying $\mathbf{A}$ to $\mathbf{v}$ merely scales $\mathbf{v}$ by $\lambda$. The direction is preserved; only the magnitude changes (and possibly the sign, if $\lambda < 0$).
+
+### 14.13.2 How to Find Eigenvalues
+
+Rearranging: $(\mathbf{A} - \lambda \mathbf{I})\mathbf{v} = \mathbf{0}$. For a nonzero $\mathbf{v}$ to exist, the matrix $\mathbf{A} - \lambda \mathbf{I}$ must be singular:
+
+$$\det(\mathbf{A} - \lambda \mathbf{I}) = 0.$$
+
+This is the **characteristic equation**. For an $n \times n$ matrix, it is a polynomial of degree $n$ in $\lambda$.
+
+### 14.13.3 Example: 2x2
+
+Let $\mathbf{A} = \begin{pmatrix} 4 & 1 \\ 2 & 3 \end{pmatrix}$.
+
+The characteristic equation is:
+
+$$(4 - \lambda)(3 - \lambda) - (1)(2) = 0$$
+$$\lambda^2 - 7\lambda + 10 = 0$$
+$$(\lambda - 5)(\lambda - 2) = 0$$
+
+So $\lambda_1 = 5$ and $\lambda_2 = 2$.
+
+```{r eigen-2x2}
+A <- matrix(c(4, 2, 1, 3), nrow = 2)
+A
+
+# R's eigen() function
+eig <- eigen(A)
+eig$values
+eig$vectors
+
+# Verify: A * v = lambda * v
+A %*% eig$vectors[, 1]
+eig$values[1] * eig$vectors[, 1]
+```
+
+### 14.13.4 Implementation from Scratch (2x2 Case)
+
+```{r eigen-from-scratch}
+#' Eigenvalues of a 2x2 matrix -- from scratch via quadratic formula
+#' @param A 2x2 matrix
+#' @return list with eigenvalues and eigenvectors
+my_eigen_2x2 <- function(A) {
+  a <- A[1, 1]; b <- A[1, 2]
+  c <- A[2, 1]; d <- A[2, 2]
+
+  # Characteristic equation: lambda^2 - (a+d)*lambda + (ad - bc) = 0
+  tr_A <- a + d
+  det_A <- a * d - b * c
+  disc <- tr_A^2 - 4 * det_A
+
+  if (disc < 0) stop("Complex eigenvalues -- not handled")
+
+  lambda1 <- (tr_A + sqrt(disc)) / 2
+  lambda2 <- (tr_A - sqrt(disc)) / 2
+
+  # Eigenvectors: solve (A - lambda*I)v = 0
+  find_evec <- function(lam) {
+    # From first row: (a - lam)*v1 + b*v2 = 0
+    # Set v2 = 1, then v1 = -b / (a - lam)
+    if (abs(a - lam) > 1e-10) {
+      v <- c(-b / (a - lam), 1)
+    } else {
+      v <- c(1, -(c) / (d - lam))
+    }
+    v / sqrt(sum(v^2))  # Normalise
+  }
+
+  list(
+    values = c(lambda1, lambda2),
+    vectors = cbind(find_evec(lambda1), find_evec(lambda2))
+  )
+}
+
+my_eigen_2x2(A)
+eigen(A)
+```
+
+---
+
+## 14.14 The Spectral Theorem
+
+### 14.14.1 Statement
+
+If $\mathbf{A}$ is a **real symmetric** matrix ($\mathbf{A} = \mathbf{A}^T$), then:
+
+1. All eigenvalues are real.
+2. Eigenvectors corresponding to distinct eigenvalues are orthogonal.
+3. $\mathbf{A}$ can be decomposed as:
+
+$$\mathbf{A} = \mathbf{Q} \boldsymbol{\Lambda} \mathbf{Q}^T,$$
+
+where $\mathbf{Q}$ is an orthogonal matrix ($\mathbf{Q}^T\mathbf{Q} = \mathbf{I}$) whose columns are the eigenvectors, and $\boldsymbol{\Lambda} = \text{diag}(\lambda_1, \ldots, \lambda_n)$.
+
+This is the **spectral decomposition** (or eigen-decomposition). It is one of the most important results in all of applied mathematics.
+
+### 14.14.2 Why It Matters for Statistics
+
+Every covariance matrix $\boldsymbol{\Sigma}$ is real and symmetric. The spectral decomposition $\boldsymbol{\Sigma} = \mathbf{Q}\boldsymbol{\Lambda}\mathbf{Q}^T$ tells us:
+
+- The eigenvectors $\mathbf{q}_i$ are the **principal directions** of variation.
+- The eigenvalues $\lambda_i$ are the **variances** along those directions.
+- PCA simply rotates the data into the eigenvector coordinate system and sorts the directions by decreasing variance.
+
+```{r spectral-decomposition}
+# Covariance matrix of penguin measurements
+pen <- penguins[
+  !is.na(body_mass_g) & !is.na(flipper_length_mm) & !is.na(bill_length_mm),
+  .(body_mass_g, flipper_length_mm, bill_length_mm)
+]
+
+S <- cov(as.matrix(pen))
+S
+
+eig_S <- eigen(S)
+eig_S$values
+eig_S$vectors
+
+# Verify spectral decomposition: S = Q Lambda Q'
+Q <- eig_S$vectors
+Lambda <- diag(eig_S$values)
+S_reconstructed <- Q %*% Lambda %*% t(Q)
+max(abs(S - S_reconstructed))  # Should be ~0
+
+# Verify orthogonality of eigenvectors: Q'Q = I
+round(t(Q) %*% Q, 10)
+```
+
+### 14.14.3 Proportion of Variance Explained
+
+The proportion of total variance explained by the $k$-th principal component is:
+
+$$\frac{\lambda_k}{\sum_{j=1}^{p} \lambda_j} = \frac{\lambda_k}{\text{tr}(\boldsymbol{\Sigma})}.$$
+
+```{r variance-explained}
+total_var <- sum(eig_S$values)
+prop_var <- eig_S$values / total_var
+
+var_dt <- data.table$data.table(
+  component = paste0("PC", 1:3),
+  eigenvalue = eig_S$values,
+  proportion = prop_var,
+  cumulative = cumsum(prop_var)
+)
+
+var_dt
+```
+
+```{r scree-plot, fig.cap="Scree plot showing the proportion of total variance explained by each principal component of the penguin measurements. The first component dominates because body mass has much larger variance than the other variables."}
+ggplot2$ggplot(var_dt, ggplot2$aes(x = component, y = proportion)) +
+  ggplot2$geom_col(fill = "#3182bd", alpha = 0.8) +
+  ggplot2$geom_point(
+    ggplot2$aes(y = cumulative),
+    colour = "#d62728",
+    size = 3
+  ) +
+  ggplot2$geom_line(
+    ggplot2$aes(y = cumulative, group = 1),
+    colour = "#d62728",
+    linewidth = 1
+  ) +
+  ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+  ggplot2$labs(
+    x = "Principal component",
+    y = "Proportion of variance",
+    title = "Scree plot (penguin measurements)"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+---
+
+## 14.15 Quadratic Forms
+
+### 14.15.1 Definition
+
+A **quadratic form** is a scalar-valued expression of the form:
+
+$$Q = \mathbf{x}^T \mathbf{A} \mathbf{x} = \sum_{i=1}^{n} \sum_{j=1}^{n} A_{ij} x_i x_j,$$
+
+where $\mathbf{A}$ is a symmetric matrix.
+
+Quadratic forms appear everywhere in statistics:
+
+- **Sum of squares:** $\text{RSS} = \mathbf{e}^T\mathbf{e} = \mathbf{y}^T\mathbf{M}\mathbf{y}$, where $\mathbf{M} = \mathbf{I} - \mathbf{P}$.
+- **Mahalanobis distance:** $D^2 = (\mathbf{x} - \boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu})$.
+- **$\chi^2$ statistic:** $\chi^2 = \mathbf{z}^T\mathbf{z}$ where $\mathbf{z} \sim N(\mathbf{0}, \mathbf{I})$.
+
+### 14.15.2 Expected Value of a Quadratic Form
+
+If $\mathbf{X} \sim (\boldsymbol{\mu}, \boldsymbol{\Sigma})$ (any distribution with mean $\boldsymbol{\mu}$ and covariance $\boldsymbol{\Sigma}$), then:
+
+$$E[\mathbf{X}^T \mathbf{A} \mathbf{X}] = \text{tr}(\mathbf{A}\boldsymbol{\Sigma}) + \boldsymbol{\mu}^T \mathbf{A} \boldsymbol{\mu}.$$
+
+This result (proved using the trace trick) is fundamental for deriving the expected values of sums of squares in ANOVA.
+
+```{r quadratic-form}
+# Mahalanobis distance of a point from the centroid
+x <- as.numeric(pen[1, ])
+mu <- colMeans(as.matrix(pen))
+S_inv <- solve(S)
+
+# Mahalanobis distance (quadratic form)
+d2 <- t(x - mu) %*% S_inv %*% (x - mu)
+d2
+
+# Compare with R's built-in
+mahalanobis(x, mu, S)
+```
+
+---
+
+## 14.16 Positive Definiteness
+
+### 14.16.1 Definition
+
+A symmetric matrix $\mathbf{A}$ is:
+
+- **Positive definite** if $\mathbf{x}^T \mathbf{A} \mathbf{x} > 0$ for all nonzero $\mathbf{x}$.
+- **Positive semi-definite** if $\mathbf{x}^T \mathbf{A} \mathbf{x} \ge 0$ for all $\mathbf{x}$.
+- **Negative definite** if $\mathbf{x}^T \mathbf{A} \mathbf{x} < 0$ for all nonzero $\mathbf{x}$.
+
+### 14.16.2 Equivalent Conditions
+
+For a symmetric matrix $\mathbf{A}$, the following are equivalent:
+
+1. $\mathbf{A}$ is positive definite.
+2. All eigenvalues of $\mathbf{A}$ are strictly positive.
+3. All leading principal minors are positive (Sylvester's criterion).
+4. There exists an invertible matrix $\mathbf{L}$ such that $\mathbf{A} = \mathbf{L}\mathbf{L}^T$ (Cholesky decomposition).
+
+### 14.16.3 Statistical Significance
+
+Every covariance matrix $\boldsymbol{\Sigma}$ is positive semi-definite (because $\text{Var}(\mathbf{a}^T\mathbf{X}) = \mathbf{a}^T\boldsymbol{\Sigma}\mathbf{a} \ge 0$). It is strictly positive definite if and only if no linear combination of the variables is constant -- i.e., no perfect multicollinearity.
+
+If $\boldsymbol{\Sigma}$ is positive definite, its inverse exists, and we can compute Mahalanobis distances and fit regression models. If it is only semi-definite (singular), we need regularisation (e.g., ridge regression).
+
+```{r positive-definiteness}
+# Check positive definiteness via eigenvalues
+eig_S$values  # All positive? Then S is positive definite
+all(eig_S$values > 0)
+
+# Cholesky decomposition (only works for positive definite matrices)
+L <- chol(S)
+L
+
+# Verify: L'L = S (R's chol returns upper triangular, so t(L) %*% L = S)
+max(abs(t(L) %*% L - S))
+```
+
+```{r pd-singular-demo}
+# Create a singular (positive semi-definite but NOT positive definite) matrix
+# by making one variable a perfect linear combo of others
+pen_singular <- as.matrix(pen)
+pen_singular <- cbind(pen_singular, pen_singular[, 1] + 2 * pen_singular[, 2])
+S_singular <- cov(pen_singular)
+
+eigen(S_singular)$values  # One eigenvalue is ~0
+```
+
+---
+
+## 14.17 Communicating to Stakeholders
+
+Eigenvalues and projections are rarely discussed directly with non-technical audiences. Instead, communicate the *consequences*:
+
+1. **PCA:** "We found the directions in which the data vary most. The first principal component captures X% of the total variation, so a single summary score retains most of the information."
+
+2. **Multicollinearity:** "Two of the predictors are nearly measuring the same thing. This makes the model unstable -- small changes in the data cause large changes in the coefficients. We need to remove one or combine them."
+
+3. **Mahalanobis distance:** "This measurement accounts for the fact that variables have different scales and are correlated. A point that looks close in one variable might be far away when we consider all variables together."
+
+4. **Projection / regression:** "The model finds the prediction that is, in a precise mathematical sense, the closest possible to the observed data. The residuals are the leftover noise that the model cannot explain."
+
+---
+
+## 14.18 Quick Reference
+
+| Concept | Formula | R code |
+|:---|:---|:---|
+| Eigendecomposition | $\mathbf{A} = \mathbf{Q}\boldsymbol{\Lambda}\mathbf{Q}^T$ | `eigen(A)` |
+| Projection matrix | $\mathbf{P} = \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T$ | `X %*% solve(crossprod(X)) %*% t(X)` |
+| Residual maker | $\mathbf{M} = \mathbf{I} - \mathbf{P}$ | `diag(n) - P` |
+| Leverages | $h_{ii} = P_{ii}$ | `hatvalues(lm_fit)` |
+| Cholesky | $\mathbf{A} = \mathbf{L}\mathbf{L}^T$ | `chol(A)` |
+| Mahalanobis distance | $D^2 = (\mathbf{x}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}-\boldsymbol{\mu})$ | `mahalanobis(x, mu, Sigma)` |
+| Condition number | $\kappa = \lambda_{\max}/\lambda_{\min}$ | `kappa(A)` |
+
+**Key identities for derivations:**
+
+- $E[\mathbf{X}^T\mathbf{A}\mathbf{X}] = \text{tr}(\mathbf{A}\boldsymbol{\Sigma}) + \boldsymbol{\mu}^T\mathbf{A}\boldsymbol{\mu}$
+- $\text{tr}(\mathbf{P}) = \text{rank}(\mathbf{X}) = p$
+- $\text{tr}(\mathbf{M}) = n - p$
+- If $\mathbf{P}$ is idempotent, its eigenvalues are 0 and 1 only.
+
+---
+
+## 14.19 Exercises
+
+### Conceptual
+
+1. Prove that the projection matrix $\mathbf{P} = \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T$ is idempotent ($\mathbf{P}^2 = \mathbf{P}$) by direct matrix multiplication.
+2. Explain why the residual vector $\mathbf{e}$ in OLS must be orthogonal to every column of $\mathbf{X}$. What goes wrong if it is not?
+3. A symmetric matrix has eigenvalues $\{5, 3, -1\}$. Is it positive definite? Positive semi-definite? What does this imply if it were presented as a covariance matrix?
+
+### Computational
+
+4. Generate $n = 50$ observations from a bivariate normal with $\boldsymbol{\mu} = (0, 0)^T$ and $\boldsymbol{\Sigma} = \begin{pmatrix} 4 & 2 \\ 2 & 3 \end{pmatrix}$. Compute the sample covariance matrix and its eigendecomposition. Plot the data with the eigenvectors overlaid (scaled by their eigenvalues) to visualise the principal directions.
+5. For the penguins data, compute the hat matrix for the model `body_mass_g ~ flipper_length_mm + bill_length_mm`. Find the five observations with the highest leverage $h_{ii}$. Are they outliers?
+6. Verify the trace identity $E[\mathbf{X}^T\mathbf{A}\mathbf{X}] = \text{tr}(\mathbf{A}\boldsymbol{\Sigma}) + \boldsymbol{\mu}^T\mathbf{A}\boldsymbol{\mu}$ by simulation: generate 10,000 samples from a multivariate normal, compute the quadratic form each time, and compare the sample mean to the theoretical formula.
+
+### Extension
+
+7. Implement the **power method** from scratch to find the largest eigenvalue and its eigenvector for a symmetric matrix. Test it on the penguins covariance matrix and compare to `eigen()`.
+8. The **singular value decomposition** (SVD) generalises the eigendecomposition to non-square matrices: $\mathbf{X} = \mathbf{U}\mathbf{D}\mathbf{V}^T$. Use `svd()` to decompose the centred penguins design matrix and show that:
+   (a) $\mathbf{V}$ contains the eigenvectors of $\mathbf{X}^T\mathbf{X}$.
+   (b) $d_i^2 / (n-1)$ are the eigenvalues of the sample covariance matrix.
+   (c) The columns of $\mathbf{U}\mathbf{D}$ are the principal component scores.

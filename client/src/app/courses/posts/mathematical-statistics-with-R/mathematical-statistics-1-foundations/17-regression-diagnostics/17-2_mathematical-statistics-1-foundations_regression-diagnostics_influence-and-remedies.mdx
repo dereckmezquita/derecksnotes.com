@@ -1,0 +1,96 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 17: Regression Diagnostics"
+part: "Part 2: Influence and Remedies"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, regression, diagnostics, influence, robust, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 17 -- Regression Diagnostics
+
+## Part 2: Influence and Remedies
+
+Part 1 introduced the four diagnostic plots and showed how to detect assumption violations visually. In this part we quantify influence precisely -- deriving leverage and Cook's distance from first principles -- and then develop remedies: robust (sandwich) standard errors for heteroscedasticity, the Box-Cox transformation for non-normality, and strategies for non-linearity. We return to the Boston housing and NHANES BMI models to apply these tools.
+
+---
+
+## 17.11 Leverage -- Derivation and Interpretation
+
+### 17.11.1 The Hat Matrix Revisited
+
+From Chapter 16, the hat matrix is:
+
+$$\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$$
+
+The fitted values are $\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$, so each $\hat{Y}_i$ is a weighted sum of all observed $Y_j$:
+
+$$\hat{Y}_i = \sum_{j=1}^n h_{ij} Y_j$$
+
+The leverage $h_{ii}$ is the weight that observation $i$'s response places on its own fitted value. High leverage means the observation "pulls" the fitted surface towards itself.
+
+### 17.11.2 Derivation of the Leverage Formula
+
+For observation $i$ with predictor vector $\mathbf{x}_i$ (the $i$th row of $\mathbf{X}$, written as a column):
+
+$$h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$$
+
+**Proof.** $h_{ij}$ is the $(i,j)$ element of $\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$. The $i$th row of $\mathbf{X}$ is $\mathbf{x}_i'$, so $h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$. $\square$
+
+This is a **Mahalanobis-type distance**: it measures how far $\mathbf{x}_i$ is from the centroid of the predictor space, scaled by the covariance structure.
+
+### 17.11.3 Properties
+
+- $1/n \le h_{ii} \le 1$ (the lower bound holds when the design includes an intercept).
+- $\sum_{i=1}^n h_{ii} = \text{tr}(\mathbf{H}) = p$.
+- Average leverage: $\bar{h} = p/n$.
+- Rule of thumb: $h_{ii} > 2p/n$ flags high leverage.
+
+### 17.11.4 Computing Leverage from Scratch
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

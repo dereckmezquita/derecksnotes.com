@@ -1,0 +1,662 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 8: Point Estimation"
+part: "Part 2: Maximum Likelihood Estimation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, estimation, likelihood, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 8 -- Point Estimation
+
+## Part 2: Maximum Likelihood Estimation
+
+The method of moments (Part 1) is intuitive and often yields quick answers. But it ignores the actual *shape* of the data's distribution -- it only matches a few summary statistics. **Maximum Likelihood Estimation (MLE)** takes a fundamentally different approach: it asks, "which parameter value makes the observed data most probable?"
+
+This simple question leads to an estimation framework that dominates modern statistics and machine learning alike. MLEs enjoy a suite of remarkable theoretical properties and, in large samples, are essentially the best estimators available.
+
+---
+
+## 8.6 The Likelihood Function
+
+### 8.6.1 Definition
+
+Let $X_1, \ldots, X_n$ be iid with density (or PMF) $f(x; \theta)$. The **likelihood function** is:
+
+$$L(\theta) = L(\theta; x_1, \ldots, x_n) = \prod_{i=1}^n f(x_i; \theta).$$
+
+This is the same expression as the joint density of the sample, but we view it as a function of $\theta$ with the data $x_1, \ldots, x_n$ held fixed.
+
+> **Crucial perspective shift.** The density $f(x;\theta)$ asks: "Given the parameter, how likely is a particular observation?" The likelihood $L(\theta)$ flips this: "Given the data, how plausible is each parameter value?"
+
+### 8.6.2 The Log-Likelihood
+
+Products of many small numbers are numerically unstable and analytically awkward. Since $\log$ is a strictly increasing function, maximising $L(\theta)$ is equivalent to maximising:
+
+$$\ell(\theta) = \log L(\theta) = \sum_{i=1}^n \log f(x_i; \theta).$$
+
+This converts products into sums, which are far easier to differentiate.
+
+### 8.6.3 The Maximum Likelihood Estimator
+
+The **MLE** $\hat\theta_{\text{ML}}$ is the value of $\theta$ that maximises $L(\theta)$ (or equivalently $\ell(\theta)$):
+
+$$\hat\theta_{\text{ML}} = \arg\max_\theta \; \ell(\theta).$$
+
+In most regular problems, we find it by solving the **score equation**:
+
+$$\frac{d\ell}{d\theta} = 0,$$
+
+and checking the second derivative is negative.
+
+---
+
+## 8.7 Deriving MLEs for Common Distributions
+
+### 8.7.1 MLE for Bernoulli($p$)
+
+Let $X_1, \ldots, X_n \sim \text{Bernoulli}(p)$. The PMF is $f(x;p) = p^x(1-p)^{1-x}$.
+
+**Log-likelihood:**
+
+$$\ell(p) = \sum_{i=1}^n [x_i \log p + (1 - x_i)\log(1-p)] = s\log p + (n-s)\log(1-p),$$
+
+where $s = \sum_{i=1}^n x_i$.
+
+**Score equation:**
+
+$$\frac{d\ell}{dp} = \frac{s}{p} - \frac{n-s}{1-p} = 0.$$
+
+Solving: $s(1-p) = (n-s)p$, hence $s = np$, giving:
+
+$$\boxed{\hat p_{\text{ML}} = \frac{s}{n} = \bar X.}$$
+
+The MLE coincides with the MOM estimator and the intuitive sample proportion.
+
+### 8.7.2 MLE for Poisson($\lambda$)
+
+Let $X_1, \ldots, X_n \sim \text{Poisson}(\lambda)$. The PMF is $f(x;\lambda) = e^{-\lambda}\lambda^x / x!$.
+
+**Log-likelihood:**
+
+$$\ell(\lambda) = \sum_{i=1}^n [-\lambda + x_i\log\lambda - \log(x_i!)] = -n\lambda + s\log\lambda - \sum\log(x_i!),$$
+
+where $s = \sum x_i$.
+
+**Score equation:**
+
+$$\frac{d\ell}{d\lambda} = -n + \frac{s}{\lambda} = 0 \quad \Rightarrow \quad \boxed{\hat\lambda_{\text{ML}} = \frac{s}{n} = \bar X.}$$
+
+### 8.7.3 MLE for Exponential($\lambda$)
+
+Let $X_1, \ldots, X_n \sim \text{Exp}(\lambda)$ with density $f(x;\lambda) = \lambda e^{-\lambda x}$ for $x > 0$.
+
+**Log-likelihood:**
+
+$$\ell(\lambda) = \sum_{i=1}^n [\log\lambda - \lambda x_i] = n\log\lambda - \lambda\sum x_i.$$
+
+**Score equation:**
+
+$$\frac{d\ell}{d\lambda} = \frac{n}{\lambda} - \sum x_i = 0 \quad \Rightarrow \quad \boxed{\hat\lambda_{\text{ML}} = \frac{n}{\sum x_i} = \frac{1}{\bar X}.}$$
+
+### 8.7.4 MLE for Normal($\mu$, $\sigma^2$)
+
+This is the most important example. Let $X_1, \ldots, X_n \sim N(\mu, \sigma^2)$.
+
+**Log-likelihood:**
+
+$$\ell(\mu, \sigma^2) = -\frac{n}{2}\log(2\pi) - \frac{n}{2}\log\sigma^2 - \frac{1}{2\sigma^2}\sum_{i=1}^n(x_i - \mu)^2.$$
+
+**Partial with respect to $\mu$:**
+
+$$\frac{\partial\ell}{\partial\mu} = \frac{1}{\sigma^2}\sum_{i=1}^n(x_i - \mu) = 0 \quad \Rightarrow \quad \boxed{\hat\mu_{\text{ML}} = \bar X.}$$
+
+**Partial with respect to $\sigma^2$:**
+
+$$\frac{\partial\ell}{\partial\sigma^2} = -\frac{n}{2\sigma^2} + \frac{1}{2(\sigma^2)^2}\sum_{i=1}^n(x_i - \mu)^2 = 0.$$
+
+Substituting $\hat\mu = \bar X$ and solving:
+
+$$\boxed{\hat\sigma^2_{\text{ML}} = \frac{1}{n}\sum_{i=1}^n(X_i - \bar X)^2.}$$
+
+Note that the MLE for $\sigma^2$ divides by $n$, not $n-1$ -- it is the *biased* variance estimator. This illustrates that MLEs are not always unbiased. However, the bias vanishes as $n \to \infty$.
+
+### 8.7.5 Visualising the Normal Likelihood
+
+
+``` r
+set.seed(42)
+n <- 30
+true_mu <- 5
+true_sigma <- 2
+x <- rnorm(n, true_mu, true_sigma)
+
+mu_grid <- seq(3, 7, length.out = 100)
+sigma_grid <- seq(1, 4, length.out = 100)
+
+loglik_mat <- outer(mu_grid, sigma_grid, function(mu, sig) {
+  sapply(seq_along(mu), function(k) {
+    sum(dnorm(x, mean = mu[k], sd = sig[k], log = TRUE))
+  })
+})
+
+loglik_df <- expand.grid(mu = mu_grid, sigma = sigma_grid)
+loglik_df$loglik <- as.vector(loglik_mat)
+loglik_dt <- data.table$as.data.table(loglik_df)
+
+mle_mu <- mean(x)
+mle_sigma <- sqrt(mean((x - mean(x))^2))
+
+ggplot2$ggplot(loglik_dt, ggplot2$aes(x = mu, y = sigma, z = loglik)) +
+  ggplot2$geom_contour_filled(bins = 20) +
+  ggplot2$geom_point(
+    data = data.table$data.table(mu = mle_mu, sigma = mle_sigma),
+    ggplot2$aes(x = mu, y = sigma), inherit.aes = FALSE,
+    shape = 4, size = 4, colour = "red", stroke = 2
+  ) +
+  ggplot2$labs(
+    x = expression(mu),
+    y = expression(sigma),
+    fill = "Log-likelihood",
+    title = "Log-likelihood contour for Normal parameters"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/normal-loglik-1.png" alt="Log-likelihood surface for Normal(mu, sigma^2) parameters. The cross marks the MLE. The contours of equal log-likelihood form ellipses around the maximum.">
+	Log-likelihood surface for Normal(mu, sigma^2) parameters. The cross marks the MLE. The contours of equal log-likelihood form ellipses around the maximum.
+</Figure>
+
+### 8.7.6 One-Dimensional Likelihood Profiles
+
+
+``` r
+# Profile log-likelihood for mu (with sigma profiled)
+loglik_mu <- sapply(mu_grid, function(m) {
+  resid <- x - m
+  sig2_hat <- mean(resid^2)
+  sum(dnorm(x, mean = m, sd = sqrt(sig2_hat), log = TRUE))
+})
+
+# Profile log-likelihood for sigma (with mu profiled = xbar)
+loglik_sigma <- sapply(sigma_grid, function(s) {
+  sum(dnorm(x, mean = mean(x), sd = s, log = TRUE))
+})
+
+par(mfrow = c(1, 2))
+
+profile_mu_dt <- data.table$data.table(mu = mu_grid, loglik = loglik_mu)
+profile_sig_dt <- data.table$data.table(sigma = sigma_grid, loglik = loglik_sigma)
+
+p1 <- ggplot2$ggplot(profile_mu_dt, ggplot2$aes(x = mu, y = loglik)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = mle_mu, linetype = "dashed", colour = "red") +
+  ggplot2$labs(x = expression(mu), y = "Profile log-likelihood",
+    title = expression("Profile log-lik for" ~ mu)) +
+  ggplot2$theme_minimal(base_size = 13)
+
+p2 <- ggplot2$ggplot(profile_sig_dt, ggplot2$aes(x = sigma, y = loglik)) +
+  ggplot2$geom_line(colour = "#D55E00", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = mle_sigma, linetype = "dashed", colour = "red") +
+  ggplot2$labs(x = expression(sigma), y = "Profile log-likelihood",
+    title = expression("Profile log-lik for" ~ sigma)) +
+  ggplot2$theme_minimal(base_size = 13)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/likelihood-1d-1.png" alt="Log-likelihood as a function of mu alone (with sigma^2 profiled out) and as a function of sigma alone (with mu profiled out). The MLE sits at the peak in each case.">
+	Log-likelihood as a function of mu alone (with sigma^2 profiled out) and as a function of sigma alone (with mu profiled out). The MLE sits at the peak in each case.
+</Figure>
+
+---
+
+## 8.8 MLE from Scratch with `optim()`
+
+When closed-form solutions are unavailable, we maximise the log-likelihood numerically.
+
+
+``` r
+set.seed(42)
+x_gamma <- rgamma(200, shape = 3, rate = 0.5)
+
+# Negative log-likelihood for Gamma
+neg_loglik_gamma <- function(par, data) {
+  alpha <- par[1]
+  beta <- par[2]   # rate
+  if (alpha <= 0 || beta <= 0) return(Inf)
+  -sum(dgamma(data, shape = alpha, rate = beta, log = TRUE))
+}
+
+result <- optim(
+  par = c(1, 1),
+  fn = neg_loglik_gamma,
+  data = x_gamma,
+  method = "L-BFGS-B",
+  lower = c(1e-6, 1e-6)
+)
+
+data.frame(
+  parameter = c("alpha (shape)", "beta (rate)"),
+  true_value = c(3, 0.5),
+  mle = round(result$par, 4)
+)
+```
+
+```
+      parameter true_value    mle
+1 alpha (shape)        3.0 2.8372
+2   beta (rate)        0.5 0.4957
+```
+
+
+``` r
+x_dt <- data.table$data.table(x = x_gamma)
+
+ggplot2$ggplot(x_dt, ggplot2$aes(x = x)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, fill = "#0072B2", alpha = 0.5) +
+  ggplot2$stat_function(
+    fun = dgamma,
+    args = list(shape = result$par[1], rate = result$par[2]),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = "x", y = "Density",
+    title = sprintf("Gamma MLE fit: shape = %.2f, rate = %.2f", result$par[1], result$par[2])
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/mle-gamma-fit-1.png" alt="Histogram of Gamma-distributed data with the MLE-fitted density overlaid. The fit captures the shape of the data well.">
+	Histogram of Gamma-distributed data with the MLE-fitted density overlaid. The fit captures the shape of the data well.
+</Figure>
+
+---
+
+## 8.9 MLE Properties
+
+### 8.9.1 Consistency
+
+Under regularity conditions (the parameter space is an open set, the model is identifiable, the support of $f$ does not depend on $\theta$, and $f$ is sufficiently smooth), the MLE is consistent:
+
+$$\hat\theta_{\text{ML}} \xrightarrow{P} \theta_0 \quad \text{as } n \to \infty.$$
+
+### 8.9.2 Asymptotic Normality
+
+Under the same regularity conditions, the MLE is asymptotically normal:
+
+$$\sqrt{n}(\hat\theta_{\text{ML}} - \theta_0) \xrightarrow{d} N\!\left(0, \frac{1}{I(\theta_0)}\right),$$
+
+where $I(\theta_0)$ is the **Fisher information** (to be studied in Part 3). In practical terms, for large $n$:
+
+$$\hat\theta_{\text{ML}} \;\dot\sim\; N\!\left(\theta_0, \frac{1}{nI(\theta_0)}\right).$$
+
+### 8.9.3 Asymptotic Efficiency
+
+The MLE achieves the Cramér--Rao lower bound asymptotically. No consistent estimator can have a smaller asymptotic variance. This makes MLE asymptotically efficient.
+
+### 8.9.4 Invariance Property
+
+If $\hat\theta$ is the MLE of $\theta$, then $g(\hat\theta)$ is the MLE of $g(\theta)$ for any function $g$. For example, if $\hat\sigma^2$ is the MLE of $\sigma^2$, then $\sqrt{\hat\sigma^2}$ is the MLE of $\sigma$.
+
+---
+
+## 8.10 MLE with Real Data
+
+### 8.10.1 NHANES: Fitting BMI
+
+
+``` r
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+BMI <- nhanes[!is.na(BMI), BMI]
+
+mle_mu_bmi <- mean(BMI)
+mle_sigma_bmi <- sqrt(mean((BMI - mle_mu_bmi)^2))
+
+bmi_dt <- data.table$data.table(BMI = BMI)
+
+ggplot2$ggplot(bmi_dt, ggplot2$aes(x = BMI)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.5) +
+  ggplot2$stat_function(
+    fun = dnorm,
+    args = list(mean = mle_mu_bmi, sd = mle_sigma_bmi),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = "BMI", y = "Density",
+    title = sprintf("NHANES BMI with Normal MLE fit: mu = %.1f, sigma = %.1f",
+      mle_mu_bmi, mle_sigma_bmi)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/nhanes-bmi-1.png" alt="Distribution of BMI in the NHANES sample with MLE-fitted Normal density. The Normal provides a reasonable first approximation, though the data show some right-skewness.">
+	Distribution of BMI in the NHANES sample with MLE-fitted Normal density. The Normal provides a reasonable first approximation, though the data show some right-skewness.
+</Figure>
+
+### 8.10.2 Penguins: MLE for Species Proportions
+
+The proportions of three penguin species follow a **Multinomial** distribution. The MLE for each category proportion is simply the observed proportion.
+
+
+``` r
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+species_counts <- penguins[!is.na(species), .N, by = species]
+species_counts[, proportion := round(N / sum(N), 4)]
+species_counts
+```
+
+```
+     species     N proportion
+      <char> <int>      <num>
+1:    Adelie   152     0.4419
+2:    Gentoo   124     0.3605
+3: Chinstrap    68     0.1977
+```
+
+
+``` r
+ggplot2$ggplot(species_counts, ggplot2$aes(x = species, y = proportion, fill = species)) +
+  ggplot2$geom_col(alpha = 0.8, show.legend = FALSE) +
+  ggplot2$geom_text(ggplot2$aes(label = sprintf("%.1f%%", proportion * 100)),
+    vjust = -0.5, size = 5) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(
+    x = "Species", y = "Proportion (MLE)",
+    title = "MLE of species proportions in the penguins data"
+  ) +
+  ggplot2$ylim(0, 0.55) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/penguins-species-bar-1.png" alt="Observed species proportions in the penguins data set. These are the MLEs for the multinomial probability parameters.">
+	Observed species proportions in the penguins data set. These are the MLEs for the multinomial probability parameters.
+</Figure>
+
+### 8.10.3 Penguins: MLE for Bill Length by Species
+
+
+``` r
+bill_dt <- penguins[!is.na(bill_length_mm) & !is.na(species)]
+
+mle_params <- bill_dt[, .(
+  mu = mean(bill_length_mm),
+  sigma = sqrt(mean((bill_length_mm - mean(bill_length_mm))^2))
+), by = species]
+
+mle_params
+
+ggplot2$ggplot(bill_dt, ggplot2$aes(x = bill_length_mm, fill = species)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 25, alpha = 0.5, position = "identity") +
+  ggplot2$stat_function(
+    fun = dnorm,
+    args = list(mean = mle_params[species == "Adelie", mu],
+      sd = mle_params[species == "Adelie", sigma]),
+    colour = "#0072B2", linewidth = 1
+  ) +
+  ggplot2$stat_function(
+    fun = dnorm,
+    args = list(mean = mle_params[species == "Chinstrap", mu],
+      sd = mle_params[species == "Chinstrap", sigma]),
+    colour = "#D55E00", linewidth = 1
+  ) +
+  ggplot2$stat_function(
+    fun = dnorm,
+    args = list(mean = mle_params[species == "Gentoo", mu],
+      sd = mle_params[species == "Gentoo", sigma]),
+    colour = "#009E73", linewidth = 1
+  ) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(
+    x = "Bill length (mm)", y = "Density",
+    fill = "Species",
+    title = "MLE Normal fits for bill length by species"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/penguins-bill-mle-1.png" alt="Bill length distributions for three penguin species with MLE-fitted Normal densities overlaid. Each species has its own estimated mu and sigma.">
+	Bill length distributions for three penguin species with MLE-fitted Normal densities overlaid. Each species has its own estimated mu and sigma.
+</Figure>
+
+```
+     species       mu    sigma
+      <char>    <num>    <num>
+1:    Adelie 38.79139 2.654571
+2:    Gentoo 47.50488 3.069304
+3: Chinstrap 48.83382 3.314612
+```
+
+---
+
+## 8.11 Interactive: Watch the Likelihood Move
+
+<InteractivePlot>
+
+<!--html_preserve--><div id="lik-slider-container" style="max-width:700px; margin:auto;">
+<label>
+mu =
+<span id="mu-display">5.00</span>
+</label>
+<input id="mu-slider" type="range" min="1" max="9" step="0.05" value="5" style="width:100%;"/>
+<canvas id="lik-canvas" width="700" Height="350" style="border:1px solid #ccc; width:100%;"></canvas>
+<script>
+    (function() {
+      var data = [7.7419,3.8706,5.7263,6.2657,5.8085,4.7878,8.023,4.8107,9.0368,4.8746,7.6097,9.5733,2.2223,4.4424,4.7334,6.2719,4.4315,-0.3129,0.1191,7.6402];
+      var canvas = document.getElementById('lik-canvas');
+      var ctx = canvas.getContext('2d');
+      var slider = document.getElementById('mu-slider');
+      var display = document.getElementById('mu-display');
+      var sigma = 2;
+
+      function loglik(mu) {
+        var ll = 0;
+        for (var i = 0; i < data.length; i++) {
+          ll += -0.5 * Math.log(2 * Math.PI * sigma * sigma) -
+                0.5 * Math.pow(data[i] - mu, 2) / (sigma * sigma);
+        }
+        return ll;
+      }
+
+      function draw() {
+        var w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        var muMin = 1, muMax = 9;
+        var lls = [];
+        for (var m = muMin; m <= muMax; m += 0.05) lls.push(loglik(m));
+        var llMin = Math.min.apply(null, lls);
+        var llMax = Math.max.apply(null, lls);
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#0072B2';
+        ctx.lineWidth = 2;
+        var first = true;
+        for (var m = muMin; m <= muMax; m += 0.05) {
+          var px = (m - muMin) / (muMax - muMin) * (w - 60) + 40;
+          var py = h - 30 - (loglik(m) - llMin) / (llMax - llMin) * (h - 60);
+          if (first) { ctx.moveTo(px, py); first = false; }
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        var curMu = parseFloat(slider.value);
+        var curLL = loglik(curMu);
+        var cx = (curMu - muMin) / (muMax - muMin) * (w - 60) + 40;
+        var cy = h - 30 - (curLL - llMin) / (llMax - llMin) * (h - 60);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#D55E00';
+        ctx.fill();
+
+        ctx.fillStyle = '#333';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('mu', w / 2, h - 5);
+        ctx.save();
+        ctx.translate(12, h / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('log L(mu)', 0, 0);
+        ctx.restore();
+        ctx.fillText('ll = ' + curLL.toFixed(2), cx + 10, cy - 10);
+      }
+
+      slider.addEventListener('input', function() {
+        display.textContent = parseFloat(slider.value).toFixed(2);
+        draw();
+      });
+      draw();
+    })();
+  </script>
+</div><!--/html_preserve-->
+
+</InteractivePlot>
+
+Move the slider to change $\mu$ and watch the log-likelihood value respond. The peak of the curve is the MLE.
+
+---
+
+## 8.12 Comparison: MOM vs. MLE
+
+
+``` r
+set.seed(42)
+true_alpha <- 3
+true_rate <- 0.5
+n <- 50
+n_reps <- 5000
+
+mom_est <- numeric(n_reps)
+mle_est <- numeric(n_reps)
+
+for (i in seq_len(n_reps)) {
+  x <- rgamma(n, shape = true_alpha, rate = true_rate)
+  xbar <- mean(x)
+  s2 <- mean((x - xbar)^2)
+  mom_est[i] <- xbar^2 / s2
+
+  res <- tryCatch(
+    optim(c(1, 1), function(par) {
+      if (par[1] <= 0 || par[2] <= 0) return(Inf)
+      -sum(dgamma(x, shape = par[1], rate = par[2], log = TRUE))
+    }, method = "L-BFGS-B", lower = c(1e-4, 1e-4)),
+    error = function(e) list(par = c(NA, NA))
+  )
+  mle_est[i] <- res$par[1]
+}
+
+comp_dt <- data.table$data.table(
+  value = c(mom_est, mle_est),
+  method = rep(c("MOM", "MLE"), each = n_reps)
+)
+
+ggplot2$ggplot(comp_dt, ggplot2$aes(x = value, fill = method)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 60, alpha = 0.5, position = "identity") +
+  ggplot2$geom_vline(xintercept = true_alpha, linetype = "dashed",
+    colour = "red", linewidth = 0.8) +
+  ggplot2$labs(
+    x = expression(hat(alpha)),
+    y = "Density",
+    fill = "Method",
+    title = sprintf("MOM vs. MLE for Gamma shape (true alpha = %d, n = %d)", true_alpha, n)
+  ) +
+  ggplot2$coord_cartesian(xlim = c(0, 8)) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/mom-vs-mle-1.png" alt="Sampling distributions of MOM and MLE estimators for the shape parameter of a Gamma(3, 2) distribution. The MLE has slightly smaller variance, illustrating its greater efficiency.">
+	Sampling distributions of MOM and MLE estimators for the shape parameter of a Gamma(3, 2) distribution. The MLE has slightly smaller variance, illustrating its greater efficiency.
+</Figure>
+
+
+``` r
+data.frame(
+  method = c("MOM", "MLE"),
+  mean = round(c(mean(mom_est, na.rm = TRUE), mean(mle_est, na.rm = TRUE)), 3),
+  variance = round(c(var(mom_est, na.rm = TRUE), var(mle_est, na.rm = TRUE)), 4),
+  mse = round(c(
+    mean((mom_est - true_alpha)^2, na.rm = TRUE),
+    mean((mle_est - true_alpha)^2, na.rm = TRUE)
+  ), 4)
+)
+```
+
+```
+  method  mean variance    mse
+1    MOM 3.229    0.524 0.5761
+2    MLE 3.173    0.397 0.4270
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining MLE to a non-technical audience:
+
+- Describe the MLE as "the parameter value that best explains the data we actually observed." Avoid the word "likelihood" -- it sounds too much like "probability" and causes confusion.
+- The log-likelihood surface or curve is a powerful visual. Show it and point to the peak: "This is our best estimate."
+- When discussing the invariance property, simply say: "If our best estimate of the variance is 25, then our best estimate of the standard deviation is 5 -- the method is self-consistent."
+- Compare MOM and MLE by saying: "Method A matches summary statistics; Method B finds the parameters that best reproduce the entire shape of the data. Method B is usually more precise."
+
+---
+
+## Quick Reference
+
+| Concept | Formula / Description |
+|:--------|:----------------------|
+| **Likelihood** | $L(\theta) = \prod_{i=1}^n f(x_i; \theta)$ |
+| **Log-likelihood** | $\ell(\theta) = \sum_{i=1}^n \log f(x_i; \theta)$ |
+| **MLE** | $\hat\theta = \arg\max_\theta \ell(\theta)$ |
+| **Score equation** | $\ell'(\theta) = 0$ |
+| **MLE: Bernoulli** | $\hat p = \bar X$ |
+| **MLE: Poisson** | $\hat\lambda = \bar X$ |
+| **MLE: Exponential** | $\hat\lambda = 1/\bar X$ |
+| **MLE: Normal** | $\hat\mu = \bar X$, $\hat\sigma^2 = \frac{1}{n}\sum(X_i - \bar X)^2$ |
+| **Key properties** | Consistent, asymptotically normal, asymptotically efficient, invariant |
+
+---
+
+## Exercises
+
+**Conceptual**
+
+1. In your own words, explain why we maximise the log-likelihood rather than the likelihood. Give both a numerical and a mathematical reason.
+
+2. The MLE of $\sigma^2$ for the Normal distribution is biased. Does this contradict the claim that MLEs are "optimal"? Discuss.
+
+3. What does the invariance property of MLE mean in practice? If $\hat\lambda_{\text{ML}} = 0.25$ for an Exponential model, what is the MLE of the mean?
+
+**Proofs and Derivations**
+
+4. Derive the MLE for $\theta$ when $X_1, \ldots, X_n \sim \text{Uniform}(0, \theta)$. (Hint: this is not solved by setting the derivative to zero.)
+
+5. Derive the MLE for $p$ in a Geometric distribution with PMF $P(X = k) = (1-p)^{k-1}p$ for $k = 1, 2, \ldots$
+
+6. Show that the MLE for $\lambda$ in the Exponential distribution is consistent.
+
+**Computational**
+
+7. Using `optim()`, implement MLE from scratch for a **Beta distribution** fitted to the penguins' rescaled bill-length data (divide by the maximum so values lie in $(0,1)$). Compare with the MOM estimators.
+
+8. Generate data from a mixture of two Normals: $0.4 \cdot N(2, 1) + 0.6 \cdot N(7, 1.5^2)$. Plot the log-likelihood surface as a function of the two means. Discuss why mixture MLEs are difficult to find.
+
+9. Simulate 5,000 samples of size $n = 50$ from a Poisson(4) distribution. For each, compute the MLE. Verify empirically that (a) the MLE is approximately unbiased, (b) its variance is close to $\lambda/n = 4/50 = 0.08$, and (c) the sampling distribution is approximately Normal.
+
+10. Fit a Normal distribution to NHANES systolic blood pressure data using both MOM and MLE. Compare the fitted densities visually and compute the KL divergence from each fit to the empirical distribution.

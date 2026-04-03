@@ -27,7 +27,7 @@ knitr::knit_hooks$set(optipng = knitr::hook_optipng)
 knitr::opts_chunk$set(
   dpi = 300,
   fig.width = 10,
-  fig.height = 7,
+  fig.Height = 7,
   comment = "",
   warning = FALSE,
   collapse = FALSE,
@@ -396,11 +396,11 @@ my_skewness <- function(x, adjusted = FALSE) {
   g1
 }
 
-bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
-height <- nhanes$Height[!is.na(nhanes$Height)]
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
+Height <- nhanes$Height[!is.na(nhanes$Height)]
 
-round(my_skewness(bmi), 4)
-round(my_skewness(height), 4)
+round(my_skewness(BMI), 4)
+round(my_skewness(Height), 4)
 ```
 
 BMI shows clear right skewness (positive value), which accords with what we know: there is a lower bound on BMI (you cannot have zero body mass), but no hard upper bound -- a few individuals have very high BMI values. Height, by contrast, is close to zero, indicating approximate symmetry.
@@ -440,8 +440,8 @@ my_kurtosis <- function(x, excess = TRUE) {
   k
 }
 
-round(my_kurtosis(bmi), 4)
-round(my_kurtosis(height), 4)
+round(my_kurtosis(BMI), 4)
+round(my_kurtosis(Height), 4)
 ```
 
 BMI has positive excess kurtosis -- its tails are heavier than a normal distribution. This means that extreme BMI values (very low or very high) are more common than a normal distribution would predict. Height has kurtosis closer to zero, suggesting its tails are roughly consistent with normality.
@@ -449,15 +449,15 @@ BMI has positive excess kurtosis -- its tails are heavier than a normal distribu
 ### 1.4.3 Visualising Skewness and Kurtosis
 
 ```{r shape-comparison, fig.cap="Comparing the shape of two NHANES variables. BMI (left) is right-skewed with heavy tails. Height (right) is approximately symmetric with near-normal tails. The dashed curve overlays a normal distribution with matching mean and standard deviation for reference."}
-dt_bmi <- data.table$data.table(value = bmi, variable = "BMI")
-dt_height <- data.table$data.table(value = height, variable = "Height (cm)")
+dt_bmi <- data.table$data.table(value = BMI, variable = "BMI")
+dt_height <- data.table$data.table(value = Height, variable = "Height (cm)")
 dt_shape <- data.table$rbindlist(list(dt_bmi, dt_height))
 
 # Compute normal reference curves
 norm_curves <- data.table$rbindlist(lapply(
   list(
-    list(vals = bmi, name = "BMI"),
-    list(vals = height, name = "Height (cm)")
+    list(vals = BMI, name = "BMI"),
+    list(vals = Height, name = "Height (cm)")
   ),
   function(item) {
     xseq <- seq(min(item$vals), max(item$vals), length.out = 300)
@@ -473,10 +473,10 @@ norm_curves <- data.table$rbindlist(lapply(
 shape_labels <- data.table$data.table(
   variable = c("BMI", "Height (cm)"),
   label = c(
-    paste0("Skew = ", round(my_skewness(bmi), 2), "\nKurt = ", round(my_kurtosis(bmi), 2)),
-    paste0("Skew = ", round(my_skewness(height), 2), "\nKurt = ", round(my_kurtosis(height), 2))
+    paste0("Skew = ", round(my_skewness(BMI), 2), "\nKurt = ", round(my_kurtosis(BMI), 2)),
+    paste0("Skew = ", round(my_skewness(Height), 2), "\nKurt = ", round(my_kurtosis(Height), 2))
   ),
-  x = c(max(bmi) * 0.85, max(height) * 0.99),
+  x = c(max(BMI) * 0.85, max(Height) * 0.99),
   y = c(0.04, 0.03)
 )
 
@@ -494,7 +494,7 @@ ggplot2$ggplot(dt_shape, ggplot2$aes(x = value)) +
   ggplot2$theme_minimal(base_size = 14)
 ```
 
-The dashed red curve shows what the data *would* look like if they were normally distributed with the same mean and standard deviation. For height, the fit is reasonable. For BMI, the asymmetry and heavy right tail are clearly visible.
+The dashed red curve shows what the data *would* look like if they were normally distributed with the same mean and standard deviation. For Height, the fit is reasonable. For BMI, the asymmetry and heavy right tail are clearly visible.
 
 ### 1.4.4 A Word of Caution About Moment-Based Measures
 

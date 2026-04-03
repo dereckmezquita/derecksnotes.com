@@ -1,0 +1,242 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 11: Classical Tests"
+part: "Part 1: t-Tests"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, t-test, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 11 -- Classical Tests
+
+## Part 1: t-Tests
+
+In Chapter 10 we built the general framework for hypothesis testing: null and alternative hypotheses, test statistics, rejection regions, p-values, and the interplay between Type I and Type II errors. Every classical test is a *specific instantiation* of that framework -- a particular choice of test statistic whose null distribution we can derive.
+
+We begin with the most widely used family of tests in all of applied statistics: the **t-tests**. These arise whenever we want to make inferences about population means using samples of moderate size, and they follow directly from the sampling theory we developed in earlier chapters.
+
+The key result that underpins everything here is this: if $X_1, \ldots, X_n \stackrel{\text{iid}}{\sim} N(\mu, \sigma^2)$, then the quantity
+
+$$T = \frac{\bar{X} - \mu}{S / \sqrt{n}}$$
+
+follows a $t_{n-1}$ distribution. We proved this in Chapter 5 when we showed that the ratio of a standard normal to the square root of an independent chi-squared divided by its degrees of freedom produces a $t$-distribution. Every t-test in this chapter is a direct application of that theorem.
+
+---
+
+## 11.1 The One-Sample t-Test
+
+### 11.1.1 The Problem
+
+We observe a sample $X_1, \ldots, X_n$ from a population with unknown mean $\mu$ and unknown variance $\sigma^2$. We wish to test whether the population mean equals some hypothesised value $\mu_0$:
+
+$$H_0: \mu = \mu_0 \quad \text{vs} \quad H_1: \mu \neq \mu_0$$
+
+(or the one-sided variants $H_1: \mu > \mu_0$ or $H_1: \mu < \mu_0$).
+
+### 11.1.2 Derivation of the Test Statistic
+
+**Step 1.** Under $H_0$, the population mean is $\mu_0$. If we knew $\sigma$, the natural test statistic would be the z-score:
+
+$$Z = \frac{\bar{X} - \mu_0}{\sigma / \sqrt{n}} \sim N(0, 1).$$
+
+**Step 2.** In practice we do not know $\sigma$. We replace it with the sample standard deviation $S = \sqrt{\frac{1}{n-1}\sum_{i=1}^n (X_i - \bar{X})^2}$.
+
+**Step 3.** From Chapter 5, we know that $\bar{X}$ and $S^2$ are independent when sampling from a normal distribution (this is a consequence of the Cochran theorem). Furthermore, $(n-1)S^2/\sigma^2 \sim \chi^2_{n-1}$.
+
+**Step 4.** Write the test statistic as:
+
+$$T = \frac{\bar{X} - \mu_0}{S / \sqrt{n}} = \frac{(\bar{X} - \mu_0) / (\sigma/\sqrt{n})}{S/\sigma} = \frac{Z}{\sqrt{(n-1)S^2/\sigma^2 \,/\, (n-1)}} = \frac{Z}{\sqrt{V/(n-1)}}$$
+
+where $Z \sim N(0,1)$ and $V = (n-1)S^2/\sigma^2 \sim \chi^2_{n-1}$ are independent. By the definition of the $t$-distribution:
+
+$$\boxed{T = \frac{\bar{X} - \mu_0}{S/\sqrt{n}} \sim t_{n-1} \quad \text{under } H_0.}$$
+
+### 11.1.3 The Decision Rule
+
+Using the framework from Chapter 10:
+
+- **Two-sided test** ($H_1: \mu \neq \mu_0$): Reject $H_0$ if $|T| > t_{n-1, \alpha/2}$.
+- **Right-tailed test** ($H_1: \mu > \mu_0$): Reject $H_0$ if $T > t_{n-1, \alpha}$.
+- **Left-tailed test** ($H_1: \mu < \mu_0$): Reject $H_0$ if $T < -t_{n-1, \alpha}$.
+
+The **p-value** is the probability, under $H_0$, of observing a test statistic as extreme as or more extreme than the one computed from the data.
+
+### 11.1.4 Implementation from Scratch
+
+
+``` r
+set.seed(42)
+
+# Generate data: suppose body temperatures are actually N(36.8, 0.4^2)
+# and we test H0: mu = 37.0 (the "textbook normal")
+n <- 25
+temps <- rnorm(n, mean = 36.8, sd = 0.4)
+
+# Manual one-sample t-test
+x_bar <- mean(temps)
+s <- sd(temps)
+mu_0 <- 37.0
+t_stat <- (x_bar - mu_0) / (s / sqrt(n))
+df <- n - 1
+p_value <- 2 * pt(abs(t_stat), df = df, lower.tail = FALSE)
+
+data.frame(
+  x_bar = round(x_bar, 4),
+  s = round(s, 4),
+  t_stat = round(t_stat, 4),
+  df = df,
+  p_value = round(p_value, 6)
+)
+```
+
+```
+   x_bar      s  t_stat df  p_value
+1 36.875 0.5225 -1.1959 24 0.243407
+```
+
+### 11.1.5 Verification with `t.test()`
+
+
+``` r
+t.test(temps, mu = 37.0)
+```
+
+```
+
+	One Sample t-test
+
+data:  temps
+t = -1.1959, df = 24, p-value = 0.2434
+alternative hypothesis: true mean is not equal to 37
+95 percent confidence interval:
+ 36.65932 37.09071
+sample estimates:
+mean of x 
+ 36.87501 
+```
+
+The results agree exactly. The built-in function is simply automating the derivation above.
+
+### 11.1.6 Visualising the Test
+
+
+``` r
+t_grid <- seq(-4.5, 4.5, length.out = 500)
+t_dens <- dt(t_grid, df = df)
+
+dt_plot <- data.table::data.table(t = t_grid, density = t_dens)
+dt_tails <- dt_plot[abs(t) >= abs(t_stat)]
+
+ggplot2$ggplot(dt_plot, ggplot2$aes(x = t, y = density)) +
+  ggplot2$geom_line(linewidth = 0.8) +
+  ggplot2$geom_area(
+    data = dt_tails,
+    ggplot2$aes(x = t, y = density),
+    fill = "#e74c3c", alpha = 0.4
+  ) +
+  ggplot2$geom_vline(
+    xintercept = c(-abs(t_stat), abs(t_stat)),
+    linetype = "dashed", colour = "#e74c3c"
+  ) +
+  ggplot2$labs(
+    x = "t", y = "Density",
+    title = "One-Sample t-Test",
+    subtitle = paste0(
+      "t = ", round(t_stat, 3),
+      ", df = ", df,
+      ", p = ", round(p_value, 4)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="one-sample-t-plot-1.png" alt="One-sample t-test: the observed test statistic against the null t-distribution. The shaded tails represent the p-value.">
+	One-sample t-test: the observed test statistic against the null t-distribution. The shaded tails represent the p-value.
+</Figure>
+
+---
+
+## 11.2 The Two-Sample t-Test
+
+### 11.2.1 The Problem
+
+We have two independent samples:
+
+$$X_1, \ldots, X_{n_1} \sim N(\mu_1, \sigma_1^2), \quad Y_1, \ldots, Y_{n_2} \sim N(\mu_2, \sigma_2^2).$$
+
+We wish to test $H_0: \mu_1 = \mu_2$ (equivalently, $H_0: \mu_1 - \mu_2 = 0$).
+
+### 11.2.2 Case 1: Equal Variances (Pooled t-Test)
+
+**Assumption:** $\sigma_1^2 = \sigma_2^2 = \sigma^2$ (unknown).
+
+**Step 1.** Under $H_0$, the difference $\bar{X} - \bar{Y}$ has mean zero and variance $\sigma^2(1/n_1 + 1/n_2)$.
+
+**Step 2.** We estimate $\sigma^2$ with the **pooled sample variance**:
+
+$$S_p^2 = \frac{(n_1 - 1)S_1^2 + (n_2 - 1)S_2^2}{n_1 + n_2 - 2}.$$
+
+This is a weighted average of the two sample variances, where the weights are the respective degrees of freedom. Because $(n_1-1)S_1^2/\sigma^2 \sim \chi^2_{n_1-1}$ and $(n_2-1)S_2^2/\sigma^2 \sim \chi^2_{n_2-1}$ independently, their sum is $\chi^2_{n_1+n_2-2}$.
+
+**Step 3.** The test statistic is:
+
+$$T = \frac{\bar{X} - \bar{Y}}{S_p\sqrt{1/n_1 + 1/n_2}} \sim t_{n_1 + n_2 - 2} \quad \text{under } H_0.$$
+
+The derivation follows the same pattern as the one-sample case: the numerator is standard normal (after standardisation by the true $\sigma$), the denominator involves the square root of an independent chi-squared divided by its degrees of freedom.
+
+### 11.2.3 Case 2: Unequal Variances (Welch's t-Test)
+
+When $\sigma_1^2 \neq \sigma_2^2$, the pooled estimator is no longer appropriate. Welch's approach uses:
+
+$$T = \frac{\bar{X} - \bar{Y}}{\sqrt{S_1^2/n_1 + S_2^2/n_2}}$$
+
+The distribution of $T$ under $H_0$ is approximately $t_\nu$ where the **Welch--Satterthwaite** degrees of freedom are:
+
+$$\nu = \frac{\left(\frac{S_1^2}{n_1} + \frac{S_2^2}{n_2}\right)^2}{\frac{(S_1^2/n_1)^2}{n_1 - 1} + \frac{(S_2^2/n_2)^2}{n_2 - 1}}.$$
+
+This is not an exact result -- the ratio does not follow a $t$-distribution precisely -- but the Welch--Satterthwaite approximation is remarkably accurate in practice. This is why R uses Welch's test as the default in `t.test()`.
+
+### 11.2.4 Penguins: Adelie vs Gentoo Flipper Length
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

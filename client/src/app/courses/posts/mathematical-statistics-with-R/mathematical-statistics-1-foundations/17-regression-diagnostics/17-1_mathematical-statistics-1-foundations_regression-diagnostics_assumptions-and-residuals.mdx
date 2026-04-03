@@ -1,0 +1,150 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 17: Regression Diagnostics"
+part: "Part 1: Assumptions and Residuals"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, regression, diagnostics, residuals, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 17 -- Regression Diagnostics
+
+## Part 1: Assumptions and Residuals
+
+Chapters 15 and 16 derived the OLS estimator and showed that it is BLUE (Best Linear Unbiased Estimator) under the Gauss-Markov assumptions. But every theorem has premises, and the validity of confidence intervals, $p$-values, and prediction intervals depends entirely on whether those premises hold. In this part we state the assumptions precisely, develop residual-based diagnostics to check each one, and rebuild the four standard `plot(lm())` diagnostics from scratch in ggplot2.
+
+---
+
+## 17.1 The Four Assumptions -- Stated Precisely
+
+Write the linear model as:
+
+$$Y_i = \mathbf{x}_i'\boldsymbol{\beta} + \varepsilon_i, \quad i = 1, \ldots, n$$
+
+The classical assumptions are:
+
+### 17.1.1 (A1) Linearity
+
+The conditional expectation of $Y$ given $\mathbf{x}$ is a linear function of the parameters:
+
+$$E[Y_i \mid \mathbf{x}_i] = \mathbf{x}_i'\boldsymbol{\beta}$$
+
+This does **not** require that $Y$ be a linear function of the raw predictors -- $Y = \beta_0 + \beta_1 x + \beta_2 x^2 + \varepsilon$ is perfectly linear *in the parameters*. The assumption fails when the true relationship involves interactions or non-linear functions of $\boldsymbol{\beta}$ that are not captured by the model.
+
+### 17.1.2 (A2) Independence
+
+The errors $\varepsilon_1, \ldots, \varepsilon_n$ are mutually independent:
+
+$$\text{Cov}(\varepsilon_i, \varepsilon_j) = 0 \quad \text{for all } i \neq j$$
+
+In matrix notation: $\text{Cov}(\boldsymbol{\varepsilon})$ is diagonal. This assumption is violated by time-series data (serial correlation), clustered data (observations within the same group are correlated), and spatial data.
+
+### 17.1.3 (A3) Homoscedasticity
+
+The variance of each error is the same constant $\sigma^2$:
+
+$$\text{Var}(\varepsilon_i \mid \mathbf{x}_i) = \sigma^2 \quad \text{for all } i$$
+
+Combined with (A2), this gives $\text{Cov}(\boldsymbol{\varepsilon}) = \sigma^2 \mathbf{I}_n$. Heteroscedasticity (non-constant variance) does not bias $\hat{\boldsymbol{\beta}}$, but it invalidates the usual standard errors.
+
+### 17.1.4 (A4) Normality
+
+The errors follow a normal distribution:
+
+$$\varepsilon_i \sim N(0, \sigma^2)$$
+
+This is the strongest assumption and is only needed for exact $t$ and $F$ inference in finite samples. When $n$ is large, the Central Limit Theorem ensures that $\hat{\boldsymbol{\beta}}$ is approximately normal regardless of the error distribution (see Part 2).
+
+### 17.1.5 Summary Table
+
+| Assumption | Mathematical statement | What breaks if violated |
+|:-----------|:----------------------|:------------------------|
+| Linearity | $E[Y \mid \mathbf{x}] = \mathbf{x}'\boldsymbol{\beta}$ | $\hat{\boldsymbol{\beta}}$ is biased |
+| Independence | $\text{Cov}(\varepsilon_i, \varepsilon_j) = 0$ | SEs wrong, $p$-values wrong |
+| Homoscedasticity | $\text{Var}(\varepsilon_i) = \sigma^2$ | SEs wrong, efficiency lost |
+| Normality | $\varepsilon_i \sim N(0, \sigma^2)$ | Finite-sample inference inexact |
+
+---
+
+## 17.2 Residuals -- The Diagnostic Currency
+
+### 17.2.1 Raw Residuals
+
+Given the fitted model $\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$, the residual vector is:
+
+$$\mathbf{e} = \mathbf{Y} - \hat{\mathbf{Y}} = (\mathbf{I} - \mathbf{H})\mathbf{Y}$$
+
+The raw residual $e_i$ estimates the unobservable error $\varepsilon_i$, but with a crucial difference: the residuals have **unequal variances** even when the true errors do not.
+
+### 17.2.2 Variance of Residuals
+
+Since $\mathbf{e} = (\mathbf{I} - \mathbf{H})\boldsymbol{\varepsilon}$ (under the true model):
+
+$$\text{Cov}(\mathbf{e}) = \sigma^2(\mathbf{I} - \mathbf{H})$$
+
+Therefore:
+
+$$\text{Var}(e_i) = \sigma^2(1 - h_{ii})$$
+
+where $h_{ii}$ is the $i$th diagonal element of the hat matrix $\mathbf{H}$. Points with high leverage ($h_{ii}$ close to 1) have residuals that are artificially shrunk towards zero -- the model is forced to pass close to high-leverage points.
+
+### 17.2.3 Standardised (Internally Studentised) Residuals
+
+To give every residual the same scale, we standardise:
+
+$$r_i = \frac{e_i}{\hat{\sigma}\sqrt{1 - h_{ii}}}$$
+
+where $\hat{\sigma} = \sqrt{\text{MSE}} = \sqrt{\text{SSE}/(n-p)}$. Under the model assumptions, $r_i$ has approximate mean 0 and approximate variance 1.
+
+### 17.2.4 Externally Studentised (Deleted) Residuals
+
+A more refined version uses the leave-one-out estimate $\hat{\sigma}_{(i)}$ computed without observation $i$:
+
+$$t_i = \frac{e_i}{\hat{\sigma}_{(i)}\sqrt{1 - h_{ii}}}$$
+
+Under the assumptions, $t_i \sim t_{n-p-1}$ exactly. This gives a genuine $t$-test for whether observation $i$ is an outlier.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

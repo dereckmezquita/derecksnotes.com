@@ -1,0 +1,718 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 17: Regression Diagnostics"
+part: "Part 2: Influence and Remedies"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, diagnostics, influence, robust, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 17 -- Regression Diagnostics
+
+## Part 2: Influence and Remedies
+
+Part 1 introduced the four diagnostic plots and showed how to detect assumption violations visually. In this part we quantify influence precisely -- deriving leverage and Cook's distance from first principles -- and then develop remedies: robust (sandwich) standard errors for heteroscedasticity, the Box-Cox transformation for non-normality, and strategies for non-linearity. We return to the Boston housing and NHANES BMI models to apply these tools.
+
+---
+
+## 17.11 Leverage -- Derivation and Interpretation
+
+### 17.11.1 The Hat Matrix Revisited
+
+From Chapter 16, the hat matrix is:
+
+$$\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$$
+
+The fitted values are $\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$, so each $\hat{Y}_i$ is a weighted sum of all observed $Y_j$:
+
+$$\hat{Y}_i = \sum_{j=1}^n h_{ij} Y_j$$
+
+The leverage $h_{ii}$ is the weight that observation $i$'s response places on its own fitted value. High leverage means the observation "pulls" the fitted surface towards itself.
+
+### 17.11.2 Derivation of the Leverage Formula
+
+For observation $i$ with predictor vector $\mathbf{x}_i$ (the $i$th row of $\mathbf{X}$, written as a column):
+
+$$h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$$
+
+**Proof.** $h_{ij}$ is the $(i,j)$ element of $\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$. The $i$th row of $\mathbf{X}$ is $\mathbf{x}_i'$, so $h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$. $\square$
+
+This is a **Mahalanobis-type distance**: it measures how far $\mathbf{x}_i$ is from the centroid of the predictor space, scaled by the covariance structure.
+
+### 17.11.3 Properties
+
+- $1/n \le h_{ii} \le 1$ (the lower bound holds when the design includes an intercept).
+- $\sum_{i=1}^n h_{ii} = \text{tr}(\mathbf{H}) = p$.
+- Average leverage: $\bar{h} = p/n$.
+- Rule of thumb: $h_{ii} > 2p/n$ flags high leverage.
+
+### 17.11.4 Computing Leverage from Scratch
+
+```{r leverage-scratch}
+data_dir <- "../../../data"
+boston <- data.table$fread(file.path(data_dir, "classic/boston.csv"))
+
+fit_boston <- lm(medv ~ lstat + rm + Age, data = boston)
+
+X_mat <- model.matrix(fit_boston)
+XtX_inv <- solve(crossprod(X_mat))
+
+# Leverage for each observation
+h_scratch <- rowSums((X_mat %*% XtX_inv) * X_mat)
+
+# Compare with hatvalues()
+h_builtin <- hatvalues(fit_boston)
+
+c(
+  "max |difference|" = max(abs(h_scratch - h_builtin)),
+  "trace of H" = sum(h_scratch),
+  "p (num. parameters)" = ncol(X_mat)
+)
+```
+
+```{r leverage-distribution, fig.cap="Distribution of leverage values for the Boston housing model. The vertical dashed line marks the 2p/n cutoff. Most observations have leverage near the average p/n, but a few observations in the right tail have disproportionate influence on the fit."}
+p_params <- ncol(X_mat)
+n_obs <- nrow(X_mat)
+
+lev_dt <- data.table$data.table(leverage = h_scratch)
+
+ggplot2$ggplot(lev_dt, ggplot2$aes(x = leverage)) +
+  ggplot2$geom_histogram(
+    bins = 40, fill = "#0072B2", colour = "white", alpha = 0.7
+  ) +
+  ggplot2$geom_vline(
+    xintercept = 2 * p_params / n_obs,
+    linetype = "dashed", colour = "#D55E00", linewidth = 0.8
+  ) +
+  ggplot2$annotate(
+    "text", x = 2 * p_params / n_obs + 0.005,
+    y = Inf, vjust = 2, hjust = 0,
+    label = sprintf("2p/n = %.3f", 2 * p_params / n_obs),
+    colour = "#D55E00", size = 4
+  ) +
+  ggplot2$labs(
+    x = "Leverage (h_ii)",
+    y = "Count",
+    title = "Distribution of leverage values"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 17.12 Cook's Distance -- Derivation
+
+### 17.12.1 The Leave-One-Out Idea
+
+The most direct way to measure influence is to refit the model without observation $i$ and see how much the coefficients change. Let $\hat{\boldsymbol{\beta}}_{(i)}$ denote the OLS estimate computed without the $i$th observation. The change in fitted values across all observations is:
+
+$$\Delta_i = \hat{\mathbf{Y}} - \hat{\mathbf{Y}}_{(i)} = \mathbf{X}\hat{\boldsymbol{\beta}} - \mathbf{X}\hat{\boldsymbol{\beta}}_{(i)}$$
+
+### 17.12.2 The Sherman-Morrison Shortcut
+
+Refitting $n$ separate models would be $O(n^2 p^2)$. Remarkably, the leave-one-out coefficients can be computed from the full fit:
+
+$$\hat{\boldsymbol{\beta}} - \hat{\boldsymbol{\beta}}_{(i)} = \frac{(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i e_i}{1 - h_{ii}}$$
+
+This follows from the Sherman-Morrison-Woodbury formula applied to the rank-one update of $\mathbf{X}'\mathbf{X}$.
+
+### 17.12.3 Definition of Cook's Distance
+
+Cook's distance summarises the change in all $n$ fitted values when observation $i$ is deleted:
+
+$$D_i = \frac{(\hat{\mathbf{Y}} - \hat{\mathbf{Y}}_{(i)})'(\hat{\mathbf{Y}} - \hat{\mathbf{Y}}_{(i)})}{p \cdot \text{MSE}}$$
+
+Substituting the leave-one-out formula:
+
+$$D_i = \frac{e_i^2}{p \cdot \text{MSE}} \cdot \frac{h_{ii}}{(1 - h_{ii})^2}$$
+
+Or equivalently, in terms of the internally studentised residual $r_i = e_i / (\hat{\sigma}\sqrt{1 - h_{ii}})$:
+
+$$\boxed{D_i = \frac{r_i^2}{p} \cdot \frac{h_{ii}}{1 - h_{ii}}}$$
+
+This factorisation is revealing: Cook's distance is the product of (i) the squared standardised residual (how poorly the point is fitted) and (ii) a function of leverage (how far the point is from the centre of the predictor space). Influence requires **both** a large residual and high leverage.
+
+### 17.12.4 Cutoff Rules
+
+- **$D_i > 1$**: widely used rule of thumb.
+- **$D_i > 4/n$**: more aggressive cutoff, useful for large $n$.
+- **$D_i > F_{0.5}(p, n-p)$**: based on the approximate $F$-distribution of Cook's distance. The 50th percentile corresponds to a point whose deletion moves the fitted values by a "noticeable" amount.
+
+### 17.12.5 Computing Cook's Distance from Scratch
+
+```{r cooks-scratch}
+e <- residuals(fit_boston)
+MSE <- sum(e^2) / (n_obs - p_params)
+
+D_scratch <- (e^2 / (p_params * MSE)) * (h_scratch / (1 - h_scratch)^2)
+D_builtin <- cooks.distance(fit_boston)
+
+c(
+  "max |difference|" = max(abs(D_scratch - D_builtin)),
+  "num D > 4/n" = sum(D_scratch > 4 / n_obs),
+  "num D > 1" = sum(D_scratch > 1)
+)
+```
+
+```{r cooks-plot, fig.cap="Cook's distance for each observation in the Boston housing model. Observations with D > 4/n (dashed line) warrant closer inspection. The most influential points are labelled."}
+cooks_dt <- data.table$data.table(
+  obs = seq_len(n_obs),
+  D = D_scratch
+)
+
+top_idx <- cooks_dt[order(-D)][1:5, obs]
+
+ggplot2$ggplot(cooks_dt, ggplot2$aes(x = obs, y = D)) +
+  ggplot2$geom_segment(
+    ggplot2$aes(xend = obs, yend = 0),
+    colour = "#0072B2", alpha = 0.5
+  ) +
+  ggplot2$geom_point(colour = "#0072B2", size = 1) +
+  ggplot2$geom_hline(
+    yintercept = 4 / n_obs,
+    linetype = "dashed", colour = "#D55E00"
+  ) +
+  ggplot2$annotate(
+    "text", x = top_idx, y = cooks_dt$D[top_idx],
+    label = top_idx, vjust = -0.5, colour = "#D55E00", size = 3
+  ) +
+  ggplot2$labs(
+    x = "Observation index",
+    y = "Cook's distance",
+    title = "Cook's distance -- Boston housing model"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 17.13 DFFITS and DFBETAS
+
+Cook's distance summarises overall influence. Two related measures provide finer detail.
+
+### 17.13.1 DFFITS
+
+$$\text{DFFITS}_i = t_i \sqrt{\frac{h_{ii}}{1 - h_{ii}}}$$
+
+where $t_i$ is the externally studentised residual. This measures the change in the fitted value $\hat{Y}_i$ (in units of its standard error) when observation $i$ is deleted. Rule of thumb: $|\text{DFFITS}_i| > 2\sqrt{p/n}$.
+
+### 17.13.2 DFBETAS
+
+$$\text{DFBETAS}_{i,j} = \frac{\hat{\beta}_j - \hat{\beta}_{j(i)}}{\hat{\sigma}_{(i)}\sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}}$$
+
+This measures the change in coefficient $j$ (in units of its standard error) when observation $i$ is deleted. Rule of thumb: $|\text{DFBETAS}_{i,j}| > 2/\sqrt{n}$.
+
+```{r influence-measures}
+infl <- influence.measures(fit_boston)
+
+# Show the most influential observations (by Cook's D)
+top5 <- order(D_scratch, decreasing = TRUE)[1:5]
+round(infl$infmat[top5, ], 4)
+```
+
+---
+
+## 17.14 Heteroscedasticity: Sandwich (Robust) Standard Errors
+
+### 17.14.1 The Problem
+
+When $\text{Var}(\varepsilon_i) = \sigma_i^2$ (not constant), OLS is still unbiased but the usual covariance formula $\hat{\sigma}^2(\mathbf{X}'\mathbf{X})^{-1}$ is **wrong**. The true covariance is:
+
+$$\text{Cov}(\hat{\boldsymbol{\beta}}) = (\mathbf{X}'\mathbf{X})^{-1} \mathbf{X}'\boldsymbol{\Omega}\mathbf{X} (\mathbf{X}'\mathbf{X})^{-1}$$
+
+where $\boldsymbol{\Omega} = \text{diag}(\sigma_1^2, \ldots, \sigma_n^2)$. This is the **sandwich formula**: the "bread" is $(\mathbf{X}'\mathbf{X})^{-1}$ and the "meat" is $\mathbf{X}'\boldsymbol{\Omega}\mathbf{X}$.
+
+### 17.14.2 Deriving the HC1 Estimator
+
+We cannot observe $\sigma_i^2$, but we can estimate the meat using the squared residuals. The **HC1** (Heteroscedasticity-Consistent) estimator replaces $\boldsymbol{\Omega}$ with $\text{diag}(e_1^2, \ldots, e_n^2)$ and applies a degrees-of-freedom correction:
+
+$$\hat{\mathbf{V}}_{\text{HC1}} = \frac{n}{n - p}(\mathbf{X}'\mathbf{X})^{-1} \left(\sum_{i=1}^n e_i^2 \mathbf{x}_i\mathbf{x}_i'\right) (\mathbf{X}'\mathbf{X})^{-1}$$
+
+The robust standard errors are $\text{SE}_{\text{robust}}(\hat{\beta}_j) = \sqrt{[\hat{\mathbf{V}}_{\text{HC1}}]_{jj}}$.
+
+### 17.14.3 Implementation from Scratch
+
+```{r sandwich-scratch}
+#' HC1 robust covariance matrix -- from scratch
+#' @param fit an lm object
+#' @return robust covariance matrix
+my_sandwich_hc1 <- function(fit) {
+  X <- model.matrix(fit)
+  e <- residuals(fit)
+  n <- nrow(X)
+  p <- ncol(X)
+
+  XtX_inv <- solve(crossprod(X))
+
+  # Meat: sum of e_i^2 * x_i x_i'
+  meat <- crossprod(X * e)  # equivalent to X' diag(e^2) X
+
+  # Sandwich with HC1 df correction
+  (n / (n - p)) * XtX_inv %*% meat %*% XtX_inv
+}
+
+V_robust <- my_sandwich_hc1(fit_boston)
+V_ols <- vcov(fit_boston)
+
+comparison <- data.table$data.table(
+  parameter = names(coef(fit_boston)),
+  SE_ols = sqrt(diag(V_ols)),
+  SE_robust = sqrt(diag(V_robust)),
+  ratio = sqrt(diag(V_robust)) / sqrt(diag(V_ols))
+)
+
+comparison
+```
+
+```{r sandwich-comparison, fig.cap="Comparison of OLS and robust standard errors for the Boston housing model. The robust SEs for 'lstat' are substantially larger, indicating that the usual inference understates the uncertainty for this coefficient."}
+comp_long <- data.table$melt(
+  comparison,
+  id.vars = "parameter",
+  measure.vars = c("SE_ols", "SE_robust"),
+  variable.name = "type",
+  value.name = "SE"
+)
+
+ggplot2$ggplot(comp_long, ggplot2$aes(x = parameter, y = SE, fill = type)) +
+  ggplot2$geom_col(position = "dodge", alpha = 0.8) +
+  ggplot2$scale_fill_manual(
+    values = c("SE_ols" = "#0072B2", "SE_robust" = "#D55E00"),
+    labels = c("OLS", "Robust (HC1)")
+  ) +
+  ggplot2$labs(
+    x = "Parameter",
+    y = "Standard error",
+    fill = "Type",
+    title = "OLS vs robust standard errors"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+For `lstat`, the robust SE is noticeably larger than the OLS SE, confirming that the usual inference underestimates uncertainty due to heteroscedasticity.
+
+---
+
+## 17.15 When Non-Normality Does Not Matter: The CLT Defence
+
+### 17.15.1 The Key Insight
+
+The OLS estimator is:
+
+$$\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y} = \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon}$$
+
+This is a **linear combination of the errors**. By the multivariate Central Limit Theorem, if $n$ is large and no single observation dominates (i.e., leverage is uniformly small), then:
+
+$$\hat{\boldsymbol{\beta}} \dot{\sim} N\left(\boldsymbol{\beta}, \sigma^2(\mathbf{X}'\mathbf{X})^{-1}\right)$$
+
+regardless of the distribution of $\varepsilon_i$.
+
+### 17.15.2 How Large is "Large Enough"?
+
+There is no universal answer, but simulation studies suggest:
+
+- For **symmetric** error distributions: $n \ge 30$ is often sufficient.
+- For **moderately skewed** distributions: $n \ge 100$ usually works.
+- For **heavily skewed** distributions (e.g., exponential): $n \ge 300$ or more may be needed.
+
+### 17.15.3 Simulation: CLT in Action
+
+```{r clt-simulation, fig.cap="Sampling distribution of the slope estimator under exponential errors (top) and normal errors (bottom). With n = 500, both distributions are nearly Gaussian -- the CLT rescues inference even though the errors are heavily skewed."}
+set.seed(42)
+n_rep <- 5000
+n_clt <- 500
+x_clt <- seq(0, 10, length.out = n_clt)
+
+slopes_exp <- replicate(n_rep, {
+  y <- 2 + 3 * x_clt + (rexp(n_clt, 1) - 1) * 3
+  coef(lm(y ~ x_clt))[2]
+})
+
+slopes_norm <- replicate(n_rep, {
+  y <- 2 + 3 * x_clt + rnorm(n_clt, 0, 3)
+  coef(lm(y ~ x_clt))[2]
+})
+
+sim_dt <- data.table$data.table(
+  slope = c(slopes_exp, slopes_norm),
+  errors = rep(c("Exponential", "Normal"), each = n_rep)
+)
+
+ggplot2$ggplot(sim_dt, ggplot2$aes(x = slope, fill = errors)) +
+  ggplot2$geom_histogram(
+    bins = 60, alpha = 0.6, colour = "white",
+    position = "identity"
+  ) +
+  ggplot2$geom_vline(xintercept = 3, linetype = "dashed") +
+  ggplot2$scale_fill_manual(
+    values = c("Exponential" = "#E69F00", "Normal" = "#0072B2")
+  ) +
+  ggplot2$facet_wrap(~ errors, ncol = 1, scales = "free_y") +
+  ggplot2$labs(
+    x = "Estimated slope",
+    y = "Count",
+    title = sprintf(
+      "Sampling distribution of slope (n = %d, %d replications)",
+      n_clt, n_rep
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+Both sampling distributions are centred on the true value $\beta_1 = 3$ and are approximately bell-shaped. The CLT works.
+
+---
+
+## 17.16 The Box-Cox Transformation
+
+### 17.16.1 Motivation
+
+When the response $Y$ is strictly positive and the diagnostics suggest right-skewed residuals or heteroscedasticity, a power transformation can stabilise variance and improve normality simultaneously.
+
+### 17.16.2 The Box-Cox Family
+
+The Box-Cox transformation is:
+
+$$Y^{(\lambda)} = \begin{cases} (Y^\lambda - 1)/\lambda & \lambda \neq 0 \\ \log Y & \lambda = 0 \end{cases}$$
+
+The parameter $\lambda$ is chosen to maximise the profile log-likelihood:
+
+$$\ell(\lambda) = -\frac{n}{2}\log\left(\frac{\text{SSE}(\lambda)}{n}\right) + (\lambda - 1)\sum_{i=1}^n \log y_i$$
+
+where $\text{SSE}(\lambda)$ is the residual sum of squares from regressing $Y^{(\lambda)}$ on $\mathbf{X}$.
+
+### 17.16.3 Box-Cox from Scratch
+
+```{r boxcox-scratch, fig.cap="Box-Cox profile log-likelihood for the Boston housing model. The maximum occurs near lambda = 0.1, suggesting a log transformation (lambda = 0) is approximately optimal. The 95 per cent confidence interval for lambda excludes 1 (no transformation)."}
+boxcox_profile <- function(fit, lambda_seq = seq(-2, 2, by = 0.05)) {
+  y <- fit$model[[1]]
+  X <- model.matrix(fit)
+  n <- length(y)
+  geo_mean_y <- exp(mean(log(y)))
+
+  ll <- vapply(lambda_seq, function(lam) {
+    if (abs(lam) < 1e-10) {
+      y_trans <- log(y)
+    } else {
+      y_trans <- (y^lam - 1) / lam
+    }
+    SSE_lam <- sum(residuals(lm.fit(X, y_trans))^2)
+    -n / 2 * log(SSE_lam / n) + (lam - 1) * sum(log(y))
+  }, numeric(1))
+
+  data.table$data.table(lambda = lambda_seq, loglik = ll)
+}
+
+bc <- boxcox_profile(fit_boston)
+best_lambda <- bc$lambda[which.max(bc$loglik)]
+
+ggplot2$ggplot(bc, ggplot2$aes(x = lambda, y = loglik)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.8) +
+  ggplot2$geom_vline(
+    xintercept = best_lambda,
+    linetype = "dashed", colour = "#D55E00"
+  ) +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dotted", colour = "grey50") +
+  ggplot2$annotate(
+    "text", x = best_lambda + 0.15, y = max(bc$loglik),
+    label = sprintf("lambda = %.2f", best_lambda),
+    colour = "#D55E00", size = 4, hjust = 0
+  ) +
+  ggplot2$labs(
+    x = expression(lambda),
+    y = "Profile log-likelihood",
+    title = "Box-Cox transformation"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 17.16.4 Effect on Diagnostics
+
+```{r boxcox-diagnostics, fig.cap="Q-Q plots before (left) and after (right) the log transformation. The log-transformed model shows markedly improved normality of residuals."}
+fit_log <- lm(log(medv) ~ lstat + rm + Age, data = boston)
+
+qq_before <- data.table$data.table(
+  std_resid = rstandard(fit_boston),
+  model = "Original"
+)
+qq_after <- data.table$data.table(
+  std_resid = rstandard(fit_log),
+  model = "Log-transformed"
+)
+qq_both <- data.table$rbindlist(list(qq_before, qq_after))
+
+ggplot2$ggplot(qq_both, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.3, size = 1.2) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ model) +
+  ggplot2$labs(
+    x = "Theoretical quantiles",
+    y = "Standardised residuals",
+    title = "Q-Q plots: before and after log transformation"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 17.17 Non-Linearity Detection and Remedies
+
+### 17.17.1 Component-Plus-Residual (Partial Residual) Plots
+
+The **component-plus-residual** (CR) plot for predictor $j$ plots:
+
+$$e_i + \hat{\beta}_j x_{ij} \quad \text{vs} \quad x_{ij}$$
+
+If the linear specification is correct, the CR plot shows a straight line. Curvature suggests that a non-linear term for predictor $j$ is needed.
+
+```{r cr-plots, fig.cap="Component-plus-residual plots for the Boston housing model. The plot for 'lstat' shows clear curvature -- the relationship between median home value and lower status percentage is non-linear."}
+cr_lstat <- residuals(fit_boston) + coef(fit_boston)["lstat"] * boston$lstat
+cr_rm <- residuals(fit_boston) + coef(fit_boston)["rm"] * boston$rm
+
+cr_dt <- data.table$data.table(
+  lstat = boston$lstat,
+  rm = boston$rm,
+  cr_lstat = cr_lstat,
+  cr_rm = cr_rm
+)
+
+p_cr1 <- ggplot2$ggplot(cr_dt, ggplot2$aes(x = lstat, y = cr_lstat)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.3, size = 1.2) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    colour = "grey50", se = FALSE, linetype = "dashed"
+  ) +
+  ggplot2$labs(
+    x = "lstat", y = "Component + residual",
+    title = "CR plot: lstat"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+p_cr2 <- ggplot2$ggplot(cr_dt, ggplot2$aes(x = rm, y = cr_rm)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.3, size = 1.2) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    colour = "grey50", se = FALSE, linetype = "dashed"
+  ) +
+  ggplot2$labs(
+    x = "rm", y = "Component + residual",
+    title = "CR plot: rm"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p_cr1, p_cr2, ncol = 2)
+```
+
+### 17.17.2 Adding Non-Linear Terms
+
+The CR plot for `lstat` shows strong curvature. Let us add a quadratic term:
+
+```{r nonlin-fix}
+fit_quad <- lm(medv ~ lstat + I(lstat^2) + rm + Age, data = boston)
+
+c(
+  R2_linear = summary(fit_boston)$r.squared,
+  R2_quadratic = summary(fit_quad)$r.squared
+)
+```
+
+```{r nonlin-resid, fig.cap="Residuals vs fitted for the quadratic model. The curvature seen in the linear model is largely resolved."}
+quad_dt <- data.table$data.table(
+  fitted = fitted(fit_quad),
+  resid = residuals(fit_quad)
+)
+
+ggplot2$ggplot(quad_dt, ggplot2$aes(x = fitted, y = resid)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.3, size = 1.2) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = "Residuals",
+    title = "Residuals vs Fitted -- quadratic model"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 17.18 NHANES BMI Model -- Full Diagnostic Workup
+
+```{r nhanes-full}
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes_clean <- nhanes[
+  complete.cases(nhanes[, .(BMI, Age, Height, Weight)]) & Age >= 18
+]
+
+fit_nh <- lm(BMI ~ Age + Height + Weight, data = nhanes_clean)
+```
+
+### 17.18.1 Robust Standard Errors
+
+```{r nhanes-robust}
+V_nh_ols <- vcov(fit_nh)
+V_nh_robust <- my_sandwich_hc1(fit_nh)
+
+nh_comp <- data.table$data.table(
+  parameter = names(coef(fit_nh)),
+  SE_ols = sqrt(diag(V_nh_ols)),
+  SE_robust = sqrt(diag(V_nh_robust)),
+  ratio = sqrt(diag(V_nh_robust)) / sqrt(diag(V_nh_ols))
+)
+
+nh_comp
+```
+
+### 17.18.2 Influence Analysis
+
+```{r nhanes-influence, fig.cap="Cook's distance for the NHANES BMI model. With large n, individual observations have little influence -- the maximum Cook's distance is very small."}
+nh_cooks <- cooks.distance(fit_nh)
+
+nh_inf_dt <- data.table$data.table(
+  obs = seq_along(nh_cooks),
+  D = nh_cooks
+)
+
+ggplot2$ggplot(nh_inf_dt, ggplot2$aes(x = obs, y = D)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.1, size = 0.5) +
+  ggplot2$geom_hline(
+    yintercept = 4 / nrow(nhanes_clean),
+    linetype = "dashed", colour = "#D55E00"
+  ) +
+  ggplot2$labs(
+    x = "Observation index",
+    y = "Cook's distance",
+    title = "Cook's distance -- NHANES BMI model"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+With $n > 5{,}000$, individual observations rarely have Cook's $D > 4/n$. This is a general feature of large datasets: no single point dominates the fit.
+
+### 17.18.3 Box-Cox for BMI
+
+```{r nhanes-boxcox, fig.cap="Box-Cox profile for the NHANES BMI model. The optimal lambda is near 0, again suggesting a log transformation."}
+bc_nh <- boxcox_profile(fit_nh)
+best_lam_nh <- bc_nh$lambda[which.max(bc_nh$loglik)]
+
+ggplot2$ggplot(bc_nh, ggplot2$aes(x = lambda, y = loglik)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.8) +
+  ggplot2$geom_vline(
+    xintercept = best_lam_nh,
+    linetype = "dashed", colour = "#D55E00"
+  ) +
+  ggplot2$annotate(
+    "text", x = best_lam_nh + 0.15, y = max(bc_nh$loglik),
+    label = sprintf("lambda = %.2f", best_lam_nh),
+    colour = "#D55E00", size = 4, hjust = 0
+  ) +
+  ggplot2$labs(
+    x = expression(lambda),
+    y = "Profile log-likelihood",
+    title = "Box-Cox -- NHANES BMI model"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 17.19 A Diagnostic Workflow
+
+When you fit a regression model, follow this systematic workflow:
+
+1. **Plot residuals vs fitted.** Look for non-linearity (curve) and heteroscedasticity (funnel).
+2. **Check the Q-Q plot.** Look for non-normality (S-shape, curvature).
+3. **Check the scale-location plot.** Confirm constant variance.
+4. **Examine leverage and Cook's distance.** Identify influential observations.
+5. **If heteroscedasticity is present:** use robust (sandwich) standard errors or transform the response.
+6. **If non-linearity is present:** add polynomial terms, use splines, or transform predictors.
+7. **If non-normality is present but $n$ is large:** the CLT may suffice; use robust SEs for safety. If $n$ is small, consider Box-Cox or a non-parametric approach.
+8. **If influential points are found:** investigate them. Are they data errors? Genuinely unusual? Re-run the model with and without them; if conclusions change substantially, report both analyses.
+
+---
+
+## Communicating to Stakeholders
+
+When discussing remedies:
+
+- **Explain why you changed the model.** "The diagnostic plots showed that the relationship between home value and poverty rate is curved, not straight. Adding a quadratic term captures this curvature and improves predictions."
+- **Robust SEs are your default defence.** In applied work, always report robust standard errors. They cost nothing when homoscedasticity holds and protect you when it does not.
+- **Transformations change the interpretation.** If you log-transform the response, the coefficients now represent approximate percentage changes. Make this explicit.
+- **Cook's distance is not a death sentence.** An influential point is not necessarily wrong. Investigate before deleting.
+
+---
+
+## Quick Reference
+
+| Quantity | Formula | Cutoff |
+|:---------|:--------|:-------|
+| Leverage | $h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$ | $> 2p/n$ |
+| Cook's distance | $D_i = \frac{r_i^2}{p}\frac{h_{ii}}{1-h_{ii}}$ | $> 4/n$ or $> 1$ |
+| DFFITS | $t_i\sqrt{h_{ii}/(1-h_{ii})}$ | $> 2\sqrt{p/n}$ |
+| Sandwich (HC1) SE | $\sqrt{\text{diag}\!\left[\frac{n}{n-p}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\text{diag}(e^2)\mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\right]}$ | -- |
+| Box-Cox | $Y^{(\lambda)} = (Y^\lambda - 1)/\lambda$ | Maximise profile $\ell(\lambda)$ |
+
+---
+
+## Exercises
+
+1. **Cook's distance derivation.** Starting from the leave-one-out formula $\hat{\boldsymbol{\beta}} - \hat{\boldsymbol{\beta}}_{(i)} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i e_i / (1 - h_{ii})$, derive the expression $D_i = r_i^2 h_{ii} / [p(1-h_{ii})]$.
+
+2. **Sandwich SEs from scratch.** Implement the HC0, HC1, HC2, and HC3 variants of the robust covariance estimator. Apply them to the Boston housing model and compare the results. Which variant gives the largest standard errors?
+
+3. **Box-Cox investigation.** For the Boston data, fit models with $\lambda = -1, -0.5, 0, 0.5, 1$. For each, produce the four diagnostic plots. Which $\lambda$ gives the best-behaved residuals?
+
+4. **Simulated influence.** Generate $n = 100$ points from $Y = 2 + 3X + \varepsilon$ with $\varepsilon \sim N(0,1)$. Add a single point at $(x = 20, y = 10)$ -- far from the regression line and with extreme $x$. Compute leverage, Cook's distance, DFFITS, and DFBETAS for this point. Re-fit without it and compare the coefficients.
+
+5. **NHANES with log BMI.** Fit `log(BMI) ~ Age + Height + Weight` to the NHANES data. Compare the diagnostic plots with the untransformed model. Do the robust and OLS standard errors agree more closely after the transformation?
+
+6. **Non-linearity remedies.** For the Boston data, compare three approaches to handling the `lstat` non-linearity: (a) add $\text{lstat}^2$, (b) use $\log(\text{lstat})$, (c) use a natural cubic spline with 4 knots via `splines::ns()`. Compare $R^2_{\text{adj}}$ and residual plots for all three.

@@ -1,0 +1,70 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 20: Logistic Regression"
+part: "Part 2: Assessment and Extensions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, logistic-regression, classification, roc, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 20 -- Logistic Regression
+
+## Part 2: Assessment and Extensions
+
+In Part 1 we fitted logistic regression models and interpreted coefficients as odds ratios. But how well does the model *predict*? In this part we develop a crash course on classification metrics -- sensitivity, specificity, precision, recall, ROC curves, and AUC -- and then extend logistic regression to multinomial and ordinal outcomes.
+
+---
+
+## 20.6 Classification Metrics
+
+### 20.6.1 The Confusion Matrix
+
+When we use logistic regression for prediction, we convert the estimated probability $\hat{p}_i$ into a class label using a **threshold** $c$ (typically 0.5):
+
+$$\hat{Y}_i = \begin{cases} 1 & \text{if } \hat{p}_i \ge c \\ 0 & \text{if } \hat{p}_i < c \end{cases}$$
+
+The confusion matrix tabulates predictions against actual values:
+
+|  | Predicted Positive | Predicted Negative |
+|:---:|:---:|:---:|
+| **Actual Positive** | True Positive (TP) | False Negative (FN) |
+| **Actual Negative** | False Positive (FP) | True Negative (TN) |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

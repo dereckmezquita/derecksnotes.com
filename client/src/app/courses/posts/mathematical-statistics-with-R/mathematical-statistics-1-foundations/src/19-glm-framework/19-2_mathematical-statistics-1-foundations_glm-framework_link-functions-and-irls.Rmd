@@ -1,0 +1,561 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 19: GLM Framework"
+part: "Part 2: Link Functions and IRLS"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, glm, link-functions, irls, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 19 -- GLM Framework
+
+## Part 2: Link Functions and IRLS
+
+In Part 1 we showed that the Normal, Bernoulli, Poisson, and Gamma distributions all belong to the exponential family, and that the mean and variance of any member are encoded in the log-partition function $A(\theta)$. We are now ready to assemble the three components of a Generalised Linear Model and derive the algorithm that fits it.
+
+---
+
+## 19.3 The Three Components of a GLM
+
+A GLM is specified by three ingredients:
+
+### 19.3.1 Random Component
+
+Each observation $Y_i$ follows a distribution from the exponential family with mean $\mu_i = E[Y_i]$. The observations are independent (or conditionally independent given the covariates).
+
+### 19.3.2 Systematic Component
+
+The covariates enter through a **linear predictor**:
+
+$$\eta_i = \mathbf{x}_i^\top \boldsymbol{\beta} = \beta_0 + \beta_1 x_{i1} + \cdots + \beta_p x_{ip}$$
+
+This is the familiar linear combination from ordinary regression. The GLM does not change the systematic component -- it changes how the linear predictor *connects* to the mean.
+
+### 19.3.3 Link Function
+
+A monotone, differentiable function $g$ connects the mean to the linear predictor:
+
+$$g(\mu_i) = \eta_i$$
+
+or equivalently $\mu_i = g^{-1}(\eta_i)$.
+
+The link function is the conceptual breakthrough of the GLM: instead of modelling $\mu$ directly as a linear function of the covariates (which may produce nonsensical values), we model a *transformation* of $\mu$ that maps the natural domain of $\mu$ onto the entire real line.
+
+---
+
+## 19.4 Canonical Links
+
+The **canonical link** sets $g(\mu) = \theta$, the natural parameter. This choice simplifies the mathematics considerably because the sufficient statistic for $\boldsymbol{\beta}$ is $\mathbf{X}^\top \mathbf{y}$.
+
+```{r canonical-links-table}
+links_df <- data.frame(
+  Distribution = c("Normal", "Bernoulli", "Poisson", "Gamma"),
+  Domain_of_mu = c("(-Inf, Inf)", "(0, 1)", "(0, Inf)", "(0, Inf)"),
+  Canonical_link = c("Identity: g(mu) = mu",
+                     "Logit: g(mu) = log(mu/(1-mu))",
+                     "Log: g(mu) = log(mu)",
+                     "Reciprocal: g(mu) = 1/mu"),
+  Inverse_link = c("mu = eta",
+                    "mu = exp(eta)/(1+exp(eta))",
+                    "mu = exp(eta)",
+                    "mu = 1/eta")
+)
+
+knitr::kable(links_df, col.names = c("Distribution", "Domain of mu", "Canonical link", "Inverse link"),
+             caption = "Canonical link functions for common exponential family distributions.")
+```
+
+### 19.4.1 Why Canonical Links Are Special
+
+When the canonical link is used, the score equations take the form:
+
+$$\mathbf{X}^\top \mathbf{y} = \mathbf{X}^\top \hat{\boldsymbol{\mu}}$$
+
+This means the sufficient statistic $\mathbf{X}^\top \mathbf{y}$ appears directly in the estimating equations. The canonical link also guarantees:
+
+- The log-likelihood is concave in $\boldsymbol{\beta}$ (unique MLE if it exists).
+- The observed and expected information matrices coincide.
+
+### 19.4.2 Non-Canonical Links
+
+One is not obliged to use the canonical link. For example, the **probit link** $g(\mu) = \Phi^{-1}(\mu)$ is sometimes used for binary data, and the **complementary log-log** link $g(\mu) = \log(-\log(1 - \mu))$ is appropriate when the response represents a "time to first event" probability.
+
+---
+
+## 19.5 Visualising Link Functions
+
+```{r link-functions-plot, fig.cap="Three link functions for binary data. All three map the probability domain (0, 1) onto the real line, but they differ in the tails."}
+mu_grid <- seq(0.001, 0.999, length.out = 500)
+
+link_dt <- data.table$rbindlist(list(
+  data.table$data.table(mu = mu_grid, eta = log(mu_grid / (1 - mu_grid)), link = "Logit"),
+  data.table$data.table(mu = mu_grid, eta = qnorm(mu_grid), link = "Probit"),
+  data.table$data.table(mu = mu_grid, eta = log(-log(1 - mu_grid)), link = "Complementary log-log")
+))
+
+ggplot2$ggplot(link_dt, ggplot2$aes(x = mu, y = eta, colour = link)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = expression(mu ~ "(probability)"),
+    y = expression(eta ~ "(linear predictor)"),
+    colour = "Link function",
+    title = "Link functions for binary data"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+The logit and probit are nearly identical in the centre and differ mainly in the tails. The complementary log-log is asymmetric -- it approaches $-\infty$ more slowly than $+\infty$. The choice of link matters most when there is substantial data in the tails.
+
+---
+
+## 19.6 The GLM Log-Likelihood
+
+For independent observations $y_1, \ldots, y_n$ from an exponential dispersion family with dispersion $\phi$, the log-likelihood is:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \frac{y_i \theta_i - A(\theta_i)}{\phi} + c(y_i, \phi)$$
+
+where $\theta_i = \theta(\mu_i)$ and $\mu_i = g^{-1}(\mathbf{x}_i^\top \boldsymbol{\beta})$.
+
+The score equations are:
+
+$$\frac{\partial \ell}{\partial \beta_j} = \sum_{i=1}^n \frac{(y_i - \mu_i) x_{ij}}{\phi\, V(\mu_i)\, g'(\mu_i)} = 0, \quad j = 0, 1, \ldots, p$$
+
+where $V(\mu_i) = A''(\theta_i)$ is the **variance function**. These equations are generally nonlinear in $\boldsymbol{\beta}$ and cannot be solved in closed form. We need an iterative algorithm.
+
+---
+
+## 19.7 Fisher Scoring and IRLS
+
+### 19.7.1 Newton-Raphson for GLMs
+
+Newton-Raphson updates are:
+
+$$\boldsymbol{\beta}^{(t+1)} = \boldsymbol{\beta}^{(t)} - \left[\frac{\partial^2 \ell}{\partial \boldsymbol{\beta} \partial \boldsymbol{\beta}^\top}\right]^{-1} \frac{\partial \ell}{\partial \boldsymbol{\beta}}$$
+
+**Fisher scoring** replaces the observed Hessian with its expectation -- the Fisher information matrix:
+
+$$\boldsymbol{\beta}^{(t+1)} = \boldsymbol{\beta}^{(t)} + \mathcal{I}(\boldsymbol{\beta}^{(t)})^{-1} \mathbf{U}(\boldsymbol{\beta}^{(t)})$$
+
+where $\mathbf{U} = \partial \ell / \partial \boldsymbol{\beta}$ is the score vector and $\mathcal{I} = \mathbf{X}^\top \mathbf{W} \mathbf{X}$ with $\mathbf{W} = \text{diag}(w_1, \ldots, w_n)$ and:
+
+$$w_i = \frac{1}{V(\mu_i) [g'(\mu_i)]^2}$$
+
+### 19.7.2 Rewriting as Weighted Least Squares
+
+After algebraic manipulation, the Fisher scoring update can be written as:
+
+$$\boldsymbol{\beta}^{(t+1)} = (\mathbf{X}^\top \mathbf{W}^{(t)} \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{W}^{(t)} \mathbf{z}^{(t)}$$
+
+where $\mathbf{z}^{(t)}$ is the **working response** (or **adjusted dependent variable**):
+
+$$z_i^{(t)} = \eta_i^{(t)} + (y_i - \mu_i^{(t)}) g'(\mu_i^{(t)})$$
+
+This is exactly the formula for **weighted least squares** with weights $\mathbf{W}^{(t)}$ and response $\mathbf{z}^{(t)}$. Hence the name: **Iteratively Reweighted Least Squares (IRLS)**.
+
+At each iteration we:
+
+1. Compute $\eta_i = \mathbf{x}_i^\top \boldsymbol{\beta}$ and $\mu_i = g^{-1}(\eta_i)$.
+2. Compute the working weights $w_i$ and working response $z_i$.
+3. Solve the weighted least squares problem to get updated $\boldsymbol{\beta}$.
+
+Repeat until convergence.
+
+---
+
+## 19.8 IRLS from Scratch
+
+Let us implement IRLS for a logistic regression (Bernoulli response, logit link) entirely from scratch, then compare with R's `glm()`.
+
+```{r irls-scratch}
+bwt <- data.table$fread(file.path(data_dir, "classic/birthwt.csv"))
+bwt[, low := as.integer(bwt < 2500)]
+
+data_dir <- "../../../data"
+
+X <- cbind(1, bwt$lwt)
+y <- bwt$low
+n <- length(y)
+
+# Link functions for logistic regression
+logit <- function(mu) log(mu / (1 - mu))
+inv_logit <- function(eta) 1 / (1 + exp(-eta))
+dlogit <- function(mu) 1 / (mu * (1 - mu))  # g'(mu)
+var_fun <- function(mu) mu * (1 - mu)         # V(mu) = p(1-p)
+
+# IRLS algorithm
+irls_logistic <- function(X, y, tol = 1e-8, max_iter = 50) {
+  beta <- rep(0, ncol(X))  # initial values
+
+  for (iter in seq_len(max_iter)) {
+    eta <- X %*% beta
+    mu <- inv_logit(eta)
+
+    # Clamp mu away from 0 and 1 for numerical stability
+    mu <- pmax(pmin(mu, 1 - 1e-10), 1e-10)
+
+    # Working weights
+    w <- as.vector(1 / (var_fun(mu) * dlogit(mu)^2))
+    # For canonical logit link this simplifies to: w = mu * (1 - mu)
+
+    # Working response
+    z <- eta + (y - mu) * dlogit(mu)
+
+    # Weighted least squares update
+    W <- diag(w)
+    beta_new <- solve(t(X) %*% W %*% X) %*% t(X) %*% W %*% z
+
+    if (max(abs(beta_new - beta)) < tol) {
+      beta <- beta_new
+      break
+    }
+    beta <- beta_new
+  }
+
+  list(
+    coefficients = as.vector(beta),
+    iterations = iter,
+    fitted_values = as.vector(inv_logit(X %*% beta))
+  )
+}
+
+fit_irls <- irls_logistic(X, y)
+
+# Compare with glm()
+fit_glm <- glm(low ~ lwt, data = bwt, family = binomial)
+
+comparison <- data.frame(
+  Parameter = c("Intercept", "lwt"),
+  IRLS_scratch = round(fit_irls$coefficients, 6),
+  glm = round(coef(fit_glm), 6)
+)
+
+comparison
+```
+
+The coefficients match to six decimal places. Our from-scratch IRLS converged in `r fit_irls$iterations` iterations.
+
+---
+
+## 19.9 Visualising IRLS Convergence
+
+```{r irls-convergence, fig.cap="Convergence of the IRLS algorithm. The coefficient estimates stabilise within a handful of iterations."}
+# Run IRLS tracking convergence
+irls_trace <- function(X, y, max_iter = 15) {
+  beta <- rep(0, ncol(X))
+  trace <- data.table$data.table(
+    iteration = 0L,
+    beta0 = beta[1],
+    beta1 = beta[2]
+  )
+
+  for (iter in seq_len(max_iter)) {
+    eta <- X %*% beta
+    mu <- inv_logit(eta)
+    mu <- pmax(pmin(mu, 1 - 1e-10), 1e-10)
+    w <- as.vector(mu * (1 - mu))
+    z <- eta + (y - mu) / (mu * (1 - mu))
+    W <- diag(w)
+    beta <- as.vector(solve(t(X) %*% W %*% X) %*% t(X) %*% W %*% z)
+    trace <- data.table$rbindlist(list(
+      trace,
+      data.table$data.table(iteration = as.integer(iter), beta0 = beta[1], beta1 = beta[2])
+    ))
+  }
+  trace
+}
+
+trace_dt <- irls_trace(X, y)
+trace_long <- data.table$melt(trace_dt, id.vars = "iteration",
+                               variable.name = "parameter", value.name = "estimate")
+
+ggplot2$ggplot(trace_long, ggplot2$aes(x = iteration, y = estimate, colour = parameter)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_point(size = 2.5) +
+  ggplot2$facet_wrap(~ parameter, scales = "free_y") +
+  ggplot2$labs(
+    x = "Iteration", y = "Estimate",
+    title = "IRLS convergence for logistic regression"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+Convergence is typically very fast -- often 5 to 8 iterations. This is a consequence of Fisher scoring being a second-order method (it uses curvature information).
+
+---
+
+## 19.10 Deviance
+
+### 19.10.1 Definition
+
+The **deviance** is twice the difference in log-likelihood between the saturated model (one parameter per observation) and the fitted model:
+
+$$D = 2[\ell(\hat{\boldsymbol{\theta}}_{\text{sat}}) - \ell(\hat{\boldsymbol{\theta}})]$$
+
+For the Normal case, $D = \text{SSE}$ (the residual sum of squares). The deviance is the GLM generalisation of the residual sum of squares.
+
+### 19.10.2 Deviance for Specific Families
+
+**Bernoulli:**
+
+$$D = 2 \sum_{i=1}^n \left[y_i \log\frac{y_i}{\hat{\mu}_i} + (1-y_i)\log\frac{1-y_i}{1-\hat{\mu}_i}\right]$$
+
+**Poisson:**
+
+$$D = 2 \sum_{i=1}^n \left[y_i \log\frac{y_i}{\hat{\mu}_i} - (y_i - \hat{\mu}_i)\right]$$
+
+```{r deviance-demo}
+# Compute deviance for logistic fit
+mu_hat <- fit_irls$fitted_values
+dev_terms <- ifelse(y == 1,
+  2 * log(1 / mu_hat),
+  2 * log(1 / (1 - mu_hat))
+)
+dev_scratch <- sum(dev_terms)
+
+c(
+  "Deviance (scratch)" = dev_scratch,
+  "Deviance (glm)"     = deviance(fit_glm)
+)
+```
+
+### 19.10.3 Null and Residual Deviance
+
+R's `glm()` reports two deviance values:
+
+- **Null deviance**: deviance of the intercept-only model.
+- **Residual deviance**: deviance of the fitted model.
+
+The difference $D_{\text{null}} - D_{\text{residual}}$ measures how much the covariates improve the fit.
+
+```{r deviance-report}
+data.frame(
+  Measure = c("Null deviance", "Residual deviance", "Improvement"),
+  Value = c(
+    fit_glm$null.deviance,
+    fit_glm$deviance,
+    fit_glm$null.deviance - fit_glm$deviance
+  ),
+  df = c(
+    fit_glm$df.null,
+    fit_glm$df.residual,
+    fit_glm$df.null - fit_glm$df.residual
+  )
+)
+```
+
+---
+
+## 19.11 Likelihood Ratio Test for GLMs
+
+To test whether a subset of predictors is significant, we compare the deviance of the reduced model to that of the full model:
+
+$$\Lambda = D_{\text{reduced}} - D_{\text{full}} \sim \chi^2_{p_{\text{full}} - p_{\text{reduced}}}$$
+
+under $H_0$: the extra parameters are all zero.
+
+```{r lrt-demo}
+# Full model: low ~ lwt + age + smoke
+fit_full <- glm(low ~ lwt + age + smoke, data = bwt, family = binomial)
+fit_reduced <- glm(low ~ lwt, data = bwt, family = binomial)
+
+lr_stat <- deviance(fit_reduced) - deviance(fit_full)
+df_diff <- fit_reduced$df.residual - fit_full$df.residual
+p_val <- pchisq(lr_stat, df = df_diff, lower.tail = FALSE)
+
+data.frame(
+  Test = "LRT: age + smoke = 0",
+  LR_statistic = round(lr_stat, 4),
+  df = df_diff,
+  p_value = round(p_val, 4)
+)
+```
+
+```{r anova-glm}
+anova(fit_reduced, fit_full, test = "LRT")
+```
+
+---
+
+## 19.12 AIC for Model Comparison
+
+The **Akaike Information Criterion** for a GLM is:
+
+$$\text{AIC} = -2\ell(\hat{\boldsymbol{\beta}}) + 2k$$
+
+where $k$ is the number of estimated parameters. Lower AIC is better. Unlike the LRT, AIC does not require nested models.
+
+```{r aic-comparison}
+fit_m1 <- glm(low ~ lwt, data = bwt, family = binomial)
+fit_m2 <- glm(low ~ lwt + Age, data = bwt, family = binomial)
+fit_m3 <- glm(low ~ lwt + age + smoke, data = bwt, family = binomial)
+fit_m4 <- glm(low ~ lwt + smoke + ht, data = bwt, family = binomial)
+
+aic_df <- data.frame(
+  Model = c("low ~ lwt", "low ~ lwt + age", "low ~ lwt + age + smoke", "low ~ lwt + smoke + ht"),
+  AIC = c(AIC(fit_m1), AIC(fit_m2), AIC(fit_m3), AIC(fit_m4)),
+  Deviance = c(deviance(fit_m1), deviance(fit_m2), deviance(fit_m3), deviance(fit_m4))
+)
+
+aic_df[order(aic_df$AIC), ]
+```
+
+---
+
+## 19.13 A Complete GLM Example: Poisson Regression
+
+To demonstrate that IRLS works for any exponential family member, let us fit a Poisson GLM to the ships damage data.
+
+```{r poisson-glm-example}
+ships <- data.table$fread(file.path(data_dir, "count/ships_damage.csv"))
+
+fit_pois <- glm(incidents ~ type + log(service), data = ships, family = poisson)
+summary(fit_pois)
+```
+
+```{r poisson-glm-plot, fig.cap="Observed vs fitted values for the Poisson GLM on the ships damage data. Points near the diagonal indicate good fit."}
+ships[, fitted := fitted(fit_pois)]
+
+ggplot2$ggplot(ships, ggplot2$aes(x = fitted, y = incidents)) +
+  ggplot2$geom_point(colour = "#0072B2", size = 2.5, alpha = 0.7) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = "Observed incidents",
+    title = "Observed vs fitted: Poisson GLM for ship damage"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 19.14 Residuals for GLMs
+
+GLMs define several types of residuals:
+
+1. **Response residuals**: $r_i = y_i - \hat{\mu}_i$ (on the original scale).
+2. **Pearson residuals**: $r_i^P = (y_i - \hat{\mu}_i) / \sqrt{V(\hat{\mu}_i)}$ (standardised by the variance function).
+3. **Deviance residuals**: $r_i^D = \text{sign}(y_i - \hat{\mu}_i) \sqrt{d_i}$, where $d_i$ is the $i$-th contribution to the deviance.
+
+Deviance residuals are preferred for diagnostic plots because they are more nearly normally distributed than Pearson residuals.
+
+```{r residual-types, fig.cap="Pearson and deviance residuals for the logistic regression fit. Deviance residuals are more symmetrically distributed."}
+bwt[, pearson_resid := residuals(fit_glm, type = "pearson")]
+bwt[, deviance_resid := residuals(fit_glm, type = "deviance")]
+
+resid_long <- data.table$melt(
+  bwt[, .(lwt, pearson_resid, deviance_resid)],
+  id.vars = "lwt",
+  variable.name = "type",
+  value.name = "residual"
+)
+
+ggplot2$ggplot(resid_long, ggplot2$aes(x = lwt, y = residual)) +
+  ggplot2$geom_point(alpha = 0.4, colour = "#0072B2", size = 1.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$facet_wrap(~ type, scales = "free_y") +
+  ggplot2$labs(
+    x = "Mother's weight (lbs)",
+    y = "Residual",
+    title = "Pearson vs deviance residuals (logistic regression)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 19.15 The `glm()` Function in R
+
+The syntax mirrors `lm()` with the addition of the `family` argument:
+
+```r
+glm(formula, data, family = gaussian)  # default = ordinary regression
+glm(y ~ x1 + x2, data, family = binomial)        # logistic regression
+glm(y ~ x1 + x2, data, family = poisson)         # Poisson regression
+glm(y ~ x1 + x2, data, family = Gamma(link="log"))  # Gamma with log link
+```
+
+Each `family` object specifies the variance function and the link. The canonical link is the default. To use a different link, specify it explicitly: `binomial(link = "probit")`.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining GLMs:
+
+- **The key message**: "A GLM is ordinary regression with a twist. Instead of modelling the outcome directly, we model a *transformation* of the outcome that keeps predictions sensible."
+- **Link functions**: "The link function is like a translator. It converts the natural scale of the outcome (e.g., a probability between 0 and 1) to a scale where a straight line is appropriate."
+- **IRLS**: "The computer fits the model by repeatedly solving weighted regression problems, adjusting the weights until the answer stabilises. It usually converges in fewer than 10 rounds."
+- **Deviance**: "Think of deviance as the GLM version of the sum of squared errors. Smaller deviance means better fit."
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Three GLM components** | Random (distribution), Systematic ($\eta = X\beta$), Link ($g(\mu) = \eta$) |
+| **Canonical links** | Normal: identity; Bernoulli: logit; Poisson: log; Gamma: reciprocal |
+| **IRLS update** | $\beta^{(t+1)} = (X^\top W^{(t)} X)^{-1} X^\top W^{(t)} z^{(t)}$ |
+| **Working response** | $z_i = \eta_i + (y_i - \mu_i) g'(\mu_i)$ |
+| **Working weights** | $w_i = 1 / [V(\mu_i) \cdot g'(\mu_i)^2]$ |
+| **Deviance** | $D = 2[\ell_{\text{saturated}} - \ell_{\text{fitted}}]$ |
+| **LRT** | $D_{\text{reduced}} - D_{\text{full}} \sim \chi^2$ |
+| **AIC** | $-2\ell + 2k$ (lower is better) |
+| **R function** | `glm(formula, data, family)` |
+
+---
+
+## Exercises
+
+1. **IRLS for Poisson.** Modify the `irls_logistic()` function to fit a Poisson GLM with log link. The variance function is $V(\mu) = \mu$ and the link derivative is $g'(\mu) = 1/\mu$. Fit the model `incidents ~ type + log(service)` on the ships data and compare with `glm()`.
+
+2. **Probit vs logit.** Fit both `glm(low ~ lwt, family = binomial(link = "logit"))` and `glm(low ~ lwt, family = binomial(link = "probit"))` to the birthwt data. Compare the fitted curves. At what range of `lwt` do the two models disagree most?
+
+3. **Working response.** For a Poisson GLM with log link, show algebraically that the working response simplifies to $z_i = \eta_i + (y_i - \mu_i)/\mu_i$ and the working weights are $w_i = \mu_i$.
+
+4. **Deviance derivation.** Derive the deviance formula for the Poisson distribution starting from the definition $D = 2[\ell_{\text{sat}} - \ell_{\text{fitted}}]$.
+
+5. **Gamma GLM.** Fit a Gamma GLM with log link to the `cats` data: model heart weight as a function of body weight. Compare with the OLS fit from Chapter 15. Plot both fitted curves on the same scatter plot.
+
+6. **Convergence experiment.** Run your IRLS implementation with different starting values for $\boldsymbol{\beta}$. Does the algorithm always converge to the same solution? How many iterations does it take from different starting points?

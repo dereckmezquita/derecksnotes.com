@@ -1,0 +1,111 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 11: Classical Tests"
+part: "Part 3: F-Test and Checking Assumptions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, f-test, diagnostics, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 11 -- Classical Tests
+
+## Part 3: F-Test and Checking Assumptions
+
+Every test in Parts 1 and 2 rests on assumptions: normality, independence, equal variances, or sufficiently large sample sizes for the CLT to operate. A test result is only as trustworthy as its assumptions. In this final part we derive the F-test for comparing variances and then develop the practical skills needed to assess whether the assumptions behind our tests are plausible.
+
+---
+
+## 11.8 The F-Test for Equality of Variances
+
+### 11.8.1 The Problem
+
+Given two independent samples from normal populations:
+
+$$X_1, \ldots, X_{n_1} \sim N(\mu_1, \sigma_1^2), \quad Y_1, \ldots, Y_{n_2} \sim N(\mu_2, \sigma_2^2),$$
+
+we wish to test $H_0: \sigma_1^2 = \sigma_2^2$ against $H_1: \sigma_1^2 \neq \sigma_2^2$.
+
+This is relevant in its own right (quality control, for instance) and is also a preliminary step before choosing between the pooled and Welch t-tests.
+
+### 11.8.2 Derivation from Chi-Square Ratios
+
+**Step 1.** From Chapter 5, we know that if $X_i \sim N(\mu, \sigma^2)$, then:
+
+$$(n - 1)S^2 / \sigma^2 \sim \chi^2_{n-1}.$$
+
+So for our two samples:
+
+$$U = \frac{(n_1 - 1) S_1^2}{\sigma_1^2} \sim \chi^2_{n_1 - 1}, \quad V = \frac{(n_2 - 1) S_2^2}{\sigma_2^2} \sim \chi^2_{n_2 - 1}$$
+
+and $U, V$ are independent (because the samples are independent).
+
+**Step 2.** The F-distribution is defined as the ratio of two independent chi-squared random variables, each divided by its degrees of freedom:
+
+$$F = \frac{U/d_1}{V/d_2} \sim F_{d_1, d_2}.$$
+
+**Step 3.** Substituting and noting that under $H_0$ we have $\sigma_1^2 = \sigma_2^2$:
+
+$$F = \frac{S_1^2 / \sigma_1^2}{S_2^2 / \sigma_2^2} = \frac{S_1^2}{S_2^2} \cdot \frac{\sigma_2^2}{\sigma_1^2} \stackrel{H_0}{=} \frac{S_1^2}{S_2^2}.$$
+
+Therefore:
+
+$$\boxed{F = \frac{S_1^2}{S_2^2} \sim F_{n_1 - 1, \, n_2 - 1} \quad \text{under } H_0.}$$
+
+The test statistic is simply the **ratio of the sample variances**. Values of $F$ far from 1 (in either direction) suggest unequal population variances.
+
+### 11.8.3 Cats Data: Body Weight Variance by Sex
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,511 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 9: Interval Estimation"
+part: "Part 1: Confidence Intervals for Means"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, estimation, confidence-intervals, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+```{r data-path, include=FALSE}
+data_dir <- "../../../data"
+```
+
+# Chapter 9 -- Interval Estimation
+
+## Part 1: Confidence Intervals for Means
+
+In Chapter 8 we learned to produce a single number -- a point estimate -- for an unknown parameter. A point estimate is a best guess, but it tells us nothing about how *precise* that guess is. If someone tells you "the average blood pressure is 120 mmHg," your first question should be: "plus or minus how much?"
+
+An **interval estimate** answers that question. Instead of a single number, we produce a *range* of plausible values together with a statement about how confident we are that the range contains the true parameter. This is the **confidence interval** (CI), and it is arguably the most useful -- and most misunderstood -- concept in all of applied statistics.
+
+---
+
+## 9.1 What a Confidence Interval IS and IS NOT
+
+### 9.1.1 The Correct Interpretation
+
+Suppose we construct a 95% CI for a population mean $\mu$ and obtain the interval $(4.2, 7.8)$. What does this mean?
+
+**Correct interpretation:** If we were to repeat the entire experiment -- draw a new sample, compute a new CI -- over and over again, then 95% of the intervals so constructed would contain the true value of $\mu$.
+
+The confidence level refers to the *procedure*, not to the particular interval in hand. Our specific interval $(4.2, 7.8)$ either contains $\mu$ or it does not -- there is no randomness left once the data are observed. The 95% is a statement about the long-run reliability of the *method*.
+
+### 9.1.2 Common Misinterpretations
+
+The following statements are **wrong**, yet they appear routinely in published papers, textbooks, and news articles:
+
+1. **"There is a 95% probability that $\mu$ lies in $(4.2, 7.8)$."** This is wrong because $\mu$ is a fixed (though unknown) constant. It does not have a probability distribution. The interval is random before the data are collected; $\mu$ is not.
+
+2. **"95% of the data fall in this interval."** A CI is about the *parameter*, not about individual data points. A prediction interval addresses data coverage; a CI does not.
+
+3. **"If we repeat the experiment, 95% of our new observations will fall in this interval."** Same error as above -- confusing a CI with a prediction interval.
+
+4. **"We are 95% sure the interval is correct."** This anthropomorphises the procedure. The interval is deterministic once computed; "sureness" does not apply.
+
+### 9.1.3 Why the Distinction Matters
+
+The difference between "95% of intervals capture $\mu$" and "there is a 95% chance $\mu$ is in this interval" may seem pedantic, but it has real consequences. In clinical trials, regulators base decisions on whether a CI for a treatment effect excludes zero. If the CI is misinterpreted, the decision is misinterpreted. In Bayesian statistics (Chapter 22) we will meet the **credible interval**, which *does* allow a direct probability statement -- but it requires a prior distribution. The frequentist CI makes no such assumption, and in exchange it requires the more careful interpretation above.
+
+---
+
+## 9.2 The Z-Interval (Known $\sigma$)
+
+### 9.2.1 Setup and Assumptions
+
+Suppose $X_1, X_2, \ldots, X_n \overset{\text{iid}}{\sim} N(\mu, \sigma^2)$, where $\mu$ is unknown but $\sigma$ is **known**. This is rarely realistic -- we seldom know $\sigma$ without knowing $\mu$ -- but it provides the cleanest derivation and sets the pattern for everything that follows.
+
+### 9.2.2 Standardisation
+
+From Chapter 7 (the Central Limit Theorem), we know that:
+
+$$Z = \frac{\bar{X} - \mu}{\sigma / \sqrt{n}} \sim N(0, 1).$$
+
+This is exact when the data are Normal and approximately true for large $n$ regardless of the parent distribution.
+
+### 9.2.3 Derivation
+
+We want to find an interval $(L, U)$ such that $P(\mu \in (L, U)) = 1 - \alpha$, where $\alpha$ is a small number (typically 0.05 for a 95% CI).
+
+Start from the probability statement about $Z$:
+
+$$P\!\left(-z_{\alpha/2} \le \frac{\bar{X} - \mu}{\sigma/\sqrt{n}} \le z_{\alpha/2}\right) = 1 - \alpha,$$
+
+where $z_{\alpha/2}$ is the upper $\alpha/2$ quantile of the standard Normal (i.e., $P(Z > z_{\alpha/2}) = \alpha/2$).
+
+Multiply all three parts of the inequality by $\sigma/\sqrt{n}$:
+
+$$P\!\left(-z_{\alpha/2} \frac{\sigma}{\sqrt{n}} \le \bar{X} - \mu \le z_{\alpha/2} \frac{\sigma}{\sqrt{n}}\right) = 1 - \alpha.$$
+
+Subtract $\bar{X}$ from all three parts and multiply by $-1$ (which reverses the inequalities):
+
+$$P\!\left(\bar{X} - z_{\alpha/2} \frac{\sigma}{\sqrt{n}} \le \mu \le \bar{X} + z_{\alpha/2} \frac{\sigma}{\sqrt{n}}\right) = 1 - \alpha.$$
+
+This gives us the **Z-interval**:
+
+$$\bar{X} \pm z_{\alpha/2} \frac{\sigma}{\sqrt{n}}.$$
+
+The quantity $z_{\alpha/2} \cdot \sigma/\sqrt{n}$ is called the **margin of error**.
+
+### 9.2.4 Implementation from Scratch
+
+```{r z-interval-scratch}
+set.seed(42)
+
+#' Z-interval for a population mean (known sigma)
+#' @param x numeric vector of observations
+#' @param sigma known population standard deviation
+#' @param conf confidence level (default 0.95)
+#' @return named vector: lower, upper, mean, margin
+my_z_interval <- function(x, sigma, conf = 0.95) {
+  n <- length(x)
+  xbar <- mean(x)
+  alpha <- 1 - conf
+  z <- qnorm(1 - alpha / 2)
+  me <- z * sigma / sqrt(n)
+  c(lower = xbar - me, upper = xbar + me, mean = xbar, margin = me)
+}
+
+# Generate data from N(50, 10^2) -- pretend sigma = 10 is known
+x <- rnorm(30, mean = 50, sd = 10)
+my_z_interval(x, sigma = 10)
+```
+
+The sample mean is close to 50, and the interval is centred on it with a margin of about $\pm 3.6$.
+
+---
+
+## 9.3 The t-Interval (Unknown $\sigma$)
+
+### 9.3.1 Why We Need It
+
+In practice, $\sigma$ is almost never known. When we replace $\sigma$ with the sample standard deviation $S$, the resulting statistic is no longer standard Normal:
+
+$$T = \frac{\bar{X} - \mu}{S / \sqrt{n}} \sim t_{n-1}.$$
+
+This is Student's t-distribution with $n - 1$ degrees of freedom, which we derived in Chapter 5 (Section 5.6). The t-distribution has heavier tails than the Normal -- reflecting the additional uncertainty introduced by estimating $\sigma$.
+
+### 9.3.2 Derivation
+
+The argument follows the Z-interval derivation with $t_{n-1,\,\alpha/2}$ replacing $z_{\alpha/2}$ and $S$ replacing $\sigma$:
+
+$$P\!\left(\bar{X} - t_{n-1,\,\alpha/2} \frac{S}{\sqrt{n}} \le \mu \le \bar{X} + t_{n-1,\,\alpha/2} \frac{S}{\sqrt{n}}\right) = 1 - \alpha.$$
+
+The **t-interval** is therefore:
+
+$$\bar{X} \pm t_{n-1,\,\alpha/2} \frac{S}{\sqrt{n}}.$$
+
+For large $n$ the t-distribution converges to the Normal, so the Z-interval and t-interval give nearly identical results. For small $n$ the t-interval is wider -- appropriately so, because our estimate of spread is less precise with fewer observations.
+
+### 9.3.3 Implementation from Scratch
+
+```{r t-interval-scratch}
+#' t-interval for a population mean (unknown sigma)
+#' @param x numeric vector of observations
+#' @param conf confidence level (default 0.95)
+#' @return named vector: lower, upper, mean, se, df
+my_t_interval <- function(x, conf = 0.95) {
+  n <- length(x)
+  xbar <- mean(x)
+  s <- sd(x)
+  alpha <- 1 - conf
+  t_crit <- qt(1 - alpha / 2, df = n - 1)
+  se <- s / sqrt(n)
+  me <- t_crit * se
+  c(lower = xbar - me, upper = xbar + me, mean = xbar, se = se, df = n - 1)
+}
+
+my_t_interval(x)
+```
+
+### 9.3.4 Comparison with R's Built-in
+
+```{r t-interval-builtin}
+# R's t.test returns the same interval
+builtin <- t.test(x, conf.level = 0.95)
+builtin$conf.int
+```
+
+The values match -- our from-scratch implementation is correct.
+
+### 9.3.5 When to Use Z vs. t
+
+| Situation | Use |
+|:----------|:----|
+| $\sigma$ known (rare) | Z-interval |
+| $\sigma$ unknown, Normal data | t-interval (exact) |
+| $\sigma$ unknown, non-Normal data, large $n$ | t-interval (approximate via CLT) |
+| $\sigma$ unknown, non-Normal data, small $n$ | t-interval if mild skewness; bootstrap otherwise (Ch. 13) |
+
+---
+
+## 9.4 Simulating CI Coverage
+
+The best way to internalise the frequentist interpretation is to see it in action. We will generate many samples from a known population, compute a CI from each, and count how many capture the true parameter.
+
+### 9.4.1 Simulation Code
+
+```{r ci-coverage-sim}
+set.seed(42)
+n_sims <- 100
+n <- 25
+true_mu <- 50
+true_sigma <- 10
+conf <- 0.95
+alpha <- 1 - conf
+
+# Pre-allocate results
+ci_dt <- data.table$data.table(
+  sim = 1:n_sims,
+  lower = numeric(n_sims),
+  upper = numeric(n_sims),
+  xbar = numeric(n_sims)
+)
+
+for (i in 1:n_sims) {
+  samp <- rnorm(n, mean = true_mu, sd = true_sigma)
+  xbar <- mean(samp)
+  s <- sd(samp)
+  t_crit <- qt(1 - alpha / 2, df = n - 1)
+  me <- t_crit * s / sqrt(n)
+  ci_dt[i, `:=`(lower = xbar - me, upper = xbar + me, xbar = xbar)]
+}
+
+ci_dt[, captured := (lower <= true_mu) & (true_mu <= upper)]
+coverage <- sum(ci_dt$captured)
+coverage
+```
+
+Out of `r n_sims` intervals, `r coverage` captured the true mean of `r true_mu`. This is close to the nominal 95% -- exactly as the theory predicts.
+
+### 9.4.2 CI Coverage Plot
+
+```{r ci-coverage-plot, fig.cap="100 confidence intervals for mu = 50. Orange intervals miss the true parameter; blue intervals capture it. About 95% of intervals capture mu, illustrating the frequentist interpretation."}
+ci_dt[, colour := ifelse(captured, "#0072B2", "#D55E00")]
+
+ggplot2$ggplot(ci_dt, ggplot2$aes(y = sim)) +
+  ggplot2$geom_segment(
+    ggplot2$aes(x = lower, xend = upper, yend = sim),
+    colour = ci_dt$colour, linewidth = 0.5
+  ) +
+  ggplot2$geom_point(
+    ggplot2$aes(x = xbar), colour = ci_dt$colour, size = 1
+  ) +
+  ggplot2$geom_vline(xintercept = true_mu, linetype = "dashed",
+    colour = "grey30", linewidth = 0.8) +
+  ggplot2$annotate("text", x = true_mu + 0.5, y = n_sims + 3,
+    label = paste0("mu = ", true_mu), hjust = 0, size = 4) +
+  ggplot2$annotate("text", x = min(ci_dt$lower) - 1, y = n_sims + 3,
+    label = sprintf("Coverage: %d / %d = %.0f%%",
+      coverage, n_sims, 100 * coverage / n_sims),
+    hjust = 0, size = 4) +
+  ggplot2$labs(
+    x = "Confidence Interval",
+    y = "Simulation Number",
+    title = sprintf("95%% t-intervals from %d samples of size %d", n_sims, n)
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(panel.grid.minor = ggplot2$element_blank())
+```
+
+Each horizontal line is one CI. The dashed vertical line marks $\mu = 50$. Blue intervals capture $\mu$; orange ones miss. If we repeated this entire figure many times, the orange fraction would hover around 5%.
+
+---
+
+## 9.5 Interactive: Repeated Sampling of Confidence Intervals
+
+<InteractivePlot>
+
+```{r interactive-ci, eval=knitr::is_html_output(), echo=FALSE, results='asis'}
+htmltools::tags$div(
+  id = "ci-interactive-container",
+  style = "max-width:750px; margin:auto;",
+  htmltools::tags$div(
+    style = "display:flex; gap:15px; align-items:center; margin-bottom:10px;",
+    htmltools::tags$button(id = "ci-draw-btn", "Draw 10 CIs",
+      style = "padding:8px 16px; font-size:14px; cursor:pointer;"),
+    htmltools::tags$button(id = "ci-reset-btn", "Reset",
+      style = "padding:8px 16px; font-size:14px; cursor:pointer;"),
+    htmltools::tags$span(id = "ci-counter", "Captured: 0 / 0 (--%)"),
+    htmltools::tags$span(" | "),
+    htmltools::tags$label("n =",
+      htmltools::tags$input(id = "ci-n-input", type = "number",
+        value = "25", min = "5", max = "200", style = "width:60px;"))
+  ),
+  htmltools::tags$canvas(id = "ci-canvas", width = "750", Height = "420",
+    style = "border:1px solid #ccc; width:100%;"),
+  htmltools::tags$script(htmltools::HTML("
+    (function() {
+      var canvas = document.getElementById('ci-canvas');
+      var ctx = canvas.getContext('2d');
+      var btn = document.getElementById('ci-draw-btn');
+      var resetBtn = document.getElementById('ci-reset-btn');
+      var counter = document.getElementById('ci-counter');
+      var nInput = document.getElementById('ci-n-input');
+      var trueMu = 50, trueSigma = 10;
+      var intervals = [];
+      var captured = 0;
+
+      function rnorm() {
+        var u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      }
+
+      function draw() {
+        var w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        var pad = 40;
+        var plotW = w - 2 * pad;
+        var plotH = h - 2 * pad;
+        var xMin = 38, xMax = 62;
+
+        // Axes
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad, pad); ctx.lineTo(pad, h - pad);
+        ctx.lineTo(w - pad, h - pad); ctx.stroke();
+
+        // True mu line
+        var muX = pad + (trueMu - xMin) / (xMax - xMin) * plotW;
+        ctx.strokeStyle = '#333';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(muX, pad); ctx.lineTo(muX, h - pad);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#333'; ctx.font = '12px sans-serif';
+        ctx.fillText('mu = ' + trueMu, muX + 4, pad - 5);
+
+        if (intervals.length === 0) return;
+        var maxShow = Math.min(intervals.length, 50);
+        var spacing = plotH / (maxShow + 1);
+        var start = Math.max(0, intervals.length - maxShow);
+
+        for (var i = start; i < intervals.length; i++) {
+          var ci = intervals[i];
+          var row = i - start;
+          var y = pad + (row + 1) * spacing;
+          var x1 = pad + (ci.lower - xMin) / (xMax - xMin) * plotW;
+          var x2 = pad + (ci.upper - xMin) / (xMax - xMin) * plotW;
+          var xm = pad + (ci.mean - xMin) / (xMax - xMin) * plotW;
+          ctx.strokeStyle = ci.hit ? '#0072B2' : '#D55E00';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+          ctx.beginPath(); ctx.arc(xm, y, 2.5, 0, 2 * Math.PI);
+          ctx.fillStyle = ci.hit ? '#0072B2' : '#D55E00'; ctx.fill();
+        }
+      }
+
+      function addIntervals(count) {
+        var n = parseInt(nInput.value) || 25;
+        for (var j = 0; j < count; j++) {
+          var samp = [];
+          for (var i = 0; i < n; i++) samp.push(trueMu + trueSigma * rnorm());
+          var xbar = samp.reduce(function(a, b){return a+b;}, 0) / n;
+          var s2 = samp.reduce(function(a, b){return a+(b-xbar)*(b-xbar);}, 0) / (n-1);
+          var se = Math.sqrt(s2 / n);
+          var t = 1.96 + 0.84 / n;  // rough t approximation
+          var lo = xbar - t * se, hi = xbar + t * se;
+          var hit = (lo <= trueMu && trueMu <= hi);
+          if (hit) captured++;
+          intervals.push({lower: lo, upper: hi, mean: xbar, hit: hit});
+        }
+        var pct = (100 * captured / intervals.length).toFixed(1);
+        counter.textContent = 'Captured: ' + captured + ' / ' + intervals.length + ' (' + pct + '%)';
+        draw();
+      }
+
+      btn.addEventListener('click', function() { addIntervals(10); });
+      resetBtn.addEventListener('click', function() {
+        intervals = []; captured = 0;
+        counter.textContent = 'Captured: 0 / 0 (--%)';
+        draw();
+      });
+      draw();
+    })();
+  "))
+)
+```
+
+</InteractivePlot>
+
+Click **Draw 10 CIs** repeatedly to accumulate intervals. Blue intervals capture $\mu = 50$; orange intervals miss. As the total grows, the captured percentage converges to approximately 95%.
+
+---
+
+## 9.6 Effect of Sample Size and Confidence Level
+
+### 9.6.1 Sample Size
+
+The margin of error is proportional to $1/\sqrt{n}$. Doubling precision requires *quadrupling* the sample size -- a sobering fact of statistical life.
+
+```{r margin-vs-n, fig.cap="Margin of error as a function of sample size for a 95% Z-interval with sigma = 10. The curve falls steeply at first but flattens quickly -- diminishing returns set in after about n = 50."}
+sigma <- 10
+z_crit <- qnorm(0.975)
+n_seq <- seq(5, 500, by = 1)
+me_seq <- z_crit * sigma / sqrt(n_seq)
+
+me_dt <- data.table$data.table(n = n_seq, margin = me_seq)
+
+ggplot2$ggplot(me_dt, ggplot2$aes(x = n, y = margin)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+  ggplot2$annotate("text", x = 450, y = 1.3, label = "ME = 1", colour = "grey40") +
+  ggplot2$labs(
+    x = "Sample Size (n)",
+    y = "Margin of Error",
+    title = "Margin of error vs. sample size (95% Z-interval, sigma = 10)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 9.6.2 Confidence Level
+
+Increasing the confidence level widens the interval. A 99% CI is wider than a 95% CI for the same data, because we demand a higher probability of capturing $\mu$.
+
+```{r conf-level-comparison}
+# Compare 90%, 95%, 99% intervals for the same data
+for (cl in c(0.90, 0.95, 0.99)) {
+  ci <- my_t_interval(x, conf = cl)
+  width <- ci["upper"] - ci["lower"]
+  cat(sprintf("  %2.0f%% CI: (%.2f, %.2f)  width = %.2f\n",
+    100 * cl, ci["lower"], ci["upper"], width))
+}
+```
+
+Higher confidence comes at the cost of precision. There is no free lunch: you cannot make an interval both narrower and more confident without collecting more data.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting confidence intervals to a non-technical audience:
+
+- **Never say** "there is a 95% chance the true value is in this interval." Instead say: "our method produces intervals that capture the true value 95% of the time."
+- **Translate the margin of error** into practical language: "We estimate the average processing time is 4.2 seconds, give or take about half a second."
+- **Visualise the interval** as an error bar on a plot rather than quoting numbers. A picture is far more intuitive than "(3.7, 4.7)."
+- **Compare sample sizes** using the "quadrupling rule": "To cut our uncertainty in half, we would need four times as many observations -- roughly 400 instead of 100."
+- **Avoid "significant" language** here. Confidence intervals are about precision, not hypothesis testing (that is Chapter 10).
+
+---
+
+## Quick Reference
+
+| Quantity | Formula | Assumptions |
+|:---------|:--------|:------------|
+| **Z-interval** | $\bar{X} \pm z_{\alpha/2}\,\sigma/\sqrt{n}$ | Known $\sigma$; Normal data or large $n$ |
+| **t-interval** | $\bar{X} \pm t_{n-1,\,\alpha/2}\,S/\sqrt{n}$ | Unknown $\sigma$; Normal data or large $n$ |
+| **Margin of error** | $z_{\alpha/2}\,\sigma/\sqrt{n}$ or $t_{n-1,\,\alpha/2}\,S/\sqrt{n}$ | Halves when $n$ quadruples |
+| **Coverage** | $P(\mu \in \text{CI}) = 1 - \alpha$ | Over repeated sampling |
+| **Common $z_{\alpha/2}$** | 1.645 (90%), 1.96 (95%), 2.576 (99%) | Standard Normal quantiles |
+
+---
+
+## Exercises
+
+**Conceptual**
+
+1. A colleague says: "We computed a 95% CI of $(12.3, 14.7)$, so there is a 95% probability that $\mu$ is between 12.3 and 14.7." Explain, in plain English, what is wrong with this statement. Provide the correct interpretation.
+
+2. Suppose you increase the confidence level from 95% to 99% while keeping the same data. Does the interval get wider or narrower? Explain why this makes sense intuitively.
+
+3. Two researchers each compute a 95% CI from independent samples. Researcher A's interval is $(5.1, 5.9)$ and Researcher B's is $(4.8, 6.2)$. Both are valid 95% CIs. Explain how this is possible.
+
+4. Why does the t-interval converge to the Z-interval as $n$ grows? What happens to the t-distribution as degrees of freedom increase?
+
+**Proofs and Derivations**
+
+5. Starting from $P(-z_{\alpha/2} \le Z \le z_{\alpha/2}) = 1 - \alpha$, derive the Z-interval formula step by step. At which step do we "invert" the pivot?
+
+6. Show that the width of a $(1-\alpha)$ Z-interval is $2 z_{\alpha/2} \sigma / \sqrt{n}$, and hence the width is $O(1/\sqrt{n})$.
+
+7. Suppose $X_1, \ldots, X_n \sim \text{Exp}(\lambda)$. Show that $2\lambda n \bar{X} \sim \chi^2_{2n}$, and use this to derive an exact CI for $\lambda$. (Hint: this anticipates the pivotal-quantity method of Part 3.)
+
+**Computational**
+
+8. Simulate 10,000 sets of 95% t-intervals from samples of size $n = 5$ drawn from a $\text{Exp}(1)$ distribution (which is heavily skewed). What is the empirical coverage? Is it close to 95%? Discuss.
+
+9. Using the `sleep` data set in R (`data(sleep)`), compute a 95% CI for the mean increase in hours of sleep for each drug. Interpret the results in the context of the study.
+
+10. Write a function that takes a desired margin of error $E$, a confidence level, and a known $\sigma$, and returns the minimum sample size $n$ required. Verify that for $E = 1$, $\sigma = 10$, and 95% confidence, $n = 385$. (This anticipates Part 3.)
