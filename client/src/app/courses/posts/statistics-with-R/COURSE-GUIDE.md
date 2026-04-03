@@ -151,7 +151,7 @@ coverImage: 13
 author: "Dereck Mezquita"
 date: 2025-01-14
 tags: [statistics, mathematics, probability, data, R, biomedical]
-published: true
+published: false
 comments: true
 output:
   html_document:

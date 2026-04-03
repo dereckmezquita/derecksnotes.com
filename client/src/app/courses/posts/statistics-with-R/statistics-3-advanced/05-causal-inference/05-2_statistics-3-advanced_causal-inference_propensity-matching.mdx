@@ -6,7 +6,7 @@ coverImage: 13
 author: "Dereck Mezquita"
 date: "2026-01-19"
 tags: [statistics, causal-inference, propensity-scores, matching, R, biomedical]
-published: true
+published: false
 comments: true
 output:
   html_document:
@@ -201,7 +201,7 @@ ggplot2$ggplot(confound_data, ggplot2$aes(x = value, fill = treatment)) +
 
 To identify causal effects from observational data, we need the **unconfoundedness** (or "conditional independence" or "selection on observables") assumption:
 
-$$(Y(0), Y(1)) \perp\!\!\!\perp W | X$$
+$$(Y(0), Y(1)) {\perp \!\!\! \perp} W | X$$
 
 Given covariates $X$, treatment assignment is "as good as random"—all confounding is captured by measured covariates.
 
@@ -223,7 +223,7 @@ $$\tau = E_X[E[Y | W = 1, X] - E[Y | W = 0, X]]$$
 
 The **propensity score** $e(X) = P(W = 1 | X)$ is the probability of receiving treatment given covariates. Rosenbaum and Rubin (1983) showed that if unconfoundedness holds given $X$, it also holds given $e(X)$:
 
-$$(Y(0), Y(1)) \perp\!\!\!\perp W | e(X)$$
+$$(Y(0), Y(1)) {\perp \!\!\! \perp} W | e(X)$$
 
 This is powerful: instead of matching on all covariates (potentially high-dimensional), we can match on a single scalar—the propensity score.
 
@@ -233,7 +233,7 @@ This is powerful: instead of matching on all covariates (potentially high-dimens
 
 **Theorem (Propensity Score Theorem, Rosenbaum & Rubin 1983)**
 
-If $(Y(0), Y(1)) \perp\!\!\!\perp W | X$, then $(Y(0), Y(1)) \perp\!\!\!\perp W | e(X)$.
+If $(Y(0), Y(1)) {\perp \!\!\! \perp} W | X$, then $(Y(0), Y(1)) {\perp \!\!\! \perp} W | e(X)$.
 
 *Proof sketch*: $P(W = 1 | Y(0), Y(1), e(X)) = E[P(W = 1 | Y(0), Y(1), X) | e(X)] = E[P(W = 1 | X) | e(X)] = e(X)$.
 
