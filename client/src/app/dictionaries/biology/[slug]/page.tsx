@@ -48,7 +48,7 @@ async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { source, frontmatter } =
     await processMdx<DefinitionMetadata>(markdown);
 
-  const sideBarDefintiions = fetchDefintionsMetadata(absDir, frontmatter.word);
+  const sideBarDefintiions = fetchDefintionsMetadata(absDir, decodedSlug);
 
   if (!frontmatter.published) {
     notFound();
@@ -90,9 +90,9 @@ export async function generateMetadata({
     };
   }
 
-  const title: string = `Dn | dictionary - ${definition.word}`;
+  const title: string = `Dn | dictionary - ${definition.displayName}`;
   const summary: string =
-    definition.summary || `Dn | definition of ${definition.word}`;
+    definition.summary || `Dn | definition of ${definition.displayName}`;
   const coverImage: string = '/site-images/card-covers/512-logo.png';
   return {
     metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
