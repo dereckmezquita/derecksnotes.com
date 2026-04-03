@@ -1,52 +1,52 @@
 {
-    "name": "derecksnotes.com",
-    "version": "6.0.0",
-    "type": "module",
-    "workspaces": [
-        "client",
-        "server",
-        "shared"
-    ],
-    "repository": "git@github.com:dereckdemezquita/derecksnotes.com.git",
-    "scripts": {
-        "dev": "concurrently -n client,server -c blue,green \"bun run --cwd client dev\" \"bun run --cwd server dev\"",
-        "build": "bun run --cwd client build",
-        "start": "concurrently -n client,server \"bun run --cwd client start\" \"bun run --cwd server start\"",
-        "format": "bun prettier --write .",
-        "lint": "bun run --cwd client lint",
-        "typecheck": "bun run --cwd client typecheck",
-        "test": "bun test",
-        "db:generate": "bun run --cwd server db:generate",
-        "db:migrate": "bun run --cwd server db:migrate",
-        "db:seed": "bun run --cwd server db:seed",
-        "db:reset": "bun run --cwd server db:reset",
-        "db:studio": "bun run --cwd server db:studio"
-    },
-    "prettier": {
-        "semi": true,
-        "trailingComma": "none",
-        "singleQuote": true,
-        "printWidth": 80,
-        "tabWidth": 4,
-        "useTabs": false,
-        "overrides": [
-            {
-                "files": "*.yml",
-                "options": {
-                    "tabWidth": 2
-                }
-            }
-        ]
-    },
-    "devDependencies": {
-        "@types/bun": "^1.1.4",
-        "@types/node": "^20.14.2",
-        "concurrently": "^9.2.1",
-        "husky": "^9.0.11",
-        "prettier": "^3.3.2",
-        "typescript": "^5.4.5"
-    },
-    "peerDependencies": {
-        "typescript": "^5.0.0"
-    }
+  "name": "derecksnotes.com",
+  "version": "6.0.0",
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "repository": "git@github.com:dereckdemezquita/derecksnotes.com.git",
+  "scripts": {
+    "dev": "concurrently -n client,server -c blue,green \"bun run --cwd client dev\" \"bun run --cwd server dev\"",
+    "build": "bun run --cwd client build",
+    "start": "concurrently -n client,server \"bun run --cwd client start\" \"bun run --cwd server start\"",
+    "format": "bun prettier --write .",
+    "lint": "bun run --cwd client lint",
+    "typecheck": "bun run --cwd client typecheck",
+    "test": "bun test",
+    "db:generate": "bun run --cwd server db:generate",
+    "db:migrate": "bun run --cwd server db:migrate",
+    "db:seed": "bun run --cwd server db:seed",
+    "db:reset": "bun run --cwd server db:reset",
+    "db:studio": "bun run --cwd server db:studio"
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "none",
+    "singleQuote": true,
+    "printWidth": 80,
+    "tabWidth": 2,
+    "useTabs": false,
+    "overrides": [
+      {
+        "files": "*.yml",
+        "options": {
+          "tabWidth": 2
+        }
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.4",
+    "@types/node": "^20.14.2",
+    "concurrently": "^9.2.1",
+    "husky": "^9.0.11",
+    "prettier": "^3.3.2",
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
 }
