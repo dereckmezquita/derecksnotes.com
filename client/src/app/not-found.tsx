@@ -122,6 +122,13 @@ export default function NotFound() {
         let dragStart: Vec2 | null = null;
         let isDragging = false;
 
+        // Fixed timestep — physics runs at constant 60Hz regardless of frame rate
+        const PHYSICS_DT = 1000 / 60; // 16.67ms per physics step
+        let lastTime = performance.now();
+        let accumulator = 0;
+        let totalKE = 0;
+        let totalPE = 0;
+
         function onMouseMove(e: MouseEvent) {
             mouseRef.current.pos.set(e.clientX, e.clientY);
             mouseRef.current.active = true;
@@ -182,116 +189,155 @@ export default function NotFound() {
             const w = W(),
                 h = H();
             renderer.clear(w, h);
-            frame++;
 
-            const useGravity = gravityRef.current;
-            const useAttract = attractRef.current;
-            const mouse = mouseRef.current;
+            // Fixed timestep accumulator
+            const now = performance.now();
+            const elapsed = Math.min(now - lastTime, 100); // cap at 100ms to prevent spiral of death
+            lastTime = now;
+            accumulator += elapsed;
+
+            // Run physics at fixed 60Hz — may run 0, 1, or multiple steps per render frame
+            while (accumulator >= PHYSICS_DT) {
+                accumulator -= PHYSICS_DT;
+                frame++;
+
+                const useGravity = gravityRef.current;
+                const useAttract = attractRef.current;
+                const mouse = mouseRef.current;
+                const N = particles.length;
+                const groundY = h - 24;
+                const wind = Vec2.from(Math.sin(frame * 0.012) * 0.02, 0);
+
+                // Random perturbation
+                if (frame % 90 === 0 && N > 0) {
+                    const idx = Math.floor(Math.random() * N);
+                    particles[idx].applyImpulse(
+                        Vec2.random(2 + Math.random() * 3)
+                    );
+                }
+
+                // Build quadtree
+                const qt = new QuadTree(
+                    { x: 0, y: 0, w, h },
+                    0,
+                    qtCapacityRef.current
+                );
+                for (const p of particles) qt.insert(p);
+
+                // Inter-particle gravity
+                if (useAttract) {
+                    for (const p of particles) {
+                        const nearby = qt.queryRadius(p.pos, 300);
+                        for (const other of nearby) {
+                            if (other.id > p.id)
+                                Particle.attract(p, other, INTER_G);
+                        }
+                    }
+                }
+
+                // Update particles
+                totalKE = 0;
+                totalPE = 0;
+
+                for (const p of particles) {
+                    if (useGravity) {
+                        p.vel.y += GRAVITY;
+                    } else if (mouse.active) {
+                        const delta = mouse.pos.sub(p.pos);
+                        const dist = delta.length() + 1;
+                        const force = Math.min(
+                            1.5,
+                            (MOUSE_ATTRACT * p.mass) / (dist * 0.5)
+                        );
+                        p.applyForce(delta.normalize().mul(force));
+                        p.vel.mulMut(0.995);
+                    }
+
+                    p.vel.addMut(wind);
+                    p.update();
+                    p.bounceWalls(
+                        w,
+                        h,
+                        DAMPING,
+                        useGravity ? groundY : undefined
+                    );
+
+                    totalKE += p.kineticEnergy();
+                    totalPE +=
+                        p.mass * GRAVITY * Math.max(0, groundY - p.pos.y);
+                }
+
+                // Reset overlap counts
+                for (const p of particles) p.overlapCount = 0;
+
+                // Collision detection — track absorbed particles
+                const absorbed = new Set<number>();
+                collisionCount += qt.detectCollisions(DAMPING, absorbed);
+
+                // Clear stale black hole contact trackers (particles that bounced away)
+                for (const p of particles) {
+                    if (p.isBlackHole && p.contactFrames.size > 0) {
+                        // Keep only contacts that were refreshed this frame
+                        // (collide() increments, so entries > 0 are active)
+                        for (const [id, frames] of p.contactFrames) {
+                            if (absorbed.has(id)) p.contactFrames.delete(id);
+                        }
+                    }
+                }
+
+                // Remove absorbed and evaporated particles, fix NaN velocities
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    // Remove absorbed particles
+                    if (absorbed.has(p.id)) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    // Evaporate black holes
+                    if (p.updateBlackHole()) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    // Fix NaN/Infinity velocities (safety net)
+                    if (!isFinite(p.vel.x) || !isFinite(p.vel.y)) {
+                        p.vel.x = 0;
+                        p.vel.y = 0;
+                    }
+                    // Cap maximum velocity
+                    const maxSpeed = 30;
+                    if (p.vel.lengthSq() > maxSpeed * maxSpeed) {
+                        p.vel = p.vel.normalize().mul(maxSpeed);
+                    }
+                }
+            } // end fixed timestep while loop
+
+            // ---- RENDER (once per frame, outside physics loop) ----
+
             const N = particles.length;
             const groundY = h - 24;
-            const wind = Vec2.from(Math.sin(frame * 0.012) * 0.02, 0);
+            const useGravity = gravityRef.current;
+            const mouse = mouseRef.current;
 
-            // Random perturbation
-            if (frame % 90 === 0 && N > 0) {
-                const idx = Math.floor(Math.random() * N);
-                particles[idx].applyImpulse(Vec2.random(2 + Math.random() * 3));
-            }
-
-            // Build quadtree
-            const qt = new QuadTree(
+            // Build quadtree for rendering
+            const renderQt = new QuadTree(
                 { x: 0, y: 0, w, h },
                 0,
                 qtCapacityRef.current
             );
-            for (const p of particles) qt.insert(p);
-
-            // Inter-particle gravity
-            if (useAttract) {
-                for (const p of particles) {
-                    const nearby = qt.queryRadius(p.pos, 300);
-                    for (const other of nearby) {
-                        if (other.id > p.id)
-                            Particle.attract(p, other, INTER_G);
-                    }
-                }
-            }
-
-            // Update particles
-            let totalKE = 0;
-            let totalPE = 0;
-
-            for (const p of particles) {
-                if (useGravity) {
-                    p.vel.y += GRAVITY;
-                } else if (mouse.active) {
-                    const delta = mouse.pos.sub(p.pos);
-                    const dist = delta.length() + 1;
-                    const force = Math.min(
-                        1.5,
-                        (MOUSE_ATTRACT * p.mass) / (dist * 0.5)
-                    );
-                    p.applyForce(delta.normalize().mul(force));
-                    p.vel.mulMut(0.995);
-                }
-
-                p.vel.addMut(wind);
-                p.update();
-                p.bounceWalls(w, h, DAMPING, useGravity ? groundY : undefined);
-
-                totalKE += p.kineticEnergy();
-                totalPE += p.mass * GRAVITY * Math.max(0, groundY - p.pos.y);
-            }
-
-            // Reset overlap counts
-            for (const p of particles) p.overlapCount = 0;
-
-            // Collision detection — track absorbed particles
-            const absorbed = new Set<number>();
-            collisionCount += qt.detectCollisions(DAMPING, absorbed);
-
-            // Clear stale black hole contact trackers (particles that bounced away)
-            for (const p of particles) {
-                if (p.isBlackHole && p.contactFrames.size > 0) {
-                    // Keep only contacts that were refreshed this frame
-                    // (collide() increments, so entries > 0 are active)
-                    for (const [id, frames] of p.contactFrames) {
-                        if (absorbed.has(id)) p.contactFrames.delete(id);
-                    }
-                }
-            }
-
-            // Remove absorbed and evaporated particles, fix NaN velocities
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                // Remove absorbed particles
-                if (absorbed.has(p.id)) {
-                    particles.splice(i, 1);
-                    continue;
-                }
-                // Evaporate black holes
-                if (p.updateBlackHole()) {
-                    particles.splice(i, 1);
-                    continue;
-                }
-                // Fix NaN/Infinity velocities (safety net)
-                if (!isFinite(p.vel.x) || !isFinite(p.vel.y)) {
-                    p.vel.x = 0;
-                    p.vel.y = 0;
-                }
-                // Cap maximum velocity
-                const maxSpeed = 30;
-                if (p.vel.lengthSq() > maxSpeed * maxSpeed) {
-                    p.vel = p.vel.normalize().mul(maxSpeed);
-                }
-            }
-
-            // ---- RENDER (WebGL + text overlay) ----
+            for (const p of particles) renderQt.insert(p);
 
             // WebGL draws — grid recalculated every 2nd frame for performance
             if (frame % 2 === 0 || N < 100) {
-                renderer.drawGravitationalGrid(w, h, particles, qt, 12, 800);
+                renderer.drawGravitationalGrid(
+                    w,
+                    h,
+                    particles,
+                    renderQt,
+                    12,
+                    800
+                );
             }
-            renderer.drawQuadTree(qt);
+            renderer.drawQuadTree(renderQt);
             renderer.drawTrails(particles, 80);
             renderer.drawVelocityVectors(particles);
 
