@@ -306,40 +306,24 @@ Correlation measures **linear** association only. It is blind to nonlinear relat
 set.seed(42)
 n_a <- 50
 
-d1 <- data.table$data.table(
-  x = rnorm(n_a, 9, 3),
-  type = "I: Linear"
-)
-d1[, y := 0.5 * x + rnorm(n_a, 0, 1)]
+d1 <- data.frame(x = rnorm(n_a, 9, 3), type = "I: Linear")
+d1$y <- 0.5 * d1$x + rnorm(n_a, 0, 1)
 
 d2_x <- rnorm(n_a, 9, 3)
-d2 <- data.table$data.table(
-  x = d2_x,
-  y = -0.1 * (d2_x - 9)^2 + 8 + rnorm(n_a, 0, 0.5),
-  type = "II: Quadratic"
-)
+d2 <- data.frame(x = d2_x, y = -0.1 * (d2_x - 9)^2 + 8 + rnorm(n_a, 0, 0.5), type = "II: Quadratic")
 
-d3 <- data.table$data.table(
-  x = rnorm(n_a, 9, 3),
-  type = "III: Outlier"
-)
-d3[, y := 0.5 * x + rnorm(n_a, 0, 0.3)]
-d3[1, y := 20]  # one big outlier
+d3 <- data.frame(x = rnorm(n_a, 9, 3), type = "III: Outlier")
+d3$y <- 0.5 * d3$x + rnorm(n_a, 0, 0.3)
+d3$y[1] <- 20
 
 d4_x <- rep(8, n_a)
 d4_x[1] <- 18
-d4 <- data.table$data.table(
-  x = d4_x + rnorm(n_a, 0, 0.1),
-  type = "IV: Leverage point"
-)
-d4[, y := 0.5 * x + rnorm(n_a, 0, 1)]
+d4 <- data.frame(x = d4_x + rnorm(n_a, 0, 0.1), type = "IV: Leverage point")
+d4$y <- 0.5 * d4$x + rnorm(n_a, 0, 1)
 
-anscombe_data <- data.table$rbindlist(list(d1, d2, d3, d4))
+anscombe_data <- rbind(d1, d2, d3, d4)
 ```
 
-```
-Column 3 ['type'] of item 2 appears in position 2 in item 1. Set use.names=TRUE to match by column name, or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-```
 
 ``` r
 ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
@@ -361,71 +345,21 @@ ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
 
 
 ``` r
-anscombe_data[, .(
-  mean_x = round(mean(as.numeric(x)), 2),
-  mean_y = round(mean(as.numeric(y)), 2),
-  cor = round(cor(as.numeric(x), as.numeric(y)), 3)
+anscombe_dt <- data.table$as.data.table(anscombe_data)
+anscombe_dt[, .(
+  mean_x = round(mean(x), 2),
+  mean_y = round(mean(y), 2),
+  cor = round(cor(x, y), 3)
 ), by = type]
 ```
 
 ```
-                  type mean_x mean_y   cor
-                <char>  <num>  <num> <num>
- 1:          I: Linear   8.89   4.55 0.859
- 2:    6.6815647123766  12.60     NA    NA
- 3:   6.24187323810188  12.13     NA    NA
- 4:   7.67779994443303   5.99     NA    NA
- 5:   4.78798034258244  14.55     NA    NA
- 6:   7.36594923690001   7.00     NA    NA
- 7:   7.37085398784978   9.32     NA    NA
- 8:   7.83564895631578   7.73     NA    NA
- 9:    7.5863863029045   8.63     NA    NA
-10:   7.70137887861339   9.56     NA    NA
-11:   8.63105822227261   9.36     NA    NA
-12:   7.91167039238081   8.92     NA    NA
-13:   7.45359706485231   9.32     NA    NA
-14:   7.86952080985233   7.54     NA    NA
-15:    7.5898193687948   7.49     NA    NA
-16:   5.81168163602922   4.02     NA    NA
-17:   8.58464979303079   7.85     NA    NA
-18:    7.2671244862333   7.46     NA    NA
-19:   1.65713166882035  17.11     NA    NA
-20:   6.37262446479581   4.91     NA    NA
-21:   8.43082744855256   9.41     NA    NA
-22:   5.87728667298283   4.52     NA    NA
-23:     6.472346391505   4.59     NA    NA
-24:   7.11347645272075   9.37     NA    NA
-25:   7.95076885199253   6.01     NA    NA
-26:   8.43238599952867   8.99     NA    NA
-27:   7.75954690298904   7.72     NA    NA
-28:   6.93656287842434   7.16     NA    NA
-29:   4.63211601006313   2.93     NA    NA
-30:    6.8915901441875   5.33     NA    NA
-31:   7.96781864942082   9.54     NA    NA
-32:   7.78575412113886  10.70     NA    NA
-33:   7.48931023774381   7.52     NA    NA
-34:   8.18440336275616   9.00     NA    NA
-35:   7.01253413377077  12.37     NA    NA
-36:   5.99450420880535  13.32     NA    NA
-37:   6.24858891381036   5.71     NA    NA
-38:   8.33798691792445   8.65     NA    NA
-39:   6.97785974446568  12.60     NA    NA
-40:    7.3832654126262   7.59     NA    NA
-41:   7.20022817683209   8.84     NA    NA
-42:    8.0958062701651   8.74     NA    NA
-43:   7.11827937606536   6.34     NA    NA
-44:   7.94833637390193   7.67     NA    NA
-45:   7.35221846644365   8.91     NA    NA
-46:   7.36625609601134   7.76     NA    NA
-47:   7.42722183351145  12.34     NA    NA
-48:   7.99366875000772   7.56     NA    NA
-49:   8.12437189863582   7.70     NA    NA
-50:   8.47055851753803  11.09     NA    NA
-51:   7.06008791239049   5.83     NA    NA
-52:       III: Outlier   9.02   4.88 0.284
-53: IV: Leverage point   8.19   4.22 0.647
-                  type mean_x mean_y   cor
-                <char>  <num>  <num> <num>
+                 type mean_x mean_y    cor
+               <char>  <num>  <num>  <num>
+1:          I: Linear   8.89   4.55  0.859
+2:      II: Quadratic   8.55   7.21 -0.226
+3:       III: Outlier   9.02   4.88  0.284
+4: IV: Leverage point   8.19   4.22  0.647
 ```
 
 ---

@@ -295,41 +295,30 @@ Correlation measures **linear** association only. It is blind to nonlinear relat
 
 ### 6.7.4 Anscombe's Quartet Idea
 
-```{r anscombe, fig.cap="Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient."}
+```{r anscombe-data}
 # Construct four datasets with similar statistics but different structure
 set.seed(42)
 n_a <- 50
 
-d1 <- data.table$data.table(
-  x = rnorm(n_a, 9, 3),
-  type = "I: Linear"
-)
-d1[, y := 0.5 * x + rnorm(n_a, 0, 1)]
+d1 <- data.frame(x = rnorm(n_a, 9, 3), type = "I: Linear")
+d1$y <- 0.5 * d1$x + rnorm(n_a, 0, 1)
 
 d2_x <- rnorm(n_a, 9, 3)
-d2 <- data.table$data.table(
-  x = d2_x,
-  y = -0.1 * (d2_x - 9)^2 + 8 + rnorm(n_a, 0, 0.5),
-  type = "II: Quadratic"
-)
+d2 <- data.frame(x = d2_x, y = -0.1 * (d2_x - 9)^2 + 8 + rnorm(n_a, 0, 0.5), type = "II: Quadratic")
 
-d3 <- data.table$data.table(
-  x = rnorm(n_a, 9, 3),
-  type = "III: Outlier"
-)
-d3[, y := 0.5 * x + rnorm(n_a, 0, 0.3)]
-d3[1, y := 20]  # one big outlier
+d3 <- data.frame(x = rnorm(n_a, 9, 3), type = "III: Outlier")
+d3$y <- 0.5 * d3$x + rnorm(n_a, 0, 0.3)
+d3$y[1] <- 20
 
 d4_x <- rep(8, n_a)
 d4_x[1] <- 18
-d4 <- data.table$data.table(
-  x = d4_x + rnorm(n_a, 0, 0.1),
-  type = "IV: Leverage point"
-)
-d4[, y := 0.5 * x + rnorm(n_a, 0, 1)]
+d4 <- data.frame(x = d4_x + rnorm(n_a, 0, 0.1), type = "IV: Leverage point")
+d4$y <- 0.5 * d4$x + rnorm(n_a, 0, 1)
 
-anscombe_data <- data.table$rbindlist(list(d1, d2, d3, d4))
+anscombe_data <- rbind(d1, d2, d3, d4)
+```
 
+```{r anscombe, fig.cap="Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient."}
 ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
   ggplot2$geom_point(alpha = 0.6, size = 1.5, colour = "#0072B2") +
   ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#D55E00", linewidth = 0.8) +
@@ -340,10 +329,11 @@ ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
 ```
 
 ```{r anscombe-stats}
-anscombe_data[, .(
-  mean_x = round(mean(as.numeric(x)), 2),
-  mean_y = round(mean(as.numeric(y)), 2),
-  cor = round(cor(as.numeric(x), as.numeric(y)), 3)
+anscombe_dt <- data.table$as.data.table(anscombe_data)
+anscombe_dt[, .(
+  mean_x = round(mean(x), 2),
+  mean_y = round(mean(y), 2),
+  cor = round(cor(x, y), 3)
 ), by = type]
 ```
 
