@@ -1,0 +1,599 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 4: Discrete Distributions"
+part: "Part 2: Geometric, Negative Binomial, and Hypergeometric"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 4 -- Discrete Distributions
+
+## Part 2: Geometric, Negative Binomial, and Hypergeometric
+
+In Part 1 we fixed the number of trials and counted successes. Now we ask different questions. The **geometric** distribution asks: "How many trials until the *first* success?" The **negative binomial** generalises: "How many trials until the *r-th* success?" Finally, the **hypergeometric** distribution handles sampling *without* replacement from a finite population -- a fundamentally different setup from the binomial.
+
+---
+
+## 4.3 The Geometric Distribution
+
+### 4.3.1 The Setup
+
+We perform independent Bernoulli trials, each with success probability $p$, and we keep going until we observe the **first success**. Let $X$ be the trial number on which the first success occurs. Then $X$ takes values $1, 2, 3, \ldots$ (it could, in principle, take forever).
+
+**Examples:**
+
+- How many times must you roll a die before getting a six?
+- How many customers enter a shop before the first one makes a purchase?
+- How many components must be tested before finding the first defective one?
+
+### 4.3.2 Deriving the PMF
+
+If the first success occurs on trial $k$, then:
+
+- Trials $1, 2, \ldots, k-1$ were all **failures**, each with probability $1 - p$.
+- Trial $k$ was a **success**, with probability $p$.
+
+Since the trials are independent, the probability of this specific sequence is:
+
+$$P(X = k) = (1-p)^{k-1} \cdot p, \quad k = 1, 2, 3, \ldots$$
+
+This is the **geometric PMF**. We write $X \sim \text{Geom}(p)$.
+
+### 4.3.3 Verifying the PMF Sums to 1
+
+We need to show $\sum_{k=1}^{\infty} (1-p)^{k-1} p = 1$. Factor out $p$ and let $j = k - 1$:
+
+$$p \sum_{j=0}^{\infty} (1-p)^{j} = p \cdot \frac{1}{1 - (1-p)} = p \cdot \frac{1}{p} = 1. \quad \checkmark$$
+
+We used the formula for the sum of a geometric series: $\sum_{j=0}^{\infty} r^j = \frac{1}{1-r}$ for $|r| < 1$. Since $0 < p \le 1$, we have $|1 - p| < 1$, so the series converges.
+
+### 4.3.4 Deriving E[X]
+
+We compute:
+
+$$E[X] = \sum_{k=1}^{\infty} k \cdot (1-p)^{k-1} p = p \sum_{k=1}^{\infty} k (1-p)^{k-1}.$$
+
+The sum $\sum_{k=1}^{\infty} k r^{k-1}$ is the derivative of the geometric series with respect to $r$. Since $\sum_{k=0}^{\infty} r^k = \frac{1}{1-r}$, differentiating both sides with respect to $r$:
+
+$$\sum_{k=1}^{\infty} k r^{k-1} = \frac{1}{(1-r)^2}.$$
+
+Substituting $r = 1 - p$:
+
+$$E[X] = p \cdot \frac{1}{(1 - (1-p))^2} = p \cdot \frac{1}{p^2} = \frac{1}{p}.$$
+
+In plain English: if the probability of success on each trial is $p$, then on average we need $1/p$ trials to get the first success. If $p = 1/6$ (rolling a six on a fair die), we expect to wait 6 rolls on average.
+
+### 4.3.5 Deriving Var(X)
+
+For the variance, we need $E[X^2]$. Using the identity $E[X^2] = E[X(X-1)] + E[X]$, we first compute $E[X(X-1)]$:
+
+$$E[X(X-1)] = \sum_{k=1}^{\infty} k(k-1)(1-p)^{k-1}p = p(1-p) \sum_{k=2}^{\infty} k(k-1)(1-p)^{k-2}.$$
+
+The sum $\sum_{k=2}^{\infty} k(k-1)r^{k-2}$ is the second derivative of the geometric series:
+
+$$\frac{d^2}{dr^2}\left[\frac{1}{1-r}\right] = \frac{2}{(1-r)^3}.$$
+
+Therefore:
+
+$$E[X(X-1)] = p(1-p) \cdot \frac{2}{p^3} = \frac{2(1-p)}{p^2}.$$
+
+And so:
+
+$$E[X^2] = \frac{2(1-p)}{p^2} + \frac{1}{p} = \frac{2(1-p) + p}{p^2} = \frac{2 - p}{p^2}.$$
+
+$$\text{Var}(X) = E[X^2] - (E[X])^2 = \frac{2 - p}{p^2} - \frac{1}{p^2} = \frac{1 - p}{p^2}.$$
+
+### 4.3.6 The Memoryless Property
+
+The geometric distribution possesses a remarkable property: it is **memoryless**. Formally:
+
+$$P(X > s + t \mid X > s) = P(X > t) \quad \text{for all } s, t \ge 0.$$
+
+In plain English: given that you have already waited $s$ trials without success, the probability of waiting at least $t$ more trials is the same as if you were starting from scratch. The past does not help you predict the future.
+
+**Proof.** First, note that the survival function (probability of needing more than $m$ trials) is:
+
+$$P(X > m) = \sum_{k=m+1}^{\infty} (1-p)^{k-1}p = (1-p)^m \sum_{j=0}^{\infty} (1-p)^j p = (1-p)^m.$$
+
+Now compute the conditional probability using the definition:
+
+$$P(X > s + t \mid X > s) = \frac{P(X > s + t \text{ and } X > s)}{P(X > s)}.$$
+
+Since $X > s + t$ implies $X > s$, the numerator simplifies:
+
+$$= \frac{P(X > s + t)}{P(X > s)} = \frac{(1-p)^{s+t}}{(1-p)^s} = (1-p)^t = P(X > t). \quad \blacksquare$$
+
+**Uniqueness.** The geometric distribution is the **only** discrete distribution with the memoryless property. (Its continuous counterpart is the exponential distribution, which we shall meet in Chapter 5.)
+
+**Intuition.** Think of it this way: each Bernoulli trial is independent of all previous trials. The coin does not "remember" that it has come up tails ten times in a row. On trial eleven, the probability of heads is still $p$, just as it was on trial one. The memoryless property is a direct consequence of independence.
+
+### 4.3.7 Implementation and Simulation
+
+
+``` r
+#' Geometric PMF -- implemented from scratch
+#' @param k integer vector of trial numbers (1, 2, 3, ...)
+#' @param p probability of success on each trial
+#' @return vector of probabilities
+my_dgeom <- function(k, p) {
+  stopifnot(all(k >= 1), p > 0, p <= 1)
+  (1 - p)^(k - 1) * p
+}
+
+# Verify against R's built-in
+# NOTE: R's dgeom uses number of FAILURES before first success
+# So dgeom(k-1, p) = our my_dgeom(k, p)
+k_vals <- 1:15
+p <- 0.3
+
+ours <- my_dgeom(k_vals, p)
+theirs <- dgeom(k_vals - 1, p)  # R counts failures, we count trials
+
+cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+```
+
+```
+Maximum absolute difference: 5.551115e-17 
+```
+
+**Important convention note:** R's `dgeom(x, prob)` parametrises the geometric distribution as the number of **failures** before the first success ($x = 0, 1, 2, \ldots$), whereas our definition counts the **trial number** of the first success ($k = 1, 2, 3, \ldots$). If $X$ is our variable and $Y$ is R's, then $Y = X - 1$. Always check the documentation!
+
+### 4.3.8 Simulating the Memoryless Property
+
+
+``` r
+set.seed(42)
+n_sim <- 100000
+p <- 0.2
+
+# Simulate geometric(p) random variables (counting trials)
+geom_sims <- rgeom(n_sim, prob = p) + 1  # Convert from R's convention
+
+# P(X > 10)
+prob_gt_10 <- mean(geom_sims > 10)
+
+# P(X > 15 | X > 5)
+conditional <- mean(geom_sims[geom_sims > 5] > 15)
+
+# Theoretical P(X > 10) = (1-p)^10
+theoretical <- (1 - p)^10
+
+cat("P(X > 10)          =", prob_gt_10, "  [theoretical:", theoretical, "]\n")
+cat("P(X > 15 | X > 5)  =", conditional, "  [theoretical:", theoretical, "]\n")
+cat("\nThey should be equal (memoryless property).\n")
+```
+
+```
+P(X > 10)          = 0.10868   [theoretical: 0.1073742 ]
+P(X > 15 | X > 5)  = 0.1088881   [theoretical: 0.1073742 ]
+
+They should be equal (memoryless property).
+```
+
+### 4.3.9 Visualising the Geometric PMF
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+p_vals <- c(0.1, 0.3, 0.5, 0.8)
+
+pmf_data <- rbindlist(lapply(p_vals, function(pp) {
+  k_max <- qgeom(0.995, pp) + 2  # Show up to 99.5th percentile
+  k <- 1:(k_max + 1)
+  data.table(
+    k = k,
+    pmf = (1 - pp)^(k - 1) * pp,
+    label = sprintf("Geom(%.1f)", pp)
+  )
+}))
+
+ggplot(pmf_data, aes(x = k, y = pmf)) +
+  geom_col(fill = "#009E73", width = 0.7, alpha = 0.85) +
+  facet_wrap(~label, scales = "free", ncol = 2) +
+  labs(
+    x = "k (trial of first success)",
+    y = "P(X = k)",
+    title = "Geometric probability mass functions"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/geom-pmf-grid-1.png" alt="Geometric PMFs for various success probabilities. Higher p means we are likely to succeed sooner, producing a more concentrated distribution. All geometric distributions are right-skewed and have their mode at k=1.">
+	Geometric PMFs for various success probabilities. Higher p means we are likely to succeed sooner, producing a more concentrated distribution. All geometric distributions are right-skewed and have their mode at k=1.
+</Figure>
+
+---
+
+## 4.4 The Negative Binomial Distribution
+
+### 4.4.1 The Setup
+
+The geometric distribution asks: "How many trials until the first success?" The **negative binomial** generalises this: "How many trials until the $r$-th success?"
+
+We perform independent Bernoulli($p$) trials and let $X$ be the trial number on which the $r$-th success occurs. Then $X \sim \text{NegBin}(r, p)$.
+
+### 4.4.2 Deriving the PMF
+
+If the $r$-th success occurs on trial $k$ (where $k \ge r$), two things must be true:
+
+1. **Trial $k$ is a success.** This contributes a factor of $p$.
+2. **Among the first $k - 1$ trials, exactly $r - 1$ are successes.** The number of ways to arrange $r - 1$ successes in $k - 1$ trials is $\binom{k-1}{r-1}$, and the probability of each such arrangement is $p^{r-1}(1-p)^{k-r}$.
+
+Combining:
+
+$$P(X = k) = \binom{k-1}{r-1} p^{r-1}(1-p)^{k-r} \cdot p = \binom{k-1}{r-1} p^r (1-p)^{k-r}, \quad k = r, r+1, r+2, \ldots$$
+
+**Special case:** When $r = 1$, we get $\binom{k-1}{0} p^1 (1-p)^{k-1} = p(1-p)^{k-1}$, which is exactly the geometric PMF. The geometric distribution is a negative binomial with $r = 1$.
+
+### 4.4.3 Deriving E[X] and Var(X)
+
+Write $X = Y_1 + Y_2 + \cdots + Y_r$, where $Y_i$ is the number of additional trials needed to go from the $(i-1)$-th success to the $i$-th success. Each $Y_i \sim \text{Geom}(p)$, and they are independent (by the independence of the Bernoulli trials).
+
+By the linearity of expectation:
+
+$$E[X] = E[Y_1] + \cdots + E[Y_r] = \frac{r}{p}.$$
+
+By the independence of the $Y_i$:
+
+$$\text{Var}(X) = \text{Var}(Y_1) + \cdots + \text{Var}(Y_r) = \frac{r(1-p)}{p^2}.$$
+
+This decomposition into a sum of independent geometric random variables is elegant and avoids the need for complicated direct summations.
+
+### 4.4.4 Implementation
+
+
+``` r
+#' Negative Binomial PMF -- implemented from scratch
+#' @param k integer vector (trial number of r-th success, k >= r)
+#' @param r number of successes desired
+#' @param p probability of success on each trial
+#' @return vector of probabilities
+my_dnegbin <- function(k, r, p) {
+  stopifnot(all(k >= r), r >= 1, p > 0, p <= 1)
+  choose(k - 1, r - 1) * p^r * (1 - p)^(k - r)
+}
+
+# Verify: negative binomial with r = 1 should equal geometric
+k_vals <- 1:20
+p <- 0.25
+geom_pmf <- (1 - p)^(k_vals - 1) * p
+negbin_pmf <- my_dnegbin(k_vals, r = 1, p = p)
+
+cat("Max |Geom - NegBin(r=1)|:", max(abs(geom_pmf - negbin_pmf)), "\n")
+```
+
+```
+Max |Geom - NegBin(r=1)|: 0 
+```
+
+**R's parametrisation.** R's `dnbinom(x, size, prob)` uses a different convention: `x` is the number of **failures** before the `size`-th success (not the total number of trials). If our variable is $X$ (total trials until $r$-th success), then R's variable is $Y = X - r$ (failures before $r$-th success). So `dnbinom(k - r, size = r, prob = p)` should match our `my_dnegbin(k, r, p)`.
+
+
+``` r
+# Verify against R's built-in
+r <- 3
+p <- 0.4
+k_vals <- r:25
+
+ours <- my_dnegbin(k_vals, r, p)
+theirs <- dnbinom(k_vals - r, size = r, prob = p)
+
+cat("Max absolute difference:", max(abs(ours - theirs)), "\n")
+```
+
+```
+Max absolute difference: 5.551115e-17 
+```
+
+### 4.4.5 Visualising the Negative Binomial
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+params <- data.table(
+  r = c(1, 3, 5, 10),
+  p = c(0.3, 0.3, 0.3, 0.3)
+)
+
+pmf_data <- rbindlist(lapply(seq_len(nrow(params)), function(i) {
+  rr <- params$r[i]
+  pp <- params$p[i]
+  k_max <- qnbinom(0.995, size = rr, prob = pp) + rr + 1
+  k <- rr:k_max
+  data.table(
+    k = k,
+    pmf = my_dnegbin(k, rr, pp),
+    label = sprintf("NegBin(r=%d, p=%.1f)", rr, pp)
+  )
+}))
+
+ggplot(pmf_data, aes(x = k, y = pmf)) +
+  geom_col(fill = "#E69F00", width = 0.7, alpha = 0.85) +
+  facet_wrap(~label, scales = "free", ncol = 2) +
+  labs(
+    x = "k (trial of r-th success)",
+    y = "P(X = k)",
+    title = "Negative binomial probability mass functions"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/negbin-pmf-grid-1.png" alt="Negative binomial PMFs for various r and p. As r increases, the distribution shifts right (we need more trials) and becomes more symmetric. Higher p values concentrate the distribution closer to r.">
+	Negative binomial PMFs for various r and p. As r increases, the distribution shifts right (we need more trials) and becomes more symmetric. Higher p values concentrate the distribution closer to r.
+</Figure>
+
+---
+
+## 4.5 The Hypergeometric Distribution
+
+### 4.5.1 The Setup
+
+All distributions so far assume that trials are **independent** -- effectively, sampling **with** replacement from an infinite (or very large) population. But what if we sample **without** replacement from a **finite** population?
+
+Consider a population of $N$ items, of which $K$ are "successes" and $N - K$ are "failures." We draw $n$ items without replacement. Let $X$ be the number of successes in our sample. Then $X$ follows a **hypergeometric distribution**, written $X \sim \text{Hypergeom}(N, K, n)$.
+
+**Classic example:** An urn contains 20 balls -- 8 red and 12 blue. You draw 5 balls without replacement. How many red balls do you draw?
+
+### 4.5.2 Deriving the PMF
+
+We use combinatorial arguments. The total number of ways to choose $n$ items from $N$ is $\binom{N}{n}$. We want to count the number of samples that contain exactly $k$ successes:
+
+- **Choose $k$ successes** from the $K$ available: $\binom{K}{k}$ ways.
+- **Choose $n - k$ failures** from the $N - K$ available: $\binom{N-K}{n-k}$ ways.
+
+Since each sample of size $n$ is equally likely (all are drawn uniformly at random):
+
+$$\boxed{P(X = k) = \frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}}, \quad k = \max(0, n-N+K), \ldots, \min(n, K).}$$
+
+The lower bound $\max(0, n - N + K)$ ensures that there are enough failures to fill the remaining $n - k$ slots. The upper bound $\min(n, K)$ ensures that we do not choose more successes than exist in the population or more than we draw.
+
+**Read the formula aloud:** "The probability of drawing exactly $k$ successes is the number of ways to choose $k$ from the $K$ successes, times the number of ways to choose the remaining $n - k$ from the $N - K$ failures, divided by the total number of ways to choose $n$ from $N$."
+
+### 4.5.3 Deriving E[X]
+
+We can derive the mean by a symmetry argument. Consider a single drawn item. The probability that it is a success is $K/N$ (there are $K$ successes among $N$ items). Define indicator variables $X_i = 1$ if the $i$-th drawn item is a success. Then $X = X_1 + \cdots + X_n$ and:
+
+$$E[X] = \sum_{i=1}^{n} E[X_i] = n \cdot \frac{K}{N}.$$
+
+Note that $E[X_i] = K/N$ for every $i$, even though the draws are **not independent**. Linearity of expectation does not require independence!
+
+This mean, $nK/N$, is exactly the same as the binomial mean $np$ with $p = K/N$. The expected number of successes is the same whether we sample with or without replacement. The *variance*, however, is different.
+
+### 4.5.4 The Variance and the Finite Population Correction
+
+The variance of the hypergeometric distribution is:
+
+$$\text{Var}(X) = n \cdot \frac{K}{N} \cdot \frac{N-K}{N} \cdot \frac{N-n}{N-1}.$$
+
+Compare this to the binomial variance $np(1-p) = n \cdot \frac{K}{N} \cdot \frac{N-K}{N}$. The hypergeometric variance has an extra factor:
+
+$$\frac{N - n}{N - 1},$$
+
+called the **finite population correction** (FPC). Since $N - n < N - 1$ (assuming $n \ge 2$), the FPC is less than 1, so the hypergeometric variance is *smaller* than the corresponding binomial variance. This makes sense: sampling without replacement reduces variability because the draws are negatively correlated (drawing one success makes the next draw slightly less likely to be a success).
+
+### 4.5.5 Implementation from Scratch
+
+
+``` r
+#' Hypergeometric PMF -- implemented from scratch
+#' @param k integer vector (number of successes in sample)
+#' @param N population size
+#' @param K number of successes in population
+#' @param n sample size
+#' @return vector of probabilities
+my_dhyper <- function(k, N, K, n) {
+  k_min <- max(0, n - (N - K))
+  k_max <- min(n, K)
+  stopifnot(all(k >= k_min & k <= k_max))
+  choose(K, k) * choose(N - K, n - k) / choose(N, n)
+}
+
+# Verify against R's built-in dhyper(x, m, n, k)
+# R uses: dhyper(x, m = K, n = N-K, k = n)
+N <- 50; K <- 15; n <- 10
+k_vals <- max(0, n - (N - K)):min(n, K)
+
+ours <- my_dhyper(k_vals, N, K, n)
+theirs <- dhyper(k_vals, m = K, n = N - K, k = n)
+
+cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+```
+
+```
+Maximum absolute difference: 1.110223e-16 
+```
+
+Note R's function signature `dhyper(x, m, n, k)` where `m` = number of successes in population, `n` = number of failures in population, and `k` = sample size. This is unfortunately confusing because `n` means something different from our $n$.
+
+### 4.5.6 Comparison: Hypergeometric vs. Binomial
+
+The binomial is the "with replacement" version of the hypergeometric. When the population size $N$ is large relative to the sample size $n$, it hardly matters whether we replace or not -- drawing one item barely changes the composition of the remaining population.
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+p <- 0.3  # K/N ratio
+n <- 10
+
+N_vals <- c(20, 50, 100, 500)
+
+comparison_data <- rbindlist(lapply(N_vals, function(NN) {
+  KK <- round(NN * p)
+  k_min <- max(0, n - (NN - KK))
+  k_max <- min(n, KK)
+  k <- k_min:k_max
+  data.table(
+    k = k,
+    hyper = dhyper(k, m = KK, n = NN - KK, k = n),
+    binom = dbinom(k, size = n, prob = KK / NN),
+    label = sprintf("N = %d (K = %d)", NN, KK)
+  )
+}))
+
+ggplot(comparison_data) +
+  geom_col(aes(x = k, y = hyper), fill = "#0072B2", alpha = 0.6, width = 0.7) +
+  geom_point(aes(x = k, y = binom), colour = "#D55E00", size = 2.5) +
+  facet_wrap(~label, scales = "free_y", ncol = 2) +
+  labs(
+    x = "k (successes in sample)",
+    y = "Probability",
+    title = "Hypergeometric (bars) vs. Binomial (points) as N increases"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/hyper-vs-binom-1.png" alt="Hypergeometric (blue bars) vs. binomial (orange points) PMFs as population size N increases. With N=50, the two are already very similar. By N=500, they are virtually indistinguishable.">
+	Hypergeometric (blue bars) vs. binomial (orange points) PMFs as population size N increases. With N=50, the two are already very similar. By N=500, they are virtually indistinguishable.
+</Figure>
+
+**Rule of thumb:** If $n / N < 0.05$ (the sample is less than 5% of the population), the binomial is an excellent approximation to the hypergeometric. This is why in most surveys (where the population is much larger than the sample), we use the binomial model even though the sampling is technically without replacement.
+
+
+``` r
+# Numeric demonstration of convergence
+p <- 0.3
+n <- 10
+k <- 3
+
+cat("Hypergeometric P(X = 3) for various N:\n\n")
+for (NN in c(20, 50, 100, 500, 1000, 10000)) {
+  KK <- round(NN * p)
+  hyp <- dhyper(k, m = KK, n = NN - KK, k = n)
+  bin <- dbinom(k, size = n, prob = KK / NN)
+  cat(sprintf("  N = %5d:  Hyper = %.6f,  Binom = %.6f,  |diff| = %.2e\n",
+              NN, hyp, bin, abs(hyp - bin)))
+}
+```
+
+```
+Hypergeometric P(X = 3) for various N:
+
+  N =    20:  Hyper = 0.371517,  Binom = 0.266828,  |diff| = 1.05e-01
+  N =    50:  Hyper = 0.297856,  Binom = 0.266828,  |diff| = 3.10e-02
+  N =   100:  Hyper = 0.281163,  Binom = 0.266828,  |diff| = 1.43e-02
+  N =   500:  Hyper = 0.269533,  Binom = 0.266828,  |diff| = 2.71e-03
+  N =  1000:  Hyper = 0.268171,  Binom = 0.266828,  |diff| = 1.34e-03
+  N = 10000:  Hyper = 0.266961,  Binom = 0.266828,  |diff| = 1.34e-04
+```
+
+### 4.5.7 Real-World Example: Quality Control
+
+A batch of 200 circuit boards contains 15 defective ones. An inspector randomly selects 20 boards for testing (without replacement). What is the probability that the inspector finds exactly 2 defective boards?
+
+
+``` r
+N <- 200   # total boards
+K <- 15    # defective
+n <- 20    # sample size
+
+# P(X = 2)
+cat("P(exactly 2 defective) =", dhyper(2, m = K, n = N - K, k = n), "\n")
+
+# P(X >= 3) = 1 - P(X <= 2)
+cat("P(3 or more defective) =", 1 - phyper(2, m = K, n = N - K, k = n), "\n")
+
+# Compare with binomial approximation
+p <- K / N
+cat("\nBinomial approximation:\n")
+cat("P(exactly 2 defective) =", dbinom(2, n, p), "\n")
+cat("P(3 or more defective) =", 1 - pbinom(2, n, p), "\n")
+
+cat("\nSample fraction n/N =", n / N, "-- within 5% rule, so binomial is reasonable.\n")
+```
+
+```
+P(exactly 2 defective) = 0.2786638 
+P(3 or more defective) = 0.1778229 
+
+Binomial approximation:
+P(exactly 2 defective) = 0.2626802 
+P(3 or more defective) = 0.1859986 
+
+Sample fraction n/N = 0.1 -- within 5% rule, so binomial is reasonable.
+```
+
+### 4.5.8 Simulation
+
+
+``` r
+set.seed(42)
+n_sim <- 10000
+sims <- rhyper(n_sim, m = K, n = N - K, k = n)
+
+obs <- data.table(k = sims)[, .(observed = .N / n_sim), by = k]
+theory <- data.table(
+  k = 0:min(n, K),
+  theoretical = dhyper(0:min(n, K), m = K, n = N - K, k = n)
+)
+comparison <- merge(theory, obs, by = "k", all.x = TRUE)
+comparison[is.na(observed), observed := 0]
+
+ggplot(comparison) +
+  geom_col(aes(x = k, y = observed), fill = "#009E73", alpha = 0.6, width = 0.7) +
+  geom_point(aes(x = k, y = theoretical), colour = "#D55E00", size = 3) +
+  geom_segment(
+    aes(x = k, xend = k, y = 0, yend = theoretical),
+    colour = "#D55E00", linewidth = 0.5
+  ) +
+  labs(
+    x = "k (defective items found)",
+    y = "Proportion / Probability",
+    title = "Simulated (bars) vs. theoretical (orange) hypergeometric"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/hyper-sim-1.png" alt="Simulated hypergeometric draws compared to the theoretical PMF. We draw 20 items from a population of 200 containing 15 successes, repeating 10,000 times.">
+	Simulated hypergeometric draws compared to the theoretical PMF. We draw 20 items from a population of 200 containing 15 successes, repeating 10,000 times.
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+- **Geometric distribution.** When presenting wait-time analyses, say: "On average, we need about 5 attempts before the first success. There is a 33% chance of needing more than 5 attempts." Avoid technical jargon about the memoryless property; instead say: "Each attempt has the same chance of success, regardless of how many previous attempts failed."
+
+- **Hypergeometric distribution.** In quality-control contexts, say: "If we inspect 20 out of 200 items, there is a 27% chance of finding exactly 2 defective items in our sample." When the distinction from binomial matters, explain: "Because we're testing a significant portion of the batch (10%), the standard formula slightly overestimates the variability."
+
+- **Choose your distribution based on the setup.** If your audience asks "Why not just use the binomial?", explain: the binomial assumes each draw is independent, which is true for replacement or very large populations. When the population is small and we don't replace, the hypergeometric is exact.
+
+---
+
+## Quick Reference
+
+| Property | Geometric($p$) | Neg. Binomial($r, p$) | Hypergeometric($N, K, n$) |
+|:---------|:---------------|:----------------------|:--------------------------|
+| **Question** | Trials until 1st success | Trials until $r$-th success | Successes in $n$ draws w/o replacement |
+| **Support** | $\{1, 2, 3, \ldots\}$ | $\{r, r+1, \ldots\}$ | $\{\max(0,n-N+K), \ldots, \min(n,K)\}$ |
+| **PMF** | $(1-p)^{k-1}p$ | $\binom{k-1}{r-1}p^r(1-p)^{k-r}$ | $\frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}}$ |
+| **E[X]** | $1/p$ | $r/p$ | $nK/N$ |
+| **Var(X)** | $(1-p)/p^2$ | $r(1-p)/p^2$ | $n\frac{K}{N}\frac{N-K}{N}\frac{N-n}{N-1}$ |
+| **R PMF** | `dgeom(k-1, p)` | `dnbinom(k-r, r, p)` | `dhyper(k, K, N-K, n)` |
+| **Key property** | Memoryless | Sum of $r$ geometrics | $\to$ Binomial as $N \to \infty$ |

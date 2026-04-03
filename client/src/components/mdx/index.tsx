@@ -5,6 +5,7 @@ import Blockquote from './Blockquote';
 import Carousel from './FigureCarrousel';
 import LearningObjectives from './LearningObjectives';
 import CanvasWithJs from './CanvasWithJs';
+import InteractivePlot from './InteractivePlot';
 
 const mdxComponents = {
     Figure,
@@ -13,7 +14,8 @@ const mdxComponents = {
     Blockquote,
     Carousel,
     LearningObjectives,
-    CanvasWithJs
+    CanvasWithJs,
+    InteractivePlot
 };
 
 export default mdxComponents;

@@ -1,0 +1,589 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 3: Random Variables"
+part: "Part 3: Higher Moments and Moment Generating Functions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, random-variables, moments, mgf, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+## 3.8 Moments
+
+The mean and variance are the first two in a family of summary quantities called **moments**. Higher moments capture additional features of a distribution's shape — in particular, asymmetry and tail heaviness.
+
+### Raw Moments
+
+The **$k$-th (raw) moment** of a random variable $X$ is
+
+$$
+\mu_k' = E[X^k]
+$$
+
+For the discrete case: $\mu_k' = \sum_x x^k \, p(x)$. For the continuous case: $\mu_k' = \int_{-\infty}^{\infty} x^k f(x)\,dx$.
+
+The first raw moment is the mean: $\mu_1' = E[X] = \mu$.
+
+### Central Moments
+
+The **$k$-th central moment** centres the calculation at the mean:
+
+$$
+\mu_k = E\left[(X - \mu)^k\right]
+$$
+
+- $\mu_1 = E[X - \mu] = 0$ (always, by linearity of expectation).
+- $\mu_2 = E[(X - \mu)^2] = \text{Var}(X) = \sigma^2$.
+
+Central moments measure the shape of the distribution *relative to its centre*.
+
+### Skewness: The Third Standardised Moment
+
+The **skewness** of $X$ is the third central moment, standardised by $\sigma^3$:
+
+$$
+\gamma_1 = E\left[\left(\frac{X - \mu}{\sigma}\right)^3\right] = \frac{\mu_3}{\sigma^3} = \frac{E[(X - \mu)^3]}{(\text{Var}(X))^{3/2}}
+$$
+
+Standardising by $\sigma^3$ makes skewness dimensionless — it does not depend on the scale of $X$.
+
+**Interpretation:**
+
+- $\gamma_1 > 0$: **positive skew** (right skew). The right tail is longer; the distribution leans left with a tail stretching to the right.
+- $\gamma_1 < 0$: **negative skew** (left skew). The left tail is longer; the distribution leans right with a tail stretching to the left.
+- $\gamma_1 = 0$: the distribution is symmetric about the mean (necessary but not sufficient condition for symmetry).
+
+In Chapter 1 we computed sample skewness from data. Now we have the formal definition: skewness is a property of the *distribution*, and sample skewness is its estimator.
+
+### Kurtosis: The Fourth Standardised Moment
+
+The **kurtosis** of $X$ is the fourth central moment, standardised by $\sigma^4$:
+
+$$
+\gamma_2 = E\left[\left(\frac{X - \mu}{\sigma}\right)^4\right] = \frac{\mu_4}{\sigma^4} = \frac{E[(X - \mu)^4]}{(\text{Var}(X))^2}
+$$
+
+The normal distribution has kurtosis exactly 3. To make comparisons easier, we often report **excess kurtosis**:
+
+$$
+\text{excess kurtosis} = \gamma_2 - 3
+$$
+
+**Interpretation:**
+
+- $\gamma_2 - 3 > 0$ (**leptokurtic**): heavier tails than the normal distribution. Extreme values are more likely.
+- $\gamma_2 - 3 = 0$ (**mesokurtic**): tails like the normal distribution.
+- $\gamma_2 - 3 < 0$ (**platykurtic**): lighter tails than the normal. Extreme values are less likely.
+
+A common misconception is that kurtosis measures "peakedness." It does not — it primarily measures the weight of the tails and the probability of extreme values.
+
+### Computing Moments from Simulation
+
+```{r moments-simulation}
+set.seed(42)
+
+#' Compute the k-th central moment from a sample
+#'
+#' @param x Numeric vector of observations
+#' @param k The order of the moment
+#' @return The k-th sample central moment
+my_central_moment <- function(x, k) {
+  mean((x - mean(x))^k)
+}
+
+#' Compute skewness from a sample
+my_skewness <- function(x) {
+  m3 <- my_central_moment(x, 3)
+  m2 <- my_central_moment(x, 2)
+  m3 / m2^(3/2)
+}
+
+#' Compute kurtosis from a sample
+my_kurtosis <- function(x) {
+  m4 <- my_central_moment(x, 4)
+  m2 <- my_central_moment(x, 2)
+  m4 / m2^2
+}
+
+n <- 100000
+
+# Normal distribution: skewness = 0, kurtosis = 3
+x_norm <- rnorm(n)
+cat("--- Standard Normal ---\n")
+cat(sprintf("Skewness:        %.4f (theoretical: 0)\n", my_skewness(x_norm)))
+cat(sprintf("Kurtosis:        %.4f (theoretical: 3)\n", my_kurtosis(x_norm)))
+cat(sprintf("Excess kurtosis: %.4f (theoretical: 0)\n\n", my_kurtosis(x_norm) - 3))
+
+# Exponential distribution: skewness = 2, kurtosis = 9
+x_exp <- rexp(n, rate = 1)
+cat("--- Exponential(1) ---\n")
+cat(sprintf("Skewness:        %.4f (theoretical: 2)\n", my_skewness(x_exp)))
+cat(sprintf("Kurtosis:        %.4f (theoretical: 9)\n", my_kurtosis(x_exp)))
+cat(sprintf("Excess kurtosis: %.4f (theoretical: 6)\n\n", my_kurtosis(x_exp) - 3))
+
+# Uniform distribution: skewness = 0, kurtosis = 1.8
+x_unif <- runif(n)
+cat("--- Uniform(0,1) ---\n")
+cat(sprintf("Skewness:        %.4f (theoretical: 0)\n", my_skewness(x_unif)))
+cat(sprintf("Kurtosis:        %.4f (theoretical: 1.8)\n", my_kurtosis(x_unif)))
+cat(sprintf("Excess kurtosis: %.4f (theoretical: -1.2)\n", my_kurtosis(x_unif) - 3))
+```
+
+### Visualising Skewness and Kurtosis
+
+```{r skew-kurtosis-plot, fig.cap="Distributions with different skewness (top) and kurtosis (bottom). Positive skew stretches the right tail; high kurtosis produces heavier tails.", fig.width=12, fig.height=9}
+set.seed(42)
+box::use(ggplot2[...])
+box::use(patchwork[...])
+box::use(data.table[data.table])
+
+# --- Skewness panel ---
+x_seq <- seq(-4, 8, length.out = 1000)
+
+df_skew <- data.table(
+  x = rep(x_seq, 3),
+  density = c(
+    dnorm(x_seq, 0, 1),
+    dgamma(x_seq, shape = 4, rate = 2),          # positive skew
+    rev(dgamma(x_seq - 4, shape = 4, rate = 2))  # negative skew (reflected)
+  ),
+  type = rep(c("Normal (skew = 0)", "Gamma (positive skew)",
+    "Reflected Gamma (negative skew)"), each = length(x_seq))
+)
+
+# Recompute negative skew properly
+neg_skew_density <- dgamma(-x_seq + 6, shape = 4, rate = 2)
+df_skew$density[(2 * length(x_seq) + 1):(3 * length(x_seq))] <- neg_skew_density
+
+p_skew <- ggplot(df_skew, aes(x = x, y = density, colour = type)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  labs(x = "x", y = "Density", title = "Distributions with different skewness",
+    colour = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+
+# --- Kurtosis panel ---
+x_seq2 <- seq(-6, 6, length.out = 1000)
+
+df_kurt <- data.table(
+  x = rep(x_seq2, 3),
+  density = c(
+    dnorm(x_seq2, 0, 1),
+    dt(x_seq2, df = 3),       # heavy tails (leptokurtic)
+    dunif(x_seq2, -sqrt(3), sqrt(3))  # light tails (platykurtic), same variance
+  ),
+  type = rep(c("Normal (excess kurt = 0)", "t(df=3) (leptokurtic)",
+    "Uniform (platykurtic)"), each = length(x_seq2))
+)
+
+p_kurt <- ggplot(df_kurt, aes(x = x, y = density, colour = type)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  labs(x = "x", y = "Density", title = "Distributions with different kurtosis",
+    colour = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+
+p_skew / p_kurt
+```
+
+The top panel shows how skewness manifests as asymmetry in the tails. The bottom panel shows how kurtosis affects the tail weight: the $t$-distribution with 3 degrees of freedom has much heavier tails than the normal, despite looking similar near the centre.
+
+---
+
+## 3.9 Moment Generating Functions
+
+### Motivation
+
+The **moment generating function** (MGF) is one of the most powerful tools in theoretical statistics. It can feel abstract on first encounter, but it pays enormous dividends in later chapters. Here is why:
+
+1. The MGF encodes *all* the moments of a distribution in a single function.
+2. Differentiating the MGF and evaluating at zero extracts moments effortlessly.
+3. The MGF of a sum of independent random variables is the *product* of their individual MGFs — this turns convolutions into simple multiplications.
+4. If two distributions have the same MGF, they are the same distribution.
+
+We will use MGFs to prove the Central Limit Theorem in Chapter 7.
+
+### Definition
+
+The **moment generating function** of a random variable $X$ is
+
+$$
+M_X(t) = E\left[e^{tX}\right]
+$$
+
+provided this expectation exists (is finite) for all $t$ in some open interval containing zero.
+
+For a discrete random variable: $M_X(t) = \sum_x e^{tx} p(x)$.
+
+For a continuous random variable: $M_X(t) = \int_{-\infty}^{\infty} e^{tx} f(x)\,dx$.
+
+In plain English: $M_X(t)$ is the expected value of $e^{tX}$, viewed as a function of the auxiliary variable $t$. The variable $t$ is not random — it is a free parameter that we will differentiate with respect to.
+
+### Why "Moment Generating"?
+
+**Theorem.** If the MGF exists in an open interval around zero, then
+
+$$
+M_X^{(k)}(0) = E[X^k]
+$$
+
+That is, the $k$-th derivative of the MGF evaluated at $t = 0$ gives the $k$-th raw moment.
+
+*Proof.* Recall the Taylor expansion of the exponential function:
+
+$$
+e^{tX} = \sum_{k=0}^{\infty} \frac{(tX)^k}{k!} = 1 + tX + \frac{t^2 X^2}{2!} + \frac{t^3 X^3}{3!} + \cdots
+$$
+
+Taking expectations term by term (justified by the convergence assumption):
+
+$$
+M_X(t) = E\left[e^{tX}\right] = \sum_{k=0}^{\infty} \frac{t^k E[X^k]}{k!} = 1 + t E[X] + \frac{t^2 E[X^2]}{2!} + \frac{t^3 E[X^3]}{3!} + \cdots
+$$
+
+Now differentiate with respect to $t$:
+
+$$
+M_X'(t) = E[X] + t E[X^2] + \frac{t^2 E[X^3]}{2!} + \cdots
+$$
+
+Setting $t = 0$: $M_X'(0) = E[X]$.
+
+Differentiating again:
+
+$$
+M_X''(t) = E[X^2] + t E[X^3] + \cdots
+$$
+
+Setting $t = 0$: $M_X''(0) = E[X^2]$.
+
+In general, the $k$-th derivative at $t = 0$ picks out $E[X^k]$ because all terms with $t$ vanish. $\square$
+
+This is why the function is called "moment generating" — differentiation and evaluation at zero generates moments one by one.
+
+### The Uniqueness Theorem
+
+**Theorem (Uniqueness of MGFs).** If $M_X(t) = M_Y(t)$ for all $t$ in an open interval containing zero, then $X$ and $Y$ have the same distribution.
+
+We state this theorem without proof (the proof uses complex analysis and Laplace transforms). Its power lies in applications: to show that a random variable has a particular distribution, it suffices to show that its MGF matches.
+
+### Example 1: MGF of a Bernoulli Random Variable
+
+Let $X \sim \text{Bernoulli}(p)$, so $P(X = 1) = p$ and $P(X = 0) = 1 - p$.
+
+$$
+\begin{aligned}
+M_X(t) &= E[e^{tX}] \\
+&= e^{t \cdot 0} P(X = 0) + e^{t \cdot 1} P(X = 1) \\
+&= (1-p) \cdot 1 + p \cdot e^t \\
+&= 1 - p + pe^t
+\end{aligned}
+$$
+
+Let us verify by extracting moments:
+
+$$
+M_X'(t) = pe^t \implies M_X'(0) = p = E[X] \quad \checkmark
+$$
+
+$$
+M_X''(t) = pe^t \implies M_X''(0) = p = E[X^2]
+$$
+
+$$
+\text{Var}(X) = E[X^2] - (E[X])^2 = p - p^2 = p(1-p) \quad \checkmark
+$$
+
+### Example 2: MGF of a Binomial Random Variable
+
+Let $X \sim \text{Binomial}(n, p)$. Since $X = X_1 + X_2 + \cdots + X_n$ where the $X_i$ are independent $\text{Bernoulli}(p)$ random variables, and the MGF of a sum of independent RVs is the product of their MGFs (we prove this below), we have:
+
+$$
+M_X(t) = \prod_{i=1}^{n} M_{X_i}(t) = \prod_{i=1}^{n} (1 - p + pe^t) = (1 - p + pe^t)^n
+$$
+
+Alternatively, we can derive this directly from the definition:
+
+$$
+\begin{aligned}
+M_X(t) &= E[e^{tX}] = \sum_{k=0}^{n} e^{tk} \binom{n}{k} p^k (1-p)^{n-k} \\
+&= \sum_{k=0}^{n} \binom{n}{k} (pe^t)^k (1-p)^{n-k} \\
+&= (pe^t + 1 - p)^n
+\end{aligned}
+$$
+
+where the last step uses the binomial theorem: $\sum_{k=0}^{n} \binom{n}{k} a^k b^{n-k} = (a + b)^n$ with $a = pe^t$ and $b = 1-p$.
+
+### Recovering E[X] and Var(X) from the Binomial MGF
+
+Let us differentiate $M_X(t) = (1 - p + pe^t)^n$.
+
+**First derivative** (using the chain rule):
+
+$$
+M_X'(t) = n(1 - p + pe^t)^{n-1} \cdot pe^t
+$$
+
+Evaluating at $t = 0$:
+
+$$
+M_X'(0) = n(1 - p + p)^{n-1} \cdot p = n \cdot 1 \cdot p = np = E[X] \quad \checkmark
+$$
+
+**Second derivative** (product rule on $n(1-p+pe^t)^{n-1} \cdot pe^t$):
+
+$$
+\begin{aligned}
+M_X''(t) &= n(n-1)(1-p+pe^t)^{n-2}(pe^t)^2 + n(1-p+pe^t)^{n-1}(pe^t)
+\end{aligned}
+$$
+
+Evaluating at $t = 0$:
+
+$$
+M_X''(0) = n(n-1)p^2 + np = E[X^2]
+$$
+
+Therefore:
+
+$$
+\text{Var}(X) = E[X^2] - (E[X])^2 = n(n-1)p^2 + np - (np)^2 = n^2p^2 - np^2 + np - n^2p^2 = np - np^2 = np(1-p) \quad \checkmark
+$$
+
+This is the standard result: for a Binomial$(n, p)$ random variable, $E[X] = np$ and $\text{Var}(X) = np(1-p)$.
+
+```{r binomial-mgf-verify}
+# Verify numerically for Binomial(10, 0.3)
+n <- 10; p <- 0.3
+
+# Theoretical
+cat(sprintf("Binomial(%d, %.1f):\n", n, p))
+cat(sprintf("  E[X]   = np = %.4f\n", n * p))
+cat(sprintf("  Var(X) = np(1-p) = %.4f\n", n * p * (1 - p)))
+
+# Via numerical differentiation of the MGF
+mgf_binom <- function(t) (1 - p + p * exp(t))^n
+
+# First derivative at 0 (numerical approximation)
+h <- 1e-6
+e_x_num <- (mgf_binom(h) - mgf_binom(-h)) / (2 * h)
+cat(sprintf("  E[X]   via MGF numerical derivative = %.4f\n", e_x_num))
+
+# Second derivative at 0
+e_x2_num <- (mgf_binom(h) - 2 * mgf_binom(0) + mgf_binom(-h)) / h^2
+var_num <- e_x2_num - e_x_num^2
+cat(sprintf("  Var(X) via MGF numerical derivative = %.4f\n", var_num))
+```
+
+### Key Property: MGF of a Sum of Independent RVs
+
+**Theorem.** If $X$ and $Y$ are **independent** random variables, then
+
+$$
+M_{X+Y}(t) = M_X(t) \cdot M_Y(t)
+$$
+
+*Proof.*
+
+$$
+\begin{aligned}
+M_{X+Y}(t) &= E\left[e^{t(X+Y)}\right] \\
+&= E\left[e^{tX} \cdot e^{tY}\right] \\
+&= E\left[e^{tX}\right] \cdot E\left[e^{tY}\right] \quad \text{(by independence)} \\
+&= M_X(t) \cdot M_Y(t) \qquad \square
+\end{aligned}
+$$
+
+The critical step is the third line: for independent random variables, the expectation of a product equals the product of expectations. This is proved in Chapter 6.
+
+**Why this is so powerful:** Finding the distribution of $X + Y$ normally requires a convolution — a potentially difficult integral. The MGF converts this convolution into simple multiplication. Combined with the uniqueness theorem, we can identify the distribution of a sum by recognising the form of the product of MGFs.
+
+This extends to any finite number of independent random variables:
+
+$$
+M_{X_1 + X_2 + \cdots + X_n}(t) = \prod_{i=1}^{n} M_{X_i}(t)
+$$
+
+### Numerical Exploration of MGFs
+
+```{r mgf-numerical, fig.cap="Moment generating functions for Bernoulli random variables with different success probabilities. Each curve is M(t) = 1 - p + p*exp(t).", fig.width=10, fig.height=6}
+set.seed(42)
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+# MGFs for Bernoulli with different p
+t_seq <- seq(-2, 2, length.out = 300)
+p_vals <- c(0.2, 0.5, 0.8)
+
+df_list <- lapply(p_vals, function(p) {
+  data.table(
+    t = t_seq,
+    mgf = 1 - p + p * exp(t_seq),
+    p = paste0("p = ", p)
+  )
+})
+df_mgf <- rbindlist(df_list)
+
+ggplot(df_mgf, aes(x = t, y = mgf, colour = p)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  labs(
+    x = "t",
+    y = expression(M[X](t)),
+    title = "MGF of Bernoulli(p) for different p",
+    colour = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
+```
+
+All curves pass through $M_X(0) = 1$ (since $E[e^{0 \cdot X}] = E[1] = 1$). The slope at $t = 0$ gives $E[X] = p$: the curve with $p = 0.8$ is steeper at the origin than the curve with $p = 0.2$.
+
+```{r mgf-binomial-plot, fig.cap="MGFs for Binomial(n, 0.5) random variables with different n. As n increases, the MGF grows more rapidly, reflecting the larger mean and wider distribution.", fig.width=10, fig.height=6}
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+t_seq <- seq(-1, 1, length.out = 300)
+n_vals <- c(1, 5, 10, 20)
+p <- 0.5
+
+df_list <- lapply(n_vals, function(n) {
+  data.table(
+    t = t_seq,
+    mgf = (1 - p + p * exp(t_seq))^n,
+    n = paste0("n = ", n)
+  )
+})
+df_mgf <- rbindlist(df_list)
+
+ggplot(df_mgf, aes(x = t, y = mgf, colour = n)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
+  labs(
+    x = "t",
+    y = expression(M[X](t)),
+    title = "MGF of Binomial(n, 0.5) for different n",
+    colour = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
+```
+
+### Numerical Approximation of the MGF
+
+When a closed-form MGF is not available, we can approximate $M_X(t) = E[e^{tX}]$ by simulation: draw many samples from $X$, compute $e^{tX}$ for each, and take the average.
+
+```{r mgf-simulation}
+set.seed(42)
+
+# Approximate the MGF of Binomial(10, 0.3) by simulation
+n_binom <- 10; p_binom <- 0.3
+n_sim <- 100000
+
+samples <- rbinom(n_sim, size = n_binom, prob = p_binom)
+
+# Evaluate MGF at several values of t
+t_vals <- c(-1, -0.5, 0, 0.5, 1)
+
+cat("Binomial(10, 0.3) MGF — theoretical vs. simulated:\n")
+for (t in t_vals) {
+  theoretical <- (1 - p_binom + p_binom * exp(t))^n_binom
+  simulated <- mean(exp(t * samples))
+  cat(sprintf("  M(%.1f): theoretical = %.6f, simulated = %.6f, diff = %.6f\n",
+    t, theoretical, simulated, abs(theoretical - simulated)))
+}
+```
+
+The simulated values are very close to the theoretical ones, confirming that $M_X(t) = E[e^{tX}]$ can be reliably estimated from data.
+
+### A Note on Existence
+
+Not all distributions have moment generating functions. The MGF exists only if $E[e^{tX}]$ is finite for $t$ in an open interval around zero. Distributions with very heavy tails — such as the Cauchy distribution or the log-normal distribution — fail this condition. When the MGF does not exist, an alternative called the **characteristic function** $\varphi_X(t) = E[e^{itX}]$ (using complex exponentials) always exists, but its study requires complex analysis and is beyond our scope.
+
+### Preview: The Central Limit Theorem
+
+The MGF machinery we have developed here will be essential in Chapter 7, where we prove the **Central Limit Theorem** — arguably the most important result in all of statistics. The proof strategy is:
+
+1. Write the MGF of the standardised sample mean $\bar{X}_n$.
+2. Use the product rule for independent MGFs.
+3. Show that as $n \to \infty$, this MGF converges to the MGF of a standard normal distribution.
+4. Apply the uniqueness theorem to conclude convergence in distribution.
+
+The fact that sums become products is what makes this proof tractable.
+
+---
+
+## Communicating to Stakeholders
+
+Moments beyond mean and variance rarely appear in stakeholder-facing reports. However, skewness and kurtosis can be communicated effectively:
+
+- **Skewness**: "The distribution of customer spending is positively skewed — most customers spend a moderate amount, but a small number of high spenders pull the average up." This explains why the median might be more representative than the mean.
+
+- **Kurtosis**: "The distribution of daily returns has heavy tails — extreme market movements (both gains and losses) occur more often than a normal distribution would predict." This is directly relevant to risk management.
+
+Moment generating functions are strictly a theoretical tool and should never appear in stakeholder communications. Their value is in proving results that *do* have practical implications.
+
+---
+
+## Quick Reference
+
+| Concept | Formula | Notes |
+|:---|:---|:---|
+| **$k$-th raw moment** | $\mu_k' = E[X^k]$ | $\mu_1' = E[X]$ |
+| **$k$-th central moment** | $\mu_k = E[(X - \mu)^k]$ | $\mu_2 = \text{Var}(X)$ |
+| **Skewness** | $\gamma_1 = E[(X-\mu)^3]/\sigma^3$ | $>0$ right skew, $<0$ left skew |
+| **Kurtosis** | $\gamma_2 = E[(X-\mu)^4]/\sigma^4$ | Normal has $\gamma_2 = 3$ |
+| **Excess kurtosis** | $\gamma_2 - 3$ | $>0$ heavy tails, $<0$ light tails |
+| **MGF definition** | $M_X(t) = E[e^{tX}]$ | Must exist in neighbourhood of 0 |
+| **Moment extraction** | $M_X^{(k)}(0) = E[X^k]$ | Differentiate $k$ times, set $t=0$ |
+| **Uniqueness** | Same MGF $\Rightarrow$ same distribution | Powerful identification tool |
+| **Sum of independent RVs** | $M_{X+Y}(t) = M_X(t) \cdot M_Y(t)$ | Convolution becomes multiplication |
+| **Bernoulli MGF** | $M_X(t) = 1 - p + pe^t$ | |
+| **Binomial MGF** | $M_X(t) = (1 - p + pe^t)^n$ | Product of $n$ Bernoulli MGFs |
+
+---
+
+## Exercises
+
+**Exercise 3.12.** For a random variable $X$ with PMF $P(X = -2) = 0.1$, $P(X = 0) = 0.5$, $P(X = 3) = 0.4$: (a) Compute $E[X]$, $E[X^2]$, $E[X^3]$, $E[X^4]$. (b) Compute the variance, skewness, and kurtosis. (c) Verify all answers with simulation.
+
+**Exercise 3.13.** Let $X \sim \text{Exponential}(\lambda)$ with PDF $f(x) = \lambda e^{-\lambda x}$ for $x \geq 0$. (a) Derive the MGF $M_X(t) = \frac{\lambda}{\lambda - t}$ for $t < \lambda$. (b) Use the MGF to find $E[X]$ and $\text{Var}(X)$.
+
+**Exercise 3.14.** Let $X \sim \text{Poisson}(\lambda)$ with PMF $P(X = k) = e^{-\lambda}\lambda^k / k!$ for $k = 0, 1, 2, \ldots$. (a) Derive the MGF $M_X(t) = e^{\lambda(e^t - 1)}$. (b) Use the MGF to find $E[X]$ and $\text{Var}(X)$. (c) If $X_1 \sim \text{Poisson}(\lambda_1)$ and $X_2 \sim \text{Poisson}(\lambda_2)$ are independent, use MGFs to show that $X_1 + X_2 \sim \text{Poisson}(\lambda_1 + \lambda_2)$.
+
+**Exercise 3.15.** Write an R function `mgf_numerical(samples, t)` that estimates the MGF of a distribution from a sample at a given value of $t$. Use it to estimate the MGF of the standard normal at $t = 0.5$ and compare to the known result $M_X(t) = e^{t^2/2}$.
+
+**Exercise 3.16.** Prove that $M_X(0) = 1$ for any random variable whose MGF exists. Explain why this must be the case.
+
+**Exercise 3.17.** Let $X$ have MGF $M_X(t) = (0.4e^t + 0.6)^8$. Without identifying the distribution, compute $E[X]$ and $\text{Var}(X)$ by differentiating the MGF.
+
+**Exercise 3.18 (Challenge).** Prove that if $X$ is symmetric about its mean $\mu$ (i.e., $X - \mu$ and $\mu - X$ have the same distribution), then all odd central moments are zero. In particular, $\gamma_1 = 0$. *Hint:* use the substitution $u = -(x - \mu)$.

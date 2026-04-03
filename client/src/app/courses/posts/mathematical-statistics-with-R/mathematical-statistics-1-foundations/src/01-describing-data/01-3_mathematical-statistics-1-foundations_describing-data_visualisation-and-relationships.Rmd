@@ -1,0 +1,475 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 1: Describing Data"
+part: "Part 3: Visualisation and Relationships"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, data, R, ggplot2]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r load-data, include=FALSE}
+box::use(data.table[fread, .N, .SD])
+box::use(ggplot2[...])
+
+data_dir <- "../../../data"
+penguins <- fread(file.path(data_dir, "primary/penguins.csv"))
+nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+```
+
+## 1.5 Visualising Distributions
+
+Numbers summarise; pictures reveal. A well-chosen plot can instantly expose patterns that no table of summary statistics can convey -- multimodality, outliers, gaps, clusters, and asymmetry all leap out from a good visualisation. This section develops the core graphical toolkit for displaying the distribution of a single variable.
+
+### 1.5.1 Histograms
+
+A **histogram** divides the range of data into contiguous intervals (called **bins** or **classes**) and draws a bar whose height (or area) represents the number (or proportion) of observations falling in that interval. It is the most fundamental visualisation of a distribution.
+
+```{r histogram-basic, fig.cap="Histogram of penguin flipper length with 20 bins. The bimodal shape is clearly visible, reflecting the mix of smaller (Adelie, Chinstrap) and larger (Gentoo) species."}
+ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
+  geom_histogram(bins = 20, fill = "steelblue", colour = "white") +
+  labs(x = "Flipper Length (mm)", y = "Count") +
+  theme_minimal(base_size = 14)
+```
+
+#### The binwidth problem
+
+The appearance of a histogram depends critically on the choice of **binwidth** (or equivalently, the number of bins). Too few bins hide important structure; too many bins create a noisy, jagged picture.
+
+```{r histogram-binwidth, fig.cap="The same data (penguin flipper length) shown with three different binwidths. With 5 bins (left), we lose the bimodal structure. With 15 bins (centre), the two modes are clear. With 60 bins (right), the picture becomes noisy. Choosing a good binwidth is a balance between smoothness and fidelity."}
+p1 <- ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
+  geom_histogram(bins = 5, fill = "steelblue", colour = "white") +
+  labs(x = "Flipper Length (mm)", y = "Count", title = "5 bins") +
+  theme_minimal(base_size = 12)
+
+p2 <- ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
+  geom_histogram(bins = 15, fill = "steelblue", colour = "white") +
+  labs(x = "Flipper Length (mm)", y = "Count", title = "15 bins") +
+  theme_minimal(base_size = 12)
+
+p3 <- ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
+  geom_histogram(bins = 60, fill = "steelblue", colour = "white") +
+  labs(x = "Flipper Length (mm)", y = "Count", title = "60 bins") +
+  theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+```
+
+Several rules of thumb exist for choosing the number of bins. **Sturges' rule** suggests $k = \lceil \log_2 n + 1 \rceil$ bins, which works well for roughly symmetric, unimodal data. The **Freedman--Diaconis rule** sets binwidth to $2 \cdot \text{IQR} \cdot n^{-1/3}$, which is more robust to skewness. In practice, try several binwidths and choose the one that best reveals the structure of your data.
+
+### 1.5.2 Density Plots
+
+A **kernel density estimate** (KDE) is a smoothed version of the histogram. Instead of discrete bins, it produces a continuous curve. The intuition: place a small "bump" (the **kernel**) at each data point, then sum all the bumps. The result is a smooth estimate of the probability density function.
+
+Formally, the KDE at point $x$ is:
+
+$$\hat{f}(x) = \frac{1}{nh}\sum_{i=1}^{n}K\!\left(\frac{x - x_i}{h}\right)$$
+
+where $K$ is a kernel function (typically a Gaussian bell curve), $h$ is the **bandwidth** (a smoothing parameter analogous to the binwidth in a histogram), and $n$ is the sample size. The bandwidth $h$ controls the trade-off between smoothness and fidelity: a small $h$ produces a wiggly curve; a large $h$ produces an overly smooth one.
+
+For our purposes, the details of kernel selection and bandwidth optimisation are not critical -- R's `density()` function and ggplot2's `geom_density()` use sensible defaults. What matters is the interpretation: the area under the density curve between two values $a$ and $b$ approximates the proportion of observations falling in $[a, b]$.
+
+```{r density-plot, fig.cap="Kernel density estimates of penguin body mass by species. The three species have distinct mass distributions, with Gentoo penguins being substantially heavier. Density plots make it easy to compare distribution shapes across groups."}
+ggplot(penguins[!is.na(body_mass_g)], aes(x = body_mass_g, fill = species)) +
+  geom_density(alpha = 0.5, colour = "grey30") +
+  scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  labs(x = "Body Mass (g)", y = "Density", fill = "Species") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+```
+
+### 1.5.3 Boxplots
+
+The **boxplot** (or box-and-whisker plot) is a compact summary of a distribution based on five numbers: the minimum, $Q_1$, median, $Q_3$, and maximum (with a convention for flagging outliers).
+
+The anatomy of a boxplot:
+
+- **Box**: spans from $Q_1$ to $Q_3$ (the IQR). The line inside the box marks the median.
+- **Whiskers**: extend from the box to the most extreme data points that are *not* flagged as outliers. The standard convention (due to Tukey) defines the **fences** as $Q_1 - 1.5 \times \text{IQR}$ (lower fence) and $Q_3 + 1.5 \times \text{IQR}$ (upper fence). Whiskers extend to the most extreme observation within the fences.
+- **Outliers**: individual points beyond the fences are plotted individually.
+
+The factor 1.5 is a convention, not a law. For a normal distribution, approximately 0.7% of observations lie beyond the fences, so Tukey's rule identifies roughly 1 in 150 observations as outliers.
+
+```{r boxplot, fig.cap="Boxplots of penguin flipper length by species. The boxes show the IQR, the thick line is the median, whiskers extend to the most extreme non-outlier points, and individual dots mark outliers beyond the fences."}
+ggplot(penguins[!is.na(flipper_length_mm)], aes(x = species, y = flipper_length_mm, fill = species)) +
+  geom_boxplot(width = 0.5, outlier.shape = 21, outlier.size = 2) +
+  scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  labs(x = "Species", y = "Flipper Length (mm)") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+Boxplots are excellent for comparing distributions across groups. At a glance, we see that Gentoo penguins have the longest flippers and the smallest within-species variability.
+
+### 1.5.4 Violin Plots
+
+A **violin plot** combines the information of a boxplot with a kernel density estimate, displaying the full shape of the distribution. The "width" of the violin at each point represents the estimated density.
+
+```{r violin-plot, fig.cap="Violin plots of penguin body mass by species, with embedded boxplots. Violin plots reveal distributional features (bimodality, skewness) that boxplots hide. Note the slight bimodality within Adelie and Gentoo, likely reflecting sex differences."}
+ggplot(penguins[!is.na(body_mass_g)], aes(x = species, y = body_mass_g, fill = species)) +
+  geom_violin(alpha = 0.7, colour = "grey30") +
+  geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
+  scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  labs(x = "Species", y = "Body Mass (g)") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+The violin for Gentoo penguins shows a hint of bimodality -- two bulges -- which likely reflects the difference between males and females. A boxplot would have missed this entirely.
+
+### 1.5.5 The Empirical Cumulative Distribution Function (ECDF)
+
+The **empirical CDF** (ECDF) is a step function that, for each value $x$, gives the proportion of observations less than or equal to $x$:
+
+$$\hat{F}_n(x) = \frac{1}{n}\sum_{i=1}^{n}\mathbf{1}(x_i \leq x)$$
+
+where $\mathbf{1}(\cdot)$ is the **indicator function** (equals 1 if the condition is true, 0 otherwise). The ECDF increases by $1/n$ at each observed value and is flat between observations.
+
+The ECDF has several virtues:
+
+- It displays the *entire* distribution without binning or smoothing.
+- It directly answers questions like "What fraction of penguins have flipper length below 200 mm?"
+- It is the basis of important goodness-of-fit tests (e.g., the Kolmogorov-Smirnov test, Chapter 11).
+
+#### Building the ECDF from scratch
+
+```{r my-ecdf}
+my_ecdf <- function(x) {
+  x <- sort(x[!is.na(x)])
+  n <- length(x)
+
+  # Return a function, just like stats::ecdf()
+  function(q) {
+    sapply(q, function(qi) sum(x <= qi) / n)
+  }
+}
+
+# Test: what fraction of penguins have flipper length <= 200 mm?
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+ecdf_fl <- my_ecdf(fl)
+
+cat("P(flipper <= 190 mm):", ecdf_fl(190), "\n")
+cat("P(flipper <= 200 mm):", ecdf_fl(200), "\n")
+cat("P(flipper <= 210 mm):", ecdf_fl(210), "\n")
+
+# Compare with built-in
+ecdf_builtin <- ecdf(fl)
+cat("\nBuilt-in ecdf at 200:", ecdf_builtin(200), "\n")
+```
+
+```{r ecdf-plot, fig.cap="Empirical CDFs of penguin flipper length by species. The horizontal distance between curves at any proportion shows the difference in quantiles. The vertical distance at any flipper length shows the difference in proportions. Gentoo penguins' curve is shifted to the right, confirming their larger flippers."}
+ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm, colour = species)) +
+  stat_ecdf(linewidth = 0.9) +
+  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+  annotate("text", x = 170, y = 0.52, label = "Median (50th percentile)",
+           colour = "grey50", size = 4, hjust = 0) +
+  labs(x = "Flipper Length (mm)", y = "Cumulative Proportion",
+       colour = "Species") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+```
+
+The horizontal dashed line at 0.5 crosses each species' ECDF at its median flipper length. Reading off the x-axis, we see the medians are approximately 190 mm (Adelie), 196 mm (Chinstrap), and 216 mm (Gentoo).
+
+---
+
+## 1.6 Visualising Relationships
+
+So far, we have examined one variable at a time (**univariate** analysis). Now we turn to the relationship between two variables (**bivariate** analysis). The key tools are scatterplots and correlation.
+
+### 1.6.1 Scatterplots
+
+A **scatterplot** displays pairs of observations $(x_i, y_i)$ as points in a two-dimensional plane. It is the most direct way to visualise the association between two numerical variables.
+
+```{r scatterplot-basic, fig.cap="Scatterplot of penguin bill length versus bill depth, coloured by species. The overall cloud appears to show a negative trend, but within each species, the trend is positive. This is Simpson's paradox."}
+ggplot(penguins[!is.na(bill_length_mm) & !is.na(bill_depth_mm)],
+       aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species, shape = species), size = 2.5, alpha = 0.7) +
+  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
+       colour = "Species", shape = "Species") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+```
+
+### 1.6.2 Pearson Correlation
+
+The **Pearson correlation coefficient** $r$ measures the strength and direction of the *linear* association between two variables. It ranges from $-1$ (perfect negative linear relationship) through $0$ (no linear association) to $+1$ (perfect positive linear relationship).
+
+**Formal definition.** Given paired observations $(x_1, y_1), \ldots, (x_n, y_n)$:
+
+$$r = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n}(x_i - \bar{x})^2 \cdot \sum_{i=1}^{n}(y_i - \bar{y})^2}}$$
+
+The numerator is the **sample covariance** (up to a factor of $n - 1$):
+
+$$s_{xy} = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})$$
+
+and the denominator normalises by the product of the standard deviations, ensuring $r$ is dimensionless and bounded by $[-1, 1]$:
+
+$$r = \frac{s_{xy}}{s_x \, s_y}$$
+
+**Plain English.** The correlation measures how much the two variables *move together*. When $x$ is above its mean, is $y$ also above its mean (positive correlation)? Or is $y$ below its mean (negative correlation)?
+
+#### Building correlation from scratch
+
+```{r my-cor}
+my_cov <- function(x, y) {
+  keep <- !is.na(x) & !is.na(y)
+  x <- x[keep]
+  y <- y[keep]
+  n <- length(x)
+
+  xbar <- sum(x) / n
+  ybar <- sum(y) / n
+
+  sum((x - xbar) * (y - ybar)) / (n - 1)
+}
+
+my_cor <- function(x, y) {
+  my_cov(x, y) / (sd(x[!is.na(x) & !is.na(y)]) * sd(y[!is.na(x) & !is.na(y)]))
+}
+
+bl <- penguins$bill_length_mm
+bd <- penguins$bill_depth_mm
+
+cat("Our covariance:", my_cov(bl, bd), "\n")
+cat("Built-in cov():", cov(bl, bd, use = "complete.obs"), "\n")
+cat("\nOur correlation:", my_cor(bl, bd), "\n")
+cat("Built-in cor():", cor(bl, bd, use = "complete.obs"), "\n")
+```
+
+The overall correlation between bill length and bill depth is *negative*. But wait -- look at the scatterplot again. Within each species, the relationship is clearly *positive*. What is going on?
+
+### 1.6.3 Simpson's Paradox
+
+**Simpson's paradox** occurs when a trend that appears in several different groups reverses when the groups are combined. It is one of the most important cautionary tales in statistics.
+
+In the penguins data, the paradox arises because species differ in both bill length and bill depth. Gentoo penguins have long but shallow bills; Adelie penguins have short but deep bills. When we pool all species, the between-species variation dominates and creates the appearance of a negative association.
+
+Let us compute correlations separately by species:
+
+```{r simpsons-paradox-correlations}
+penguins_complete <- penguins[!is.na(bill_length_mm) & !is.na(bill_depth_mm)]
+
+species_cors <- penguins_complete[, .(
+  r = cor(bill_length_mm, bill_depth_mm),
+  n = .N
+), by = species]
+
+cat("Correlations by species:\n")
+print(species_cors)
+
+cat("\nOverall correlation:", cor(penguins_complete$bill_length_mm,
+                                  penguins_complete$bill_depth_mm), "\n")
+```
+
+Within every species, the correlation is positive (typically $r \approx 0.6$--$0.7$). But overall, the correlation is negative ($r \approx -0.24$). This is Simpson's paradox in action.
+
+```{r simpsons-paradox-plot, fig.cap="Simpson's paradox in the penguins data. Left: the overall trend line (dashed black) slopes downward, suggesting a negative association. Right: species-level trend lines (coloured) all slope upward. The paradox arises because species form distinct clusters, and the between-cluster trend opposes the within-cluster trend."}
+p_overall <- ggplot(penguins_complete,
+                    aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(colour = "grey50", alpha = 0.5, size = 2) +
+  geom_smooth(method = "lm", se = FALSE, colour = "black",
+              linetype = "dashed", linewidth = 1) +
+  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
+       title = "Overall (pooled)") +
+  annotate("text", x = 55, y = 21,
+           label = paste0("r = ", round(cor(penguins_complete$bill_length_mm,
+                                            penguins_complete$bill_depth_mm), 3)),
+           size = 5) +
+  theme_minimal(base_size = 13)
+
+p_species <- ggplot(penguins_complete,
+                    aes(x = bill_length_mm, y = bill_depth_mm,
+                        colour = species, fill = species)) +
+  geom_point(alpha = 0.5, size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
+       title = "By species", colour = "Species") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+
+gridExtra::grid.arrange(p_overall, p_species, ncol = 2)
+```
+
+**The lesson.** A correlation computed on pooled data can be *opposite in sign* to the correlations within subgroups. Whenever your data contain meaningful groups (species, treatment arms, time periods, geographic regions), compute within-group and overall statistics separately and compare them. If they disagree, you have found a confounding variable, and the pooled statistic is misleading.
+
+Simpson's paradox is not a mathematical curiosity -- it arises routinely in epidemiology (survival rates by hospital), education (admissions by department), and medicine (treatment outcomes by subgroup). It is one of the strongest arguments for *always* visualising your data.
+
+### 1.6.4 Faceting: Small Multiples
+
+One of the most effective strategies for revealing structure in grouped data is **faceting**: producing the same plot for each group in separate panels. This avoids the overplotting that occurs when all groups share one panel.
+
+```{r faceted-scatter, fig.cap="Faceted scatterplots of bill length versus bill depth, one panel per species. Within each species, the positive relationship is unmistakable. Faceting is one of the most powerful tools for detecting Simpson's paradox and other confounded relationships."}
+ggplot(penguins_complete,
+       aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species), alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, colour = "black", linewidth = 0.8) +
+  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  facet_wrap(~species, scales = "free") +
+  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+### 1.6.5 Correlation Does Not Imply Causation
+
+The correlation coefficient measures *association*, not *causation*. Two variables can be strongly correlated because:
+
+1. **$X$ causes $Y$** (e.g., smoking causes lung cancer).
+2. **$Y$ causes $X$** (reverse causation).
+3. **A third variable $Z$ causes both** (confounding). Ice cream sales and drowning deaths are correlated -- not because ice cream causes drowning, but because hot weather increases both.
+4. **Pure coincidence** in small samples.
+
+Establishing causation requires either a **randomised experiment** (Chapter 24) or careful application of causal inference methods. Correlation is a necessary ingredient but never sufficient.
+
+### 1.6.6 Limitations of Pearson Correlation
+
+Pearson's $r$ measures *linear* association only. It can be zero even when there is a strong nonlinear relationship. Consider:
+
+```{r cor-limitations, fig.cap="Four datasets with the same Pearson correlation (r approximately 0) but very different relationships. Top-left: no relationship. Top-right: perfect quadratic relationship. Bottom-left: two clusters. Bottom-right: a perfect nonlinear (sinusoidal) relationship. Pearson's r misses all of these."}
+set.seed(42)
+n <- 200
+
+# No relationship
+x1 <- rnorm(n)
+y1 <- rnorm(n)
+
+# Perfect quadratic
+x2 <- seq(-3, 3, length.out = n)
+y2 <- x2^2 + rnorm(n, sd = 0.3)
+
+# Two clusters
+x3 <- c(rnorm(n / 2, -2, 0.5), rnorm(n / 2, 2, 0.5))
+y3 <- c(rnorm(n / 2, 2, 0.5), rnorm(n / 2, -2, 0.5))
+
+# Sinusoidal
+x4 <- seq(0, 4 * pi, length.out = n)
+y4 <- sin(x4) + rnorm(n, sd = 0.1)
+
+dt_panels <- data.table::rbindlist(list(
+  data.table::data.table(x = x1, y = y1,
+    panel = paste0("Random noise (r = ", round(cor(x1, y1), 3), ")")),
+  data.table::data.table(x = x2, y = y2,
+    panel = paste0("Quadratic (r = ", round(cor(x2, y2), 3), ")")),
+  data.table::data.table(x = x3, y = y3,
+    panel = paste0("Two clusters (r = ", round(cor(x3, y3), 3), ")")),
+  data.table::data.table(x = x4, y = y4,
+    panel = paste0("Sinusoidal (r = ", round(cor(x4, y4), 3), ")"))
+))
+
+ggplot(dt_panels, aes(x = x, y = y)) +
+  geom_point(alpha = 0.5, size = 1.5, colour = "steelblue") +
+  facet_wrap(~panel, scales = "free", ncol = 2) +
+  labs(x = "x", y = "y") +
+  theme_minimal(base_size = 13)
+```
+
+**The lesson.** Always plot your data before computing a correlation. The correlation coefficient is a one-number summary of a potentially complex relationship, and like all one-number summaries, it can be profoundly misleading.
+
+For monotonic but nonlinear relationships, **Spearman's rank correlation** (which applies Pearson's formula to the ranks of the data rather than the raw values) is a more appropriate alternative. We shall develop this in Chapter 13 (Nonparametric Methods).
+
+---
+
+## 1.7 Exercises
+
+**Exercise 1.1 (Computation).** The following data represent the number of hours spent studying by 12 students: 2, 3, 5, 5, 6, 7, 7, 7, 8, 9, 10, 15. Compute the mean, median, mode, variance, standard deviation, IQR, skewness, and kurtosis by hand. Verify your answers in R.
+
+**Exercise 1.2 (Proof).** Prove that the sample mean minimises the sum of squared deviations. That is, show that for any constant $c$, $\sum_{i=1}^{n}(x_i - c)^2 \geq \sum_{i=1}^{n}(x_i - \bar{x})^2$, with equality if and only if $c = \bar{x}$. *(Hint: write $x_i - c = (x_i - \bar{x}) + (\bar{x} - c)$ and expand.)*
+
+**Exercise 1.3 (Proof).** Prove that the sum of deviations from the mean is zero: $\sum_{i=1}^{n}(x_i - \bar{x}) = 0$.
+
+**Exercise 1.4 (Interpretation).** A company reports that its employees' mean salary is \$85,000 and the median salary is \$62,000. What does the discrepancy between mean and median tell you about the shape of the salary distribution? Which measure would you report to a prospective employee, and why?
+
+**Exercise 1.5 (Computation and Visualisation).** Using the penguins dataset, compute the mean, standard deviation, and IQR of body mass separately for each combination of species and sex. Produce a set of boxplots that displays these groups. Which species shows the greatest sexual dimorphism in body mass?
+
+**Exercise 1.6 (Simpson's Paradox).** Consider the following hypothetical data on treatment success rates:
+
+| | Treatment A | Treatment B |
+|---|---|---|
+| Mild cases | 81/87 (93%) | 234/270 (87%) |
+| Severe cases | 192/263 (73%) | 55/80 (69%) |
+| Overall | 273/350 (78%) | 289/350 (83%) |
+
+Treatment A is better for mild cases *and* for severe cases, yet Treatment B has a higher overall success rate. Explain how this is possible. *(Hint: examine the mix of mild and severe cases in each treatment group.)*
+
+**Exercise 1.7 (Implementation).** Write an R function `my_five_num(x)` that returns the five-number summary (minimum, $Q_1$, median, $Q_3$, maximum) without using any built-in quantile or summary functions. Test it on the NHANES height data and compare with `fivenum()`.
+
+**Exercise 1.8 (Proof).** Show that the Pearson correlation coefficient $r$ is invariant under linear transformation. That is, if $u_i = a + b x_i$ and $v_i = c + d y_i$ with $b, d > 0$, then $\text{cor}(u, v) = \text{cor}(x, y)$. What happens if $b$ or $d$ is negative?
+
+**Exercise 1.9 (Exploration).** Using the NHANES dataset, choose two continuous variables and produce a comprehensive descriptive analysis: summary statistics, histogram, density plot, boxplot, ECDF, and scatterplot against a second variable. Write a one-paragraph interpretation suitable for a non-statistical audience.
+
+**Exercise 1.10 (Critical Thinking).** A news headline states: "Countries that consume more chocolate win more Nobel Prizes (r = 0.79)." Give at least three reasons why this correlation does not establish that eating chocolate causes Nobel Prizes. What confounding variables might explain the association?
+
+---
+
+## Communicating to Stakeholders
+
+When presenting visualisations to non-statisticians:
+
+- **Histograms and density plots**: "This shows how the values are distributed. The peak is where most values cluster. The spread shows the range of variation." Always label axes clearly and include units.
+
+- **Boxplots**: "The box shows the middle 50% of values. The line in the middle is the median. The dots beyond the whiskers are unusually extreme values." Boxplots are compact but require explanation for unfamiliar audiences.
+
+- **Scatterplots**: "Each dot represents one observation. An upward trend means that when X increases, Y tends to increase too." Be explicit about the difference between *association* and *causation*.
+
+- **Correlation**: "The correlation is [value], which means [X and Y tend to move together / in opposite directions / show no linear pattern]." Always accompany the number with a plot. Avoid implying causation.
+
+- **Simpson's paradox**: "The overall trend can be misleading if we don't account for [the grouping variable]. When we look at each group separately, the picture reverses." This is a powerful teaching moment for stakeholders who rely on aggregated statistics.
+
+---
+
+## Quick Reference
+
+| Plot Type | Shows | When to Use | Key ggplot2 Layer |
+|-----------|-------|-------------|-------------------|
+| Histogram | Distribution of one variable | First look at any numerical variable | `geom_histogram()` |
+| Density plot | Smoothed distribution | Comparing groups; continuous data | `geom_density()` |
+| Boxplot | Five-number summary + outliers | Comparing groups; detecting outliers | `geom_boxplot()` |
+| Violin plot | Full density + summary | When shape matters more than summary stats | `geom_violin()` |
+| ECDF | Cumulative distribution | Precise quantile reading; goodness of fit | `stat_ecdf()` |
+| Scatterplot | Relationship between two variables | Bivariate numerical data | `geom_point()` |
+
+**Key R functions:**
+
+- `cor(x, y, use = "complete.obs")` -- Pearson correlation
+- `cov(x, y, use = "complete.obs")` -- sample covariance
+- `cor(x, y, method = "spearman")` -- Spearman rank correlation
+- `ecdf(x)` -- empirical CDF (returns a function)
+- `density(x)` -- kernel density estimate
+
+**Key concepts:**
+
+- Pearson's $r$ measures *linear* association only. Always plot the data.
+- Simpson's paradox: trends can reverse when data are aggregated across groups. Always check for confounders.
+- Correlation $\neq$ causation. Association is necessary but not sufficient for a causal claim.
+- The choice of binwidth in histograms and bandwidth in density estimation can substantially change the visual impression. Try multiple values.

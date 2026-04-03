@@ -1,0 +1,842 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 2: Probability — The Language"
+part: "Part 2: Conditional Probability and Independence"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+## 2.5 Conditional Probability
+
+### Intuition: Shrinking the Sample Space
+
+Suppose you roll a fair die and I tell you the result is even. What is the probability it is a 6?
+
+Without the extra information, $P(\text{six}) = 1/6$. But *given* the die is even, the sample space shrinks from $\{1,2,3,4,5,6\}$ to $\{2,4,6\}$. Now there are only three equally likely outcomes, so $P(\text{six} \mid \text{even}) = 1/3$.
+
+That is the core idea of conditional probability: **learning that $B$ occurred shrinks the sample space to $B$**, and we rescale so that the new probabilities sum to 1.
+
+### Formal Definition
+
+**Definition.** For events $A$ and $B$ with $P(B) > 0$, the *conditional probability of $A$ given $B$* is:
+
+$$
+P(A \mid B) = \frac{P(A \cap B)}{P(B)}
+$$
+
+In plain English: the conditional probability of $A$ given $B$ is the probability that both $A$ and $B$ happen, divided by the probability that $B$ happens. We are "zooming in" on the world where $B$ is true.
+
+Let us verify this with our die example. Let $A = \{6\}$ and $B = \{2, 4, 6\}$.
+
+$$
+P(A \mid B) = \frac{P(A \cap B)}{P(B)} = \frac{P(\{6\})}{P(\{2,4,6\})} = \frac{1/6}{3/6} = \frac{1}{3}
+$$
+
+Exactly as our intuition predicted.
+
+### The Multiplication Rule
+
+Rearranging the definition of conditional probability gives us the **multiplication rule**:
+
+$$
+P(A \cap B) = P(A \mid B) \, P(B)
+$$
+
+By symmetry (since $A \cap B = B \cap A$):
+
+$$
+P(A \cap B) = P(B \mid A) \, P(A)
+$$
+
+This extends to chains of events. For three events:
+
+$$
+P(A \cap B \cap C) = P(A) \, P(B \mid A) \, P(C \mid A \cap B)
+$$
+
+And in general:
+
+$$
+P(A_1 \cap A_2 \cap \cdots \cap A_n) = P(A_1) \prod_{k=2}^{n} P(A_k \mid A_1 \cap \cdots \cap A_{k-1})
+$$
+
+This is sometimes called the **chain rule of probability** (not to be confused with the calculus chain rule).
+
+### Computing Conditional Probabilities from Data
+
+Let us compute conditional probabilities from real data. We will use the NHANES dataset.
+
+
+``` r
+box::use(data.table[fread, .N, .SD])
+
+data_dir <- "../../../data"
+nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Let's inspect what columns we have
+cat("Columns:", paste(names(nhanes), collapse = ", "), "\n")
+cat("Rows:", nrow(nhanes), "\n")
+```
+
+```
+Columns: ID, SurveyYr, Gender, Age, AgeDecade, AgeMonths, Race1, Race3, Education, MaritalStatus, HHIncome, HHIncomeMid, Poverty, HomeRooms, HomeOwn, Work, Weight, Length, HeadCirc, Height, BMI, BMICatUnder20yrs, BMI_WHO, Pulse, BPSysAve, BPDiaAve, BPSys1, BPDia1, BPSys2, BPDia2, BPSys3, BPDia3, Testosterone, DirectChol, TotChol, UrineVol1, UrineFlow1, UrineVol2, UrineFlow2, Diabetes, DiabetesAge, HealthGen, DaysPhysHlthBad, DaysMentHlthBad, LittleInterest, Depressed, nPregnancies, nBabies, Age1stBaby, SleepHrsNight, SleepTrouble, PhysActive, PhysActiveDays, TVHrsDay, CompHrsDay, TVHrsDayChild, CompHrsDayChild, Alcohol12PlusYr, AlcoholDay, AlcoholYear, SmokeNow, Smoke100, Smoke100n, SmokeAge, Marijuana, AgeFirstMarij, RegularMarij, AgeRegMarij, HardDrugs, SexEver, SexAge, SexNumPartnLife, SexNumPartYear, SameSex, SexOrientation, PregnantNow 
+Rows: 10000 
+```
+
+
+``` r
+box::use(data.table[...])
+
+# Compute P(Diabetes | BMI > 30)
+# First, create indicator variables
+nhanes[, obese := fifelse(BMI > 30, TRUE, FALSE)]
+
+# P(Diabetes)
+p_diabetes <- nhanes[Diabetes == "Yes", .N] / nrow(nhanes)
+cat("P(Diabetes) =", round(p_diabetes, 4), "\n")
+
+# P(Obese)
+p_obese <- nhanes[obese == TRUE, .N] / nrow(nhanes)
+cat("P(Obese, BMI > 30) =", round(p_obese, 4), "\n")
+
+# P(Diabetes AND Obese)
+p_both <- nhanes[Diabetes == "Yes" & obese == TRUE, .N] / nrow(nhanes)
+cat("P(Diabetes AND Obese) =", round(p_both, 4), "\n")
+
+# P(Diabetes | Obese) = P(Diabetes AND Obese) / P(Obese)
+p_diabetes_given_obese <- p_both / p_obese
+cat("P(Diabetes | Obese) =", round(p_diabetes_given_obese, 4), "\n\n")
+
+# Compare: P(Diabetes | Not Obese)
+p_not_obese <- 1 - p_obese
+p_diabetes_and_not_obese <- nhanes[Diabetes == "Yes" & obese == FALSE, .N] / nrow(nhanes)
+p_diabetes_given_not_obese <- p_diabetes_and_not_obese / p_not_obese
+cat("P(Diabetes | Not Obese) =", round(p_diabetes_given_not_obese, 4), "\n")
+
+cat("\nObesity increases diabetes risk by a factor of",
+    round(p_diabetes_given_obese / p_diabetes_given_not_obese, 2), "\n")
+```
+
+```
+P(Diabetes) = 0.076 
+P(Obese, BMI > 30) = 0.2751 
+P(Diabetes AND Obese) = 0.0428 
+P(Diabetes | Obese) = 0.1556 
+
+P(Diabetes | Not Obese) = 0.0443 
+
+Obesity increases diabetes risk by a factor of 3.51 
+```
+
+### Verifying with Simulation
+
+
+``` r
+set.seed(42)
+
+# Simulate the die example
+n_sim <- 200000L
+rolls <- sample(1:6, size = n_sim, replace = TRUE)
+
+# P(6 | even)
+even_rolls <- rolls[rolls %% 2 == 0]
+p_six_given_even <- mean(even_rolls == 6)
+cat("Simulated P(6 | even) =", round(p_six_given_even, 4),
+    " (theoretical: 1/3 =", round(1/3, 4), ")\n")
+
+# P(sum >= 10 | first die is 5) for two dice
+die1 <- sample(1:6, size = n_sim, replace = TRUE)
+die2 <- sample(1:6, size = n_sim, replace = TRUE)
+total <- die1 + die2
+
+# Filter to cases where die1 = 5
+given_5 <- total[die1 == 5]
+p_ge10_given_5 <- mean(given_5 >= 10)
+cat("Simulated P(sum >= 10 | die1 = 5) =", round(p_ge10_given_5, 4),
+    " (theoretical: 2/6 =", round(2/6, 4), ")\n")
+```
+
+```
+Simulated P(6 | even) = 0.3319  (theoretical: 1/3 = 0.3333 )
+Simulated P(sum >= 10 | die1 = 5) = 0.333  (theoretical: 2/6 = 0.3333 )
+```
+
+### JavaScript Animation: Conditioning Shrinks the Sample Space
+
+The following animation shows two overlapping events $A$ and $B$. When we condition on $B$, everything outside $B$ fades away, and the remaining area is rescaled so that $P(B \mid B) = 1$. The proportion of $B$ occupied by $A \cap B$ is precisely $P(A \mid B)$.
+
+<CanvasWithJs code={`
+const w = canvas.width;
+const h = canvas.height;
+
+// State
+let conditioned = false;
+let alpha = 0;
+let animating = false;
+
+const cx_a = w * 0.38;
+const cx_b = w * 0.62;
+const cy = h * 0.48;
+const r = Math.min(w, h) * 0.22;
+
+function draw() {
+  ctx.clearRect(0, 0, w, h);
+
+  // Title
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(conditioned || animating ?
+    'Conditioned on B: sample space shrinks' :
+    'Full sample space Ω — click to condition on B', w / 2, 25);
+
+  // Background (Omega) — fades when conditioning
+  const bgAlpha = 1 - alpha * 0.7;
+  ctx.fillStyle = 'rgba(240, 240, 240, ' + bgAlpha + ')';
+  ctx.fillRect(20, 40, w - 40, h - 80);
+  ctx.strokeStyle = 'rgba(51, 51, 51, ' + bgAlpha + ')';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 40, w - 40, h - 80);
+
+  // Omega label fades
+  ctx.fillStyle = 'rgba(51, 51, 51, ' + bgAlpha + ')';
+  ctx.font = '14px serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Ω', 30, 60);
+
+  // Draw A circle (fades outside B when conditioning)
+  // First: the part of A outside B
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
+  ctx.clip();
+  // Exclude B region
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI, true);
+  ctx.fillStyle = 'rgba(0, 114, 178, ' + (0.3 * (1 - alpha)) + ')';
+  ctx.fill();
+  ctx.restore();
+
+  // Draw the A ∩ B region (stays visible, gets brighter)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
+  ctx.clip();
+  ctx.beginPath();
+  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
+  const overlapAlpha = 0.3 + alpha * 0.35;
+  ctx.fillStyle = 'rgba(230, 159, 0, ' + overlapAlpha + ')';
+  ctx.fill();
+  ctx.restore();
+
+  // Draw B region (outside A) — stays visible
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
+  ctx.clip();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI, true);
+  const bOnlyAlpha = 0.3 + alpha * 0.1;
+  ctx.fillStyle = 'rgba(213, 94, 0, ' + bOnlyAlpha + ')';
+  ctx.fill();
+  ctx.restore();
+
+  // Circle outlines
+  const aOutlineAlpha = 1 - alpha * 0.6;
+  ctx.beginPath();
+  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(0, 114, 178, ' + aOutlineAlpha + ')';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = '#D55E00';
+  ctx.lineWidth = conditioned ? 3.5 : 2.5;
+  ctx.stroke();
+
+  // Labels
+  ctx.font = 'bold 20px serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0, 114, 178, ' + aOutlineAlpha + ')';
+  ctx.fillText('A', cx_a - r * 0.55, cy);
+  ctx.fillStyle = '#D55E00';
+  ctx.fillText('B', cx_b + r * 0.4, cy);
+
+  // Overlap label
+  ctx.font = '16px serif';
+  ctx.fillStyle = '#8B4513';
+  ctx.fillText('A ∩ B', (cx_a + cx_b) / 2, cy - 5);
+
+  // Probability annotation
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'left';
+  if (conditioned || alpha > 0.5) {
+    ctx.fillText('P(A|B) = P(A ∩ B) / P(B)', 30, h - 30);
+    ctx.fillText('The orange region is now all that matters', 30, h - 12);
+  } else {
+    ctx.fillText('P(A) = blue area / total area', 30, h - 30);
+    ctx.fillText('Click anywhere to condition on B', 30, h - 12);
+  }
+}
+
+function animate() {
+  if (!animating) return;
+  const target = conditioned ? 1 : 0;
+  const speed = 0.04;
+  alpha += (target - alpha) * speed;
+  if (Math.abs(alpha - target) < 0.005) {
+    alpha = target;
+    animating = false;
+  }
+  draw();
+  if (animating) requestAnimationFrame(animate);
+}
+
+canvas.addEventListener('click', function() {
+  conditioned = !conditioned;
+  animating = true;
+  animate();
+});
+
+draw();
+`} width={600} height={400} />
+
+### Common Trap 1: The Base Rate Fallacy
+
+This is perhaps the most dangerous mistake in applied probability, and it affects medical testing, criminal justice, and everyday reasoning.
+
+**Scenario.** A disease affects 1 in 1,000 people. A diagnostic test has:
+- **Sensitivity** (true positive rate): 99% — if you *have* the disease, the test is positive 99% of the time.
+- **Specificity** (true negative rate): 95% — if you *don't* have the disease, the test is negative 95% of the time.
+
+**Question.** You test positive. What is the probability you actually have the disease?
+
+Most people guess 95% or 99%. The correct answer is about **2%**. Let us work through it carefully.
+
+Define events:
+- $D$ = has the disease, $D^c$ = does not have the disease
+- $+$ = test positive, $-$ = test negative
+
+We are given:
+- $P(D) = 0.001$ (prevalence)
+- $P(+ \mid D) = 0.99$ (sensitivity)
+- $P(- \mid D^c) = 0.95$ (specificity), so $P(+ \mid D^c) = 0.05$ (false positive rate)
+
+We want $P(D \mid +)$. By Bayes' theorem (which we derive fully in Part 3):
+
+$$
+P(D \mid +) = \frac{P(+ \mid D) \, P(D)}{P(+)}
+$$
+
+We need $P(+)$ via the law of total probability:
+
+$$
+P(+) = P(+ \mid D) P(D) + P(+ \mid D^c) P(D^c)
+= 0.99 \times 0.001 + 0.05 \times 0.999
+= 0.00099 + 0.04995 = 0.05094
+$$
+
+Therefore:
+
+$$
+P(D \mid +) = \frac{0.00099}{0.05094} \approx 0.0194
+$$
+
+Less than 2%. The reason: the disease is so rare that even with a good test, the false positives vastly outnumber the true positives.
+
+Let us verify with a concrete table. Imagine testing 100,000 people:
+
+
+``` r
+population <- 100000L
+prevalence <- 0.001
+sensitivity <- 0.99
+specificity <- 0.95
+
+n_diseased <- round(population * prevalence)
+n_healthy <- population - n_diseased
+
+true_positive <- round(n_diseased * sensitivity)
+false_negative <- n_diseased - true_positive
+false_positive <- round(n_healthy * (1 - specificity))
+true_negative <- n_healthy - false_positive
+
+cat("Population:", format(population, big.mark = ","), "\n")
+cat("Diseased:", n_diseased, "  Healthy:", format(n_healthy, big.mark = ","), "\n\n")
+cat("              Test+    Test-\n")
+cat(sprintf("Diseased:     %5d    %5d\n", true_positive, false_negative))
+cat(sprintf("Healthy:      %5d    %5d\n", false_positive, true_negative))
+cat(sprintf("\nTotal positive tests: %d\n", true_positive + false_positive))
+cat(sprintf("Of those, truly diseased: %d\n", true_positive))
+cat(sprintf("P(Disease | Positive) = %d / %d = %.4f\n",
+    true_positive, true_positive + false_positive,
+    true_positive / (true_positive + false_positive)))
+```
+
+```
+Population: 100,000 
+Diseased: 100   Healthy: 99,900 
+
+              Test+    Test-
+Diseased:        99        1
+Healthy:       4995    94905
+
+Total positive tests: 5094
+Of those, truly diseased: 99
+P(Disease | Positive) = 99 / 5094 = 0.0194
+```
+
+
+``` r
+box::use(ggplot2[...])
+
+df_test <- data.frame(
+  category = c("True Positive\n(sick, test+)",
+                "False Positive\n(healthy, test+)",
+                "True Negative\n(healthy, test-)",
+                "False Negative\n(sick, test-)"),
+  count = c(true_positive, false_positive, true_negative, false_negative),
+  group = c("Positive test", "Positive test", "Negative test", "Negative test"),
+  truth = c("Diseased", "Healthy", "Healthy", "Diseased")
+)
+
+ggplot(df_test, aes(x = category, y = count, fill = interaction(group, truth))) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(
+    "Positive test.Diseased" = "#D55E00",
+    "Positive test.Healthy" = "#E69F00",
+    "Negative test.Healthy" = "#0072B2",
+    "Negative test.Diseased" = "#56B4E9"
+  )) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    x = NULL, y = "Number of people",
+    title = "Base rate fallacy: testing 100,000 people",
+    subtitle = "Prevalence = 0.1%, Sensitivity = 99%, Specificity = 95%",
+    fill = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/base-rate-plot-1.png" alt="The base rate fallacy visualised: among all positive tests, only a tiny fraction are true positives because the disease is rare.">
+	The base rate fallacy visualised: among all positive tests, only a tiny fraction are true positives because the disease is rare.
+</Figure>
+
+The lesson: **always consider the base rate** (the prevalence). A test's positive predictive value depends critically on how common the condition is.
+
+### Common Trap 2: The Prosecutor's Fallacy
+
+The prosecutor's fallacy confuses $P(\text{evidence} \mid \text{innocent})$ with $P(\text{innocent} \mid \text{evidence})$.
+
+A prosecutor might argue: "The probability of this DNA match if the defendant were innocent is 1 in a million. Therefore, there is only a 1 in a million chance the defendant is innocent."
+
+This is **wrong**. It conflates $P(E \mid I)$ with $P(I \mid E)$. If the suspect was identified from a database of 10 million people, the expected number of coincidental matches is about 10. The probability of innocence given the evidence depends on the prior probability and the size of the search — exactly what Bayes' theorem computes.
+
+### The Law of Total Probability
+
+This is an essential tool for computing unconditional probabilities from conditional ones.
+
+**Theorem (Law of Total Probability).** If $B_1, B_2, \ldots, B_n$ are mutually exclusive events that partition $\Omega$ (meaning $B_i \cap B_j = \emptyset$ for $i \neq j$ and $\bigcup_{i=1}^n B_i = \Omega$), then for any event $A$:
+
+$$
+P(A) = \sum_{i=1}^{n} P(A \mid B_i) \, P(B_i)
+$$
+
+**Proof.** Since the $B_i$ partition $\Omega$:
+
+$$
+A = A \cap \Omega = A \cap \left(\bigcup_{i=1}^{n} B_i\right) = \bigcup_{i=1}^{n} (A \cap B_i)
+$$
+
+The sets $A \cap B_i$ are mutually exclusive (because the $B_i$ are), so by Axiom 3:
+
+$$
+P(A) = \sum_{i=1}^{n} P(A \cap B_i) = \sum_{i=1}^{n} P(A \mid B_i) \, P(B_i) \qquad \blacksquare
+$$
+
+In plain English: if you can split the world into exhaustive, non-overlapping scenarios, then the overall probability of $A$ is a weighted average of the conditional probabilities, weighted by how likely each scenario is.
+
+The simplest case is the partition $\{B, B^c\}$:
+
+$$
+P(A) = P(A \mid B) P(B) + P(A \mid B^c) P(B^c)
+$$
+
+We already used this in the medical testing example above to compute $P(+)$.
+
+**Worked example.** A factory has three machines. Machine 1 produces 50% of output, Machine 2 produces 30%, Machine 3 produces 20%. Their defect rates are 2%, 3%, and 5% respectively. What is the overall defect rate?
+
+
+``` r
+# Machine production shares and defect rates
+shares <- c(0.50, 0.30, 0.20)
+defect_rates <- c(0.02, 0.03, 0.05)
+
+# Law of total probability
+p_defect <- sum(shares * defect_rates)
+cat("P(defect) =", shares[1], "×", defect_rates[1], "+",
+    shares[2], "×", defect_rates[2], "+",
+    shares[3], "×", defect_rates[3], "\n")
+cat("         =", p_defect, "\n")
+cat("Overall defect rate:", p_defect * 100, "%\n")
+```
+
+```
+P(defect) = 0.5 <U+00D7> 0.02 + 0.3 <U+00D7> 0.03 + 0.2 <U+00D7> 0.05 
+         = 0.029 
+Overall defect rate: 2.9 %
+```
+
+---
+
+## 2.6 Independence
+
+### Definition
+
+Two events are *independent* if knowing that one occurred gives no information about whether the other occurred. Formally:
+
+**Definition.** Events $A$ and $B$ are *independent* if:
+
+$$
+P(A \cap B) = P(A) \, P(B)
+$$
+
+An equivalent characterisation (when $P(B) > 0$):
+
+$$
+P(A \mid B) = P(A)
+$$
+
+In plain English: conditioning on $B$ does not change the probability of $A$.
+
+### Proving the Equivalence
+
+**Theorem.** If $P(B) > 0$, then $P(A \cap B) = P(A) P(B)$ if and only if $P(A \mid B) = P(A)$.
+
+**Proof.**
+
+($\Rightarrow$): Suppose $P(A \cap B) = P(A) P(B)$. Then:
+
+$$
+P(A \mid B) = \frac{P(A \cap B)}{P(B)} = \frac{P(A) P(B)}{P(B)} = P(A)
+$$
+
+($\Leftarrow$): Suppose $P(A \mid B) = P(A)$. By the definition of conditional probability:
+
+$$
+P(A \cap B) = P(A \mid B) \, P(B) = P(A) \, P(B) \qquad \blacksquare
+$$
+
+### Mutual Independence vs Pairwise Independence
+
+**Definition (Mutual independence).** Events $A_1, A_2, \ldots, A_n$ are *mutually independent* if for every subset $S \subseteq \{1, 2, \ldots, n\}$:
+
+$$
+P\left(\bigcap_{i \in S} A_i\right) = \prod_{i \in S} P(A_i)
+$$
+
+**Definition (Pairwise independence).** Events $A_1, A_2, \ldots, A_n$ are *pairwise independent* if for every pair $i \neq j$:
+
+$$
+P(A_i \cap A_j) = P(A_i) P(A_j)
+$$
+
+**The distinction matters.** Pairwise independence does *not* imply mutual independence. Here is a classic counterexample.
+
+**Counterexample.** Flip two fair coins. Define:
+- $A$ = "first coin is heads"
+- $B$ = "second coin is heads"
+- $C$ = "the two coins show different faces"
+
+The sample space is $\Omega = \{HH, HT, TH, TT\}$, each with probability 1/4.
+
+
+``` r
+# Sample space
+omega <- expand.grid(
+  coin1 = c("H", "T"),
+  coin2 = c("H", "T"),
+  stringsAsFactors = FALSE
+)
+omega$prob <- 1/4
+
+# Events
+A <- omega$coin1 == "H"  # {HH, HT}
+B <- omega$coin2 == "H"  # {HH, TH}
+C <- omega$coin1 != omega$coin2  # {HT, TH}
+
+P <- function(event) sum(omega$prob[event])
+
+cat("P(A) =", P(A), "\n")
+cat("P(B) =", P(B), "\n")
+cat("P(C) =", P(C), "\n\n")
+
+# Check pairwise independence
+cat("P(A ∩ B) =", P(A & B), " vs P(A)P(B) =", P(A) * P(B), "\n")
+cat("P(A ∩ C) =", P(A & C), " vs P(A)P(C) =", P(A) * P(C), "\n")
+cat("P(B ∩ C) =", P(B & C), " vs P(B)P(C) =", P(B) * P(C), "\n\n")
+
+# Check mutual independence (all three)
+cat("P(A ∩ B ∩ C) =", P(A & B & C),
+    " vs P(A)P(B)P(C) =", P(A) * P(B) * P(C), "\n")
+
+cat("\nPairwise independent? YES (all three pairs match)\n")
+cat("Mutually independent? NO (triple intersection is 0, not 1/8)\n")
+```
+
+```
+P(A) = 0.5 
+P(B) = 0.5 
+P(C) = 0.5 
+
+P(A <U+2229> B) = 0.25  vs P(A)P(B) = 0.25 
+P(A <U+2229> C) = 0.25  vs P(A)P(C) = 0.25 
+P(B <U+2229> C) = 0.25  vs P(B)P(C) = 0.25 
+
+P(A <U+2229> B <U+2229> C) = 0  vs P(A)P(B)P(C) = 0.125 
+
+Pairwise independent? YES (all three pairs match)
+Mutually independent? NO (triple intersection is 0, not 1/8)
+```
+
+The events are pairwise independent — each pair satisfies $P(A_i \cap A_j) = P(A_i) P(A_j)$. But $P(A \cap B \cap C) = 0$ (you cannot have both coins heads *and* different faces), while $P(A)P(B)P(C) = 1/8$. So they are *not* mutually independent.
+
+### Testing Independence with Data
+
+Let us check whether certain variables in NHANES appear to be independent.
+
+
+``` r
+box::use(data.table[fread, .N])
+
+data_dir <- "../../../data"
+nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Are Gender and Diabetes independent?
+# P(Diabetes | Male) vs P(Diabetes | Female) vs P(Diabetes)
+nhanes_complete <- nhanes[!is.na(Diabetes) & !is.na(Gender)]
+
+p_diabetes <- nhanes_complete[Diabetes == "Yes", .N] / nrow(nhanes_complete)
+p_diabetes_male <- nhanes_complete[Diabetes == "Yes" & Gender == "male", .N] /
+  nhanes_complete[Gender == "male", .N]
+p_diabetes_female <- nhanes_complete[Diabetes == "Yes" & Gender == "female", .N] /
+  nhanes_complete[Gender == "female", .N]
+
+cat("P(Diabetes)          =", round(p_diabetes, 4), "\n")
+cat("P(Diabetes | Male)   =", round(p_diabetes_male, 4), "\n")
+cat("P(Diabetes | Female) =", round(p_diabetes_female, 4), "\n\n")
+
+if (abs(p_diabetes_male - p_diabetes) < 0.01) {
+  cat("Gender and Diabetes appear roughly independent\n")
+} else {
+  cat("Gender and Diabetes appear NOT independent\n")
+}
+```
+
+```
+P(Diabetes)          = 0.076 
+P(Diabetes | Male)   = 0.0809 
+P(Diabetes | Female) = 0.0711 
+
+Gender and Diabetes appear roughly independent
+```
+
+
+``` r
+box::use(ggplot2[...])
+
+# Build a summary table
+groups <- c("Overall", "Male", "Female")
+rates <- c(p_diabetes, p_diabetes_male, p_diabetes_female)
+
+df_rates <- data.frame(
+  group = factor(groups, levels = groups),
+  rate = rates
+)
+
+ggplot(df_rates, aes(x = group, y = rate, fill = group)) +
+  geom_col(width = 0.6) +
+  geom_hline(yintercept = p_diabetes, linetype = "dashed", colour = "grey40") +
+  scale_fill_manual(values = c("#56B4E9", "#0072B2", "#D55E00")) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = NULL, y = "Diabetes rate",
+    title = "Testing independence: Gender and Diabetes",
+    subtitle = "Dashed line = overall rate. Independence would mean all bars at the dashed line."
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/independence-visual-1.png" alt="Comparing conditional and unconditional diabetes rates across gender. If independence held, all bars would be the same height.">
+	Comparing conditional and unconditional diabetes rates across gender. If independence held, all bars would be the same height.
+</Figure>
+
+### Common Misconception: Independence Does Not Mean Mutually Exclusive
+
+This is a mistake students make frequently, and it is worth correcting emphatically.
+
+**Mutually exclusive** means $A \cap B = \emptyset$ — the events *cannot* both occur. This implies $P(A \cap B) = 0$.
+
+**Independent** means $P(A \cap B) = P(A) P(B)$.
+
+These are almost *opposites*! If $A$ and $B$ are mutually exclusive and both have positive probability, then $P(A \cap B) = 0$ but $P(A) P(B) > 0$, so they are **not** independent.
+
+**Proof.** Suppose $A$ and $B$ are mutually exclusive with $P(A) > 0$ and $P(B) > 0$. For independence we would need:
+
+$$
+P(A \cap B) = P(A) P(B)
+$$
+
+But $P(A \cap B) = 0$ (they are mutually exclusive) and $P(A) P(B) > 0$ (both probabilities are positive). So $0 \neq P(A) P(B)$, and the events are **not** independent. $\blacksquare$
+
+In plain English: if knowing $A$ happened tells you $B$ definitely did *not* happen, that is very strong information — the opposite of independence.
+
+
+``` r
+set.seed(42)
+
+# Demonstration: mutually exclusive events are not independent
+n_sim <- 100000L
+rolls <- sample(1:6, size = n_sim, replace = TRUE)
+
+# Mutually exclusive: A = "roll 1" and B = "roll 2"
+A_me <- rolls == 1
+B_me <- rolls == 2
+cat("Mutually exclusive example (A = roll 1, B = roll 2):\n")
+cat("  P(A) =", round(mean(A_me), 4), "\n")
+cat("  P(B) =", round(mean(B_me), 4), "\n")
+cat("  P(A ∩ B) =", mean(A_me & B_me), "  (mutually exclusive: exactly 0)\n")
+cat("  P(A)P(B) =", round(mean(A_me) * mean(B_me), 6), "  (not 0!)\n")
+cat("  Independent? NO\n\n")
+
+# Independent: A = "die1 is even", B = "die2 >= 4" (two independent dice)
+die1 <- sample(1:6, size = n_sim, replace = TRUE)
+die2 <- sample(1:6, size = n_sim, replace = TRUE)
+A_ind <- die1 %% 2 == 0
+B_ind <- die2 >= 4
+
+cat("Independent example (two separate dice):\n")
+cat("  P(A) =", round(mean(A_ind), 4), "\n")
+cat("  P(B) =", round(mean(B_ind), 4), "\n")
+cat("  P(A ∩ B) =", round(mean(A_ind & B_ind), 4), "\n")
+cat("  P(A)P(B) =", round(mean(A_ind) * mean(B_ind), 4), "\n")
+cat("  Independent? YES (approximately)\n")
+```
+
+```
+Mutually exclusive example (A = roll 1, B = roll 2):
+  P(A) = 0.168 
+  P(B) = 0.167 
+  P(A <U+2229> B) = 0   (mutually exclusive: exactly 0)
+  P(A)P(B) = 0.028058   (not 0!)
+  Independent? NO
+
+Independent example (two separate dice):
+  P(A) = 0.5022 
+  P(B) = 0.5005 
+  P(A <U+2229> B) = 0.2512 
+  P(A)P(B) = 0.2514 
+  Independent? YES (approximately)
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining conditional probability to non-technical audiences:
+
+1. **Use natural frequencies.** Instead of saying "$P(D \mid +) = 0.02$," say "out of 1,000 people who test positive, about 20 actually have the disease." Research shows natural frequencies are far easier to understand than percentages.
+
+2. **Draw the table.** A 2×2 table (disease vs. no disease × test positive vs. negative) is the single most effective communication tool for conditional probability. Fill in concrete numbers.
+
+3. **Beware the word "given."** In everyday language, "given that" is ambiguous. In probability, it has a precise meaning. When presenting results, spell it out: "among people who tested positive, 2% actually have the disease."
+
+4. **Independence is about irrelevance.** Explain it as: "knowing $A$ happened tells you nothing about $B$." This is stronger than "they are unrelated" — it means the conditional probability equals the unconditional probability.
+
+5. **The base rate matters.** This is the single most important message. When a test or classifier has a low base rate, even a very accurate test produces many false positives. Always present the base rate alongside any conditional probability.
+
+---
+
+## Quick Reference
+
+| Concept | Formula | Plain English |
+|---|---|---|
+| Conditional probability | $P(A \mid B) = \frac{P(A \cap B)}{P(B)}$ | Probability of A, knowing B occurred |
+| Multiplication rule | $P(A \cap B) = P(A \mid B) P(B)$ | "And" probability from conditional |
+| Chain rule | $P(A_1 \cap \cdots \cap A_n) = P(A_1) \prod_{k=2}^n P(A_k \mid A_1 \cap \cdots \cap A_{k-1})$ | Telescoping product of conditionals |
+| Law of total probability | $P(A) = \sum_i P(A \mid B_i) P(B_i)$ | Weighted average over scenarios |
+| Independence | $P(A \cap B) = P(A)P(B)$ | Knowing B does not change A |
+| Independence (equiv.) | $P(A \mid B) = P(A)$ | Conditioning does nothing |
+| Mutual exclusion | $A \cap B = \emptyset$ | A and B cannot both occur |
+| **Key insight** | ME + positive prob ⟹ NOT independent | Opposite concepts! |
+| Sensitivity | $P(+ \mid D)$ | True positive rate |
+| Specificity | $P(- \mid D^c)$ | True negative rate |
+| Positive predictive value | $P(D \mid +)$ | Chance you're sick given positive test |
+
+---
+
+## Exercises
+
+**Exercise 2.8.** You draw two cards from a standard deck without replacement. (a) What is $P(\text{second is an ace} \mid \text{first is an ace})$? (b) What is $P(\text{both are aces})$? Use the multiplication rule.
+
+**Exercise 2.9.** In the NHANES dataset, compute $P(\text{High BP} \mid \text{Smoker})$ and $P(\text{High BP} \mid \text{Non-Smoker})$, where "High BP" means systolic blood pressure > 140. Are smoking and high blood pressure independent in this dataset? Support your answer with both numerical calculations and a visualisation.
+
+**Exercise 2.10.** Prove that if $A$ and $B$ are independent, then $A$ and $B^c$ are also independent. (*Hint:* use $P(A) = P(A \cap B) + P(A \cap B^c)$ and substitute $P(A \cap B) = P(A)P(B)$.)
+
+**Exercise 2.11.** A student takes three exams. She passes each exam independently with probability 0.8. (a) What is the probability she passes all three? (b) What is the probability she passes at least one? (c) What is the probability she passes exactly two?
+
+**Exercise 2.12.** Three machines produce items with defect rates of 1%, 2%, and 3%. Machine 1 produces 50% of items, Machine 2 produces 30%, and Machine 3 produces 20%. An item is selected at random and found to be defective. Which machine most probably produced it? (Use the law of total probability and Bayes' theorem from the next section.)
+
+**Exercise 2.13 (Computational).** Simulate the Monty Hall problem (100,000 trials). In this game, there are three doors; behind one is a car, behind the other two are goats. You pick a door. The host (who knows where the car is) opens one of the other doors revealing a goat. You can switch or stay. Estimate $P(\text{win} \mid \text{switch})$ and $P(\text{win} \mid \text{stay})$. Explain the result using conditional probability.
+
+
+``` r
+# Starter code for Exercise 2.13
+set.seed(42)
+n_sim <- 100000L
+
+wins_stay <- 0L
+wins_switch <- 0L
+
+for (i in seq_len(n_sim)) {
+  car_door <- sample(1:3, 1)
+  choice <- sample(1:3, 1)
+
+  # Host opens a door with a goat (not the car, not your choice)
+  available <- setdiff(1:3, c(car_door, choice))
+  host_opens <- available[sample.int(length(available), 1)]
+
+  # Strategy: stay
+  if (choice == car_door) wins_stay <- wins_stay + 1L
+
+  # Strategy: switch
+  switch_to <- setdiff(1:3, c(choice, host_opens))
+  if (switch_to == car_door) wins_switch <- wins_switch + 1L
+}
+
+cat("P(win | stay)   =", wins_stay / n_sim, "\n")
+cat("P(win | switch) =", wins_switch / n_sim, "\n")
+```
+
+**Exercise 2.14.** Prove that for any events $A$, $B$, $C$ with $P(B \cap C) > 0$:
+
+$$
+P(A \mid B \cap C) = \frac{P(B \mid A \cap C) \, P(A \mid C)}{P(B \mid C)}
+$$
+
+This is sometimes called the "generalised Bayes' rule." (*Hint:* write out each conditional probability using the definition, and simplify.)

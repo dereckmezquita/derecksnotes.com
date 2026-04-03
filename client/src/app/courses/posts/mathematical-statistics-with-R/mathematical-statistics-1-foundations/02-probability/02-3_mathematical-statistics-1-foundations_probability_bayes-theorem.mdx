@@ -1,0 +1,914 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 2: Probability — The Language"
+part: "Part 3: Bayes' Theorem"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+## 2.7 Bayes' Theorem
+
+Bayes' theorem is the single most important result in this chapter. It tells us how to **update our beliefs** when we observe new evidence. Everything in Bayesian statistics (Chapters 22–23) grows from this one formula — but even frequentists use it constantly.
+
+### Derivation
+
+We derive Bayes' theorem from the definition of conditional probability. No magic is involved; it is pure algebra.
+
+**Step 1.** Recall the definition of conditional probability:
+
+$$
+P(A \mid B) = \frac{P(A \cap B)}{P(B)}
+$$
+
+**Step 2.** By the multiplication rule (rearranging the definition):
+
+$$
+P(A \cap B) = P(B \mid A) \, P(A)
+$$
+
+**Step 3.** Substitute Step 2 into Step 1:
+
+$$
+P(A \mid B) = \frac{P(B \mid A) \, P(A)}{P(B)}
+$$
+
+That is Bayes' theorem. Let us state it formally.
+
+**Theorem (Bayes' Theorem).** For events $A$ and $B$ with $P(B) > 0$:
+
+$$
+\boxed{P(A \mid B) = \frac{P(B \mid A) \, P(A)}{P(B)}}
+$$
+
+Each term has a name:
+
+| Term | Name | Plain English |
+|---|---|---|
+| $P(A \mid B)$ | **Posterior** | Updated belief about $A$ after seeing $B$ |
+| $P(B \mid A)$ | **Likelihood** | How probable is the evidence $B$ if $A$ is true? |
+| $P(A)$ | **Prior** | Initial belief about $A$ before seeing evidence |
+| $P(B)$ | **Evidence** (or marginal likelihood) | Overall probability of observing $B$ |
+
+In plain English: **posterior is proportional to likelihood times prior**. The evidence $P(B)$ acts as a normalising constant to ensure the posterior is a valid probability.
+
+### The Expanded Form
+
+When $A$ can be decomposed into a partition $A_1, A_2, \ldots, A_n$ of the sample space, we can expand $P(B)$ using the law of total probability:
+
+$$
+P(B) = \sum_{i=1}^{n} P(B \mid A_i) \, P(A_i)
+$$
+
+Substituting:
+
+$$
+P(A_j \mid B) = \frac{P(B \mid A_j) \, P(A_j)}{\sum_{i=1}^{n} P(B \mid A_i) \, P(A_i)}
+$$
+
+This is the form we use most often in practice, because we rarely know $P(B)$ directly — we compute it by summing over all possible causes.
+
+---
+
+### Worked Example 1: Medical Diagnostic Test
+
+This is the classic example, and the numbers are worth committing to memory because the result is so counterintuitive.
+
+**Setup:**
+- A disease has a prevalence of 1%: $P(D) = 0.01$
+- The test has a sensitivity of 99%: $P(+ \mid D) = 0.99$
+- The test has a specificity of 95%: $P(- \mid D^c) = 0.95$, so $P(+ \mid D^c) = 0.05$
+
+**Question:** If a randomly selected person tests positive, what is $P(D \mid +)$?
+
+**Solution.** By Bayes' theorem with the expanded denominator:
+
+$$
+P(D \mid +) = \frac{P(+ \mid D) \, P(D)}{P(+ \mid D) \, P(D) + P(+ \mid D^c) \, P(D^c)}
+$$
+
+Substituting:
+
+$$
+P(D \mid +) = \frac{0.99 \times 0.01}{0.99 \times 0.01 + 0.05 \times 0.99}
+$$
+
+$$
+= \frac{0.0099}{0.0099 + 0.0495}
+$$
+
+$$
+= \frac{0.0099}{0.0594}
+$$
+
+$$
+\approx 0.167
+$$
+
+Only about **16.7%** — not 99%, not 95%, but less than one in five.
+
+
+``` r
+# Bayes' theorem: medical test
+p_disease <- 0.01
+sensitivity <- 0.99  # P(+ | D)
+specificity <- 0.95  # P(- | D^c)
+p_false_pos <- 1 - specificity  # P(+ | D^c)
+
+# Numerator: P(+ | D) * P(D)
+numerator <- sensitivity * p_disease
+
+# Denominator: P(+) via law of total probability
+p_positive <- sensitivity * p_disease + p_false_pos * (1 - p_disease)
+
+# Posterior
+p_disease_given_pos <- numerator / p_positive
+
+cat("P(D | +) =", round(p_disease_given_pos, 4), "\n")
+cat("That is:", round(p_disease_given_pos * 100, 1), "%\n\n")
+
+cat("Despite a 99% sensitive and 95% specific test,\n")
+cat("a positive result only means a ~17% chance of disease.\n")
+cat("The low prevalence (1%) is the key factor.\n")
+```
+
+```
+P(D | +) = 0.1667 
+That is: 16.7 %
+
+Despite a 99% sensitive and 95% specific test,
+a positive result only means a ~17% chance of disease.
+The low prevalence (1%) is the key factor.
+```
+
+**Why is this so counterintuitive?** The problem is that 1% prevalence means for every 1 truly sick person, there are 99 healthy people. Even with only a 5% false positive rate, that 5% of 99 healthy people ($\approx 5$ false positives) swamps the 1 true positive.
+
+Let us see how the posterior changes as we vary the prevalence:
+
+
+``` r
+box::use(ggplot2[...])
+
+prevalences <- seq(0.001, 0.5, length.out = 500)
+
+ppv <- function(prev, sens = 0.99, spec = 0.95) {
+  fp_rate <- 1 - spec
+  num <- sens * prev
+  denom <- sens * prev + fp_rate * (1 - prev)
+  num / denom
+}
+
+df_ppv <- data.frame(
+  prevalence = prevalences,
+  ppv = vapply(prevalences, ppv, numeric(1))
+)
+
+ggplot(df_ppv, aes(x = prevalence, y = ppv)) +
+  geom_line(colour = "#0072B2", linewidth = 1.2) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+  geom_vline(xintercept = 0.01, linetype = "dotted", colour = "#D55E00") +
+  annotate("text", x = 0.03, y = 0.15,
+           label = "Prevalence = 1%\nPPV ≈ 17%",
+           hjust = 0, colour = "#D55E00", size = 4) +
+  scale_x_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "Disease prevalence",
+    y = "P(Disease | Positive test)",
+    title = "How prevalence affects positive predictive value",
+    subtitle = "Sensitivity = 99%, Specificity = 95%"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/bayes-prevalence-sweep-1.png" alt="Positive predictive value (P(Disease | Positive test)) as a function of disease prevalence. Even an excellent test has poor predictive value when the condition is rare.">
+	Positive predictive value (P(Disease | Positive test)) as a function of disease prevalence. Even an excellent test has poor predictive value when the condition is rare.
+</Figure>
+
+---
+
+### Worked Example 2: Quality Control in Manufacturing
+
+**Setup.** A factory receives components from three suppliers:
+- Supplier A provides 60% of components, with a 2% defect rate
+- Supplier B provides 25% of components, with a 5% defect rate
+- Supplier C provides 15% of components, with a 10% defect rate
+
+A randomly selected component is found to be defective. Which supplier most probably produced it?
+
+**Solution.** We want $P(A \mid D)$, $P(B \mid D)$, $P(C \mid D)$ where $D$ = defective.
+
+First, compute $P(D)$ by the law of total probability:
+
+$$
+P(D) = P(D \mid A)P(A) + P(D \mid B)P(B) + P(D \mid C)P(C)
+$$
+
+$$
+= 0.02 \times 0.60 + 0.05 \times 0.25 + 0.10 \times 0.15
+$$
+
+$$
+= 0.012 + 0.0125 + 0.015 = 0.0395
+$$
+
+Now apply Bayes' theorem to each supplier:
+
+$$
+P(A \mid D) = \frac{P(D \mid A)P(A)}{P(D)} = \frac{0.012}{0.0395} \approx 0.304
+$$
+
+$$
+P(B \mid D) = \frac{P(D \mid B)P(B)}{P(D)} = \frac{0.0125}{0.0395} \approx 0.316
+$$
+
+$$
+P(C \mid D) = \frac{P(D \mid C)P(C)}{P(D)} = \frac{0.015}{0.0395} \approx 0.380
+$$
+
+
+``` r
+# Supplier data
+suppliers <- c("A", "B", "C")
+shares <- c(0.60, 0.25, 0.15)
+defect_rates <- c(0.02, 0.05, 0.10)
+
+# P(D) — law of total probability
+p_defect <- sum(shares * defect_rates)
+cat("P(defective) =", round(p_defect, 4), "\n\n")
+
+# Bayes' theorem for each supplier
+posteriors <- (defect_rates * shares) / p_defect
+
+for (i in seq_along(suppliers)) {
+  cat(sprintf("P(Supplier %s | Defective) = %.3f (%.1f%%)\n",
+              suppliers[i], posteriors[i], posteriors[i] * 100))
+}
+
+cat(sprintf("\nMost likely supplier: %s\n", suppliers[which.max(posteriors)]))
+cat("Verification: posteriors sum to", sum(posteriors), "\n")
+```
+
+```
+P(defective) = 0.0395 
+
+P(Supplier A | Defective) = 0.304 (30.4%)
+P(Supplier B | Defective) = 0.316 (31.6%)
+P(Supplier C | Defective) = 0.380 (38.0%)
+
+Most likely supplier: C
+Verification: posteriors sum to 1 
+```
+
+Notice that **Supplier C is the most probable source**, even though Supplier A delivers three times as many components. Supplier C's higher defect rate more than compensates for its smaller share.
+
+
+``` r
+box::use(ggplot2[...])
+
+df_suppliers <- data.frame(
+  supplier = rep(suppliers, 2),
+  probability = c(shares, posteriors),
+  type = rep(c("Prior (market share)", "Posterior (given defective)"), each = 3)
+)
+
+ggplot(df_suppliers, aes(x = supplier, y = probability, fill = type)) +
+  geom_col(position = "dodge", width = 0.6) +
+  scale_fill_manual(values = c("Prior (market share)" = "#56B4E9",
+                                "Posterior (given defective)" = "#D55E00")) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    x = "Supplier", y = "Probability",
+    title = "Bayes' theorem in quality control",
+    fill = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/bayes-quality-plot-1.png" alt="Prior (market share) vs. posterior (probability of being the source given a defect) for each supplier. Bayes&#39; theorem shifts weight toward higher-defect-rate suppliers.">
+	Prior (market share) vs. posterior (probability of being the source given a defect) for each supplier. Bayes' theorem shifts weight toward higher-defect-rate suppliers.
+</Figure>
+
+---
+
+### Worked Example 3: Email Spam Filtering (Naive Bayes Intuition)
+
+Modern spam filters use a simplified version of Bayes' theorem called **Naive Bayes**. The idea is straightforward.
+
+Suppose we want to classify an email as spam ($S$) or ham ($H$, not spam). We observe certain words $w_1, w_2, \ldots, w_k$ in the email. By Bayes' theorem:
+
+$$
+P(S \mid w_1, \ldots, w_k) = \frac{P(w_1, \ldots, w_k \mid S) \, P(S)}{P(w_1, \ldots, w_k)}
+$$
+
+The "naive" assumption is that words are conditionally independent given the class:
+
+$$
+P(w_1, \ldots, w_k \mid S) \approx \prod_{i=1}^{k} P(w_i \mid S)
+$$
+
+This assumption is almost certainly *wrong* (words are correlated), but it works remarkably well in practice.
+
+
+``` r
+set.seed(42)
+
+# Toy spam filter
+# Prior probabilities
+p_spam <- 0.3
+p_ham <- 0.7
+
+# Word likelihoods: P(word | spam) and P(word | ham)
+words <- c("free", "offer", "meeting", "report", "click", "unsubscribe")
+p_word_given_spam <- c(0.80, 0.70, 0.10, 0.05, 0.60, 0.50)
+p_word_given_ham  <- c(0.05, 0.10, 0.60, 0.50, 0.05, 0.02)
+
+names(p_word_given_spam) <- words
+names(p_word_given_ham) <- words
+
+# Classify an email containing "free" and "click"
+email_words <- c("free", "click")
+
+# Naive Bayes: multiply likelihoods
+likelihood_spam <- prod(p_word_given_spam[email_words])
+likelihood_ham  <- prod(p_word_given_ham[email_words])
+
+# Unnormalised posteriors
+unnorm_spam <- likelihood_spam * p_spam
+unnorm_ham  <- likelihood_ham * p_ham
+
+# Normalise
+evidence <- unnorm_spam + unnorm_ham
+p_spam_given_email <- unnorm_spam / evidence
+p_ham_given_email  <- unnorm_ham / evidence
+
+cat("Email contains:", paste(email_words, collapse = ", "), "\n\n")
+cat("Likelihood(spam) =", likelihood_spam, "\n")
+cat("Likelihood(ham)  =", likelihood_ham, "\n\n")
+cat("P(spam | email) =", round(p_spam_given_email, 4),
+    sprintf("(%.1f%%)", p_spam_given_email * 100), "\n")
+cat("P(ham  | email) =", round(p_ham_given_email, 4),
+    sprintf("(%.1f%%)", p_ham_given_email * 100), "\n\n")
+
+# Now try a different email: "meeting" and "report"
+email_words2 <- c("meeting", "report")
+likelihood_spam2 <- prod(p_word_given_spam[email_words2])
+likelihood_ham2  <- prod(p_word_given_ham[email_words2])
+unnorm_spam2 <- likelihood_spam2 * p_spam
+unnorm_ham2  <- likelihood_ham2 * p_ham
+evidence2 <- unnorm_spam2 + unnorm_ham2
+
+cat("Email contains:", paste(email_words2, collapse = ", "), "\n")
+cat("P(spam | email) =", round(unnorm_spam2 / evidence2, 4), "\n")
+cat("P(ham  | email) =", round(unnorm_ham2 / evidence2, 4), "\n")
+```
+
+```
+Email contains: free, click 
+
+Likelihood(spam) = 0.48 
+Likelihood(ham)  = 0.0025 
+
+P(spam | email) = 0.988 (98.8%) 
+P(ham  | email) = 0.012 (1.2%) 
+
+Email contains: meeting, report 
+P(spam | email) = 0.0071 
+P(ham  | email) = 0.9929 
+```
+
+### Implementing Bayes' Theorem from Scratch
+
+Let us write a general-purpose function for Bayes' theorem.
+
+
+``` r
+bayes_theorem <- function(prior, likelihood, evidence = NULL) {
+  # prior: named vector of prior probabilities P(H_i)
+  # likelihood: named vector of likelihoods P(E | H_i)
+  # evidence: P(E), computed automatically if NULL
+  #
+  # Returns: named vector of posterior probabilities P(H_i | E)
+
+  stopifnot(
+    length(prior) == length(likelihood),
+    all(prior >= 0),
+    abs(sum(prior) - 1) < 1e-10
+  )
+
+  if (is.null(evidence)) {
+    evidence <- sum(likelihood * prior)
+  }
+
+  posterior <- (likelihood * prior) / evidence
+  names(posterior) <- names(prior)
+  posterior
+}
+
+# Test with medical example
+result <- bayes_theorem(
+  prior = c(Disease = 0.01, Healthy = 0.99),
+  likelihood = c(Disease = 0.99, Healthy = 0.05)
+)
+cat("Medical test posterior:\n")
+print(round(result, 4))
+
+# Test with supplier example
+result2 <- bayes_theorem(
+  prior = c(A = 0.60, B = 0.25, C = 0.15),
+  likelihood = c(A = 0.02, B = 0.05, C = 0.10)
+)
+cat("\nSupplier posterior (given defective):\n")
+print(round(result2, 4))
+```
+
+```
+Medical test posterior:
+Disease Healthy 
+ 0.1667  0.8333 
+
+Supplier posterior (given defective):
+     A      B      C 
+0.3038 0.3165 0.3797 
+```
+
+---
+
+### Sequential Bayesian Updating
+
+One of the most powerful aspects of Bayes' theorem is that it can be applied **sequentially**. The posterior from one observation becomes the prior for the next.
+
+Suppose we are trying to determine whether a coin is fair. We start with some prior belief, then update each time we observe a flip.
+
+Mathematically, if we observe data $D_1, D_2, \ldots, D_n$ sequentially:
+
+$$
+P(\theta \mid D_1) \propto P(D_1 \mid \theta) \, P(\theta)
+$$
+
+$$
+P(\theta \mid D_1, D_2) \propto P(D_2 \mid \theta) \, P(\theta \mid D_1)
+$$
+
+The posterior after seeing $D_1$ becomes the prior for processing $D_2$. This "ratchet" property means **the order of observations does not matter** — the final posterior is the same regardless of the order in which data arrive.
+
+
+``` r
+set.seed(42)
+
+# Sequential Bayesian updating for a coin
+# Hypothesis: theta = P(heads)
+# We use a grid approximation (discretise theta)
+
+theta_grid <- seq(0, 1, length.out = 1001)
+# Prior: uniform (we know nothing)
+prior <- rep(1, length(theta_grid))
+prior <- prior / sum(prior)  # normalise
+
+# True coin bias
+true_theta <- 0.7
+
+# Generate data
+n_flips <- 100L
+flips <- rbinom(n_flips, size = 1, prob = true_theta)
+
+# Store posteriors at key points
+snapshots <- list()
+snapshot_at <- c(0, 1, 5, 10, 25, 50, 100)
+
+# Record prior
+snapshots[["n = 0"]] <- prior
+
+# Update sequentially
+current <- prior
+for (i in seq_len(n_flips)) {
+  # Likelihood for this single observation
+  if (flips[i] == 1) {
+    lik <- theta_grid  # P(H | theta) = theta
+  } else {
+    lik <- 1 - theta_grid  # P(T | theta) = 1 - theta
+  }
+
+  # Bayes update
+  current <- current * lik
+  current <- current / sum(current)  # normalise
+
+  if (i %in% snapshot_at) {
+    snapshots[[paste0("n = ", i)]] <- current
+  }
+}
+
+# Build data frame for plotting
+df_list <- lapply(names(snapshots), function(nm) {
+  data.frame(
+    theta = theta_grid,
+    density = snapshots[[nm]] * length(theta_grid),  # scale for visualisation
+    stage = nm,
+    stringsAsFactors = FALSE
+  )
+})
+df_bayes <- do.call(rbind, df_list)
+df_bayes$stage <- factor(df_bayes$stage, levels = paste0("n = ", snapshot_at))
+```
+
+
+``` r
+box::use(ggplot2[...])
+
+ggplot(df_bayes, aes(x = theta, y = density)) +
+  geom_line(colour = "#0072B2", linewidth = 0.8) +
+  geom_vline(xintercept = true_theta, linetype = "dashed",
+             colour = "#D55E00", linewidth = 0.6) +
+  facet_wrap(~ stage, scales = "free_y", ncol = 2) +
+  labs(
+    x = expression(theta ~ "(probability of heads)"),
+    y = "Posterior density",
+    title = "Sequential Bayesian updating: coin bias estimation",
+    subtitle = "Dashed line = true θ = 0.7. Prior is uniform."
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sequential-bayes-plot-1.png" alt="Sequential Bayesian updating: starting from a uniform prior, the posterior concentrates around the true parameter (theta = 0.7, dashed line) as more coin flips are observed.">
+	Sequential Bayesian updating: starting from a uniform prior, the posterior concentrates around the true parameter (theta = 0.7, dashed line) as more coin flips are observed.
+</Figure>
+
+Observe how the posterior evolves:
+- At $n = 0$ (the prior), it is flat — we know nothing.
+- After just 1 flip, we see a slight tilt.
+- By $n = 10$, the posterior is starting to peak near 0.7.
+- By $n = 50$ and $n = 100$, the posterior is tightly concentrated around the true value.
+
+This is the Bayesian learning machine at work: **data overwhelms the prior**.
+
+### JavaScript Animation: Interactive Bayesian Updating
+
+The following animation lets you watch Bayesian updating happen in real time. We use the **Beta-Binomial** model, which is a natural choice for coin-flipping problems.
+
+The key fact is that if our prior for $\theta$ (the probability of heads) is $\text{Beta}(\alpha, \beta)$, and we observe $k$ heads in $n$ flips, the posterior is $\text{Beta}(\alpha + k, \beta + n - k)$. This is called a **conjugate prior** — the posterior has the same functional form as the prior. We will study this rigorously in Chapters 22–23.
+
+<CanvasWithJs code={`
+const w = canvas.width;
+const h = canvas.height;
+
+// Beta distribution PDF (unnormalised, for plotting)
+function betaPDF(x, a, b) {
+  if (x <= 0 || x >= 1) return 0;
+  return Math.pow(x, a - 1) * Math.pow(1 - x, b - 1);
+}
+
+// State
+let alpha = 1;
+let beta_param = 1;
+let n_heads = 0;
+let n_tails = 0;
+const true_theta = 0.65;
+const margin = { top: 50, right: 30, bottom: 55, left: 60 };
+const plotW = w - margin.left - margin.right;
+const plotH = h - margin.top - margin.bottom;
+
+function draw() {
+  ctx.clearRect(0, 0, w, h);
+
+  const a = alpha + n_heads;
+  const b = beta_param + n_tails;
+
+  // Compute PDF values
+  const nPts = 200;
+  const xs = [];
+  const ys = [];
+  let maxY = 0;
+  for (let i = 0; i <= nPts; i++) {
+    const x = i / nPts;
+    xs.push(x);
+    const y = betaPDF(x, a, b);
+    ys.push(y);
+    if (y > maxY) maxY = y;
+  }
+  if (maxY === 0) maxY = 1;
+
+  // Draw axes
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, margin.top);
+  ctx.lineTo(margin.left, margin.top + plotH);
+  ctx.lineTo(margin.left + plotW, margin.top + plotH);
+  ctx.stroke();
+
+  // Plot the density curve
+  ctx.beginPath();
+  ctx.strokeStyle = '#0072B2';
+  ctx.lineWidth = 2.5;
+  for (let i = 0; i <= nPts; i++) {
+    const px = margin.left + xs[i] * plotW;
+    const py = margin.top + plotH - (ys[i] / maxY) * plotH * 0.9;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.lineTo(margin.left + plotW, margin.top + plotH);
+  ctx.lineTo(margin.left, margin.top + plotH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0, 114, 178, 0.15)';
+  ctx.fill();
+
+  // True theta line
+  const trueX = margin.left + true_theta * plotW;
+  ctx.beginPath();
+  ctx.strokeStyle = '#D55E00';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.moveTo(trueX, margin.top);
+  ctx.lineTo(trueX, margin.top + plotH);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Bayesian Updating: Beta(' + a.toFixed(0) + ', ' + b.toFixed(0) + ')', w / 2, 22);
+
+  ctx.font = '13px sans-serif';
+  ctx.fillText('θ (probability of heads)', margin.left + plotW / 2, h - 5);
+
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#D55E00';
+  ctx.textAlign = 'left';
+  ctx.fillText('True θ = ' + true_theta.toFixed(2), trueX + 8, margin.top + 15);
+
+  // Stats
+  ctx.fillStyle = '#333';
+  ctx.font = '14px sans-serif';
+  ctx.textAlign = 'left';
+  const mean_post = a / (a + b);
+  ctx.fillText('Heads: ' + n_heads + '  Tails: ' + n_tails +
+    '  Total: ' + (n_heads + n_tails), margin.left, h - 22);
+  ctx.fillText('Posterior mean: ' + mean_post.toFixed(3), margin.left + 300, h - 22);
+
+  // Instruction
+  ctx.fillStyle = '#666';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Click left half → add tails | Click right half → add heads | Double-click → reset',
+    w / 2, margin.top + plotH + 36);
+
+  // X-axis ticks
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'center';
+  ctx.font = '11px sans-serif';
+  for (let v of [0, 0.25, 0.5, 0.75, 1]) {
+    const px = margin.left + v * plotW;
+    ctx.fillText(v.toFixed(2), px, margin.top + plotH + 16);
+    ctx.beginPath();
+    ctx.moveTo(px, margin.top + plotH);
+    ctx.lineTo(px, margin.top + plotH + 4);
+    ctx.stroke();
+  }
+}
+
+canvas.addEventListener('click', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  if (x > w / 2) {
+    // Simulate a head
+    n_heads++;
+  } else {
+    // Simulate a tail
+    n_tails++;
+  }
+  draw();
+});
+
+canvas.addEventListener('dblclick', function() {
+  n_heads = 0;
+  n_tails = 0;
+  draw();
+});
+
+draw();
+`} width={650} height={420} />
+
+### Prior-to-Posterior Evolution (ggplot2)
+
+Let us visualise the full evolution from prior to posterior across increasing sample sizes, showing how data gradually sharpens our inference.
+
+
+``` r
+set.seed(42)
+box::use(ggplot2[...])
+
+# Beta-Binomial conjugate updating
+true_theta <- 0.7
+alpha0 <- 2  # prior parameter
+beta0 <- 2   # prior parameter
+
+# Generate coin flips
+n_total <- 200L
+flips <- rbinom(n_total, size = 1, prob = true_theta)
+cumulative_heads <- cumsum(flips)
+cumulative_tails <- seq_len(n_total) - cumulative_heads
+
+# Create density curves at selected sample sizes
+sample_sizes <- c(0, 5, 20, 50, 100, 200)
+theta_seq <- seq(0.001, 0.999, length.out = 500)
+
+df_list <- lapply(sample_sizes, function(n) {
+  if (n == 0) {
+    a <- alpha0
+    b <- beta0
+  } else {
+    a <- alpha0 + cumulative_heads[n]
+    b <- beta0 + cumulative_tails[n]
+  }
+  data.frame(
+    theta = theta_seq,
+    density = dbeta(theta_seq, a, b),
+    label = paste0("n = ", n, "  (α=", a, ", β=", b, ")"),
+    n = n,
+    stringsAsFactors = FALSE
+  )
+})
+
+df_evo <- do.call(rbind, df_list)
+df_evo$label <- factor(df_evo$label,
+  levels = unique(df_evo$label[order(df_evo$n)]))
+
+ggplot(df_evo, aes(x = theta, y = density, colour = label)) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = true_theta, linetype = "dashed",
+             colour = "grey30", linewidth = 0.6) +
+  scale_colour_viridis_d(option = "D", end = 0.9) +
+  labs(
+    x = expression(theta),
+    y = "Density",
+    colour = "Sample size",
+    title = "Bayesian learning: Beta-Binomial conjugate model",
+    subtitle = expression(paste("Prior: Beta(2, 2). True ", theta, " = 0.7 (dashed line)"))
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/prior-posterior-evolution-1.png" alt="Beta-Binomial Bayesian updating. The prior (alpha = 2, beta = 2) is mildly informative. As the sample size grows, the posterior concentrates around the true theta = 0.7.">
+	Beta-Binomial Bayesian updating. The prior (alpha = 2, beta = 2) is mildly informative. As the sample size grows, the posterior concentrates around the true theta = 0.7.
+</Figure>
+
+The figure shows a key property: **the posterior width shrinks as $\sqrt{n}$**. More data means more certainty, regardless of where we started. With enough data, different priors lead to essentially the same posterior — the data dominate.
+
+---
+
+### Connection to Part IV of This Book
+
+Bayes' theorem is not just a formula — it is a **philosophy of inference**. In Chapters 22–23, we will develop this idea fully:
+
+- We will replace the discrete events of this chapter with continuous **prior distributions** and **posterior distributions**.
+- We will use **Markov chain Monte Carlo (MCMC)** to compute posteriors when analytic solutions do not exist.
+- We will compare Bayesian and frequentist approaches to the same problem and see when each has advantages.
+
+For now, the key takeaway is: **probability is the language, and Bayes' theorem is the grammar for updating beliefs with evidence.**
+
+---
+
+## 2.8 Summary and the Road Ahead
+
+This chapter established the language of probability. Let us review what we built:
+
+1. **Sets and sample spaces** — the stage on which probability plays out.
+2. **Kolmogorov's axioms** — three simple rules from which everything follows.
+3. **Counting** — permutations, combinations, and the birthday problem.
+4. **Conditional probability** — how learning changes probabilities.
+5. **Independence** — when learning changes nothing.
+6. **Bayes' theorem** — the master equation for updating beliefs.
+
+Every subsequent chapter depends on this material:
+- **Chapter 3** introduces random variables, which are functions on sample spaces.
+- **Chapters 4–5** develop specific probability distributions.
+- **Chapters 8–11** use probability to build and test statistical estimators.
+- **Chapters 22–23** take Bayes' theorem to its full Bayesian conclusion.
+
+Probability is not a topic to master once and move on from. It is the foundation that supports the entire structure of statistics.
+
+---
+
+## Communicating to Stakeholders
+
+When using Bayesian reasoning in applied settings:
+
+1. **Lead with the conclusion, then explain.** "Given the test result, there is a 17% chance of disease" is more useful than walking through the derivation first. Show the derivation only when asked.
+
+2. **Prior, evidence, posterior.** This three-part structure is a natural narrative: "Before the data, we believed X. The data showed Y. After updating, we now believe Z." Decision-makers understand stories.
+
+3. **Sensitivity analysis.** Show how the conclusion changes under different assumptions about the prior. If the conclusion is robust to the prior, stakeholders gain confidence. If it is sensitive, that is valuable information too.
+
+4. **Do not hide the prior.** In Bayesian analysis, the prior is an explicit assumption. This is a *strength*, not a weakness. Frequentist methods have implicit assumptions too — at least Bayesian assumptions are on the table.
+
+5. **Use the natural frequency framing.** "Out of 10,000 people screened, we expect 100 to have the condition and 495 healthy people to test positive falsely. So among the roughly 594 positive tests, only 99 are true positives." This is concrete and convincing.
+
+---
+
+## Quick Reference
+
+| Concept | Formula | Plain English |
+|---|---|---|
+| Bayes' theorem | $P(A \mid B) = \frac{P(B \mid A) P(A)}{P(B)}$ | Posterior ∝ likelihood × prior |
+| Expanded form | $P(A_j \mid B) = \frac{P(B \mid A_j) P(A_j)}{\sum_i P(B \mid A_i) P(A_i)}$ | Denominator by total probability |
+| Prior | $P(A)$ | Belief before evidence |
+| Likelihood | $P(B \mid A)$ | Probability of evidence given hypothesis |
+| Posterior | $P(A \mid B)$ | Updated belief after evidence |
+| Evidence | $P(B)$ | Normalising constant |
+| Sequential updating | Today's posterior = tomorrow's prior | Data can arrive one at a time |
+| Conjugate prior | Prior and posterior share same family | Makes computation easy |
+| Beta-Binomial | $\text{Beta}(\alpha, \beta) + k \text{ heads} \to \text{Beta}(\alpha+k, \beta+n-k)$ | Coin flipping model |
+| PPV | $\frac{\text{sensitivity} \times \text{prevalence}}{\text{sensitivity} \times \text{prevalence} + (1-\text{specificity}) \times (1-\text{prevalence})}$ | Positive predictive value |
+
+---
+
+## Exercises
+
+**Exercise 2.15.** Derive Bayes' theorem from scratch, starting only from the definition of conditional probability. (Reproduce the derivation given in this chapter, but from memory.)
+
+**Exercise 2.16.** A disease has prevalence 5%. A test has sensitivity 90% and specificity 90%. (a) Compute $P(D \mid +)$. (b) The person tests positive and takes the test a *second* time (independently), which is also positive. Now what is $P(D \mid + , +)$? (*Hint:* use the posterior from (a) as the prior for (b).)
+
+**Exercise 2.17.** In the spam filtering example, an email contains the words "free," "offer," and "unsubscribe." Using the word likelihoods defined in the text, compute $P(\text{spam} \mid \text{email})$ using Naive Bayes. Is the email spam or ham?
+
+**Exercise 2.18 (Computational).** Implement the Beta-Binomial Bayesian updating model in R. Start with a $\text{Beta}(1, 1)$ prior (uniform). Generate 500 coin flips with $\theta = 0.6$. Plot the posterior after every 50 observations using ggplot2 (10 panels in a facet grid).
+
+
+``` r
+# Starter code for Exercise 2.18
+set.seed(42)
+box::use(ggplot2[...])
+
+true_theta <- 0.6
+n_total <- 500L
+flips <- rbinom(n_total, size = 1, prob = true_theta)
+
+alpha0 <- 1
+beta0 <- 1
+
+# Build the plot data at n = 50, 100, 150, ..., 500
+snapshot_ns <- seq(50, 500, by = 50)
+theta_grid <- seq(0.001, 0.999, length.out = 500)
+
+# Your code here: compute posterior Beta parameters at each snapshot
+# and create a faceted ggplot2 figure.
+```
+
+**Exercise 2.19.** Prove that Bayes' theorem with a uniform prior over $n$ equally likely hypotheses reduces to the classical counting formula:
+
+$$
+P(H_j \mid E) = \frac{P(E \mid H_j)}{\sum_{i=1}^n P(E \mid H_i)}
+$$
+
+**Exercise 2.20 (Proof).** Show that Bayesian updating is *commutative*: if we observe data $D_1$ then $D_2$, or $D_2$ then $D_1$, the final posterior is the same. (*Hint:* write out the sequential updates and show the result depends only on $P(D_1, D_2 \mid \theta)$, which is the same regardless of ordering.)
+
+**Exercise 2.21 (Computational).** The "German tank problem." During WWII, the Allies estimated the number of German tanks by looking at serial numbers on captured tanks. Suppose tanks are numbered $1, 2, \ldots, N$ and you capture tanks with serial numbers $\{43, 102, 77, 215, 156\}$.
+
+(a) The frequentist estimator (minimum variance unbiased estimator) for $N$ is:
+
+$$
+\hat{N} = m \left(1 + \frac{1}{k}\right) - 1
+$$
+
+where $m = \max(\text{serial numbers})$ and $k$ is the number of captured tanks. Compute $\hat{N}$.
+
+(b) Implement a Bayesian solution using a uniform prior on $N$ from 1 to 1000. Compute and plot the posterior distribution of $N$ given the observed serial numbers. Compare the posterior mean and mode to the frequentist estimator.
+
+
+``` r
+# Starter code for Exercise 2.21
+observed <- c(43, 102, 77, 215, 156)
+k <- length(observed)
+m <- max(observed)
+
+# (a) Frequentist estimate
+n_hat_freq <- m * (1 + 1/k) - 1
+cat("Frequentist estimate:", n_hat_freq, "\n")
+
+# (b) Bayesian approach
+# Prior: uniform on N = 215, 216, ..., 1000
+# (N must be at least max(observed) = 215)
+N_grid <- 215:1000
+
+# Likelihood: P(observed | N) = 1 / choose(N, k) for N >= m
+# (each set of k serial numbers from 1..N equally likely)
+log_likelihood <- -lchoose(N_grid, k)
+
+# Your code: compute and normalise the posterior, plot it
+```
+
+**Exercise 2.22.** (Conceptual) Explain in your own words why the medical testing example is so surprising. What makes the base rate so important? Under what circumstances would a positive test result actually indicate a high probability of disease?

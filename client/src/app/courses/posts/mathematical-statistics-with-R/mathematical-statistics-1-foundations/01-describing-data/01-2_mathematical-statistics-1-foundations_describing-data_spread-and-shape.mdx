@@ -1,0 +1,584 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 1: Describing Data"
+part: "Part 2: Spread and Shape"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, data, R, ggplot2]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+## 1.3 Measures of Spread
+
+Knowing the centre of a distribution is only half the story. Two datasets can have identical means but look utterly different. Consider two thermometers: one reads 20 °C every day; the other reads 0 °C half the time and 40 °C the other half. Both have a mean of 20 °C, but they describe very different climates. We need a way to quantify how **spread out** the data are -- how much the individual values deviate from the centre.
+
+### 1.3.1 The Range
+
+The simplest measure of spread is the **range**: the difference between the largest and smallest values.
+
+$$\text{Range} = x_{(n)} - x_{(1)}$$
+
+where $x_{(1)}$ and $x_{(n)}$ are the minimum and maximum order statistics, respectively.
+
+
+``` r
+my_range <- function(x) {
+  x <- x[!is.na(x)]
+  max(x) - min(x)
+}
+
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+cat("Flipper length range:", my_range(fl), "mm\n")
+cat("Built-in range():", diff(range(fl)), "mm\n")
+```
+
+```
+Flipper length range: 59 mm
+Built-in range(): 59 mm
+```
+
+The range has a serious drawback: it depends on only two observations (the extremes) and is therefore highly sensitive to outliers. A single anomalous measurement can inflate the range dramatically. Moreover, the range tends to grow as the sample size increases -- with more data, we are more likely to encounter extreme values. For these reasons, the range is useful as a quick sanity check but rarely serves as a primary measure of spread.
+
+### 1.3.2 Variance
+
+The **variance** is the most important measure of spread in statistics. It quantifies the average squared deviation from the mean. We distinguish carefully between the population variance and the sample variance.
+
+#### Population variance
+
+If we observe *every* member of the population -- all $N$ values -- the **population variance** is:
+
+$$\sigma^2 = \frac{1}{N}\sum_{i=1}^{N}(x_i - \mu)^2$$
+
+where $\mu$ is the population mean. Each term $(x_i - \mu)^2$ measures how far observation $i$ is from the centre, and squaring ensures that deviations above and below the mean contribute positively. In words: the population variance is the average of the squared deviations from the population mean.
+
+#### Sample variance
+
+In practice, we almost never observe the entire population. We have a **sample** of $n$ observations, and we want to use them to *estimate* the population variance. The natural guess would be to compute:
+
+$$\tilde{s}^2 = \frac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^2$$
+
+This is the **naive** (or biased) sample variance -- the average squared deviation from the sample mean. However, this estimator systematically **underestimates** the true population variance. The corrected version divides by $n - 1$ instead of $n$:
+
+$$s^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2$$
+
+This is called **Bessel's correction**, and $s^2$ is the standard unbiased estimator of $\sigma^2$. The quantity $n - 1$ is called the **degrees of freedom**, a concept we shall encounter repeatedly throughout this textbook.
+
+#### Implementing variance from scratch
+
+
+``` r
+# Biased version (divides by n) -- population variance
+my_var_population <- function(x) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 2) return(NA_real_)
+
+  xbar <- sum(x) / n
+  total_sq_dev <- 0
+  for (i in seq_len(n)) {
+    total_sq_dev <- total_sq_dev + (x[i] - xbar)^2
+  }
+  total_sq_dev / n
+}
+
+# Unbiased version (divides by n - 1) -- sample variance
+my_var <- function(x) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 2) return(NA_real_)
+
+  xbar <- sum(x) / n
+  sum_sq_dev <- sum((x - xbar)^2)
+  sum_sq_dev / (n - 1)
+}
+
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+
+cat("Population variance (divide by n):", my_var_population(fl), "\n")
+cat("Sample variance (divide by n-1):", my_var(fl), "\n")
+cat("Built-in var():", var(fl), "\n")
+```
+
+```
+Population variance (divide by n): 197.1536 
+Sample variance (divide by n-1): 197.7318 
+Built-in var(): 197.7318 
+```
+
+R's built-in `var()` uses $n - 1$ (Bessel's correction), matching our `my_var()`.
+
+#### Why Bessel's correction? A proof
+
+This is one of the most important derivations in introductory statistics. We want to show that $E[\tilde{s}^2] \neq \sigma^2$ but $E[s^2] = \sigma^2$.
+
+**Setup.** Suppose $X_1, X_2, \ldots, X_n$ are independent random variables each with mean $\mu$ and variance $\sigma^2$. Define $\bar{X} = \frac{1}{n}\sum X_i$.
+
+**Step 1.** Expand the sum of squared deviations from the sample mean:
+
+$$\sum_{i=1}^{n}(X_i - \bar{X})^2 = \sum_{i=1}^{n}\bigl[(X_i - \mu) - (\bar{X} - \mu)\bigr]^2$$
+
+Expanding the square:
+
+$$= \sum_{i=1}^{n}(X_i - \mu)^2 - 2(\bar{X} - \mu)\sum_{i=1}^{n}(X_i - \mu) + n(\bar{X} - \mu)^2$$
+
+Now observe that $\sum_{i=1}^{n}(X_i - \mu) = n(\bar{X} - \mu)$. Substituting:
+
+$$= \sum_{i=1}^{n}(X_i - \mu)^2 - 2n(\bar{X} - \mu)^2 + n(\bar{X} - \mu)^2 = \sum_{i=1}^{n}(X_i - \mu)^2 - n(\bar{X} - \mu)^2$$
+
+**Step 2.** Take expectations of both sides:
+
+$$E\!\left[\sum_{i=1}^{n}(X_i - \bar{X})^2\right] = \sum_{i=1}^{n}E\!\left[(X_i - \mu)^2\right] - n\,E\!\left[(\bar{X} - \mu)^2\right]$$
+
+The first term: $E[(X_i - \mu)^2] = \sigma^2$ for each $i$, so the sum is $n\sigma^2$.
+
+The second term: $E[(\bar{X} - \mu)^2] = \text{Var}(\bar{X}) = \sigma^2/n$ (because the variance of the sample mean of $n$ independent observations is $\sigma^2/n$).
+
+Substituting:
+
+$$E\!\left[\sum_{i=1}^{n}(X_i - \bar{X})^2\right] = n\sigma^2 - n \cdot \frac{\sigma^2}{n} = n\sigma^2 - \sigma^2 = (n-1)\sigma^2$$
+
+**Step 3.** Therefore:
+
+$$E\!\left[\frac{1}{n}\sum_{i=1}^{n}(X_i - \bar{X})^2\right] = \frac{(n-1)\sigma^2}{n} = \sigma^2 \cdot \frac{n-1}{n} < \sigma^2$$
+
+Dividing by $n$ gives a **biased** estimator that systematically underestimates $\sigma^2$. But:
+
+$$E\!\left[\frac{1}{n-1}\sum_{i=1}^{n}(X_i - \bar{X})^2\right] = \frac{(n-1)\sigma^2}{n-1} = \sigma^2$$
+
+Dividing by $n - 1$ gives an **unbiased** estimator. $\blacksquare$
+
+**Intuition.** Why does dividing by $n$ underestimate the variance? Because we are measuring deviations from $\bar{X}$ rather than from $\mu$. The sample mean $\bar{X}$ is, by construction, closer to the sample points than the true mean $\mu$ would be -- it was *chosen* to minimise the sum of squared deviations. This "overfitting" to the sample causes us to undercount the true spread. Dividing by $n - 1$ instead of $n$ corrects for this one lost degree of freedom.
+
+#### Simulation: verifying Bessel's correction
+
+Let us verify this empirically. We draw many samples from a known population and check which estimator is unbiased on average:
+
+
+``` r
+set.seed(42)
+
+n <- 10
+n_sims <- 10000
+true_var <- 1  # drawing from N(0, 1)
+
+naive_vars <- numeric(n_sims)
+bessel_vars <- numeric(n_sims)
+
+for (sim in seq_len(n_sims)) {
+  x <- rnorm(n, mean = 0, sd = 1)
+  xbar <- mean(x)
+  sq_devs <- sum((x - xbar)^2)
+
+  naive_vars[sim] <- sq_devs / n
+  bessel_vars[sim] <- sq_devs / (n - 1)
+}
+
+cat("True variance:", true_var, "\n")
+cat("Mean of naive estimator (n):", mean(naive_vars), "\n")
+cat("Mean of Bessel estimator (n-1):", mean(bessel_vars), "\n")
+cat("Ratio naive/true:", mean(naive_vars) / true_var, " (should be (n-1)/n =", (n - 1) / n, ")\n")
+
+dt_sim <- data.table::data.table(
+  value = c(naive_vars, bessel_vars),
+  estimator = rep(c("Naive (divide by n)", "Bessel (divide by n-1)"), each = n_sims)
+)
+
+ggplot(dt_sim, aes(x = value, fill = estimator)) +
+  geom_histogram(bins = 60, alpha = 0.6, position = "identity") +
+  geom_vline(xintercept = true_var, linewidth = 1.2, linetype = "dashed") +
+  scale_fill_manual(values = c("#E41A1C", "#377EB8")) +
+  labs(x = "Estimated Variance", y = "Count",
+       fill = "Estimator") +
+  annotate("text", x = true_var + 0.05, y = n_sims * 0.04,
+           label = "True variance = 1", hjust = 0, size = 5) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/bessel-simulation-1.png" alt="Simulation demonstrating Bessel&#39;s correction. We drew 10,000 samples of size n = 10 from N(0, 1) (true variance = 1). The sample variance (dividing by n-1) is unbiased: its average is approximately 1. The naive variance (dividing by n) is biased downward: its average is approximately 0.9.">
+	Simulation demonstrating Bessel's correction. We drew 10,000 samples of size n = 10 from N(0, 1) (true variance = 1). The sample variance (dividing by n-1) is unbiased: its average is approximately 1. The naive variance (dividing by n) is biased downward: its average is approximately 0.9.
+</Figure>
+
+```
+True variance: 1 
+Mean of naive estimator (n): 0.906686 
+Mean of Bessel estimator (n-1): 1.007429 
+Ratio naive/true: 0.906686  (should be (n-1)/n = 0.9 )
+```
+
+The histogram confirms our derivation: the Bessel-corrected estimator centres on 1, while the naive estimator centres slightly below 1.
+
+### 1.3.3 Standard Deviation
+
+The variance is measured in squared units -- if the data are in millimetres, the variance is in mm$^2$. To return to the original units, we take the square root. The **standard deviation** is:
+
+$$s = \sqrt{s^2} = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2}$$
+
+
+``` r
+my_sd <- function(x) {
+  sqrt(my_var(x))
+}
+
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+cat("Our SD:", my_sd(fl), "mm\n")
+cat("Built-in sd():", sd(fl), "mm\n")
+```
+
+```
+Our SD: 14.06171 mm
+Built-in sd(): 14.06171 mm
+```
+
+**Interpretation.** Informally, the standard deviation tells you "how far a typical observation is from the mean." For bell-shaped (roughly normal) distributions, approximately 68% of observations fall within one standard deviation of the mean, and about 95% fall within two standard deviations. We shall make this precise when we study the normal distribution in Chapter 5.
+
+**A subtlety.** Although $s^2$ is an unbiased estimator of $\sigma^2$, the standard deviation $s = \sqrt{s^2}$ is *not* an unbiased estimator of $\sigma$. This is because the square root is a concave function, and by Jensen's inequality, $E[\sqrt{s^2}] < \sqrt{E[s^2]} = \sigma$. In practice, the bias is small for moderate sample sizes, and we seldom bother to correct for it.
+
+### 1.3.4 Interquartile Range (IQR)
+
+The **interquartile range** is the difference between the 75th and 25th percentiles -- the range of the middle 50% of the data. It is a robust measure of spread, unaffected by extreme values.
+
+**Quartiles.** The **first quartile** $Q_1$ is the 25th percentile: 25% of observations fall below it. The **second quartile** $Q_2$ is the median (50th percentile). The **third quartile** $Q_3$ is the 75th percentile. Then:
+
+$$\text{IQR} = Q_3 - Q_1$$
+
+More generally, the $p$-th **quantile** (or $100p$-th **percentile**) is the value below which a proportion $p$ of the observations fall. Quantiles are the inverse of the cumulative distribution function -- a concept we formalise in Chapter 3.
+
+#### Building `my_iqr()` from scratch
+
+There are multiple conventions for computing quantiles (R's `quantile()` function implements nine different algorithms!). We implement the simplest: sort the data, find the positions corresponding to 25% and 75%, and interpolate if necessary.
+
+
+``` r
+my_quantile <- function(x, p) {
+  x <- sort(x[!is.na(x)])
+  n <- length(x)
+
+  # Linear interpolation method (type 7, R's default)
+  index <- 1 + (n - 1) * p
+  lo <- floor(index)
+  hi <- ceiling(index)
+  frac <- index - lo
+
+  x[lo] * (1 - frac) + x[hi] * frac
+}
+
+my_iqr <- function(x) {
+  my_quantile(x, 0.75) - my_quantile(x, 0.25)
+}
+
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+cat("Q1:", my_quantile(fl, 0.25), "\n")
+cat("Q3:", my_quantile(fl, 0.75), "\n")
+cat("Our IQR:", my_iqr(fl), "\n")
+cat("Built-in IQR():", IQR(fl), "\n")
+```
+
+```
+Q1: 190 
+Q3: 213 
+Our IQR: 23 
+Built-in IQR(): 23 
+```
+
+### 1.3.5 Visualising Spread
+
+Let us put all these measures together on a single visualisation using the penguins flipper-length data:
+
+
+``` r
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+fl_mean <- mean(fl)
+fl_sd <- sd(fl)
+fl_q1 <- quantile(fl, 0.25)
+fl_q3 <- quantile(fl, 0.75)
+fl_min <- min(fl)
+fl_max <- max(fl)
+
+ggplot(data.frame(x = fl), aes(x = x)) +
+  # Range
+  annotate("segment", x = fl_min, xend = fl_max, y = -0.001, yend = -0.001,
+           linewidth = 1, colour = "grey50",
+           arrow = grid::arrow(ends = "both", length = grid::unit(0.1, "inches"))) +
+  annotate("text", x = (fl_min + fl_max) / 2, y = -0.002,
+           label = paste0("Range = ", fl_max - fl_min, " mm"), size = 4) +
+  # IQR band
+  annotate("rect", xmin = fl_q1, xmax = fl_q3, ymin = 0, ymax = Inf,
+           fill = "#377EB8", alpha = 0.15) +
+  # SD band
+  annotate("rect", xmin = fl_mean - fl_sd, xmax = fl_mean + fl_sd,
+           ymin = 0, ymax = Inf,
+           fill = "#E41A1C", alpha = 0.15) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30,
+                 fill = "grey80", colour = "grey50") +
+  geom_density(linewidth = 0.8) +
+  geom_vline(xintercept = fl_mean, linewidth = 1, colour = "#E41A1C") +
+  annotate("text", x = fl_mean + 1, y = 0.035, label = "Mean", colour = "#E41A1C",
+           hjust = 0, size = 4.5) +
+  annotate("text", x = fl_q1 - 1, y = 0.032,
+           label = paste0("Q1 = ", fl_q1), hjust = 1, colour = "#377EB8", size = 4) +
+  annotate("text", x = fl_q3 + 1, y = 0.032,
+           label = paste0("Q3 = ", fl_q3), hjust = 0, colour = "#377EB8", size = 4) +
+  labs(x = "Flipper Length (mm)", y = "Density",
+       subtitle = paste0("Red band: mean +/- 1 SD (", round(fl_mean - fl_sd, 1),
+                         " to ", round(fl_mean + fl_sd, 1),
+                         "). Blue band: IQR (", fl_q1, " to ", fl_q3, ").")) +
+  theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/spread-visualisation-1.png" alt="Penguin flipper length with multiple measures of spread overlaid. The inner shaded band shows one standard deviation either side of the mean; the outer shaded band shows the IQR; vertical lines mark the range endpoints. The distribution is bimodal (two humps), reflecting the mixture of smaller (Adelie/Chinstrap) and larger (Gentoo) species.">
+	Penguin flipper length with multiple measures of spread overlaid. The inner shaded band shows one standard deviation either side of the mean; the outer shaded band shows the IQR; vertical lines mark the range endpoints. The distribution is bimodal (two humps), reflecting the mixture of smaller (Adelie/Chinstrap) and larger (Gentoo) species.
+</Figure>
+
+Notice the bimodal (two-humped) shape. This is **not** a property of the individual species; rather, it arises because we are pooling data from species with different typical flipper lengths. The Gentoo penguins (larger species) form the right hump, while Adelie and Chinstrap penguins form the left hump. This is an important lesson: always consider whether your data might be a **mixture** of distinct groups.
+
+### 1.3.6 The Coefficient of Variation
+
+When comparing variability across datasets measured in different units or at different scales, the raw standard deviation can be misleading. The **coefficient of variation** (CV) expresses the standard deviation as a percentage of the mean:
+
+$$\text{CV} = \frac{s}{\bar{x}} \times 100\%$$
+
+The CV is dimensionless and scale-invariant, making it ideal for cross-variable comparisons.
+
+
+``` r
+my_cv <- function(x) {
+  x <- x[!is.na(x)]
+  (sd(x) / mean(x)) * 100
+}
+
+cat("CV of flipper length:", round(my_cv(penguins$flipper_length_mm), 2), "%\n")
+cat("CV of body mass:", round(my_cv(penguins$body_mass_g), 2), "%\n")
+cat("CV of bill length:", round(my_cv(penguins$bill_length_mm), 2), "%\n")
+```
+
+```
+CV of flipper length: 7 %
+CV of body mass: 19.09 %
+CV of bill length: 12.43 %
+```
+
+Body mass is more variable (relative to its mean) than flipper length. This makes biological sense: body mass depends on nutrition and fat reserves (which fluctuate), while flipper length is a skeletal measurement (which is more constrained).
+
+---
+
+## 1.4 Shape
+
+Beyond centre and spread, we want to describe the *shape* of a distribution. Two key aspects are **skewness** (asymmetry) and **kurtosis** (tail weight).
+
+### 1.4.1 Skewness
+
+**Skewness** measures the asymmetry of a distribution about its mean. A distribution is:
+
+- **Symmetric** if the left and right tails are mirror images (skewness $\approx 0$).
+- **Right-skewed** (positively skewed) if the right tail is longer -- the bulk of the data cluster to the left, with a few large values stretching to the right (skewness $> 0$).
+- **Left-skewed** (negatively skewed) if the left tail is longer (skewness $< 0$).
+
+The most common formula for sample skewness is:
+
+$$g_1 = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^3$$
+
+Each term $\left(\frac{x_i - \bar{x}}{s}\right)$ is a **standardised** value (sometimes called a z-score): how many standard deviations the observation lies from the mean. Cubing preserves the sign: values above the mean contribute positively, values below contribute negatively. If the distribution has a heavy right tail, the large positive cubed terms dominate, producing positive skewness.
+
+There is also an adjusted version that corrects for sample-size bias:
+
+$$G_1 = \frac{n}{(n-1)(n-2)} \sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^3$$
+
+#### Implementing skewness from scratch
+
+
+``` r
+my_skewness <- function(x, adjusted = FALSE) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 3) return(NA_real_)
+
+  xbar <- mean(x)
+  s <- sd(x)
+  z <- (x - xbar) / s
+
+  g1 <- sum(z^3) / n
+
+  if (adjusted) {
+    # Fisher's correction
+    g1 <- g1 * n^2 / ((n - 1) * (n - 2))
+  }
+
+  g1
+}
+
+bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
+height <- nhanes$Height[!is.na(nhanes$Height)]
+
+cat("Skewness of BMI:", round(my_skewness(bmi), 4), "(right-skewed)\n")
+cat("Skewness of Height:", round(my_skewness(height), 4), "(approximately symmetric)\n")
+```
+
+```
+Skewness of BMI: 0.9021 (right-skewed)
+Skewness of Height: -1.6564 (approximately symmetric)
+```
+
+BMI shows clear right skewness (positive value), which accords with what we know: there is a lower bound on BMI (you cannot have zero body mass), but no hard upper bound -- a few individuals have very high BMI values. Height, by contrast, is close to zero, indicating approximate symmetry.
+
+### 1.4.2 Kurtosis
+
+**Kurtosis** measures the heaviness of the tails relative to the centre. It is sometimes loosely described as "peakedness," but tail weight is the more accurate interpretation.
+
+The formula for sample kurtosis is:
+
+$$g_2 = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^4 - 3$$
+
+The subtraction of 3 is a convention that makes the kurtosis of a normal distribution equal to zero. This adjusted value is called **excess kurtosis**. Without the subtraction, the raw kurtosis of a normal distribution is 3.
+
+- **Mesokurtic** (kurtosis $\approx 0$): tails similar to the normal distribution.
+- **Leptokurtic** (kurtosis $> 0$): heavier tails than normal -- more extreme values than expected.
+- **Platykurtic** (kurtosis $< 0$): lighter tails than normal -- fewer extreme values.
+
+The fourth power in the formula amplifies the contribution of extreme observations. Values far from the mean contribute disproportionately to kurtosis.
+
+#### Implementing kurtosis from scratch
+
+
+``` r
+my_kurtosis <- function(x, excess = TRUE) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 4) return(NA_real_)
+
+  xbar <- mean(x)
+  s <- sd(x)
+  z <- (x - xbar) / s
+
+  k <- sum(z^4) / n
+
+  if (excess) k <- k - 3
+
+  k
+}
+
+cat("Excess kurtosis of BMI:", round(my_kurtosis(bmi), 4), "\n")
+cat("Excess kurtosis of Height:", round(my_kurtosis(height), 4), "\n")
+```
+
+```
+Excess kurtosis of BMI: 2.2014 
+Excess kurtosis of Height: 2.8909 
+```
+
+BMI has positive excess kurtosis -- its tails are heavier than a normal distribution. This means that extreme BMI values (very low or very high) are more common than a normal distribution would predict. Height has kurtosis closer to zero, suggesting its tails are roughly consistent with normality.
+
+### 1.4.3 Visualising Skewness and Kurtosis
+
+
+``` r
+dt_bmi <- data.table::data.table(value = bmi, variable = "BMI")
+dt_height <- data.table::data.table(value = height, variable = "Height (cm)")
+dt_shape <- data.table::rbindlist(list(dt_bmi, dt_height))
+
+# Compute normal reference curves
+norm_curves <- data.table::rbindlist(lapply(
+  list(
+    list(vals = bmi, name = "BMI"),
+    list(vals = height, name = "Height (cm)")
+  ),
+  function(item) {
+    xseq <- seq(min(item$vals), max(item$vals), length.out = 300)
+    data.table::data.table(
+      x = xseq,
+      y = dnorm(xseq, mean = mean(item$vals), sd = sd(item$vals)),
+      variable = item$name
+    )
+  }
+))
+
+# Summary annotations
+shape_labels <- data.table::data.table(
+  variable = c("BMI", "Height (cm)"),
+  label = c(
+    paste0("Skew = ", round(my_skewness(bmi), 2), "\nKurt = ", round(my_kurtosis(bmi), 2)),
+    paste0("Skew = ", round(my_skewness(height), 2), "\nKurt = ", round(my_kurtosis(height), 2))
+  ),
+  x = c(max(bmi) * 0.85, max(height) * 0.99),
+  y = c(0.04, 0.03)
+)
+
+ggplot(dt_shape, aes(x = value)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50,
+                 fill = "grey80", colour = "grey50") +
+  geom_density(linewidth = 0.8, colour = "black") +
+  geom_line(data = norm_curves, aes(x = x, y = y),
+            linetype = "dashed", colour = "#E41A1C", linewidth = 0.8) +
+  geom_text(data = shape_labels, aes(x = x, y = y, label = label),
+            hjust = 1, size = 4.5, colour = "#377EB8") +
+  facet_wrap(~variable, scales = "free", ncol = 2) +
+  labs(x = "Value", y = "Density",
+       subtitle = "Solid black: kernel density. Dashed red: normal reference.") +
+  theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/shape-comparison-1.png" alt="Comparing the shape of two NHANES variables. BMI (left) is right-skewed with heavy tails. Height (right) is approximately symmetric with near-normal tails. The dashed curve overlays a normal distribution with matching mean and standard deviation for reference.">
+	Comparing the shape of two NHANES variables. BMI (left) is right-skewed with heavy tails. Height (right) is approximately symmetric with near-normal tails. The dashed curve overlays a normal distribution with matching mean and standard deviation for reference.
+</Figure>
+
+The dashed red curve shows what the data *would* look like if they were normally distributed with the same mean and standard deviation. For height, the fit is reasonable. For BMI, the asymmetry and heavy right tail are clearly visible.
+
+### 1.4.4 A Word of Caution About Moment-Based Measures
+
+Skewness and kurtosis are computed from the third and fourth **moments** of the data (powers of deviations from the mean). Higher moments amplify the influence of extreme observations. This means:
+
+1. **They are very sensitive to outliers.** A single extreme value can change the skewness or kurtosis dramatically.
+2. **They require large sample sizes to estimate reliably.** With small samples (say $n < 50$), sampling variability in skewness and kurtosis is large, and point estimates should be interpreted cautiously.
+3. **They are not the only way to assess shape.** Graphical methods (histograms, Q-Q plots) are often more informative than a single number. We develop Q-Q plots in Part 3.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining spread to non-statisticians:
+
+- **Standard deviation**: "On average, values are about [SD] units away from the mean." For financial audiences: "This stock moves about [SD] per day on average."
+
+- **IQR**: "The middle 50% of values fall between [Q1] and [Q3]." This avoids the complications of outliers and is intuitive for salary ranges, wait times, etc.
+
+- **Skewness**: "The distribution has a long tail to the [right/left]." Show a picture rather than quoting a number. For income data: "Most households earn between X and Y, but a small fraction earn much more, pulling the average up."
+
+- **Kurtosis**: This is rarely worth communicating to non-technical audiences. Instead, say: "Extreme values are [more/less] common than we would expect for a bell curve."
+
+---
+
+## Quick Reference
+
+| Measure | Formula | Units | Robust? | When to Use |
+|---------|---------|-------|---------|-------------|
+| Range | $x_{(n)} - x_{(1)}$ | Same as data | No | Quick initial check |
+| Variance ($s^2$) | $\frac{1}{n-1}\sum(x_i-\bar{x})^2$ | Squared units | No | Theoretical work; building block |
+| Std. Deviation ($s$) | $\sqrt{s^2}$ | Same as data | No | Most common measure of spread |
+| IQR | $Q_3 - Q_1$ | Same as data | Yes | Skewed data; outliers present |
+| CV | $s / \bar{x} \times 100\%$ | Dimensionless | No | Comparing variability across variables |
+| Skewness ($g_1$) | $\frac{1}{n}\sum\bigl(\frac{x_i - \bar{x}}{s}\bigr)^3$ | Dimensionless | No | Assessing asymmetry |
+| Kurtosis ($g_2$) | $\frac{1}{n}\sum\bigl(\frac{x_i - \bar{x}}{s}\bigr)^4 - 3$ | Dimensionless | No | Assessing tail heaviness |
+
+**Key R functions:**
+
+- `var(x)` -- sample variance (Bessel-corrected)
+- `sd(x)` -- sample standard deviation
+- `IQR(x)` -- interquartile range
+- `quantile(x, probs)` -- quantiles
+- `range(x)` -- returns c(min, max); use `diff(range(x))` for the range as a single number
+- Base R has no built-in skewness or kurtosis; use our implementations or `e1071::skewness()` and `e1071::kurtosis()`
+
+**Key results:**
+
+- Bessel's correction: dividing by $n - 1$ gives an unbiased estimator of $\sigma^2$; dividing by $n$ underestimates by a factor of $(n-1)/n$.
+- The standard deviation $s$ is *not* an unbiased estimator of $\sigma$ (Jensen's inequality).
+- For approximately normal data: ~68% within 1 SD, ~95% within 2 SDs, ~99.7% within 3 SDs.

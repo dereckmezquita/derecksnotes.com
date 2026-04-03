@@ -1,0 +1,471 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 4: Discrete Distributions"
+part: "Part 1: Bernoulli and Binomial"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 4 -- Discrete Distributions
+
+## Part 1: Bernoulli and Binomial
+
+In the previous chapters we developed the language of probability and the concept of a random variable. We now turn to the first family of concrete distributions -- the workhorses of discrete probability. Every distribution in this chapter arises from a specific physical setup. Our goal is not to memorise formulae but to *derive* them, so that each probability mass function feels inevitable rather than arbitrary.
+
+We begin with the simplest possible random experiment -- a single trial with two outcomes -- and build upward from there.
+
+---
+
+## 4.1 The Bernoulli Distribution
+
+### 4.1.1 The Setup
+
+Consider an experiment with exactly two possible outcomes. We label one outcome "success" (coded as 1) and the other "failure" (coded as 0). The probability of success is $p$, where $0 \le p \le 1$, and the probability of failure is $1 - p$, which we often write as $q = 1 - p$.
+
+This is the **Bernoulli trial** -- the atom of discrete probability. Every distribution in this chapter is built from Bernoulli trials.
+
+**Examples of Bernoulli trials:**
+
+- Flip a coin: heads (success) or tails (failure), $p = 0.5$ for a fair coin.
+- Test a patient for a disease: positive (success) or negative (failure).
+- Inspect a manufactured item: defective (success, if we are counting defects) or non-defective.
+- A website visitor clicks "Buy" or does not.
+
+### 4.1.2 The PMF
+
+A random variable $X$ follows a **Bernoulli distribution** with parameter $p$ -- written $X \sim \text{Bernoulli}(p)$ -- if $X$ takes values in $\{0, 1\}$ with probabilities:
+
+$$P(X = 0) = 1 - p, \qquad P(X = 1) = p.$$
+
+We can write both cases in a single compact expression:
+
+$$P(X = x) = p^x (1-p)^{1-x}, \quad x \in \{0, 1\}.$$
+
+*Verify*: when $x = 1$, we get $p^1(1-p)^0 = p$. When $x = 0$, we get $p^0(1-p)^1 = 1-p$. The formula works.
+
+### 4.1.3 Deriving E[X]
+
+The expectation is computed directly from the definition:
+
+$$E[X] = \sum_{x=0}^{1} x \cdot P(X = x) = 0 \cdot (1-p) + 1 \cdot p = p.$$
+
+In plain English: the expected value of a Bernoulli random variable is simply the probability of success. If a fair coin has $p = 0.5$, then on average we expect $0.5$ heads per flip -- which makes intuitive sense.
+
+### 4.1.4 Deriving Var(X)
+
+We use $\text{Var}(X) = E[X^2] - (E[X])^2$. First, note that since $X \in \{0,1\}$, we have $X^2 = X$ (because $0^2 = 0$ and $1^2 = 1$). Therefore:
+
+$$E[X^2] = E[X] = p.$$
+
+So:
+
+$$\text{Var}(X) = p - p^2 = p(1 - p).$$
+
+This variance is maximised when $p = 1/2$ (maximum uncertainty) and equals zero when $p = 0$ or $p = 1$ (no randomness). This should match your intuition: we are most "uncertain" about the outcome when both outcomes are equally likely.
+
+### 4.1.5 Deriving the MGF
+
+The moment-generating function of $X$ is:
+
+$$M_X(t) = E[e^{tX}] = \sum_{x=0}^{1} e^{tx} \cdot p^x(1-p)^{1-x}$$
+
+$$= e^{t \cdot 0} \cdot (1-p) + e^{t \cdot 1} \cdot p = (1-p) + pe^t.$$
+
+We will use this MGF shortly when deriving the binomial distribution's MGF.
+
+### 4.1.6 Implementation in R
+
+```{r bernoulli-from-scratch}
+#' Bernoulli PMF -- implemented from scratch
+#' @param x integer vector of 0s and 1s
+#' @param p probability of success
+#' @return vector of probabilities
+my_dbernoulli <- function(x, p) {
+  stopifnot(all(x %in% c(0, 1)), p >= 0, p <= 1)
+  p^x * (1 - p)^(1 - x)
+}
+
+# Verify
+my_dbernoulli(0, 0.3)
+my_dbernoulli(1, 0.3)
+my_dbernoulli(c(0, 1), 0.7)
+```
+
+```{r bernoulli-verify}
+set.seed(42)
+# Simulate 10000 Bernoulli(0.3) trials
+n_sim <- 10000
+bern_sims <- rbinom(n_sim, size = 1, prob = 0.3)
+
+cat("Theoretical E[X] = 0.3\n")
+cat("Simulated  E[X] =", mean(bern_sims), "\n\n")
+
+cat("Theoretical Var(X) = 0.3 * 0.7 =", 0.3 * 0.7, "\n")
+cat("Simulated  Var(X) =", var(bern_sims), "\n")
+```
+
+The agreement between theory and simulation is excellent, as we would expect with 10,000 trials.
+
+---
+
+## 4.2 The Binomial Distribution
+
+### 4.2.1 The Setup
+
+Now suppose we perform $n$ **independent** Bernoulli trials, each with the same probability of success $p$. Let $X$ count the total number of successes. Then $X$ follows a **Binomial distribution** with parameters $n$ and $p$, written $X \sim \text{Bin}(n, p)$.
+
+The key assumptions are:
+1. There are a **fixed number** $n$ of trials.
+2. Each trial is **independent** of every other trial.
+3. Each trial has the **same** probability of success $p$.
+4. We count the **number of successes**.
+
+### 4.2.2 Deriving the PMF from First Principles
+
+We want $P(X = k)$ -- the probability of exactly $k$ successes in $n$ trials.
+
+**Step 1.** Consider one specific sequence in which exactly $k$ of the $n$ trials are successes and the remaining $n - k$ are failures. For example, if $n = 5$ and $k = 2$, one such sequence might be:
+
+$$\text{S, F, S, F, F}$$
+
+Because the trials are independent, the probability of this particular sequence is:
+
+$$\underbrace{p \cdot (1-p) \cdot p \cdot (1-p) \cdot (1-p)}_{k \text{ factors of } p \text{ and } n-k \text{ factors of } (1-p)} = p^k (1-p)^{n-k}.$$
+
+**Step 2.** How many such sequences are there? We need to choose which $k$ of the $n$ trials are successes. From our counting work in Chapter 2, the number of ways to do this is the binomial coefficient:
+
+$$\binom{n}{k} = \frac{n!}{k!(n-k)!}.$$
+
+**Step 3.** Since each of the $\binom{n}{k}$ arrangements has the same probability $p^k(1-p)^{n-k}$, and they are mutually exclusive events, we sum:
+
+$$\boxed{P(X = k) = \binom{n}{k} p^k (1-p)^{n-k}, \quad k = 0, 1, 2, \ldots, n.}$$
+
+This is the **binomial PMF**.
+
+### 4.2.3 Verifying it is a Valid PMF
+
+A valid PMF must satisfy $\sum_{k=0}^{n} P(X=k) = 1$. Let us verify:
+
+$$\sum_{k=0}^{n} \binom{n}{k} p^k (1-p)^{n-k}.$$
+
+This sum is precisely the **binomial theorem** applied to $(p + (1-p))^n$:
+
+$$(a + b)^n = \sum_{k=0}^{n} \binom{n}{k} a^k b^{n-k}.$$
+
+Setting $a = p$ and $b = 1 - p$:
+
+$$\sum_{k=0}^{n} \binom{n}{k} p^k (1-p)^{n-k} = (p + 1 - p)^n = 1^n = 1. \quad \checkmark$$
+
+The probabilities sum to 1. The binomial PMF is valid.
+
+### 4.2.4 Deriving E[X] -- Method 1: Direct Calculation
+
+We compute $E[X]$ from the definition:
+
+$$E[X] = \sum_{k=0}^{n} k \cdot \binom{n}{k} p^k (1-p)^{n-k}.$$
+
+The $k = 0$ term vanishes, so we start from $k = 1$:
+
+$$E[X] = \sum_{k=1}^{n} k \cdot \frac{n!}{k!(n-k)!} \, p^k (1-p)^{n-k}.$$
+
+Now apply the index manipulation trick: $k \cdot \frac{n!}{k!} = \frac{n!}{(k-1)!} = n \cdot \frac{(n-1)!}{(k-1)!}$. Substituting:
+
+$$E[X] = np \sum_{k=1}^{n} \frac{(n-1)!}{(k-1)!(n-k)!} \, p^{k-1} (1-p)^{n-k}.$$
+
+Let $j = k - 1$ and $m = n - 1$. Then:
+
+$$E[X] = np \sum_{j=0}^{m} \binom{m}{j} p^{j} (1-p)^{m-j} = np \cdot 1 = np.$$
+
+The last equality uses the binomial theorem again.
+
+### 4.2.5 Deriving E[X] -- Method 2: Linearity of Expectation
+
+This method is far more elegant. Write $X$ as a sum of $n$ independent Bernoulli random variables:
+
+$$X = X_1 + X_2 + \cdots + X_n, \quad \text{where each } X_i \sim \text{Bernoulli}(p).$$
+
+By the **linearity of expectation** (which holds whether or not the variables are independent):
+
+$$E[X] = E[X_1] + E[X_2] + \cdots + E[X_n] = p + p + \cdots + p = np.$$
+
+The second method is not just easier -- it is the *right* way to think about it. It reveals *why* the mean is $np$: each trial contributes $p$ to the expected count, and there are $n$ trials.
+
+### 4.2.6 Deriving Var(X) -- Method 1: Sum of Independent Variables
+
+Since $X = X_1 + \cdots + X_n$ and the $X_i$ are **independent**, the variance of the sum equals the sum of the variances:
+
+$$\text{Var}(X) = \text{Var}(X_1) + \cdots + \text{Var}(X_n) = p(1-p) + \cdots + p(1-p) = np(1-p).$$
+
+Again, the decomposition into independent Bernoullis makes the calculation effortless.
+
+### 4.2.7 Deriving the MGF
+
+Each $X_i \sim \text{Bernoulli}(p)$ has MGF $M_{X_i}(t) = (1-p) + pe^t$. Since the $X_i$ are independent, the MGF of the sum is the product of the individual MGFs:
+
+$$M_X(t) = \prod_{i=1}^{n} M_{X_i}(t) = \left[(1-p) + pe^t\right]^n.$$
+
+### 4.2.8 Deriving Var(X) -- Method 2: Via the MGF
+
+We can recover both $E[X]$ and $E[X^2]$ from the MGF by differentiation.
+
+**First derivative:**
+
+$$M_X'(t) = n \left[(1-p) + pe^t\right]^{n-1} \cdot pe^t.$$
+
+Evaluating at $t = 0$:
+
+$$E[X] = M_X'(0) = n \cdot 1^{n-1} \cdot p = np. \quad \checkmark$$
+
+**Second derivative** (using the product rule):
+
+$$M_X''(t) = n(n-1)\left[(1-p)+pe^t\right]^{n-2}(pe^t)^2 + n\left[(1-p)+pe^t\right]^{n-1}pe^t.$$
+
+At $t = 0$:
+
+$$E[X^2] = M_X''(0) = n(n-1)p^2 + np.$$
+
+Therefore:
+
+$$\text{Var}(X) = E[X^2] - (E[X])^2 = n(n-1)p^2 + np - n^2p^2 = np - np^2 = np(1-p). \quad \checkmark$$
+
+Both methods agree.
+
+### 4.2.9 Implementation from Scratch
+
+```{r binom-from-scratch}
+#' Binomial PMF -- implemented from scratch
+#' @param k integer vector of successes (0 to n)
+#' @param n number of trials
+#' @param p probability of success
+#' @return vector of probabilities
+my_dbinom <- function(k, n, p) {
+  stopifnot(all(k >= 0 & k <= n), p >= 0, p <= 1)
+  choose(n, k) * p^k * (1 - p)^(n - k)
+}
+
+# Verify against R's built-in dbinom
+k_vals <- 0:10
+n <- 10
+p <- 0.3
+
+ours <- my_dbinom(k_vals, n, p)
+theirs <- dbinom(k_vals, n, p)
+
+cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+```
+
+The difference is at the level of floating-point precision -- our implementation is correct.
+
+### 4.2.10 R's Built-in Binomial Functions
+
+R provides four functions for the binomial distribution, following a consistent naming convention used across all distributions:
+
+```{r binom-builtin}
+# d = density (PMF for discrete): P(X = k)
+dbinom(3, size = 10, prob = 0.4)
+
+# p = cumulative distribution function: P(X <= k)
+pbinom(3, size = 10, prob = 0.4)
+
+# q = quantile function (inverse CDF): smallest k such that P(X <= k) >= p
+qbinom(0.5, size = 10, prob = 0.4)
+
+# r = random generation: simulate draws
+set.seed(42)
+rbinom(10, size = 10, prob = 0.4)
+```
+
+The naming convention `d/p/q/r` + distribution name applies to every distribution in R: `dnorm`, `pnorm`, `qnorm`, `rnorm` for the normal; `dpois`, `ppois`, `qpois`, `rpois` for the Poisson; and so on.
+
+### 4.2.11 Visualising the Binomial PMF
+
+```{r binom-pmf-grid, fig.cap="Binomial PMFs for various combinations of n and p. Observe how the distribution becomes more symmetric as p approaches 0.5, and more concentrated (relative to n) as n increases."}
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+params <- data.table(
+  n = c(10, 10, 10, 20, 20, 50),
+  p = c(0.1, 0.5, 0.8, 0.3, 0.7, 0.3)
+)
+
+pmf_data <- rbindlist(lapply(seq_len(nrow(params)), function(i) {
+  nn <- params$n[i]
+  pp <- params$p[i]
+  k <- 0:nn
+  data.table(
+    k = k,
+    pmf = dbinom(k, nn, pp),
+    label = sprintf("Bin(%d, %.1f)", nn, pp)
+  )
+}))
+
+ggplot(pmf_data, aes(x = k, y = pmf)) +
+  geom_col(fill = "#0072B2", width = 0.7, alpha = 0.85) +
+  facet_wrap(~label, scales = "free", ncol = 3) +
+  labs(
+    x = "k (number of successes)",
+    y = "P(X = k)",
+    title = "Binomial probability mass functions"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+Key observations from the figure:
+
+- When $p = 0.5$ the distribution is perfectly symmetric.
+- When $p < 0.5$ the distribution is right-skewed; when $p > 0.5$ it is left-skewed.
+- As $n$ increases, the distribution becomes more bell-shaped (a preview of the Central Limit Theorem).
+
+### 4.2.12 Simulation vs. Theory
+
+Let us simulate 10,000 draws from $\text{Bin}(20, 0.35)$ and compare the observed frequencies to the theoretical PMF.
+
+```{r binom-simulation, fig.cap="Simulated vs. theoretical binomial distribution. The histogram bars show the proportion of simulated values, while the orange points show the theoretical PMF. With 10,000 draws, the agreement is excellent."}
+set.seed(42)
+n <- 20
+p <- 0.35
+n_sim <- 10000
+
+sims <- rbinom(n_sim, size = n, prob = p)
+
+# Observed proportions
+obs <- data.table(k = sims)[, .(observed = .N / n_sim), by = k]
+
+# Theoretical PMF
+theory <- data.table(k = 0:n, theoretical = dbinom(0:n, n, p))
+
+# Merge
+comparison <- merge(theory, obs, by = "k", all.x = TRUE)
+comparison[is.na(observed), observed := 0]
+
+ggplot(comparison) +
+  geom_col(aes(x = k, y = observed), fill = "#0072B2", alpha = 0.6, width = 0.7) +
+  geom_point(aes(x = k, y = theoretical), colour = "#D55E00", size = 3) +
+  geom_segment(
+    aes(x = k, xend = k, y = 0, yend = theoretical),
+    colour = "#D55E00", linewidth = 0.5
+  ) +
+  labs(
+    x = "k (number of successes)",
+    y = "Proportion / Probability",
+    title = sprintf("Simulated (bars) vs. theoretical (orange) for Bin(%d, %.2f)", n, p)
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r binom-sim-moments}
+cat("Theoretical E[X] =", n * p, "\n")
+cat("Simulated   E[X] =", mean(sims), "\n\n")
+
+cat("Theoretical Var(X) =", n * p * (1 - p), "\n")
+cat("Simulated   Var(X) =", var(sims), "\n")
+```
+
+### 4.2.13 A Real-World Example: Quality Control
+
+Suppose a factory produces electronic components with a defect rate of 2%. An inspector randomly selects 100 components from a large production run. What is the probability that:
+
+(a) No components are defective?
+(b) Exactly 2 are defective?
+(c) More than 5 are defective?
+
+```{r quality-control}
+n <- 100
+p <- 0.02
+
+# (a) P(X = 0)
+cat("P(X = 0) =", dbinom(0, n, p), "\n")
+
+# (b) P(X = 2)
+cat("P(X = 2) =", dbinom(2, n, p), "\n")
+
+# (c) P(X > 5) = 1 - P(X <= 5)
+cat("P(X > 5) =", 1 - pbinom(5, n, p), "\n")
+```
+
+The probability of finding more than 5 defective components out of 100 is quite small (about 1.5%) -- which is reassuring. If an inspector *did* find 6 or more defects, this would be strong evidence that the true defect rate is higher than 2%.
+
+### 4.2.14 The Binomial CDF
+
+The cumulative distribution function (CDF) is:
+
+$$F(k) = P(X \le k) = \sum_{j=0}^{k} \binom{n}{j} p^j (1-p)^{n-j}.$$
+
+There is no closed-form simplification of this sum in general, which is why we rely on `pbinom()` in R.
+
+```{r binom-cdf, fig.cap="CDF of Bin(20, 0.4). The step function jumps at each integer, reflecting the discrete nature of the distribution."}
+n <- 20
+p <- 0.4
+k <- 0:n
+
+cdf_data <- data.table(k = k, cdf = pbinom(k, n, p))
+
+ggplot(cdf_data, aes(x = k, y = cdf)) +
+  geom_step(colour = "#0072B2", linewidth = 1) +
+  geom_point(colour = "#0072B2", size = 2.5) +
+  labs(
+    x = "k",
+    y = "P(X <= k)",
+    title = sprintf("CDF of Bin(%d, %.1f)", n, p)
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal(base_size = 13)
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining binomial results to a non-technical audience:
+
+- Avoid saying "the PMF of the binomial distribution." Instead say: "If we repeat this experiment 20 times, here are the chances for each possible number of successes."
+- Use concrete language: "There is roughly a 17% chance that exactly 3 out of 20 patients will respond to the treatment" is far more useful than "$P(X=3) = 0.1716$."
+- Visualisations are your best friend. A bar chart of the PMF immediately communicates the most likely outcomes, the spread, and the skewness. Always label the axes clearly.
+- When presenting tail probabilities (e.g., $P(X > 5)$), explain them as "the chance of seeing an unusually high number of events."
+
+---
+
+## Quick Reference
+
+| Property | Bernoulli($p$) | Binomial($n, p$) |
+|:---------|:---------------|:-----------------|
+| **Support** | $\{0, 1\}$ | $\{0, 1, \ldots, n\}$ |
+| **PMF** | $p^x(1-p)^{1-x}$ | $\binom{n}{k}p^k(1-p)^{n-k}$ |
+| **E[X]** | $p$ | $np$ |
+| **Var(X)** | $p(1-p)$ | $np(1-p)$ |
+| **MGF** | $(1-p)+pe^t$ | $[(1-p)+pe^t]^n$ |
+| **R functions** | `dbinom(x, 1, p)` | `dbinom`, `pbinom`, `qbinom`, `rbinom` |
+| **Relationship** | Special case: $\text{Bin}(1, p)$ | Sum of $n$ independent Bernoulli($p$) |

@@ -1,0 +1,976 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 4: Discrete Distributions"
+part: "Part 3: The Poisson Distribution and Relationships"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 4 -- Discrete Distributions
+
+## Part 3: The Poisson Distribution and Relationships
+
+The Poisson distribution is one of the most important in all of statistics. It arises as the natural model for counting **rare events** in a fixed interval of time, space, or some other continuum. In this part we derive it as a *limit* of the binomial distribution -- a derivation that is both beautiful and illuminating -- and then survey the rich web of relationships connecting all the discrete distributions we have studied.
+
+---
+
+## 4.6 The Poisson Distribution
+
+### 4.6.1 The Setup
+
+Imagine counting events that occur randomly and independently in a fixed interval:
+
+- The number of emails arriving in your inbox in one hour.
+- The number of radioactive decays detected by a Geiger counter in one second.
+- The number of typographical errors on a printed page.
+- The number of car accidents at an intersection in one week.
+
+These situations share a common structure:
+
+1. Events occur **independently** of one another.
+2. The average rate of events, $\lambda$, is constant.
+3. Two events cannot occur at exactly the same instant.
+4. The probability of an event in a tiny interval $\Delta t$ is approximately $\lambda \Delta t$.
+
+Under these conditions, the number of events $X$ in the interval follows a **Poisson distribution** with parameter $\lambda > 0$, written $X \sim \text{Pois}(\lambda)$.
+
+But where does the Poisson PMF come from? We shall derive it from first principles by taking a limit of the binomial.
+
+### 4.6.2 Deriving the Poisson as a Limit of the Binomial
+
+This is a highlight of the chapter. Read slowly and savour each step.
+
+**The idea.** Divide the interval into $n$ tiny sub-intervals. If $n$ is large enough, each sub-interval contains at most one event. The probability of an event in any one sub-interval is $p = \lambda/n$ (so that the expected number of events across all $n$ sub-intervals is $np = \lambda$). Each sub-interval is a Bernoulli trial. The total number of events is therefore $\text{Bin}(n, \lambda/n)$.
+
+Now let $n \to \infty$ (make the sub-intervals infinitesimally small) while keeping $\lambda = np$ fixed.
+
+**The derivation.** Start with the binomial PMF:
+
+$$P(X = k) = \binom{n}{k} \left(\frac{\lambda}{n}\right)^k \left(1 - \frac{\lambda}{n}\right)^{n-k}.$$
+
+We take the limit as $n \to \infty$ term by term.
+
+**Step 1: The binomial coefficient.** Write:
+
+$$\binom{n}{k} = \frac{n!}{k!(n-k)!} = \frac{n(n-1)(n-2)\cdots(n-k+1)}{k!}.$$
+
+This is a product of $k$ terms in the numerator:
+
+$$\frac{n(n-1)(n-2)\cdots(n-k+1)}{n^k} = \frac{n}{n} \cdot \frac{n-1}{n} \cdot \frac{n-2}{n} \cdots \frac{n-k+1}{n}.$$
+
+As $n \to \infty$ with $k$ fixed, each factor $\frac{n-j}{n} = 1 - \frac{j}{n} \to 1$. Therefore:
+
+$$\frac{\binom{n}{k}}{n^k} \to \frac{1}{k!}.$$
+
+Equivalently, $\binom{n}{k} \left(\frac{\lambda}{n}\right)^k = \frac{\binom{n}{k}}{n^k} \cdot \lambda^k \to \frac{\lambda^k}{k!}$.
+
+**Step 2: The main exponential term.** We need:
+
+$$\left(1 - \frac{\lambda}{n}\right)^n \to e^{-\lambda} \quad \text{as } n \to \infty.$$
+
+This is one of the most fundamental limits in mathematics. One way to see it: take the logarithm:
+
+$$n \ln\left(1 - \frac{\lambda}{n}\right) = n \left(-\frac{\lambda}{n} - \frac{\lambda^2}{2n^2} - \cdots\right) = -\lambda - \frac{\lambda^2}{2n} - \cdots \to -\lambda.$$
+
+Exponentiating: $\left(1 - \frac{\lambda}{n}\right)^n \to e^{-\lambda}$.
+
+**Step 3: The remaining factor.** We also have:
+
+$$\left(1 - \frac{\lambda}{n}\right)^{-k} \to 1 \quad \text{as } n \to \infty.$$
+
+This is because $k$ is fixed and $\left(1 - \frac{\lambda}{n}\right) \to 1$.
+
+**Putting it together.** Combining Steps 1--3:
+
+$$P(X = k) = \underbrace{\binom{n}{k}\left(\frac{\lambda}{n}\right)^k}_{\to\;\lambda^k/k!} \cdot \underbrace{\left(1 - \frac{\lambda}{n}\right)^{n}}_{\to\;e^{-\lambda}} \cdot \underbrace{\left(1 - \frac{\lambda}{n}\right)^{-k}}_{\to\;1} \;\;\to\;\; \frac{\lambda^k e^{-\lambda}}{k!}.$$
+
+Therefore:
+
+$$\boxed{P(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}, \quad k = 0, 1, 2, \ldots}$$
+
+This is the **Poisson PMF**. It has a single parameter $\lambda > 0$, which represents the average rate of events.
+
+### 4.6.3 Verifying the PMF Sums to 1
+
+We need $\sum_{k=0}^{\infty} \frac{\lambda^k e^{-\lambda}}{k!} = 1$. Factor out $e^{-\lambda}$:
+
+$$e^{-\lambda} \sum_{k=0}^{\infty} \frac{\lambda^k}{k!} = e^{-\lambda} \cdot e^{\lambda} = 1. \quad \checkmark$$
+
+We used the Taylor expansion $e^{\lambda} = \sum_{k=0}^{\infty} \frac{\lambda^k}{k!}$.
+
+### 4.6.4 Deriving E[X] -- Direct Method
+
+$$E[X] = \sum_{k=0}^{\infty} k \cdot \frac{\lambda^k e^{-\lambda}}{k!}.$$
+
+The $k = 0$ term vanishes. For $k \ge 1$, note that $k/k! = 1/(k-1)!$:
+
+$$E[X] = e^{-\lambda} \sum_{k=1}^{\infty} \frac{\lambda^k}{(k-1)!} = e^{-\lambda} \cdot \lambda \sum_{k=1}^{\infty} \frac{\lambda^{k-1}}{(k-1)!}.$$
+
+Let $j = k - 1$:
+
+$$E[X] = \lambda e^{-\lambda} \sum_{j=0}^{\infty} \frac{\lambda^j}{j!} = \lambda e^{-\lambda} \cdot e^{\lambda} = \lambda.$$
+
+The expected number of events equals the rate parameter. This is intuitive and serves as a useful sanity check.
+
+### 4.6.5 Deriving the MGF
+
+$$M_X(t) = E[e^{tX}] = \sum_{k=0}^{\infty} e^{tk} \cdot \frac{\lambda^k e^{-\lambda}}{k!} = e^{-\lambda} \sum_{k=0}^{\infty} \frac{(\lambda e^t)^k}{k!} = e^{-\lambda} \cdot e^{\lambda e^t} = e^{\lambda(e^t - 1)}.$$
+
+$$\boxed{M_X(t) = e^{\lambda(e^t - 1)}.}$$
+
+### 4.6.6 Deriving Var(X) via the MGF
+
+**First derivative:**
+
+$$M_X'(t) = \lambda e^t \cdot e^{\lambda(e^t - 1)}.$$
+
+At $t = 0$: $E[X] = M_X'(0) = \lambda \cdot 1 = \lambda$. $\checkmark$
+
+**Second derivative** (product rule):
+
+$$M_X''(t) = (\lambda e^t)^2 e^{\lambda(e^t-1)} + \lambda e^t \cdot e^{\lambda(e^t-1)} = e^{\lambda(e^t-1)}\left[\lambda^2 e^{2t} + \lambda e^t\right].$$
+
+At $t = 0$:
+
+$$E[X^2] = M_X''(0) = \lambda^2 + \lambda.$$
+
+Therefore:
+
+$$\text{Var}(X) = E[X^2] - (E[X])^2 = \lambda^2 + \lambda - \lambda^2 = \lambda.$$
+
+This is one of the most distinctive features of the Poisson distribution: **the mean equals the variance.** If you observe count data where the sample mean is approximately equal to the sample variance, a Poisson model is a natural candidate. (When the variance exceeds the mean -- *overdispersion* -- the negative binomial is often a better choice; we return to this in the count models chapter.)
+
+### 4.6.7 Implementation from Scratch
+
+
+``` r
+#' Poisson PMF -- implemented from scratch
+#' @param k integer vector of non-negative values
+#' @param lambda rate parameter (> 0)
+#' @return vector of probabilities
+my_dpois <- function(k, lambda) {
+  stopifnot(all(k >= 0), lambda > 0)
+  (lambda^k * exp(-lambda)) / factorial(k)
+}
+
+# Verify against R's built-in
+k_vals <- 0:20
+lambda <- 5
+
+ours <- my_dpois(k_vals, lambda)
+theirs <- dpois(k_vals, lambda)
+
+cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+```
+
+```
+Maximum absolute difference: 2.775558e-17 
+```
+
+### 4.6.8 The Binomial-to-Poisson Convergence: Numerical Demonstration
+
+
+``` r
+box::use(data.table[data.table, rbindlist])
+
+lambda <- 3
+k_vals <- 0:10
+
+results <- rbindlist(lapply(c(10, 30, 100, 500, 2000), function(nn) {
+  pp <- lambda / nn
+  data.table(
+    k = k_vals,
+    prob = dbinom(k_vals, nn, pp),
+    n = nn,
+    label = sprintf("Bin(%d, %.4f)", nn, pp)
+  )
+}))
+
+# Add the Poisson limit
+pois <- data.table(
+  k = k_vals,
+  prob = dpois(k_vals, lambda),
+  n = Inf,
+  label = sprintf("Pois(%.0f)", lambda)
+)
+
+results <- rbind(results, pois)
+
+cat("Binomial(n, lambda/n) converging to Poisson(lambda) for lambda =", lambda, "\n\n")
+cat(sprintf("%-5s", "k"))
+for (lab in unique(results$label)) cat(sprintf("%16s", lab))
+cat("\n")
+
+for (kk in k_vals) {
+  cat(sprintf("%-5d", kk))
+  row <- results[k == kk]
+  for (i in seq_len(nrow(row))) {
+    cat(sprintf("%16.6f", row$prob[i]))
+  }
+  cat("\n")
+}
+```
+
+```
+Binomial(n, lambda/n) converging to Poisson(lambda) for lambda = 3 
+
+k     Bin(10, 0.3000) Bin(30, 0.1000)Bin(100, 0.0300)Bin(500, 0.0060)Bin(2000, 0.0015)         Pois(3)
+0            0.028248        0.042391        0.047553        0.049339        0.049675        0.049787
+1            0.121061        0.141304        0.147070        0.148911        0.149249        0.149361
+2            0.233474        0.227656        0.225153        0.224266        0.224098        0.224042
+3            0.266828        0.236088        0.227474        0.224717        0.224210        0.224042
+4            0.200121        0.177066        0.170606        0.168538        0.168158        0.168031
+5            0.102919        0.102305        0.101308        0.100919        0.100844        0.100819
+6            0.036757        0.047363        0.049610        0.050256        0.050371        0.050409
+7            0.009002        0.018043        0.020604        0.021408        0.021555        0.021604
+8            0.001447        0.005764        0.007408        0.007964        0.008067        0.008102
+9            0.000138        0.001565        0.002342        0.002628        0.002682        0.002701
+10           0.000006        0.000365        0.000659        0.000779        0.000802        0.000810
+```
+
+The convergence is clear: as $n$ increases and $p = \lambda/n$ decreases, the binomial probabilities approach the Poisson probabilities.
+
+### 4.6.9 Interactive Visualisation: Binomial to Poisson
+
+The following interactive animation lets you see the binomial PMF morph into the Poisson as $n$ increases.
+
+<CanvasWithJs code={`
+// Binomial-to-Poisson convergence animation
+const W = 600, H = 400;
+const margin = { top: 50, right: 30, bottom: 60, left: 60 };
+const pw = W - margin.left - margin.right;
+const ph = H - margin.top - margin.bottom;
+
+const lambda = 5;
+const kMax = 15;
+
+// Poisson PMF
+function poisPMF(k, lam) {
+  let logP = k * Math.log(lam) - lam;
+  for (let i = 2; i <= k; i++) logP -= Math.log(i);
+  return Math.exp(logP);
+}
+
+// Binomial PMF
+function binomPMF(k, n, p) {
+  if (k > n || p <= 0 || p >= 1) return 0;
+  let logP = 0;
+  for (let i = 0; i < k; i++) logP += Math.log(n - i) - Math.log(i + 1);
+  logP += k * Math.log(p) + (n - k) * Math.log(1 - p);
+  return Math.exp(logP);
+}
+
+let nVal = 10;
+let animating = true;
+let frame = 0;
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#f8f8f8';
+  ctx.fillRect(0, 0, W, H);
+
+  const p = lambda / nVal;
+  const barW = pw / (kMax + 1) * 0.35;
+
+  // Compute max y for scaling
+  let maxY = 0;
+  for (let k = 0; k <= kMax; k++) {
+    maxY = Math.max(maxY, poisPMF(k, lambda), binomPMF(k, nVal, p));
+  }
+  maxY = Math.ceil(maxY * 20) / 20;
+
+  // Draw axes
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, margin.top);
+  ctx.lineTo(margin.left, H - margin.bottom);
+  ctx.lineTo(W - margin.right, H - margin.bottom);
+  ctx.stroke();
+
+  // Y-axis labels
+  ctx.fillStyle = '#333';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const yVal = (maxY * i / 4);
+    const yPos = H - margin.bottom - (i / 4) * ph;
+    ctx.fillText(yVal.toFixed(2), margin.left - 8, yPos + 4);
+    ctx.strokeStyle = '#ddd';
+    ctx.beginPath();
+    ctx.moveTo(margin.left, yPos);
+    ctx.lineTo(W - margin.right, yPos);
+    ctx.stroke();
+  }
+
+  // Draw bars
+  for (let k = 0; k <= kMax; k++) {
+    const xCenter = margin.left + (k + 0.5) * pw / (kMax + 1);
+
+    // Poisson bar (blue, behind)
+    const poisH = (poisPMF(k, lambda) / maxY) * ph;
+    ctx.fillStyle = 'rgba(0, 114, 178, 0.35)';
+    ctx.fillRect(xCenter - barW - 1, H - margin.bottom - poisH, barW, poisH);
+    ctx.strokeStyle = 'rgba(0, 114, 178, 0.8)';
+    ctx.strokeRect(xCenter - barW - 1, H - margin.bottom - poisH, barW, poisH);
+
+    // Binomial bar (orange, front)
+    const binH = (binomPMF(k, nVal, p) / maxY) * ph;
+    ctx.fillStyle = 'rgba(213, 94, 0, 0.55)';
+    ctx.fillRect(xCenter + 1, H - margin.bottom - binH, barW, binH);
+    ctx.strokeStyle = 'rgba(213, 94, 0, 0.9)';
+    ctx.strokeRect(xCenter + 1, H - margin.bottom - binH, barW, binH);
+
+    // X label
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.fillText(k.toString(), xCenter, H - margin.bottom + 16);
+  }
+
+  // X axis label
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#333';
+  ctx.fillText('k', W / 2, H - 10);
+
+  // Title
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('Bin(n=' + nVal + ', p=' + (lambda/nVal).toFixed(4) + ') vs Pois(\\u03bb=' + lambda + ')', W / 2, 20);
+
+  // Legend
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(0, 114, 178, 0.7)';
+  ctx.fillRect(W - margin.right - 150, 32, 14, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillText('Poisson', W - margin.right - 130, 44);
+  ctx.fillStyle = 'rgba(213, 94, 0, 0.7)';
+  ctx.fillRect(W - margin.right - 150, 52, 14, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillText('Binomial', W - margin.right - 130, 64);
+
+  // Animate n upward
+  if (animating) {
+    frame++;
+    if (frame % 8 === 0) {
+      if (nVal < 30) nVal += 1;
+      else if (nVal < 100) nVal += 5;
+      else if (nVal < 500) nVal += 25;
+      else if (nVal < 2000) nVal += 100;
+      else { animating = false; }
+    }
+    requestAnimationFrame(draw);
+  }
+}
+
+draw();
+`} width={600} height={400} />
+
+Watch as the orange binomial bars converge onto the blue Poisson bars. By $n = 500$ or so, the two distributions are virtually identical.
+
+### 4.6.10 Visualising Poisson PMFs for Various Lambda
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+lambda_vals <- c(0.5, 1, 3, 5, 10, 20)
+
+pmf_data <- rbindlist(lapply(lambda_vals, function(lam) {
+  k_max <- qpois(0.999, lam)
+  k <- 0:k_max
+  data.table(
+    k = k,
+    pmf = dpois(k, lam),
+    label = sprintf("Pois(%.1f)", lam)
+  )
+}))
+
+# Preserve ordering
+pmf_data[, label := factor(label, levels = sprintf("Pois(%.1f)", lambda_vals))]
+
+ggplot(pmf_data, aes(x = k, y = pmf)) +
+  geom_col(fill = "#CC79A7", width = 0.7, alpha = 0.85) +
+  facet_wrap(~label, scales = "free", ncol = 3) +
+  labs(
+    x = "k (number of events)",
+    y = "P(X = k)",
+    title = "Poisson probability mass functions"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/pois-pmf-grid-1.png" alt="Poisson PMFs for various values of lambda. Small lambda produces a right-skewed distribution; as lambda grows, the distribution becomes more symmetric and bell-shaped.">
+	Poisson PMFs for various values of lambda. Small lambda produces a right-skewed distribution; as lambda grows, the distribution becomes more symmetric and bell-shaped.
+</Figure>
+
+Key observations:
+
+- For small $\lambda$ (e.g., 0.5), the distribution is heavily right-skewed, with most mass at $k = 0$.
+- As $\lambda$ increases, the distribution becomes more symmetric and approaches a bell shape (another preview of the CLT, since the Poisson is a sum of many tiny contributions).
+- The mode is approximately $\lfloor \lambda \rfloor$ (the largest integer $\le \lambda$).
+
+### 4.6.11 Real Data: Insurance Claims
+
+Let us examine real count data and assess whether a Poisson model fits.
+
+
+``` r
+box::use(data.table[fread, .N, .SD])
+
+data_dir <- "../../../data"
+claims <- fread(file.path(data_dir, "count/insurance_claims.csv"))
+
+cat("Insurance claims data:\n")
+str(claims)
+cat("\n")
+
+# Claims per cell -- treat each row as a cell
+# Compute the claim rate per policyholder
+claims[, rate := Claims / Holders]
+
+# Let us look at the distribution of raw claim counts
+cat("Summary of Claims column:\n")
+summary(claims$Claims)
+cat("\nMean:", mean(claims$Claims), "\n")
+cat("Variance:", var(claims$Claims), "\n")
+cat("Variance / Mean:", var(claims$Claims) / mean(claims$Claims), "\n")
+```
+
+```
+Insurance claims data:
+Classes 'data.table' and 'data.frame':	64 obs. of  5 variables:
+ $ District: int  1 1 1 1 1 1 1 1 1 1 ...
+ $ Group   : chr  "<1l" "<1l" "<1l" "<1l" ...
+ $ Age     : chr  "<25" "25-29" "30-35" ">35" ...
+ $ Holders : int  197 264 246 1680 284 536 696 3582 133 286 ...
+ $ Claims  : int  38 35 20 156 63 84 89 400 19 52 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+
+Summary of Claims column:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   0.00    9.50   22.00   49.23   55.50  400.00 
+
+Mean: 49.23438 
+Variance: 5064.087 
+Variance / Mean: 102.8567 
+```
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table])
+
+# Use the raw Claims counts
+lambda_hat <- mean(claims$Claims)
+
+# Observed frequency table
+obs_freq <- claims[, .N, by = Claims][order(Claims)]
+obs_freq[, prop := N / sum(N)]
+
+# Theoretical Poisson probabilities
+k_range <- 0:max(claims$Claims)
+pois_probs <- dpois(k_range, lambda_hat)
+
+theory <- data.table(Claims = k_range, theoretical = pois_probs)
+comparison <- merge(obs_freq, theory, by = "Claims", all = TRUE)
+comparison[is.na(prop), prop := 0]
+
+# Truncate for visualisation (focus on the most common counts)
+k_show <- min(60, max(claims$Claims))
+comp_show <- comparison[Claims <= k_show]
+
+ggplot(comp_show) +
+  geom_col(aes(x = Claims, y = prop), fill = "#0072B2", alpha = 0.6, width = 0.8) +
+  geom_point(aes(x = Claims, y = theoretical), colour = "#D55E00", size = 2) +
+  labs(
+    x = "Number of claims",
+    y = "Proportion / Probability",
+    title = sprintf("Observed claims (bars) vs. Poisson(%.1f) model (orange)", lambda_hat)
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/insurance-fit-1.png" alt="Distribution of insurance claims compared to a Poisson model fitted by method of moments (matching the sample mean to lambda). The variance-to-mean ratio is substantially greater than 1, indicating overdispersion -- the Poisson underestimates the spread.">
+	Distribution of insurance claims compared to a Poisson model fitted by method of moments (matching the sample mean to lambda). The variance-to-mean ratio is substantially greater than 1, indicating overdispersion -- the Poisson underestimates the spread.
+</Figure>
+
+The variance-to-mean ratio being well above 1 signals **overdispersion** -- a common feature of real count data that we shall address in later chapters with the negative binomial distribution.
+
+### 4.6.12 Epilepsy Seizure Counts
+
+
+``` r
+box::use(data.table[fread, .N])
+
+seizures <- fread(file.path(data_dir, "count/epilepsy_seizures.csv"))
+
+cat("Epilepsy seizure data:\n")
+str(seizures)
+cat("\nSummary of seizure counts (y column):\n")
+summary(seizures$y)
+cat("\nMean:", mean(seizures$y), "\n")
+cat("Variance:", var(seizures$y), "\n")
+cat("Variance / Mean:", var(seizures$y) / mean(seizures$y), "\n")
+```
+
+```
+Epilepsy seizure data:
+Classes 'data.table' and 'data.frame':	236 obs. of  9 variables:
+ $ y      : int  5 3 3 3 3 5 3 3 2 4 ...
+ $ trt    : chr  "placebo" "placebo" "placebo" "placebo" ...
+ $ base   : int  11 11 11 11 11 11 11 11 6 6 ...
+ $ age    : int  31 31 31 31 30 30 30 30 25 25 ...
+ $ V4     : int  0 0 0 1 0 0 0 1 0 0 ...
+ $ subject: int  1 1 1 1 2 2 2 2 3 3 ...
+ $ period : int  1 2 3 4 1 2 3 4 1 2 ...
+ $ lbase  : num  -0.756 -0.756 -0.756 -0.756 -0.756 ...
+ $ lage   : num  0.1142 0.1142 0.1142 0.1142 0.0814 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+
+Summary of seizure counts (y column):
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   2.750   4.000   8.263   9.000 102.000 
+
+Mean: 8.262712 
+Variance: 152.6796 
+Variance / Mean: 18.47815 
+```
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table])
+
+lambda_hat <- mean(seizures$y)
+
+obs_freq <- seizures[, .N, by = y][order(y)]
+obs_freq[, prop := N / sum(N)]
+
+k_range <- 0:max(seizures$y)
+theory <- data.table(y = k_range, theoretical = dpois(k_range, lambda_hat))
+
+comp <- merge(obs_freq, theory, by = "y", all = TRUE)
+comp[is.na(prop), prop := 0]
+
+# Truncate
+k_show <- min(40, max(seizures$y))
+comp_show <- comp[y <= k_show]
+
+ggplot(comp_show) +
+  geom_col(aes(x = y, y = prop), fill = "#009E73", alpha = 0.6, width = 0.8) +
+  geom_point(aes(x = y, y = theoretical), colour = "#D55E00", size = 2) +
+  labs(
+    x = "Number of seizures",
+    y = "Proportion / Probability",
+    title = sprintf("Observed seizures (bars) vs. Poisson(%.1f) model (orange)", lambda_hat)
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/epilepsy-fit-1.png" alt="Distribution of epilepsy seizure counts per patient-period compared to a fitted Poisson model. The heavy right tail and large variance-to-mean ratio indicate substantial overdispersion -- the Poisson is too narrow.">
+	Distribution of epilepsy seizure counts per patient-period compared to a fitted Poisson model. The heavy right tail and large variance-to-mean ratio indicate substantial overdispersion -- the Poisson is too narrow.
+</Figure>
+
+In both datasets, the Poisson model captures the general shape but fails to account for the excess variability. This motivates more flexible count models (negative binomial, zero-inflated Poisson) that we will study in later chapters.
+
+---
+
+## 4.7 Relationships Between Discrete Distributions
+
+### 4.7.1 The Family Tree
+
+The discrete distributions we have studied are not isolated -- they form an interconnected family. Understanding these connections deepens our understanding of each individual distribution.
+
+**Key relationships:**
+
+1. **Bernoulli $\to$ Binomial.** A Binomial($n, p$) random variable is the sum of $n$ independent Bernoulli($p$) random variables. Equivalently, Bernoulli($p$) = Binomial(1, $p$).
+
+2. **Geometric = Negative Binomial with $r = 1$.** The geometric distribution is a special case of the negative binomial.
+
+3. **Binomial $\to$ Poisson.** As $n \to \infty$ and $p \to 0$ with $np = \lambda$ held constant, Binomial($n, p$) converges to Poisson($\lambda$). The Poisson is the "rare events" limit of the binomial.
+
+4. **Hypergeometric $\approx$ Binomial.** When the population size $N$ is much larger than the sample size $n$, the hypergeometric distribution is well-approximated by the binomial with $p = K/N$.
+
+5. **Sum of Poissons.** If $X \sim \text{Pois}(\lambda_1)$ and $Y \sim \text{Pois}(\lambda_2)$ are independent, then $X + Y \sim \text{Pois}(\lambda_1 + \lambda_2)$. This follows from the MGFs: $e^{\lambda_1(e^t-1)} \cdot e^{\lambda_2(e^t-1)} = e^{(\lambda_1+\lambda_2)(e^t-1)}$.
+
+### 4.7.2 Summary Comparison Table
+
+| Distribution | Support | PMF | $E[X]$ | $\text{Var}(X)$ | MGF |
+|:-------------|:--------|:----|:-------|:----------------|:----|
+| Bernoulli($p$) | $\{0,1\}$ | $p^x(1-p)^{1-x}$ | $p$ | $p(1-p)$ | $(1-p)+pe^t$ |
+| Binomial($n,p$) | $\{0,\ldots,n\}$ | $\binom{n}{k}p^k(1-p)^{n-k}$ | $np$ | $np(1-p)$ | $[(1-p)+pe^t]^n$ |
+| Geometric($p$) | $\{1,2,\ldots\}$ | $(1-p)^{k-1}p$ | $1/p$ | $(1-p)/p^2$ | $\frac{pe^t}{1-(1-p)e^t}$ |
+| NegBin($r,p$) | $\{r,r+1,\ldots\}$ | $\binom{k-1}{r-1}p^r(1-p)^{k-r}$ | $r/p$ | $r(1-p)/p^2$ | $\left(\frac{pe^t}{1-(1-p)e^t}\right)^r$ |
+| Hypergeometric($N,K,n$) | see text | $\frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}}$ | $nK/N$ | $n\frac{K}{N}\frac{N-K}{N}\frac{N-n}{N-1}$ | (no simple form) |
+| Poisson($\lambda$) | $\{0,1,2,\ldots\}$ | $\frac{\lambda^k e^{-\lambda}}{k!}$ | $\lambda$ | $\lambda$ | $e^{\lambda(e^t-1)}$ |
+
+### 4.7.3 Family Comparison Plot
+
+
+``` r
+box::use(ggplot2[...])
+box::use(data.table[data.table, rbindlist])
+
+# Comparable parameters
+k_bern <- 0:1
+k_binom <- 0:20
+k_geom <- 1:20
+k_negbin <- 3:25
+k_hyper <- 0:15
+k_pois <- 0:20
+
+family_data <- rbindlist(list(
+  data.table(k = k_bern, pmf = dbinom(k_bern, 1, 0.4),
+             dist = "Bernoulli(0.4)"),
+  data.table(k = k_binom, pmf = dbinom(k_binom, 20, 0.4),
+             dist = "Binomial(20, 0.4)"),
+  data.table(k = k_geom, pmf = dgeom(k_geom - 1, 0.3),
+             dist = "Geometric(0.3)"),
+  data.table(k = k_negbin, pmf = dnbinom(k_negbin - 3, size = 3, prob = 0.3),
+             dist = "NegBin(3, 0.3)"),
+  data.table(k = k_hyper, pmf = dhyper(k_hyper, m = 30, n = 70, k = 15),
+             dist = "Hypergeometric(100,30,15)"),
+  data.table(k = k_pois, pmf = dpois(k_pois, 8),
+             dist = "Poisson(8)")
+))
+
+dist_colours <- c(
+  "Bernoulli(0.4)" = "#0072B2",
+  "Binomial(20, 0.4)" = "#D55E00",
+  "Geometric(0.3)" = "#009E73",
+  "NegBin(3, 0.3)" = "#CC79A7",
+  "Hypergeometric(100,30,15)" = "#E69F00",
+  "Poisson(8)" = "#56B4E9"
+)
+
+ggplot(family_data, aes(x = k, y = pmf, fill = dist)) +
+  geom_col(alpha = 0.8, width = 0.7) +
+  facet_wrap(~dist, scales = "free", ncol = 3) +
+  scale_fill_manual(values = dist_colours) +
+  labs(
+    x = "k",
+    y = "P(X = k)",
+    title = "The family of discrete distributions"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/family-comparison-1.png" alt="All six discrete distributions plotted together for comparable parameter choices. Each distribution has a distinctive shape reflecting its underlying assumptions.">
+	All six discrete distributions plotted together for comparable parameter choices. Each distribution has a distinctive shape reflecting its underlying assumptions.
+</Figure>
+
+### 4.7.4 A Utility Function: Discrete Distribution Calculator
+
+Let us build a utility function that, given a distribution name and parameters, returns a `data.table` with the PMF and CDF values.
+
+
+``` r
+box::use(data.table[data.table])
+
+#' Compute PMF and CDF for a named discrete distribution
+#' @param dist character: one of "bernoulli", "binomial", "geometric",
+#'   "negbin", "hypergeometric", "poisson"
+#' @param params named list of parameters
+#' @param k_range optional integer vector of k values (auto-determined if NULL)
+#' @return data.table with columns: k, pmf, cdf
+discrete_dist <- function(dist, params, k_range = NULL) {
+  dist <- tolower(dist)
+
+  if (is.null(k_range)) {
+    k_range <- switch(dist,
+      bernoulli = 0:1,
+      binomial = 0:params$n,
+      geometric = 1:(ceiling(5 / params$p)),
+      negbin = params$r:(params$r + ceiling(5 * params$r / params$p)),
+      hypergeometric = {
+        lo <- max(0, params$n - (params$N - params$K))
+        hi <- min(params$n, params$K)
+        lo:hi
+      },
+      poisson = 0:qpois(0.999, params$lambda),
+      stop("Unknown distribution: ", dist)
+    )
+  }
+
+  pmf <- switch(dist,
+    bernoulli = dbinom(k_range, 1, params$p),
+    binomial = dbinom(k_range, params$n, params$p),
+    geometric = dgeom(k_range - 1, params$p),
+    negbin = dnbinom(k_range - params$r, size = params$r, prob = params$p),
+    hypergeometric = dhyper(k_range, m = params$K, n = params$N - params$K, k = params$n),
+    poisson = dpois(k_range, params$lambda)
+  )
+
+  data.table(
+    k = k_range,
+    pmf = pmf,
+    cdf = cumsum(pmf)
+  )
+}
+
+# Examples
+cat("Binomial(10, 0.3):\n")
+print(discrete_dist("binomial", list(n = 10, p = 0.3)))
+
+cat("\nPoisson(4):\n")
+print(discrete_dist("poisson", list(lambda = 4)))
+```
+
+```
+Binomial(10, 0.3):
+        k          pmf        cdf
+    <int>        <num>      <num>
+ 1:     0 0.0282475249 0.02824752
+ 2:     1 0.1210608210 0.14930835
+ 3:     2 0.2334744405 0.38278279
+ 4:     3 0.2668279320 0.64961072
+ 5:     4 0.2001209490 0.84973167
+ 6:     5 0.1029193452 0.95265101
+ 7:     6 0.0367569090 0.98940792
+ 8:     7 0.0090016920 0.99840961
+ 9:     8 0.0014467005 0.99985631
+10:     9 0.0001377810 0.99999410
+11:    10 0.0000059049 1.00000000
+
+Poisson(4):
+        k         pmf        cdf
+    <int>       <num>      <num>
+ 1:     0 0.018315639 0.01831564
+ 2:     1 0.073262556 0.09157819
+ 3:     2 0.146525111 0.23810331
+ 4:     3 0.195366815 0.43347012
+ 5:     4 0.195366815 0.62883694
+ 6:     5 0.156293452 0.78513039
+ 7:     6 0.104195635 0.88932602
+ 8:     7 0.059540363 0.94886638
+ 9:     8 0.029770181 0.97863657
+10:     9 0.013231192 0.99186776
+11:    10 0.005292477 0.99716023
+12:    11 0.001924537 0.99908477
+```
+
+---
+
+## 4.8 Exercises
+
+### Derivation Exercises
+
+**Exercise 4.1.** Prove that if $X \sim \text{Pois}(\lambda_1)$ and $Y \sim \text{Pois}(\lambda_2)$ are independent, then $X + Y \sim \text{Pois}(\lambda_1 + \lambda_2)$. *(Hint: use the MGF approach.)*
+
+**Exercise 4.2.** Derive the variance of the geometric distribution directly from the definition $\text{Var}(X) = E[X^2] - (E[X])^2$, without using the derivative-of-geometric-series trick. *(This is intentionally tedious -- the point is to appreciate the elegance of the alternative method.)*
+
+**Exercise 4.3.** Show that the negative binomial PMF sums to 1. *(Hint: use the negative binomial series expansion $(1-x)^{-r} = \sum_{j=0}^{\infty}\binom{r+j-1}{j}x^j$ for $|x| < 1$.)*
+
+**Exercise 4.4.** Derive the MGF of the geometric distribution: $M_X(t) = \frac{pe^t}{1 - (1-p)e^t}$, valid for $t < -\ln(1-p)$. Then use it to recover $E[X] = 1/p$.
+
+### Computation Exercises
+
+**Exercise 4.5.** Let $X \sim \text{Bin}(20, 0.3)$. Compute:
+(a) $P(X = 5)$
+(b) $P(X \le 5)$
+(c) $P(3 \le X \le 8)$
+(d) The smallest $k$ such that $P(X \le k) \ge 0.9$
+
+
+``` r
+# (a)
+dbinom(5, 20, 0.3)
+# (b)
+pbinom(5, 20, 0.3)
+# (c)
+pbinom(8, 20, 0.3) - pbinom(2, 20, 0.3)
+# (d)
+qbinom(0.9, 20, 0.3)
+```
+
+**Exercise 4.6.** A Poisson random variable $X$ satisfies $P(X = 2) = P(X = 3)$. Find $\lambda$.
+
+*Solution sketch:* Set $\frac{\lambda^2 e^{-\lambda}}{2!} = \frac{\lambda^3 e^{-\lambda}}{3!}$. Simplify to get $\lambda = 3$.
+
+**Exercise 4.7.** In a lottery, 6 numbers are drawn without replacement from $\{1, 2, \ldots, 49\}$. You pick 6 numbers. What is the probability that exactly 3 of your numbers match? *(This is a hypergeometric problem.)*
+
+### Modelling Exercises
+
+**Exercise 4.8.** For each scenario, identify the most appropriate distribution and justify your choice:
+(a) The number of patients arriving at an emergency room in one hour.
+(b) The number of coin flips until the first heads.
+(c) The number of defective items in a sample of 15 drawn from a batch of 100.
+(d) The number of successful free throws in 10 attempts by a basketball player.
+(e) The number of tries until a gambler wins 3 games.
+
+### R Exercises
+
+**Exercise 4.9.** Simulate 50,000 draws from a Poisson(7) distribution. Compute the sample mean and sample variance. Verify that both are approximately 7. Plot a histogram and overlay the theoretical PMF.
+
+
+``` r
+set.seed(42)
+sims <- rpois(50000, lambda = 7)
+cat("Mean:", mean(sims), "\n")
+cat("Variance:", var(sims), "\n")
+# Plotting code left as exercise
+```
+
+**Exercise 4.10.** Write an R function that simulates the geometric distribution *from scratch* using only `runif()` -- do not use `rgeom()`. Your function should generate $n$ geometric random variables by repeatedly simulating Bernoulli trials. Compare the empirical distribution of 10,000 draws to the theoretical PMF.
+
+
+``` r
+my_rgeom <- function(n, p) {
+  replicate(n, {
+    k <- 0
+    repeat {
+      k <- k + 1
+      if (runif(1) < p) return(k)
+    }
+  })
+}
+```
+
+**Exercise 4.11.** Using the `insurance_claims.csv` data, fit a Poisson model to the `Claims` column and a negative binomial model (using the variance-to-mean ratio to estimate the dispersion parameter). Plot both fitted distributions against the observed data. Which fits better?
+
+### Spot-the-Error Exercises
+
+**Exercise 4.12.** A colleague says: "I rolled a die 10 times and got no sixes. The probability of this is $(5/6)^{10} \approx 0.16$. Since I have now 'used up' all my bad luck, the probability of getting a six on my next roll is higher than $1/6$."
+
+*What is wrong with this reasoning?* *(Hint: the memoryless property.)*
+
+**Exercise 4.13.** A student writes: "Let $X \sim \text{Bin}(100, 0.5)$. Then $P(X = 50) = 0.5$ because the mean is 50."
+
+*What is the error?* Compute the actual value of $P(X = 50)$.
+
+
+``` r
+dbinom(50, 100, 0.5)
+# The actual probability is about 0.08, not 0.5!
+```
+
+---
+
+## Communicating to Stakeholders
+
+When presenting Poisson models to a non-technical audience:
+
+- Say "an average of 5 events per hour" rather than "$\lambda = 5$."
+- Use the Poisson's "mean = variance" property as a diagnostic: "If the spread of our data is much larger than the average, the simple Poisson model doesn't capture the full picture, and we should use a more flexible model."
+- For the binomial-to-Poisson approximation, explain: "When we have very many trials but each has a tiny probability, the total count of successes follows a Poisson pattern."
+- Visualisations are essential. A bar chart comparing observed frequencies to the Poisson model immediately reveals whether the model fits or whether there is overdispersion (excess variability).
+
+---
+
+## Quick Reference
+
+| Property | Poisson($\lambda$) |
+|:---------|:-------------------|
+| **Setup** | Count of rare events in a fixed interval |
+| **Support** | $\{0, 1, 2, \ldots\}$ |
+| **PMF** | $\frac{\lambda^k e^{-\lambda}}{k!}$ |
+| **E[X]** | $\lambda$ |
+| **Var(X)** | $\lambda$ (mean = variance) |
+| **MGF** | $e^{\lambda(e^t - 1)}$ |
+| **R functions** | `dpois`, `ppois`, `qpois`, `rpois` |
+| **Key property** | Limit of Bin($n, \lambda/n$) as $n \to \infty$ |
+| **Overdispersion signal** | $\text{Var}(X) > E[X]$ $\Rightarrow$ consider negative binomial |
+
+**Key relationships across all distributions:**
+
+| From | To | Relationship |
+|:-----|:---|:-------------|
+| Bernoulli($p$) | Binomial($n, p$) | Sum of $n$ independent copies |
+| Geometric($p$) | NegBin($r, p$) | Special case $r = 1$ |
+| Binomial($n, \lambda/n$) | Poisson($\lambda$) | Limit as $n \to \infty$ |
+| Hypergeometric($N, K, n$) | Binomial($n, K/N$) | Approximation when $N \gg n$ |
+| Poisson($\lambda_1$) + Poisson($\lambda_2$) | Poisson($\lambda_1 + \lambda_2$) | Sum of independent Poissons |
+
+### Interactive Poisson Explorer
+
+Use the slider below to see how the Poisson PMF changes as $\lambda$ varies. The bars show the probability mass function $P(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}$ and the dashed line marks the mean.
+
+<InteractivePlot
+  controls={[
+    { id: "lambda", type: "range", label: "λ", min: 0.5, max: 25, step: 0.5, default: 5 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var lam = params.lambda;
+    var maxK = Math.min(Math.ceil(lam + 4 * Math.sqrt(lam) + 5), 50);
+    var pmf = [];
+    var maxP = 0;
+    // Compute PMF using log to avoid overflow
+    for (var k = 0; k <= maxK; k++) {
+      var logP = k * Math.log(lam) - lam;
+      for (var j = 2; j <= k; j++) logP -= Math.log(j);
+      pmf[k] = Math.exp(logP);
+      if (pmf[k] > maxP) maxP = pmf[k];
+    }
+    // Layout
+    var pad = 50;
+    var plotW = canvas.width - 2 * pad;
+    var plotH = canvas.height - 2 * pad;
+    var barW = Math.max(2, plotW / (maxK + 1) - 2);
+    // Axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, pad);
+    ctx.lineTo(pad, pad + plotH);
+    ctx.lineTo(pad + plotW, pad + plotH);
+    ctx.stroke();
+    // Bars
+    ctx.fillStyle = '#0072B2';
+    for (var k = 0; k <= maxK; k++) {
+      var x = pad + (k / (maxK + 1)) * plotW + 1;
+      var h = (pmf[k] / (maxP * 1.1)) * plotH;
+      ctx.fillRect(x, pad + plotH - h, barW, h);
+    }
+    // Mean line
+    ctx.strokeStyle = '#D55E00';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    var meanX = pad + (lam / (maxK + 1)) * plotW + barW / 2;
+    ctx.beginPath();
+    ctx.moveTo(meanX, pad);
+    ctx.lineTo(meanX, pad + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Labels
+    ctx.fillStyle = '#333';
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+    // X axis labels (every few ticks)
+    var step = maxK <= 20 ? 1 : maxK <= 40 ? 2 : 5;
+    for (var k = 0; k <= maxK; k += step) {
+      var x = pad + (k / (maxK + 1)) * plotW + barW / 2;
+      ctx.fillText(k, x, pad + plotH + 18);
+    }
+    ctx.fillText('k', pad + plotW / 2, pad + plotH + 38);
+    // Title
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillText('Poisson PMF (λ = ' + lam.toFixed(1) + ')', pad + plotW / 2, pad - 12);
+    // Mean label
+    ctx.fillStyle = '#D55E00';
+    ctx.font = '12px system-ui';
+    ctx.fillText('μ = ' + lam.toFixed(1), meanX, pad - 2);
+  `}
+  width={600}
+  height={350}
+/>
