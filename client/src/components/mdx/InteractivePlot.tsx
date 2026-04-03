@@ -3,36 +3,36 @@
 import React, { useMemo } from 'react';
 
 type ControlBase = {
-    id: string;
-    label: string;
+  id: string;
+  label: string;
 };
 
 type RangeControl = ControlBase & {
-    type: 'range';
-    min: number;
-    max: number;
-    step?: number;
-    default: number;
+  type: 'range';
+  min: number;
+  max: number;
+  step?: number;
+  default: number;
 };
 
 type CheckboxControl = ControlBase & {
-    type: 'checkbox';
-    default: boolean;
+  type: 'checkbox';
+  default: boolean;
 };
 
 type SelectControl = ControlBase & {
-    type: 'select';
-    options: string[];
-    default: string;
+  type: 'select';
+  options: string[];
+  default: string;
 };
 
 type Control = RangeControl | CheckboxControl | SelectControl;
 
 type InteractivePlotProps = {
-    controls: Control[];
-    draw: string;
-    width?: number;
-    height?: number;
+  controls: Control[];
+  draw: string;
+  width?: number;
+  height?: number;
 };
 
 /**
@@ -46,81 +46,81 @@ type InteractivePlotProps = {
  * Everything runs inside a sandboxed iframe for security.
  */
 const InteractivePlot: React.FC<InteractivePlotProps> = ({
-    controls,
-    draw,
-    width = 600,
-    height = 400
+  controls,
+  draw,
+  width = 600,
+  height = 400
 }) => {
-    const controlsHeight = controls.length * 44 + 12;
-    const totalHeight = height + controlsHeight;
+  const controlsHeight = controls.length * 44 + 12;
+  const totalHeight = height + controlsHeight;
 
-    const iframeSrc = useMemo(() => {
-        const escapedDraw = draw.replace(/<\/script>/gi, '<\\/script>');
+  const iframeSrc = useMemo(() => {
+    const escapedDraw = draw.replace(/<\/script>/gi, '<\\/script>');
 
-        const controlsHtml = controls
-            .map((ctrl) => {
-                const base = `<div class="ctrl-row">
+    const controlsHtml = controls
+      .map((ctrl) => {
+        const base = `<div class="ctrl-row">
                 <label for="${ctrl.id}">${ctrl.label}</label>`;
 
-                if (ctrl.type === 'range') {
-                    return `${base}
+        if (ctrl.type === 'range') {
+          return `${base}
                     <input type="range" id="${ctrl.id}"
                         min="${ctrl.min}" max="${ctrl.max}"
                         step="${ctrl.step ?? (ctrl.max - ctrl.min) / 100}"
                         value="${ctrl.default}" />
                     <span id="${ctrl.id}_val">${ctrl.default}</span>
                 </div>`;
-                }
+        }
 
-                if (ctrl.type === 'checkbox') {
-                    return `${base}
+        if (ctrl.type === 'checkbox') {
+          return `${base}
                     <input type="checkbox" id="${ctrl.id}"
                         ${ctrl.default ? 'checked' : ''} />
                 </div>`;
-                }
+        }
 
-                if (ctrl.type === 'select') {
-                    const opts = ctrl.options
-                        .map(
-                            (o) =>
-                                `<option value="${o}" ${o === ctrl.default ? 'selected' : ''}>${o}</option>`
-                        )
-                        .join('');
-                    return `${base}
+        if (ctrl.type === 'select') {
+          const opts = ctrl.options
+            .map(
+              (o) =>
+                `<option value="${o}" ${o === ctrl.default ? 'selected' : ''}>${o}</option>`
+            )
+            .join('');
+          return `${base}
                     <select id="${ctrl.id}">${opts}</select>
                 </div>`;
-                }
+        }
 
-                return '';
-            })
-            .join('\n');
+        return '';
+      })
+      .join('\n');
 
-        // Build JS that reads control values into a params object
-        const paramReaders = controls
-            .map((ctrl) => {
-                if (ctrl.type === 'range') {
-                    return `params.${ctrl.id} = parseFloat(document.getElementById('${ctrl.id}').value);`;
-                }
-                if (ctrl.type === 'checkbox') {
-                    return `params.${ctrl.id} = document.getElementById('${ctrl.id}').checked;`;
-                }
-                if (ctrl.type === 'select') {
-                    return `params.${ctrl.id} = document.getElementById('${ctrl.id}').value;`;
-                }
-                return '';
-            })
-            .join('\n            ');
+    // Build JS that reads control values into a params object
+    const paramReaders = controls
+      .map((ctrl) => {
+        if (ctrl.type === 'range') {
+          return `params.${ctrl.id} = parseFloat(document.getElementById('${ctrl.id}').value);`;
+        }
+        if (ctrl.type === 'checkbox') {
+          return `params.${ctrl.id} = document.getElementById('${ctrl.id}').checked;`;
+        }
+        if (ctrl.type === 'select') {
+          return `params.${ctrl.id} = document.getElementById('${ctrl.id}').value;`;
+        }
+        return '';
+      })
+      .join('\n            ');
 
-        // Build JS that updates value displays for range inputs
-        const valueUpdaters = controls
-            .filter((ctrl) => ctrl.type === 'range')
-            .map((ctrl) => {
-                return `document.getElementById('${ctrl.id}_val').textContent =
+    // Build JS that updates value displays for range inputs
+    const valueUpdaters = controls
+      .filter((ctrl) => ctrl.type === 'range')
+      .map((ctrl) => {
+        return `document.getElementById('${ctrl.id}_val').textContent =
                 document.getElementById('${ctrl.id}').value;`;
-            })
-            .join('\n            ');
+      })
+      .join('\n            ');
 
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
     <style>
@@ -206,31 +206,31 @@ const InteractivePlot: React.FC<InteractivePlotProps> = ({
     </script>
 </body>
 </html>`;
-    }, [controls, draw, width, height]);
+  }, [controls, draw, width, height]);
 
-    return (
-        <div
-            style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%'
-            }}
-        >
-            <iframe
-                srcDoc={iframeSrc}
-                sandbox="allow-scripts"
-                referrerPolicy="no-referrer"
-                style={{
-                    width: `${width}px`,
-                    height: `${totalHeight}px`,
-                    border: '1px solid #ccc',
-                    display: 'block'
-                }}
-                title="Interactive plot"
-            />
-        </div>
-    );
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%'
+      }}
+    >
+      <iframe
+        srcDoc={iframeSrc}
+        sandbox="allow-scripts"
+        referrerPolicy="no-referrer"
+        style={{
+          width: `${width}px`,
+          height: `${totalHeight}px`,
+          border: '1px solid #ccc',
+          display: 'block'
+        }}
+        title="Interactive plot"
+      />
+    </div>
+  );
 };
 
 export default InteractivePlot;

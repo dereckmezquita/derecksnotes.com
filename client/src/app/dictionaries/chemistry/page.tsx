@@ -7,20 +7,20 @@ import { Metadata } from 'next';
 
 const dictionary: string = 'chemistry';
 const absDir: string = path.join(
-    ROOT_DIR_APP,
-    'dictionaries',
-    dictionary,
-    'definitions'
+  ROOT_DIR_APP,
+  'dictionaries',
+  dictionary,
+  'definitions'
 );
 
 export const metadata: Metadata = {
-    title: 'Dn | Chemistry Dictionary',
-    description: 'A comprehensive interactive chemistry dictionary.'
+  title: 'Dn | Chemistry Dictionary',
+  description: 'A comprehensive interactive chemistry dictionary.'
 };
 
 async function Page() {
-    const definitions = await fetchAllDefintions(absDir);
-    return <Dictionary dictionaryType="Chemistry" definitions={definitions} />;
+  const definitions = await fetchAllDefintions(absDir);
+  return <Dictionary dictionaryType="Chemistry" definitions={definitions} />;
 }
 
 export default Page;

@@ -3,9 +3,9 @@
 import React, { useMemo } from 'react';
 
 type CanvasWithJsProps = {
-    code: string;
-    width?: number;
-    height?: number;
+  code: string;
+  width?: number;
+  height?: number;
 };
 
 /**
@@ -15,17 +15,17 @@ type CanvasWithJsProps = {
  * we use an iframe sandbox with srcdoc to execute the drawing code safely.
  */
 const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
-    code,
-    width = 400,
-    height = 300
+  code,
+  width = 400,
+  height = 300
 }) => {
-    // Build the HTML content for the iframe using srcdoc
-    // This avoids needing to access contentDocument which is blocked by sandbox
-    const iframeSrc = useMemo(() => {
-        // Escape any </script> tags in the code to prevent breaking out
-        const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
+  // Build the HTML content for the iframe using srcdoc
+  // This avoids needing to access contentDocument which is blocked by sandbox
+  const iframeSrc = useMemo(() => {
+    // Escape any </script> tags in the code to prevent breaking out
+    const escapedCode = code.replace(/<\/script>/gi, '<\\/script>');
 
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
     <style>
@@ -48,31 +48,31 @@ const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
     </script>
 </body>
 </html>`;
-    }, [code, width, height]);
+  }, [code, width, height]);
 
-    return (
-        <div
-            style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%'
-            }}
-        >
-            <iframe
-                srcDoc={iframeSrc}
-                sandbox="allow-scripts"
-                referrerPolicy="no-referrer"
-                style={{
-                    width: `${width}px`,
-                    height: `${height}px`,
-                    border: '1px solid #ccc',
-                    display: 'block'
-                }}
-                title="Canvas visualization"
-            />
-        </div>
-    );
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%'
+      }}
+    >
+      <iframe
+        srcDoc={iframeSrc}
+        sandbox="allow-scripts"
+        referrerPolicy="no-referrer"
+        style={{
+          width: `${width}px`,
+          height: `${height}px`,
+          border: '1px solid #ccc',
+          display: 'block'
+        }}
+        title="Canvas visualization"
+      />
+    </div>
+  );
 };
 
 export default CanvasWithJs;

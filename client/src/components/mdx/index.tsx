@@ -8,14 +8,14 @@ import CanvasWithJs from './CanvasWithJs';
 import InteractivePlot from './InteractivePlot';
 
 const mdxComponents = {
-    Figure,
-    // DropCap,
-    Alert,
-    Blockquote,
-    Carousel,
-    LearningObjectives,
-    CanvasWithJs,
-    InteractivePlot
+  Figure,
+  // DropCap,
+  Alert,
+  Blockquote,
+  Carousel,
+  LearningObjectives,
+  CanvasWithJs,
+  InteractivePlot
 };
 
 export default mdxComponents;

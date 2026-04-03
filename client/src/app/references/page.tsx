@@ -7,14 +7,14 @@ import { getSectionContent } from '@/utils/mdx/fetchContentMetadata';
 import { Index } from '@/components/pages/index/Index';
 
 export const metadata: Metadata = {
-    title: 'Dn | References',
-    description: APPLICATION_DESCRIPTION
+  title: 'Dn | References',
+  description: APPLICATION_DESCRIPTION
 };
 
 async function Page() {
-    const posts = getSectionContent('references');
+  const posts = getSectionContent('references');
 
-    return <Index posts={posts} />;
+  return <Index posts={posts} />;
 }
 
 export default Page;

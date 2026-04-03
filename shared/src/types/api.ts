@@ -5,23 +5,23 @@ import type { UserBasic } from './user';
 // ============================================================================
 
 export interface PaginatedResponse<T> {
-    data: T[];
-    page: number;
-    limit: number;
-    total: number;
-    hasMore: boolean;
+  data: T[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
 }
 
 export interface ApiSuccess<T = void> {
-    success: true;
-    data?: T;
-    message?: string;
+  success: true;
+  data?: T;
+  message?: string;
 }
 
 export interface ApiError {
-    error: string;
-    code?: string;
-    details?: Record<string, unknown>;
+  error: string;
+  code?: string;
+  details?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -29,12 +29,12 @@ export interface ApiError {
 // ============================================================================
 
 export interface SessionInfo {
-    id: string;
-    userAgent: string | null;
-    ipAddress: string | null;
-    createdAt: string;
-    expiresAt: string;
-    isCurrent: boolean;
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
 }
 
 // ============================================================================
@@ -42,17 +42,17 @@ export interface SessionInfo {
 // ============================================================================
 
 export interface UserComment {
-    id: string;
-    content: string;
-    slug: string;
-    postTitle: string;
-    depth: number;
-    approved: boolean;
-    createdAt: string;
-    editedAt: string | null;
-    isDeleted: boolean;
-    likes: number;
-    dislikes: number;
+  id: string;
+  content: string;
+  slug: string;
+  postTitle: string;
+  depth: number;
+  approved: boolean;
+  createdAt: string;
+  editedAt: string | null;
+  isDeleted: boolean;
+  likes: number;
+  dislikes: number;
 }
 
 // ============================================================================
@@ -60,17 +60,17 @@ export interface UserComment {
 // ============================================================================
 
 export interface CommentsListResponse {
-    comments: CommentData[];
-    total: number;
-    page: number;
-    limit: number;
-    hasMore: boolean;
+  comments: CommentData[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 export interface RepliesResponse {
-    replies: CommentData[];
-    total: number;
-    hasMore: boolean;
+  replies: CommentData[];
+  total: number;
+  hasMore: boolean;
 }
 
 // ============================================================================
@@ -78,10 +78,10 @@ export interface RepliesResponse {
 // ============================================================================
 
 export interface AnalyticsData {
-    commentsPerDay: Array<{ date: string; count: number }>;
-    usersPerDay: Array<{ date: string; count: number }>;
-    topCommentedPosts: Array<{ slug: string; title: string; count: number }>;
-    topLikedPosts: Array<{ slug: string; title: string; likes: number }>;
+  commentsPerDay: Array<{ date: string; count: number }>;
+  usersPerDay: Array<{ date: string; count: number }>;
+  topCommentedPosts: Array<{ slug: string; title: string; count: number }>;
+  topLikedPosts: Array<{ slug: string; title: string; likes: number }>;
 }
 
 // ============================================================================
@@ -89,20 +89,20 @@ export interface AnalyticsData {
 // ============================================================================
 
 export interface PostBasic {
-    slug: string;
-    title: string;
+  slug: string;
+  title: string;
 }
 
 export interface PostStats {
-    likes: number;
-    dislikes: number;
-    userReaction: 'like' | 'dislike' | null;
+  likes: number;
+  dislikes: number;
+  userReaction: 'like' | 'dislike' | null;
 }
 
 export interface PostReactionResponse {
-    likes: number;
-    dislikes: number;
-    userReaction: 'like' | 'dislike' | null;
+  likes: number;
+  dislikes: number;
+  userReaction: 'like' | 'dislike' | null;
 }
 
 // ============================================================================
@@ -110,29 +110,29 @@ export interface PostReactionResponse {
 // ============================================================================
 
 export interface CommentData {
-    id: string;
-    content: string;
-    depth: number;
-    approved: boolean;
-    createdAt: string;
-    editedAt: string | null;
-    isDeleted: boolean;
-    user: UserBasic | null;
-    reactions: {
-        likes: number;
-        dislikes: number;
-        userReaction: 'like' | 'dislike' | null;
-    };
-    replies: CommentData[];
-    replyCount: number;
-    hasMoreReplies: boolean;
+  id: string;
+  content: string;
+  depth: number;
+  approved: boolean;
+  createdAt: string;
+  editedAt: string | null;
+  isDeleted: boolean;
+  user: UserBasic | null;
+  reactions: {
+    likes: number;
+    dislikes: number;
+    userReaction: 'like' | 'dislike' | null;
+  };
+  replies: CommentData[];
+  replyCount: number;
+  hasMoreReplies: boolean;
 }
 
 export interface CommentHistoryEntry {
-    id: string;
-    content: string;
-    editedAt: string;
-    editedBy: UserBasic;
+  id: string;
+  content: string;
+  editedAt: string;
+  editedBy: UserBasic;
 }
 
 // ============================================================================
@@ -140,9 +140,9 @@ export interface CommentHistoryEntry {
 // ============================================================================
 
 export interface ReadHistoryEntry {
-    postSlug: string;
-    postTitle: string;
-    readAt: string;
+  postSlug: string;
+  postTitle: string;
+  readAt: string;
 }
 
 // ============================================================================
@@ -150,45 +150,45 @@ export interface ReadHistoryEntry {
 // ============================================================================
 
 export interface AdminUser {
-    id: string;
-    username: string;
-    email: string | null;
-    displayName: string | null;
-    groups: string[];
-    isBanned: boolean;
-    banExpiresAt: string | null;
-    createdAt: string;
+  id: string;
+  username: string;
+  email: string | null;
+  displayName: string | null;
+  groups: string[];
+  isBanned: boolean;
+  banExpiresAt: string | null;
+  createdAt: string;
 }
 
 export interface DashboardStats {
-    pendingComments: number;
-    totalUsers: number;
-    totalComments: number;
-    totalPosts: number;
+  pendingComments: number;
+  totalUsers: number;
+  totalComments: number;
+  totalPosts: number;
 }
 
 export interface DashboardResponse {
-    stats: DashboardStats;
-    recentAudit: AuditLogEntry[];
+  stats: DashboardStats;
+  recentAudit: AuditLogEntry[];
 }
 
 export interface AuditLogEntry {
-    id: string;
-    adminId: string;
-    admin: UserBasic | null;
-    action: string;
-    targetType: string;
-    targetId: string | null;
-    details: Record<string, unknown> | null;
-    ipAddress: string | null;
-    createdAt: string;
+  id: string;
+  adminId: string;
+  admin: UserBasic | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  createdAt: string;
 }
 
 export interface AdminPendingComment {
-    id: string;
-    content: string;
-    slug: string;
-    postTitle: string;
-    createdAt: string;
-    user: UserBasic | null;
+  id: string;
+  content: string;
+  slug: string;
+  postTitle: string;
+  createdAt: string;
+  user: UserBasic | null;
 }

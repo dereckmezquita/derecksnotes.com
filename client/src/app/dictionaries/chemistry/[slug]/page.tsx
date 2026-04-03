@@ -5,9 +5,9 @@ import { APPLICATION_DEFAULT_METADATA } from '@/lib/constants';
 import { ROOT_DIR_APP } from '@/lib/constants.server';
 import { config } from '@/lib/env';
 import {
-    DefinitionMetadata,
-    extractSingleDefinitionMetadata,
-    fetchDefintionsMetadata
+  DefinitionMetadata,
+  extractSingleDefinitionMetadata,
+  fetchDefintionsMetadata
 } from '@/utils/dictionaries/fetchDefinitionMetadata';
 import { accessReadFile } from '@/utils/accessReadFile';
 import { notFound } from 'next/navigation';
@@ -20,105 +20,102 @@ const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    let filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
-        return filename.endsWith('.mdx');
-    });
+  let filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
+    return filename.endsWith('.mdx');
+  });
 
-    // In production, limit to 3 files; in dev/local, return all
-    if (config.isProduction) {
-        filenames = filenames.slice(0, 3);
-    }
+  // In production, limit to 3 files; in dev/local, return all
+  if (config.isProduction) {
+    filenames = filenames.slice(0, 3);
+  }
 
-    return filenames.map((filename) => {
-        const slug = path.basename(filename, '.mdx');
-        return { slug };
-    });
+  return filenames.map((filename) => {
+    const slug = path.basename(filename, '.mdx');
+    return { slug };
+  });
 }
 
 async function Page({ params }: { params: Promise<{ slug: string }> }) {
-    const decodedSlug = decodeSlug((await params).slug);
+  const decodedSlug = decodeSlug((await params).slug);
 
-    const absPath: string = path.join(absDir, decodedSlug + '.mdx');
-    const markdown = await accessReadFile(absPath);
+  const absPath: string = path.join(absDir, decodedSlug + '.mdx');
+  const markdown = await accessReadFile(absPath);
 
-    if (!markdown) {
-        notFound();
-    }
+  if (!markdown) {
+    notFound();
+  }
 
-    const { source, frontmatter } =
-        await processMdx<DefinitionMetadata>(markdown);
+  const { source, frontmatter } =
+    await processMdx<DefinitionMetadata>(markdown);
 
-    const sideBarDefintiions = fetchDefintionsMetadata(
-        absDir,
-        frontmatter.word
-    );
+  const sideBarDefintiions = fetchDefintionsMetadata(absDir, frontmatter.word);
 
-    if (!frontmatter.published) {
-        notFound();
-    }
+  if (!frontmatter.published) {
+    notFound();
+  }
 
-    const url: string = new URL(
-        path.join('dictionaries', dictionary, 'definitions', decodedSlug),
-        APPLICATION_DEFAULT_METADATA.url
-    ).toString();
+  const url: string = new URL(
+    path.join('dictionaries', dictionary, 'definitions', decodedSlug),
+    APPLICATION_DEFAULT_METADATA.url
+  ).toString();
 
-    frontmatter.url = url;
+  frontmatter.url = url;
 
-    return (
-        <DictionaryPost
-            source={source}
-            frontmatter={frontmatter}
-            relatedDefinitions={sideBarDefintiions}
-        />
-    );
+  return (
+    <DictionaryPost
+      source={source}
+      frontmatter={frontmatter}
+      relatedDefinitions={sideBarDefintiions}
+    />
+  );
 }
 
 export default Page;
 
 export async function generateMetadata({
-    params
+  params
 }: {
-    params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-    const decodedSlug = decodeSlug((await params).slug);
-    const filename: string = decodedSlug + '.mdx';
-    const filePath: string = path.join(absDir, filename);
-    const definition = extractSingleDefinitionMetadata(filePath);
+  const decodedSlug = decodeSlug((await params).slug);
+  const filename: string = decodedSlug + '.mdx';
+  const filePath: string = path.join(absDir, filename);
+  const definition = extractSingleDefinitionMetadata(filePath);
 
-    // Handle missing files gracefully (e.g., static asset requests in dev)
-    if (!definition) {
-        return {
-            title: 'Not Found',
-            description: 'The requested page could not be found.'
-        };
-    }
-
-    const title: string = `Dn | dictionary - ${definition.word}`;
-    const summary: string =
-        definition.summary || `Dn | definition of ${definition.word}`;
-    const coverImage: string = '/site-images/card-covers/512-logo.png';
+  // Handle missing files gracefully (e.g., static asset requests in dev)
+  if (!definition) {
     return {
-        metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
-        title: title,
-        description: summary,
-        openGraph: {
-            title: title,
-            description: summary,
-            // TODO: consider setting a dynamic image per definition
-            images: [
-                {
-                    url: coverImage,
-                    width: 800,
-                    height: 600,
-                    alt: "Dereck's Notes Logo"
-                }
-            ]
-        },
-        twitter: {
-            card: 'summary_large_image',
-            title: title,
-            description: summary,
-            images: [coverImage]
-        }
+      title: 'Not Found',
+      description: 'The requested page could not be found.'
     };
+  }
+
+  const title: string = `Dn | dictionary - ${definition.word}`;
+  const summary: string =
+    definition.summary || `Dn | definition of ${definition.word}`;
+  const coverImage: string = '/site-images/card-covers/512-logo.png';
+  return {
+    metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
+    title: title,
+    description: summary,
+    openGraph: {
+      title: title,
+      description: summary,
+      // TODO: consider setting a dynamic image per definition
+      images: [
+        {
+          url: coverImage,
+          width: 800,
+          height: 600,
+          alt: "Dereck's Notes Logo"
+        }
+      ]
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: title,
+      description: summary,
+      images: [coverImage]
+    }
+  };
 }
