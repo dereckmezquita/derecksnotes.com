@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
-import { processMdx } from '@utils/mdx/processMdx';
+import { APPLICATION_DEFAULT_METADATA } from '@/lib/constants';
+import { processMdx } from '@/utils/mdx/processMdx';
 import { notFound } from 'next/navigation';
-import { accessReadFile } from '@utils/accessReadFile';
+import { accessReadFile } from '@/utils/accessReadFile';
 import { Metadata } from 'next';
-import { decodeSlug } from '@utils/helpers';
+import { decodeSlug } from '@/utils/helpers';
 
 import {
     isSeriesDirectory,
@@ -18,9 +18,9 @@ import {
     resolveSlugToPath,
     getAllContentPaths,
     SERIES_MANIFEST_FILENAME
-} from '@utils/mdx/fetchContentMetadata';
-import { ContentPost } from '@components/content/ContentPost';
-import { SeriesOverview } from '@components/content/SeriesOverview';
+} from '@/utils/mdx/fetchContentMetadata';
+import { ContentPost } from '@/components/content/ContentPost';
+import { SeriesOverview } from '@/components/content/SeriesOverview';
 
 /**
  * Factory function that creates a complete content page setup for a given section.
@@ -29,7 +29,7 @@ import { SeriesOverview } from '@components/content/SeriesOverview';
  * Usage:
  * ```typescript
  * // In your page.tsx file:
- * import { createContentPage } from '@utils/mdx/createContentPage';
+ * import { createContentPage } from '@/utils/mdx/createContentPage';
  *
  * const { Page, generateStaticParams, generateMetadata } = createContentPage('courses');
  *
@@ -45,8 +45,13 @@ export function createContentPage(section: string) {
     // ========================================================================
 
     async function generateStaticParams(): Promise<{ slug: string[] }[]> {
-        const paths = getAllContentPaths(section);
-        return paths.map((segments) => ({ slug: segments }));
+        try {
+            const paths = getAllContentPaths(section);
+            return paths.map((segments) => ({ slug: segments }));
+        } catch {
+            // Content directory may not exist during Docker build
+            return [];
+        }
     }
 
     // ========================================================================

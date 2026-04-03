@@ -1,22 +1,8 @@
 # GitHub Secrets Configuration
 
-This document lists all required GitHub Secrets for the CI/CD workflows.
+All required secrets for the CI/CD workflows. Configure in **GitHub repo → Settings → Secrets and variables → Actions**.
 
 ## Required Secrets
-
-### Docker Hub
-| Secret | Description |
-|--------|-------------|
-| `DOCKER_USERNAME` | Docker Hub username for pushing images |
-| `DOCKER_PASSWORD` | Docker Hub password or access token |
-
-### Application Secrets
-| Secret | Description |
-|--------|-------------|
-| `SESSION_SECRET` | Express session encryption key (generate a secure random string) |
-| `MONGO_PASSWORD` | MongoDB password (URL-encoded if contains special characters) |
-| `SENDGRID_API_KEY_PROD` | SendGrid API key for production email delivery |
-| `SENDGRID_API_KEY_DEV` | SendGrid API key for development email delivery |
 
 ### Remote Server (Linode)
 | Secret | Description |
@@ -26,18 +12,38 @@ This document lists all required GitHub Secrets for the CI/CD workflows.
 | `REMOTE_PASSWORD` | SSH password |
 | `REMOTE_PORT` | SSH port (typically `22`) |
 
-## Workflow Triggers
+### Application
+| Secret | Description |
+|--------|-------------|
+| `SESSION_SECRET` | Cookie signing key. Generate with: `openssl rand -base64 32` |
+| `ADMIN_USERNAME` | Username that gets auto-elevated to admin on registration |
 
-- **Production (`release_prod.yml`)**: Triggered on GitHub release publication
-- **Development (`release_dev.yml`)**: Triggered on push to any non-master branch
+## Deprecated Secrets (safe to remove)
 
-## Environment Differences
+These are no longer used after the migration away from Docker Hub:
+
+- `DOCKER_USERNAME` — Docker Hub is no longer used
+- `DOCKER_PASSWORD` — Docker Hub is no longer used
+- `MONGO_PASSWORD` — MongoDB is no longer used (replaced by SQLite)
+- `SENDGRID_API_KEY_PROD` — Not yet implemented
+- `SENDGRID_API_KEY_DEV` — Not yet implemented
+
+## Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `deploy.yml` | Release (prod) or manual (dev/prod) | Builds and deploys on VPS |
+| `update-secrets.yml` | Manual only | Updates .env and restarts containers |
+| `backup-db.yml` | Daily cron + manual | SQLite database backup |
+
+## Environment Configuration
 
 | Setting | Development | Production |
 |---------|-------------|------------|
 | Domain | `dev.derecksnotes.com` | `derecksnotes.com` |
-| Server Port | `3001` | `3003` |
-| Client Port | `3000` | `3002` |
-| Database | `dev_derecksnotes` | `prod_derecksnotes` |
-| SendGrid Key | `SENDGRID_API_KEY_DEV` | `SENDGRID_API_KEY_PROD` |
-| Docker Tag | `latest_dev` | `latest_prod` |
+| Client Port | `3010` | `3000` |
+| Server Port | `3011` | `3001` |
+| Repo Dir | `/opt/derecksnotes/dev` | `/opt/derecksnotes/prod` |
+| Data Dir | `/var/www/dev.derecksnotes.com/data` | `/var/www/derecksnotes.com/data` |
+| Public Dir | `/var/www/dev.derecksnotes.com/public` | `/var/www/derecksnotes.com/public` |
+| Backups Dir | `/var/www/dev.derecksnotes.com/backups` | `/var/www/derecksnotes.com/backups` |

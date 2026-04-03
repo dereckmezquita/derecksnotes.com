@@ -9,8 +9,8 @@ import {
     SideBarEntriesContainer,
     SideEntryLink,
     SideBarAbout
-} from '@components/pages/posts-dictionaries';
-import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
+} from '@/components/pages/posts-dictionaries';
+import { DefinitionMetadata } from '@/utils/dictionaries/fetchDefinitionMetadata';
 
 const SideBarSectionTitle = styled.h3`
     font-size: ${(props) => props.theme.text.size.small};

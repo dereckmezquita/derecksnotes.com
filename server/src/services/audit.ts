@@ -1,12 +1,11 @@
+import crypto from 'crypto';
 import { db, schema } from '@db/index';
-
-type TargetType = 'user' | 'comment' | 'report' | 'group' | 'permission';
 
 export async function logAuditAction(
     adminId: string,
     action: string,
-    targetType: TargetType,
-    targetId: string,
+    targetType: string,
+    targetId: string | null,
     details?: Record<string, unknown>,
     ipAddress?: string
 ): Promise<void> {
@@ -15,8 +14,9 @@ export async function logAuditAction(
         adminId,
         action,
         targetType,
-        targetId,
-        details: details ? details : null,
-        ipAddress: ipAddress || null
+        targetId: targetId || null,
+        details: details ? JSON.stringify(details) : null,
+        ipAddress: ipAddress || null,
+        createdAt: new Date().toISOString()
     });
 }

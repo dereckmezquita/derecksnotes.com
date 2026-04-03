@@ -1,6 +1,11 @@
 services:
   derecksnotes:
-    image: ${IMAGE_NAME}
+    build:
+      context: .
+      args:
+        BUILD_ENV: ${BUILD_ENV:-prod}
+        COMMIT_SHA: ${COMMIT_SHA:-local}
+    image: ${IMAGE_NAME:-derecksnotes}
     container_name: ${CONTAINER_NAME:-derecksnotes}
     ports:
       - '${PORT_CLIENT:-3000}:3000'

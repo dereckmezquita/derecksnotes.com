@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { LoginView, RegisterView } from './views';
-import { useAuth } from '@context/AuthContext';
-import { IndicateLoading } from '@components/atomic/IndiacteLoading';
+import { useAuth } from '@/context/AuthContext';
+import { IndicateLoading } from '@/components/atomic/IndicateLoading';
 
 type ModalView = 'login' | 'register';
 
@@ -73,12 +73,19 @@ export function AuthViews({
                     throw new Error('Invalid view');
             }
         } catch (error: any) {
-            console.error('Error:', error);
-            const errorMessage =
-                error.response?.data?.error ||
-                error.response?.data?.details?.[0]?.message ||
-                'An unknown error occurred';
-            toast.error(`Error: ${errorMessage}`, { id: toastId });
+            // Only show safe, user-facing error messages
+            const serverError = error.data?.error;
+            const safeErrors = [
+                'Username already taken',
+                'Email already registered',
+                'Invalid credentials',
+                'Validation failed',
+                'Passwords do not match'
+            ];
+            const message = safeErrors.includes(serverError)
+                ? serverError
+                : 'Something went wrong. Please try again.';
+            toast.error(message, { id: toastId });
         }
     };
 

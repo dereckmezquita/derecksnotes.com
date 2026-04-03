@@ -9,11 +9,11 @@ import {
     Article,
     PostContainer,
     PostContentWrapper
-} from '@components/pages/posts-dictionaries';
-import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
-import { Comments } from '@components/comments/Comments';
-import { PostReactionButtons } from '@components/posts/PostReactionButtons';
-import { usePageView } from '@hooks/usePageView';
+} from '@/components/pages/posts-dictionaries';
+import { DefinitionMetadata } from '@/utils/dictionaries/fetchDefinitionMetadata';
+import { Comments } from '@/components/comments/Comments';
+import { PostReactionButtons } from '@/components/posts/PostReactionButtons';
+import { usePageView } from '@/hooks/usePageView';
 
 const PostEngagement = styled.div`
     display: flex;

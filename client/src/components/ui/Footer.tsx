@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { config } from '@lib/env';
+import { config } from '@/lib/env';
 import Link from 'next/link';
 import { ReactElement } from 'react';
 
@@ -7,6 +7,8 @@ const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
 
 const FooterContainer = styled.footer`
+    position: relative;
+    z-index: 60;
     margin: 0px auto;
     margin-top: 30px;
     padding: 0px;
@@ -41,7 +43,7 @@ function Footer(): ReactElement {
             </FooterText>
             <FooterText>
                 v{config.version} ({config.commitSha.slice(0, 7)}) &bull;{' '}
-                {config.buildEnv} &bull; <Link href="/test/api">test api</Link>
+                {config.buildEnv} &bull; <Link href="/demo/api">demo</Link>
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">

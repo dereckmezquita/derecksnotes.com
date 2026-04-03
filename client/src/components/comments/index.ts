@@ -1,6 +1,3 @@
-export * from './Comments';
-export * from './CommentForm';
-export * from './CommentItem';
-export * from './CommentList';
-export * from './types';
-export * from './CommentStyles';
+export { Comments } from './Comments';
+export { CommentForm } from './CommentForm';
+export { CommentItem } from './CommentItem';

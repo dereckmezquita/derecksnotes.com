@@ -1,0 +1,87 @@
+name: Backup Database
+
+on:
+  schedule:
+    # Daily at 3 AM UTC — backs up prod
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to back up'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - dev
+      max_backups:
+        description: 'Number of backups to keep'
+        required: false
+        default: '30'
+
+jobs:
+  backup:
+    name: Backup ${{ github.event.inputs.environment || 'prod' }} database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set variables
+        id: vars
+        run: |
+          ENV="${{ github.event.inputs.environment || 'prod' }}"
+          MAX="${{ github.event.inputs.max_backups || '30' }}"
+
+          if [ "$ENV" = "prod" ]; then
+            echo "domain=derecksnotes.com" >> $GITHUB_OUTPUT
+            echo "repo_dir=/opt/derecksnotes/prod" >> $GITHUB_OUTPUT
+          else
+            echo "domain=dev.derecksnotes.com" >> $GITHUB_OUTPUT
+            echo "repo_dir=/opt/derecksnotes/dev" >> $GITHUB_OUTPUT
+          fi
+
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+          echo "max_backups=$MAX" >> $GITHUB_OUTPUT
+
+      - name: Run backup
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USERNAME }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          command_timeout: 10m
+          script: |
+            DOMAIN="${{ steps.vars.outputs.domain }}"
+            DB_PATH="/var/www/${DOMAIN}/data/database.sqlite"
+            BACKUP_DIR="/var/www/${DOMAIN}/backups"
+            MAX_BACKUPS="${{ steps.vars.outputs.max_backups }}"
+            REPO_DIR="${{ steps.vars.outputs.repo_dir }}"
+
+            # Use the backup script from the repo if available
+            if [ -f "${REPO_DIR}/scripts/backup-db.sh" ]; then
+              bash "${REPO_DIR}/scripts/backup-db.sh" "$DB_PATH" "$BACKUP_DIR" "$MAX_BACKUPS"
+            else
+              # Fallback: inline backup
+              echo "Warning: backup-db.sh not found, running inline backup"
+
+              if [ ! -f "$DB_PATH" ]; then
+                echo "Database not found: $DB_PATH"
+                exit 1
+              fi
+
+              mkdir -p "$BACKUP_DIR"
+              TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
+              BACKUP="${BACKUP_DIR}/db-${TIMESTAMP}.sqlite"
+
+              sqlite3 "$DB_PATH" ".backup '${BACKUP}'"
+              gzip "$BACKUP"
+
+              # Rotate
+              BACKUP_COUNT=$(find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f | wc -l)
+              if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
+                DELETE_COUNT=$((BACKUP_COUNT - MAX_BACKUPS))
+                find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f -printf '%T@ %p\n' \
+                  | sort -n | head -n "$DELETE_COUNT" | cut -d' ' -f2- | xargs rm -f
+              fi
+
+              echo "Backup complete: db-${TIMESTAMP}.sqlite.gz"
+            fi

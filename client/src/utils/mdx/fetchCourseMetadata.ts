@@ -3,7 +3,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 
-import { DATE_YYYY_MM_DD } from '@lib/dates';
+import { DATE_YYYY_MM_DD } from '@/lib/dates';
 import { extractSummaryFromMdx } from './extractMdxSummary';
 
 // ============================================================================

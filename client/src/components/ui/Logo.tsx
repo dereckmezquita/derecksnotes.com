@@ -3,6 +3,8 @@ import styled from 'styled-components';
 import Link from 'next/link';
 
 const HeaderContainer = styled(Link)`
+    position: relative;
+    z-index: 60;
     padding-top: 20px;
     text-align: center;
 

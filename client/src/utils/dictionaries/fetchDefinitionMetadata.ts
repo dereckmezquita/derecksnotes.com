@@ -3,7 +3,7 @@ import path from 'path';
 import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
-import { config } from '@lib/env';
+import { config } from '@/lib/env';
 import { stripMdx } from '../mdx/extractMdxSummary';
 import rehypeLinkToDefinition from '../remark-rehype/rehypeLinkToDefinition';
 

@@ -2,10 +2,10 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
-import { useBlogFilter } from '../pages/index/BlogFilterContext';
+import { FaBars, FaUser, FaSearch } from 'react-icons/fa';
 import { AuthModal } from './modal/auth/AuthModal';
-import { useAuth } from '@context/AuthContext';
+import { SearchSpotlight } from './SearchSpotlight';
+import { useAuth } from '@/context/AuthContext';
 
 // TODO: create a type for theme; so we can have intellisense
 const minWidthMobile = (props: any) =>
@@ -47,6 +47,8 @@ const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
 
 const NavContainer = styled.nav`
+    position: relative;
+    z-index: 60;
     background-color: ${(props) =>
         props.theme.container.background.colour.card()};
     margin: 20px auto;
@@ -194,10 +196,9 @@ const DateTimeDisplay = styled.div`
 // either this or use dynamic from next/dynamic
 function Navbar() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { isAuthenticated, user } = useAuth();
-
-    const { isFilterVisible, setIsFilterVisible } = useBlogFilter();
 
     // Close the auth modal when user becomes authenticated
     useEffect(() => {
@@ -206,12 +207,20 @@ function Navbar() {
         }
     }, [user]);
 
+    // Cmd+K / Ctrl+K to open search
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const closeMenu = () => {
         setIsMenuOpen(false);
-    };
-
-    const toggleFilter = () => {
-        setIsFilterVisible(!isFilterVisible);
     };
 
     return (
@@ -255,7 +264,7 @@ function Navbar() {
                 </DropDownContainer>
                 <NavSpacer />
                 {isAuthenticated() ? (
-                    <NavRightItemLink href="/profile">
+                    <NavRightItemLink href="/account">
                         <FaUser />
                     </NavRightItemLink>
                 ) : (
@@ -267,10 +276,14 @@ function Navbar() {
                         />
                     </NavRightItem>
                 )}
-                <NavRightItem onClick={toggleFilter}>
-                    <FaFilter />
+                <NavRightItem onClick={() => setIsSearchOpen(true)}>
+                    <FaSearch />
                 </NavRightItem>
             </ResponsiveMenu>
+            <SearchSpotlight
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+            />
         </NavContainer>
     );
 }

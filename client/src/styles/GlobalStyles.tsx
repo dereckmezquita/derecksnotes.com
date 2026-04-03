@@ -29,6 +29,15 @@ const GlobalStyles = createGlobalStyle`
         // break lines but don't break words
         word-break: break-word;
         hyphens: none;
+
+        // sticky footer layout
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    main {
+        flex: 1;
     }
 
     @media only screen and (max-width: ${theme.container.widths.min_width_mobile}) {

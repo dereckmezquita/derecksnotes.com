@@ -1,4 +1,4 @@
-import { theme } from '@styles/theme';
+import { theme } from '@/styles/theme';
 
 import rehypeExternalLinks from 'rehype-external-links'; // adds target="_blank" to external links
 import rehypePrettyCode, { type Options } from 'rehype-pretty-code';
@@ -18,7 +18,7 @@ import { ContentFrontmatter } from './contentTypes';
 import { DefinitionMetadata } from '../dictionaries/fetchDefinitionMetadata';
 import { compileMDX } from 'next-mdx-remote/rsc';
 
-import mdxComponents from '@components/mdx/index';
+import mdxComponents from '@/components/mdx/index';
 
 const rehypePrettyCodeOptions: Partial<Options> = {
     theme: 'github-dark-dimmed',

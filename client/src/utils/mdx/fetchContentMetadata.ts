@@ -3,8 +3,8 @@ import path from 'path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 
-import { DATE_YYYY_MM_DD } from '@lib/dates';
-import { ROOT_DIR_APP } from '@lib/constants.server';
+import { DATE_YYYY_MM_DD } from '@/lib/dates';
+import { ROOT_DIR_APP } from '@/lib/constants.server';
 import { extractSummaryFromMdx } from './extractMdxSummary';
 
 // Re-export types for convenience
@@ -39,6 +39,14 @@ const IGNORED_DIRS = [
     'node_modules',
     '.git'
 ];
+
+function isIgnoredDir(name: string): boolean {
+    return (
+        IGNORED_DIRS.includes(name) ||
+        name.endsWith('.ignore') ||
+        name.startsWith('.')
+    );
+}
 
 const DEFAULT_LABELS: ContentLabels = {
     1: 'Chapter',
@@ -128,12 +136,11 @@ export function validateContentDirectory(dirPath: string): void {
     if (!stat.isDirectory()) return;
 
     const name = path.basename(dirPath);
-    if (IGNORED_DIRS.includes(name)) return;
+    if (isIgnoredDir(name)) return;
 
     if (!isSeriesDirectory(dirPath)) {
-        throw new Error(
-            `Directory "${dirPath}" is missing ${SERIES_MANIFEST_FILENAME}. ` +
-                `All content directories must have a ${SERIES_MANIFEST_FILENAME} manifest file.`
+        console.warn(
+            `Directory "${dirPath}" is missing ${SERIES_MANIFEST_FILENAME}. Skipping.`
         );
     }
 }
@@ -160,7 +167,7 @@ function buildHierarchyTree(
     const label = labels[depth] || '';
 
     if (stat.isDirectory()) {
-        if (IGNORED_DIRS.includes(name)) {
+        if (isIgnoredDir(name)) {
             return null;
         }
 
@@ -180,8 +187,7 @@ function buildHierarchyTree(
             items.filter((item) => {
                 const itemPath = path.join(dirPath, item);
                 return (
-                    fs.statSync(itemPath).isDirectory() &&
-                    !IGNORED_DIRS.includes(item)
+                    fs.statSync(itemPath).isDirectory() && !isIgnoredDir(item)
                 );
             })
         );
@@ -425,10 +431,7 @@ export function loadSeriesMetadata(
     const subdirs = sortByNumericPrefix(
         items.filter((item) => {
             const itemPath = path.join(seriesDir, item);
-            return (
-                fs.statSync(itemPath).isDirectory() &&
-                !IGNORED_DIRS.includes(item)
-            );
+            return fs.statSync(itemPath).isDirectory() && !isIgnoredDir(item);
         })
     );
 
@@ -526,7 +529,7 @@ function scanDirectoryForContent(
         const stat = fs.statSync(itemPath);
 
         if (stat.isDirectory()) {
-            if (IGNORED_DIRS.includes(item)) continue;
+            if (isIgnoredDir(item)) continue;
 
             // Check if this is a passthrough/organisational folder
             if (isPassthroughDirectory(itemPath)) {
@@ -535,12 +538,12 @@ function scanDirectoryForContent(
                 continue;
             }
 
-            // Validate directory has manifest
+            // Skip directories without manifest (may be scratch/temp dirs)
             if (!isSeriesDirectory(itemPath)) {
-                throw new Error(
-                    `Directory "${itemPath}" is missing ${SERIES_MANIFEST_FILENAME}. ` +
-                        `All content directories must have a ${SERIES_MANIFEST_FILENAME} manifest file.`
+                console.warn(
+                    `Skipping directory without ${SERIES_MANIFEST_FILENAME}: ${itemPath}`
                 );
+                continue;
             }
 
             const series = loadSeriesMetadata(itemPath, section);
@@ -590,7 +593,15 @@ export function getSectionContent(section: string): ContentCardMetadata[] {
     const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
     const content: ContentCardMetadata[] = [];
 
-    scanDirectoryForContent(postsDir, section, content);
+    try {
+        scanDirectoryForContent(postsDir, section, content);
+    } catch (error) {
+        console.error(
+            `Error scanning content for section "${section}":`,
+            error
+        );
+        return [];
+    }
 
     // Sort by date (newest first)
     return content.sort(
@@ -640,7 +651,7 @@ function findContentPathRecursive(
         const itemPath = path.join(basePath, item);
         const stat = fs.statSync(itemPath);
 
-        if (stat.isDirectory() && !IGNORED_DIRS.includes(item)) {
+        if (stat.isDirectory() && !isIgnoredDir(item)) {
             if (isPassthroughDirectory(itemPath)) {
                 // Recursively search inside passthrough folder
                 const found = findContentPathRecursive(itemPath, slug);
@@ -685,7 +696,7 @@ function collectAllPathsRecursive(
         const stat = fs.statSync(itemPath);
 
         if (stat.isDirectory()) {
-            if (IGNORED_DIRS.includes(item)) continue;
+            if (isIgnoredDir(item)) continue;
 
             // Check for passthrough folders - recurse into them
             if (isPassthroughDirectory(itemPath)) {
@@ -728,7 +739,15 @@ function collectAllPathsRecursive(
 export function getAllContentPaths(section: string): string[][] {
     const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
     const paths: string[][] = [];
-    collectAllPathsRecursive(postsDir, section, paths);
+    try {
+        collectAllPathsRecursive(postsDir, section, paths);
+    } catch (error) {
+        console.error(
+            `Error collecting paths for section "${section}":`,
+            error
+        );
+        return [];
+    }
     return paths;
 }
 
