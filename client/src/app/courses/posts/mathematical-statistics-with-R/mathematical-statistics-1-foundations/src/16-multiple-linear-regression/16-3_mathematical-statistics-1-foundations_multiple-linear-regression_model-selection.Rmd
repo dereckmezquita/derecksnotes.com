@@ -1,0 +1,549 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 16: Multiple Linear Regression"
+part: "Part 3: Model Selection"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, model-selection, AIC, BIC, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 16 -- Multiple Linear Regression
+
+## Part 3: Model Selection
+
+With multiple predictors available, a natural question arises: which predictors should we include? Including too few leads to **underfitting** (bias); including too many leads to **overfitting** (variance). In this part we formalise the model selection problem, derive AIC from information theory, compare it with BIC and adjusted $R^2$, diagnose multicollinearity, and apply these ideas to real datasets.
+
+---
+
+## 16.17 The Problem of Multicollinearity
+
+### 16.17.1 What Happens to $(\mathbf{X}'\mathbf{X})^{-1}$
+
+Multicollinearity occurs when predictor columns are nearly linearly dependent. Recall that $\text{Cov}(\hat{\boldsymbol{\beta}}) = \sigma^2(\mathbf{X}'\mathbf{X})^{-1}$. When predictors are correlated, $\mathbf{X}'\mathbf{X}$ becomes **ill-conditioned**: its smallest eigenvalue approaches zero, and the diagonal elements of $(\mathbf{X}'\mathbf{X})^{-1}$ become very large.
+
+The consequence: individual coefficient estimates become unstable and have inflated standard errors, even though the overall model may fit well.
+
+### 16.17.2 A Concrete Example
+
+```{r collinearity-demo}
+set.seed(42)
+n <- 100
+x1 <- rnorm(n)
+x2 <- x1 + rnorm(n, sd = 0.05)  # x2 is nearly identical to x1
+y <- 2 + 3 * x1 + rnorm(n)
+
+fit_collin <- lm(y ~ x1 + x2)
+summary(fit_collin)
+```
+
+Notice: the true model has $\beta_1 = 3$ for $x_1$ and $\beta_2 = 0$ for $x_2$, but the estimates are wildly off with enormous standard errors. The overall $F$-test is highly significant, but neither individual $t$-test is. This is the hallmark of multicollinearity.
+
+```{r condition-demo}
+X_collin <- cbind(1, x1, x2)
+XtX <- crossprod(X_collin)
+
+c(
+  "condition number" = kappa(XtX),
+  "max diag of (X'X)^{-1}" = max(diag(solve(XtX)))
+)
+```
+
+### 16.17.3 Variance Inflation Factor (VIF)
+
+The **VIF** for predictor $j$ quantifies how much the variance of $\hat{\beta}_j$ is inflated due to collinearity:
+
+$$\text{VIF}_j = \frac{1}{1 - R_j^2}$$
+
+where $R_j^2$ is the $R^2$ from regressing $x_j$ on all other predictors. A VIF of 1 means no collinearity; VIF $> 10$ is commonly cited as problematic.
+
+```{r vif-from-scratch}
+#' Compute VIF from scratch
+#' @param fit an lm object
+#' @return named vector of VIF values
+my_vif <- function(fit) {
+  X <- model.matrix(fit)[, -1, drop = FALSE]  # remove intercept
+  p <- ncol(X)
+  vif <- numeric(p)
+  names(vif) <- colnames(X)
+
+  for (j in seq_len(p)) {
+    y_j <- X[, j]
+    X_j <- X[, -j, drop = FALSE]
+    R2_j <- summary(lm(y_j ~ X_j))$r.squared
+    vif[j] <- 1 / (1 - R2_j)
+  }
+  vif
+}
+
+my_vif(fit_collin)
+```
+
+The VIF is enormous, confirming severe multicollinearity.
+
+### 16.17.4 What to Do About Multicollinearity
+
+1. **Drop one of the correlated predictors.** If $x_1$ and $x_2$ measure essentially the same thing, keep one.
+2. **Combine them.** Use PCA or simply average them.
+3. **Regularisation.** Ridge regression ($\hat{\boldsymbol{\beta}}_{\text{ridge}} = (\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}'\mathbf{Y}$) adds a penalty that stabilises the inverse.
+4. **Do nothing** -- if prediction (not interpretation) is the goal, multicollinearity does not affect fitted values.
+
+---
+
+## 16.18 Model Selection Criteria
+
+### 16.18.1 Adjusted $R^2$ Revisited
+
+$$R^2_{\text{adj}} = 1 - \frac{\text{SSE}/(n-p)}{\text{SST}/(n-1)} = 1 - \frac{n-1}{n-p}(1 - R^2)$$
+
+Adjusted $R^2$ penalises adding predictors: it can decrease if a new predictor does not improve the fit enough to offset the loss of a degree of freedom. The model that maximises adjusted $R^2$ is the one that balances fit and complexity from a variance-ratio perspective.
+
+### 16.18.2 AIC -- Derivation from Information Theory
+
+The **Akaike Information Criterion** (AIC) arises from the goal of finding the model that is closest (in Kullback-Leibler divergence) to the true data-generating process.
+
+**Step 1: Kullback-Leibler divergence.** For a true density $f$ and a model density $g_\theta$, the KL divergence is:
+
+$$D_{\text{KL}}(f \| g_\theta) = \int f(y) \log\frac{f(y)}{g_\theta(y)}\, dy = E_f[\log f(Y)] - E_f[\log g_\theta(Y)]$$
+
+Minimising $D_{\text{KL}}$ is equivalent to maximising $E_f[\log g_\theta(Y)]$, the expected log-likelihood under the true model.
+
+**Step 2: The bias problem.** We estimate $E_f[\log g_{\hat\theta}(Y)]$ by the observed log-likelihood $\ell(\hat\theta)$. But $\ell(\hat\theta)$ is optimistically biased: the parameters were chosen to maximise $\ell$, so $E[\ell(\hat\theta)] > E_f[\log g_{\hat\theta}(Y)]$.
+
+**Step 3: Akaike's result.** Under regularity conditions, the bias is approximately $p$ (the number of estimated parameters). Therefore:
+
+$$\text{AIC} = -2\ell(\hat\theta) + 2p$$
+
+is an approximately unbiased estimator of $-2\,E_f[\log g_{\hat\theta}(Y)]$ (up to a constant that does not depend on the model).
+
+**For linear regression under normality:**
+
+$$\ell(\hat\theta) = -\frac{n}{2}\log(2\pi) - \frac{n}{2}\log(\hat{\sigma}^2_{\text{MLE}}) - \frac{n}{2}$$
+
+where $\hat\sigma^2_{\text{MLE}} = \text{SSE}/n$. So:
+
+$$\text{AIC} = n\log(\text{SSE}/n) + 2p + \text{constant}$$
+
+Lower AIC is better. Adding a predictor decreases $\text{SSE}$ (lowering the first term) but increases $2p$ (raising the penalty). AIC selects the model that best balances these two forces.
+
+### 16.18.3 BIC -- The Bayesian Criterion
+
+The **Bayesian Information Criterion** replaces $2p$ with $p\log(n)$:
+
+$$\text{BIC} = -2\ell(\hat\theta) + p\log(n)$$
+
+For $n \ge 8$, $\log(n) > 2$, so BIC penalises complexity more heavily than AIC. BIC tends to select simpler models.
+
+### 16.18.4 Comparison
+
+| Criterion | Penalty per parameter | Behaviour |
+|:----------|:---------------------|:----------|
+| $R^2$ | None | Always increases; useless for selection |
+| Adjusted $R^2$ | Mild | Good for comparing nested models |
+| AIC | $2$ | Prefers prediction accuracy; may overfit |
+| BIC | $\log(n)$ | Penalises more; closer to true model as $n \to \infty$ |
+
+### 16.18.5 Computing AIC and BIC from Scratch
+
+```{r aic-bic-scratch}
+data_dir <- "../../../data"
+mtcars_dt <- data.table$fread(file.path(data_dir, "classic/mtcars.csv"))
+
+#' Compute AIC and BIC from scratch for a linear model
+#' @param fit an lm object
+#' @return named vector with AIC and BIC
+my_aic_bic <- function(fit) {
+  n <- length(residuals(fit))
+  p <- length(coef(fit)) + 1  # +1 for sigma^2
+  SSE <- sum(residuals(fit)^2)
+  sigma2_mle <- SSE / n
+  log_lik <- -n/2 * log(2 * pi) - n/2 * log(sigma2_mle) - n/2
+
+  aic <- -2 * log_lik + 2 * p
+  bic <- -2 * log_lik + p * log(n)
+
+  c(AIC = aic, BIC = bic)
+}
+
+fit_full <- lm(mpg ~ hp + wt + qsec + am + cyl, data = mtcars_dt)
+fit_small <- lm(mpg ~ wt + qsec, data = mtcars_dt)
+
+data.frame(
+  model = c("full", "small"),
+  rbind(my_aic_bic(fit_full), my_aic_bic(fit_small))
+)
+```
+
+```{r aic-bic-verify}
+# Compare with R built-ins
+data.frame(
+  model = c("full", "small"),
+  AIC_builtin = c(AIC(fit_full), AIC(fit_small)),
+  BIC_builtin = c(BIC(fit_full), BIC(fit_small))
+)
+```
+
+---
+
+## 16.19 Stepwise Selection with `step()`
+
+### 16.19.1 The Algorithm
+
+The `step()` function performs **stepwise selection** by iteratively adding or removing predictors to minimise AIC:
+
+- **Forward selection**: start with the intercept-only model and add predictors one at a time.
+- **Backward elimination**: start with the full model and remove predictors one at a time.
+- **Both directions**: alternate between adding and removing.
+
+```{r stepwise-mtcars}
+fit_start <- lm(mpg ~ ., data = mtcars_dt)
+fit_step <- step(fit_start, direction = "both", trace = 1)
+```
+
+```{r step-result}
+summary(fit_step)
+```
+
+### 16.19.2 Cautions About Stepwise Selection
+
+Stepwise selection has known problems:
+
+1. **Multiple testing**: each step involves an implicit test, inflating the overall Type I error.
+2. **Path dependence**: forward and backward selection may yield different models.
+3. **Instability**: small changes in the data can lead to completely different selected models.
+4. **$p$-values and CIs are invalid** after selection (they assume the model was pre-specified).
+
+Despite these limitations, stepwise selection remains widely used as a practical exploratory tool.
+
+---
+
+## 16.20 Case Study: NHANES -- Predicting BMI
+
+```{r nhanes-bmi}
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes_model <- nhanes[
+  complete.cases(nhanes[, .(BMI, Age, Height, Weight, Gender, Pulse, BPSysAve)]) &
+  Age >= 18
+]
+nhanes_model[, Gender := as.factor(Gender)]
+
+fit_nh_full <- lm(BMI ~ Age + Height + Weight + Gender + Pulse + BPSysAve,
+                   data = nhanes_model)
+summary(fit_nh_full)
+```
+
+```{r nhanes-vif}
+my_vif(fit_nh_full)
+```
+
+No severe multicollinearity -- all VIF values are modest.
+
+```{r nhanes-step}
+fit_nh_step <- step(fit_nh_full, direction = "both", trace = 0)
+summary(fit_nh_step)
+```
+
+```{r nhanes-compare}
+data.frame(
+  model = c("full", "stepwise"),
+  adj_R2 = c(summary(fit_nh_full)$adj.r.squared,
+             summary(fit_nh_step)$adj.r.squared),
+  AIC = c(AIC(fit_nh_full), AIC(fit_nh_step)),
+  n_predictors = c(length(coef(fit_nh_full)) - 1,
+                    length(coef(fit_nh_step)) - 1)
+)
+```
+
+```{r nhanes-diagnostics, fig.cap="Residuals vs fitted for the NHANES BMI model. The slight curve at high fitted values suggests the linear model struggles with extreme BMI values."}
+ggplot2$ggplot(
+  data.table$data.table(fitted = fitted(fit_nh_step), resid = residuals(fit_nh_step)),
+  ggplot2$aes(x = fitted, y = resid)
+) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.1, size = 1) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Fitted BMI",
+    y = "Residual",
+    title = "Residuals vs fitted (NHANES BMI model)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 16.21 Case Study: mtcars -- Predicting Fuel Efficiency
+
+Let us conduct a thorough model selection exercise with the mtcars data.
+
+```{r mtcars-all-subsets, fig.cap="AIC and adjusted R-squared for all possible subsets of predictors (up to 5 predictors). The best models by each criterion are marked."}
+# Evaluate all models with 1 to 5 predictors from a selected pool
+predictors <- c("cyl", "disp", "hp", "drat", "wt", "qsec", "vs", "am", "gear", "carb")
+
+# Build models of each size and record AIC, BIC, adj R^2
+results <- list()
+idx <- 1
+
+for (k in 1:5) {
+  combos <- combn(predictors, k, simplify = FALSE)
+  for (combo in combos) {
+    form <- as.formula(paste("mpg ~", paste(combo, collapse = " + ")))
+    fit_k <- lm(form, data = mtcars_dt)
+    s_k <- summary(fit_k)
+    results[[idx]] <- data.table$data.table(
+      n_pred = k,
+      predictors = paste(combo, collapse = ", "),
+      adj_R2 = s_k$adj.r.squared,
+      AIC = AIC(fit_k),
+      BIC = BIC(fit_k)
+    )
+    idx <- idx + 1
+  }
+}
+
+all_models <- data.table$rbindlist(results)
+
+# Find best by each criterion
+best_aic <- all_models[which.min(AIC)]
+best_bic <- all_models[which.min(BIC)]
+best_adjr2 <- all_models[which.max(adj_R2)]
+
+ggplot2$ggplot(all_models, ggplot2$aes(x = AIC, y = adj_R2)) +
+  ggplot2$geom_point(
+    ggplot2$aes(colour = factor(n_pred)),
+    alpha = 0.6, size = 2
+  ) +
+  ggplot2$annotate("point", x = best_aic$AIC, y = best_aic$adj_R2,
+                    colour = "red", size = 4, shape = 17) +
+  ggplot2$labs(
+    x = "AIC",
+    y = "Adjusted R-squared",
+    colour = "# predictors",
+    title = "All subsets: AIC vs adjusted R-squared"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r best-models}
+rbind(
+  data.table$data.table(criterion = "Best AIC", best_aic),
+  data.table$data.table(criterion = "Best BIC", best_bic),
+  data.table$data.table(criterion = "Best adj R^2", best_adjr2)
+)
+```
+
+```{r mtcars-final}
+# Fit the best AIC model and examine it
+best_form <- as.formula(paste("mpg ~", gsub(", ", " + ", best_aic$predictors)))
+fit_best <- lm(best_form, data = mtcars_dt)
+summary(fit_best)
+```
+
+```{r mtcars-final-vif}
+if (length(coef(fit_best)) > 2) {
+  my_vif(fit_best)
+}
+```
+
+### 16.21.1 Cross-Validation for Honest Assessment
+
+AIC estimates out-of-sample performance asymptotically. We can directly estimate it with **leave-one-out cross-validation**:
+
+```{r loocv}
+#' Leave-one-out cross-validation MSE
+#' @param fit an lm object
+#' @return LOOCV MSE
+my_loocv <- function(fit) {
+  e <- residuals(fit)
+  h <- hatvalues(fit)
+  # LOOCV shortcut: MSE = mean((e_i / (1 - h_ii))^2)
+  mean((e / (1 - h))^2)
+}
+
+models_to_compare <- list(
+  "wt + qsec" = lm(mpg ~ wt + qsec, data = mtcars_dt),
+  "hp + wt + qsec" = lm(mpg ~ hp + wt + qsec, data = mtcars_dt),
+  "best AIC" = fit_best,
+  "full" = lm(mpg ~ ., data = mtcars_dt)
+)
+
+cv_results <- data.table$data.table(
+  model = names(models_to_compare),
+  LOOCV_MSE = sapply(models_to_compare, my_loocv),
+  AIC = sapply(models_to_compare, AIC),
+  adj_R2 = sapply(models_to_compare, function(f) summary(f)$adj.r.squared)
+)
+
+cv_results
+```
+
+The LOOCV MSE, AIC, and adjusted $R^2$ tend to agree on which models are best.
+
+---
+
+## 16.22 The Bias-Variance Trade-off
+
+### 16.22.1 Decomposition of Prediction Error
+
+For a new observation $(x_0, Y_0)$:
+
+$$E[(\hat{Y}_0 - Y_0)^2] = \text{Var}(\hat{Y}_0) + [\text{Bias}(\hat{Y}_0)]^2 + \sigma^2$$
+
+- **Variance**: increases with model complexity (more parameters to estimate).
+- **Bias**: decreases with model complexity (more flexible model).
+- **Irreducible error**: $\sigma^2$, constant regardless of model.
+
+AIC, BIC, and adjusted $R^2$ are all attempts to balance these competing forces.
+
+### 16.22.2 Simulation Illustration
+
+```{r bias-variance-sim, fig.cap="Bias-variance trade-off. As model complexity increases (more polynomial terms), bias decreases but variance increases. The optimal model minimises the total MSE."}
+set.seed(42)
+n_train <- 50
+n_test <- 1000
+n_sims <- 500
+
+# True model: Y = sin(2*pi*x) + noise
+x_train <- runif(n_train, 0, 1)
+x_test <- seq(0, 1, length.out = n_test)
+f_true <- function(x) sin(2 * pi * x)
+sigma <- 0.3
+
+max_degree <- 15
+results <- data.table$data.table(
+  degree = 1:max_degree,
+  bias2 = numeric(max_degree),
+  variance = numeric(max_degree),
+  mse = numeric(max_degree)
+)
+
+for (d in 1:max_degree) {
+  preds <- matrix(NA, nrow = n_test, ncol = n_sims)
+  for (s in seq_len(n_sims)) {
+    y_train <- f_true(x_train) + rnorm(n_train, 0, sigma)
+    fit_d <- lm(y_train ~ poly(x_train, d, raw = TRUE))
+    X_test <- outer(x_test, 1:d, "^")
+    preds[, s] <- cbind(1, X_test) %*% coef(fit_d)
+  }
+  mean_pred <- rowMeans(preds)
+  bias2 <- mean((mean_pred - f_true(x_test))^2)
+  variance <- mean(apply(preds, 1, var))
+  results[d, `:=`(bias2 = bias2, variance = variance, mse = bias2 + variance + sigma^2)]
+}
+
+results_long <- data.table$melt(
+  results, id.vars = "degree",
+  measure.vars = c("bias2", "variance", "mse"),
+  variable.name = "component", value.name = "value"
+)
+
+ggplot2$ggplot(results_long, ggplot2$aes(x = degree, y = value, colour = component)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_point(size = 2) +
+  ggplot2$scale_colour_manual(
+    values = c("bias2" = "#E69F00", "variance" = "#0072B2", "mse" = "#D55E00"),
+    labels = c("Bias^2", "Variance", "MSE")
+  ) +
+  ggplot2$labs(
+    x = "Polynomial degree",
+    y = "Value",
+    title = "Bias-variance trade-off",
+    colour = "Component"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The optimal polynomial degree is around 3-4, consistent with the true sinusoidal function. Higher degrees reduce bias but dramatically increase variance.
+
+---
+
+## 16.23 Summary of Model Selection Strategy
+
+A practical model selection workflow:
+
+1. **Start with domain knowledge.** Include predictors that make scientific sense.
+2. **Check for multicollinearity.** Compute VIF; if VIF $> 10$, consider removing or combining predictors.
+3. **Use multiple criteria.** AIC, BIC, and adjusted $R^2$ often agree; when they disagree, BIC favours parsimony.
+4. **Validate with cross-validation.** LOOCV or $k$-fold CV gives the most honest assessment of prediction error.
+5. **Examine residual diagnostics.** No amount of model selection can rescue a model that violates assumptions.
+6. **Report honestly.** If you searched over many models, acknowledge it. Do not present the final model as if it were pre-specified.
+
+---
+
+## Communicating to Stakeholders
+
+When discussing model selection:
+
+- **Do not present 20 models and pick the best.** Instead, say "we considered several plausible models based on domain knowledge and found that the model with weight, horsepower, and quarter-mile time provides the best balance of accuracy and simplicity."
+- **Explain AIC in plain terms.** "AIC measures how well the model predicts new data. A lower AIC indicates better predictive power."
+- **VIF has intuitive appeal.** "A VIF of 15 for variable $X$ means that its standard error is roughly $\sqrt{15} \approx 3.9$ times larger than it would be if $X$ were uncorrelated with the other predictors."
+- **Adjusted $R^2$ is the most accessible metric.** "The model explains 85% of the variation in fuel efficiency after accounting for the number of predictors used."
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **VIF** | $1/(1 - R_j^2)$ where $R_j^2$ is from regressing $x_j$ on other predictors |
+| **AIC** | $-2\ell(\hat\theta) + 2p$ |
+| **BIC** | $-2\ell(\hat\theta) + p\log(n)$ |
+| **Adjusted $R^2$** | $1 - \frac{n-1}{n-p}(1 - R^2)$ |
+| **LOOCV shortcut** | $\text{MSE}_{\text{CV}} = \frac{1}{n}\sum(e_i/(1-h_{ii}))^2$ |
+| **Key insight** | Model selection balances bias (underfitting) vs variance (overfitting) |
+
+---
+
+## Exercises
+
+1. **AIC derivation.** Starting from the Kullback-Leibler divergence between the true density $f$ and the fitted model $g_{\hat\theta}$, show that $\ell(\hat\theta)$ is an upwardly biased estimator of $E_f[\log g_{\hat\theta}(Y)]$ and that the bias is approximately $p$. Hence derive the AIC formula.
+
+2. **BIC vs AIC.** Simulate data from a true model with 3 predictors out of 10 available. For each of 1000 simulations, select the model by AIC and by BIC. Compare how often each criterion recovers the true model. You should find BIC does better.
+
+3. **VIF interpretation.** Show algebraically that $\text{Var}(\hat{\beta}_j) = \sigma^2 \cdot \text{VIF}_j / S_{x_j x_j}$, where $S_{x_j x_j} = \sum(x_{ij} - \bar{x}_j)^2$. Explain why this means multicollinearity inflates standard errors.
+
+4. **All-subsets for NHANES.** Using the NHANES data, compare all subsets of up to 4 predictors for BMI. Plot AIC vs number of predictors and identify the best model at each size.
+
+5. **LOOCV vs AIC.** Show empirically (using the mtcars data) that the model ranking by LOOCV MSE is very similar to the ranking by AIC. When do they disagree?
+
+6. **Ridge regression.** Implement ridge regression from scratch: $\hat{\boldsymbol{\beta}}_\lambda = (\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}'\mathbf{Y}$. For the collinearity example in Section 16.17.2, plot the coefficient estimates as a function of $\lambda$ (a **ridge trace plot**). Show that there exists a $\lambda > 0$ with lower MSE than OLS.

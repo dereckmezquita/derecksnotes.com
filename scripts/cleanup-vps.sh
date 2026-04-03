@@ -102,7 +102,7 @@ echo ""
 
 echo "--- Creating new directory structure ---"
 
-# Repo clone targets
+# Deployment directories (docker-compose.yml + .env live here)
 mkdir -p /opt/derecksnotes/prod
 mkdir -p /opt/derecksnotes/dev
 echo "Created: /opt/derecksnotes/{prod,dev}"
@@ -170,7 +170,7 @@ echo "  3. Trigger a manual deploy via GitHub Actions"
 echo "  4. Verify the site is running"
 echo ""
 echo "Directory structure:"
-echo "  /opt/derecksnotes/prod/   - repo clone (deploy workflow will populate)"
-echo "  /opt/derecksnotes/dev/    - repo clone (deploy workflow will populate)"
+echo "  /opt/derecksnotes/prod/   - docker-compose.yml + .env (deploy workflow populates)"
+echo "  /opt/derecksnotes/dev/    - docker-compose.yml + .env (deploy workflow populates)"
 echo "  /var/www/derecksnotes.com/{data,public,backups}"
 echo "  /var/www/dev.derecksnotes.com/{data,public,backups}"

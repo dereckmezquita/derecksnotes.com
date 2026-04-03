@@ -1,0 +1,456 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 23: Computational Bayesian Methods"
+part: "Part 2: Diagnostics and Practice"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, mcmc-diagnostics, rstanarm, brms, bayesian-regression, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+box::use(coda)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 23 -- Computational Bayesian Methods
+
+## Part 2: Diagnostics and Practice
+
+In Part 1 we built MCMC algorithms from scratch. But how do we know the chain has converged? A chain that has not converged gives misleading results -- the posterior summaries are wrong. In this part we develop diagnostic tools, learn to recognise good and bad convergence, and then graduate to production-quality Bayesian software with `rstanarm` and `brms`.
+
+---
+
+## 23.5 Convergence Diagnostics
+
+### 23.5.1 The Fundamental Problem
+
+MCMC theory guarantees convergence **in the limit**. In practice we run a finite chain and must decide: has it converged *enough*? There is no definitive test, but several diagnostics help.
+
+### 23.5.2 Trace Plots
+
+The simplest diagnostic: plot the chain against iteration. A well-mixed chain looks like a "fat, hairy caterpillar" -- stationary, with no trends or long excursions.
+
+```{r trace-examples, fig.cap="Good vs bad mixing. Left: a well-mixed chain oscillates rapidly around the posterior mean. Right: a poorly-mixed chain drifts and gets stuck."}
+set.seed(42)
+
+log_posterior <- function(mu, y_bar, n, sigma) {
+  -n / (2 * sigma^2) * (mu - y_bar)^2 + dt(mu, df = 1, log = TRUE)
+}
+
+mh_chain <- function(n_iter, sigma_prop, start, y_bar, n, sigma) {
+  chain <- numeric(n_iter)
+  chain[1] <- start
+  for (t in 2:n_iter) {
+    proposal <- rnorm(1, chain[t - 1], sigma_prop)
+    log_alpha <- log_posterior(proposal, y_bar, n, sigma) -
+                 log_posterior(chain[t - 1], y_bar, n, sigma)
+    if (log(runif(1)) < log_alpha) chain[t] <- proposal
+    else chain[t] <- chain[t - 1]
+  }
+  chain
+}
+
+y_obs <- rnorm(30, 5, 2)
+good_chain <- mh_chain(5000, 1.5, 0, mean(y_obs), 30, 2)
+bad_chain <- mh_chain(5000, 0.05, -10, mean(y_obs), 30, 2)
+
+trace_dt <- data.table$data.table(
+  iteration = rep(1:5000, 2),
+  mu = c(good_chain, bad_chain),
+  quality = rep(c("Good mixing (sigma=1.5)", "Poor mixing (sigma=0.05, bad start)"), each = 5000)
+)
+
+ggplot2$ggplot(trace_dt, ggplot2$aes(x = iteration, y = mu)) +
+  ggplot2$geom_line(alpha = 0.5, colour = "#0072B2") +
+  ggplot2$geom_hline(yintercept = mean(y_obs), linetype = "dashed", colour = "#D55E00") +
+  ggplot2$facet_wrap(~ quality, ncol = 1, scales = "free_y") +
+  ggplot2$labs(x = "Iteration", y = expression(mu), title = "Trace plots: good vs poor mixing") +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+### 23.5.3 The Gelman-Rubin Statistic ($\hat{R}$)
+
+Run $M$ chains from **dispersed starting points**. If they have all converged to the same distribution, the between-chain variance $B$ should be small relative to the within-chain variance $W$.
+
+$$\hat{R} = \sqrt{\frac{\hat{V}}{W}}$$
+
+where $\hat{V} = \frac{n-1}{n} W + \frac{1}{n} B$ is the pooled variance estimate.
+
+- $\hat{R} \approx 1$ indicates convergence.
+- $\hat{R} > 1.1$ suggests the chains have not mixed.
+- Modern recommendations use $\hat{R} < 1.01$.
+
+```{r rhat-demo}
+set.seed(42)
+n_chains <- 4
+n_iter <- 5000
+starts <- c(-10, 0, 10, 20)
+
+chains <- lapply(starts, function(s) {
+  mh_chain(n_iter, 1.5, s, mean(y_obs), 30, 2)
+})
+
+chains_mcmc <- coda::mcmc.list(lapply(chains, function(ch) coda::mcmc(ch[1001:5000])))
+gr <- coda::gelman.diag(chains_mcmc)
+sprintf("Gelman-Rubin R-hat: %.4f", gr$psrf[1])
+```
+
+```{r multi-chain-trace, fig.cap="Four chains from dispersed starting points. After burn-in, they overlap completely -- R-hat is close to 1."}
+mc_list <- list()
+for (i in seq_along(chains)) {
+  mc_list[[i]] <- data.table$data.table(
+    iteration = seq_along(chains[[i]]),
+    mu = chains[[i]],
+    chain = paste("Chain", i)
+  )
+}
+mc_dt <- data.table$rbindlist(mc_list)
+
+ggplot2$ggplot(mc_dt, ggplot2$aes(x = iteration, y = mu, colour = chain)) +
+  ggplot2$geom_line(alpha = 0.5) +
+  ggplot2$labs(
+    x = "Iteration", y = expression(mu),
+    title = sprintf("Four chains from dispersed starts (R-hat = %.3f)", gr$psrf[1]),
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+### 23.5.4 Effective Sample Size (ESS)
+
+Recall from Part 1 that ESS accounts for autocorrelation. As a rule of thumb:
+
+- **ESS > 400** per parameter for reliable posterior means.
+- **ESS > 1000** for reliable tail probabilities and credible intervals.
+
+```{r ess-multi-chain}
+ess_vals <- coda::effectiveSize(chains_mcmc)
+sprintf("Effective sample size: %.0f (from %d post-burn-in samples per chain, %d chains)",
+        ess_vals, 4000, 4)
+```
+
+---
+
+## 23.6 Diagnostic Summary: Good vs Bad Convergence
+
+| Diagnostic | Good convergence | Bad convergence |
+|:-----------|:----------------|:----------------|
+| **Trace plot** | Fat hairy caterpillar | Trends, stuck regions, drift |
+| **$\hat{R}$** | < 1.01 | > 1.1 |
+| **ESS** | > 400 (means), > 1000 (tails) | < 100 |
+| **Autocorrelation** | Drops to ~0 by lag 20 | Persists beyond lag 100 |
+| **Density plot** | Smooth, unimodal | Jagged, multimodal artefacts |
+| **Multiple chains** | Overlapping traces | Chains in different regions |
+
+---
+
+## 23.7 Introduction to Stan via `rstanarm`
+
+Writing MCMC from scratch is instructive but impractical for real problems. **Stan** is a probabilistic programming language that implements Hamiltonian Monte Carlo (HMC) -- a much more efficient sampler than random walk MH. The R packages `rstanarm` and `brms` provide formula-based interfaces.
+
+### 23.7.1 `rstanarm`: Bayesian Regression with Familiar Syntax
+
+`rstanarm` fits pre-compiled Stan models using R's `glm`-style formula interface. It uses weakly informative priors by default.
+
+```{r rstanarm-example, message=FALSE}
+data_dir <- "../../../data"
+birthwt <- data.table$fread(file.path(data_dir, "classic/birthwt.csv"))
+
+birthwt[, `:=`(
+  low = factor(low, levels = c(0, 1), labels = c("Normal", "Low")),
+  smoke = factor(smoke, levels = c(0, 1), labels = c("No", "Yes")),
+  race = factor(race, levels = c(1, 2, 3), labels = c("White", "Black", "Other"))
+)]
+
+str(birthwt[, .(low, age, lwt, smoke, race)])
+```
+
+```{r stan-logistic, message=FALSE, results='hide'}
+fit_bayes <- rstanarm::stan_glm(
+  low ~ age + lwt + smoke + race,
+  data = birthwt,
+  family = binomial(link = "logit"),
+  prior = rstanarm::normal(0, 2.5),
+  prior_intercept = rstanarm::normal(0, 10),
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 42
+)
+```
+
+```{r stan-summary}
+summary(fit_bayes, digits = 3)
+```
+
+### 23.7.2 Checking Convergence
+
+```{r stan-diagnostics, fig.cap="Trace plots for the Bayesian logistic regression. All four chains mix well and overlap, confirming convergence."}
+posterior <- as.data.frame(fit_bayes)
+params <- c("(Intercept)", "age", "lwt", "smokeYes")
+
+trace_list <- list()
+for (p in params) {
+  trace_list[[p]] <- data.table$data.table(
+    iteration = seq_len(nrow(posterior)),
+    value = posterior[[p]],
+    parameter = p
+  )
+}
+trace_all <- data.table$rbindlist(trace_list)
+
+ggplot2$ggplot(trace_all, ggplot2$aes(x = iteration, y = value)) +
+  ggplot2$geom_line(alpha = 0.3, colour = "#0072B2") +
+  ggplot2$facet_wrap(~ parameter, scales = "free_y", ncol = 2) +
+  ggplot2$labs(
+    x = "Post-warmup iteration", y = "Value",
+    title = "Trace plots for Bayesian logistic regression parameters"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+### 23.7.3 Interpreting Bayesian Regression Output
+
+```{r posterior-intervals, fig.cap="Posterior distributions of logistic regression coefficients. The 95% credible intervals that exclude zero indicate effects distinguishable from no effect."}
+coef_dt <- data.table$data.table(
+  parameter = names(coef(fit_bayes)),
+  estimate = coef(fit_bayes),
+  lower = apply(posterior, 2, quantile, 0.025)[names(coef(fit_bayes))],
+  upper = apply(posterior, 2, quantile, 0.975)[names(coef(fit_bayes))]
+)
+
+coef_dt <- coef_dt[parameter != "(Intercept)"]
+
+ggplot2$ggplot(coef_dt, ggplot2$aes(x = estimate, y = parameter, xmin = lower, xmax = upper)) +
+  ggplot2$geom_pointrange(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(
+    x = "Coefficient (log-odds)", y = NULL,
+    title = "Posterior intervals for birthweight logistic regression"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r odds-ratios}
+or_dt <- data.table$data.table(
+  parameter = coef_dt$parameter,
+  OR = round(exp(coef_dt$estimate), 3),
+  OR_lower = round(exp(coef_dt$lower), 3),
+  OR_upper = round(exp(coef_dt$upper), 3)
+)
+knitr::kable(or_dt, caption = "Posterior odds ratios with 95% credible intervals.")
+```
+
+---
+
+## 23.8 Introduction to `brms`
+
+`brms` offers even greater flexibility -- it generates Stan code from R formulae and supports nearly any regression model: multilevel, non-linear, ordinal, survival, and more.
+
+```{r brms-example, message=FALSE, results='hide'}
+fit_brms <- brms::brm(
+  bwt ~ age + lwt + smoke + race,
+  data = birthwt,
+  family = gaussian(),
+  prior = c(
+    brms::prior(normal(0, 500), class = "b"),
+    brms::prior(normal(2500, 1000), class = "Intercept"),
+    brms::prior(exponential(0.01), class = "sigma")
+  ),
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 42
+)
+```
+
+```{r brms-summary}
+summary(fit_brms)
+```
+
+```{r brms-posterior, fig.cap="Posterior densities for the birthweight linear model fitted with brms. Smoking is associated with a clear reduction in birthweight."}
+post_brms <- as.data.frame(fit_brms)
+brms_params <- c("b_age", "b_lwt", "b_smokeYes", "b_raceBlack", "b_raceOther")
+
+brms_list <- list()
+for (p in brms_params) {
+  brms_list[[p]] <- data.table$data.table(
+    value = post_brms[[p]],
+    parameter = gsub("b_", "", p)
+  )
+}
+brms_dt <- data.table$rbindlist(brms_list)
+
+ggplot2$ggplot(brms_dt, ggplot2$aes(x = value, fill = parameter)) +
+  ggplot2$geom_density(alpha = 0.6) +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dashed") +
+  ggplot2$facet_wrap(~ parameter, scales = "free") +
+  ggplot2$labs(
+    x = "Coefficient", y = "Posterior density",
+    title = "Posterior distributions for birthweight predictors (brms)"
+  ) +
+  ggplot2$theme_minimal(base_size = 12) +
+  ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 23.9 Posterior Predictive Checks
+
+A fitted model should be able to generate data that **look like** the observed data. We draw replicated datasets $\mathbf{y}^{\text{rep}}$ from the posterior predictive distribution and compare them to $\mathbf{y}$.
+
+```{r ppc, fig.cap="Posterior predictive check: the observed birthweight distribution (dark line) compared to 100 replicated datasets (light lines). The model captures the central tendency well."}
+y_rep <- rstanarm::posterior_predict(fit_bayes, draws = 100)
+
+ppc_dt <- data.table$data.table(
+  value = as.vector(t(y_rep)),
+  draw = rep(1:100, each = ncol(y_rep)),
+  type = "Replicated"
+)
+obs_dt <- data.table$data.table(
+  value = as.integer(birthwt$low == "Low"),
+  draw = 0,
+  type = "Observed"
+)
+
+rep_means <- tapply(ppc_dt$value, ppc_dt$draw, mean)
+obs_mean <- mean(obs_dt$value)
+
+ppc_means <- data.table$data.table(
+  mean_val = c(rep_means, obs_mean),
+  type = c(rep("Replicated", length(rep_means)), "Observed")
+)
+
+ggplot2$ggplot(ppc_means, ggplot2$aes(x = mean_val, fill = type)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 30, alpha = 0.7, colour = "white", position = "identity"
+  ) +
+  ggplot2$geom_vline(xintercept = obs_mean, colour = "#D55E00", linewidth = 1.2) +
+  ggplot2$scale_fill_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "Mean of low birthweight indicator",
+    y = "Density",
+    title = "Posterior predictive check: observed mean vs replicated means",
+    fill = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+---
+
+## 23.10 Bayesian vs Frequentist: Birthweight Example
+
+Let us compare the Bayesian and frequentist logistic regressions side by side.
+
+```{r comparison}
+fit_freq <- glm(low ~ age + lwt + smoke + race, data = birthwt, family = binomial)
+
+freq_coefs <- summary(fit_freq)$coefficients
+bayes_summary <- as.data.frame(summary(fit_bayes))
+
+# Match parameter names between frequentist and Bayesian models
+comp_params <- intersect(rownames(freq_coefs), rownames(bayes_summary))
+
+comparison <- data.table$data.table(
+  Parameter = comp_params,
+  Freq_Est = round(freq_coefs[comp_params, "Estimate"], 4),
+  Freq_SE = round(freq_coefs[comp_params, "Std. Error"], 4),
+  Bayes_Mean = round(bayes_summary[comp_params, "mean"], 4),
+  Bayes_SD = round(bayes_summary[comp_params, "sd"], 4)
+)
+
+knitr::kable(comparison, caption = "Frequentist MLE vs Bayesian posterior mean for logistic regression.")
+```
+
+The estimates are nearly identical because the sample size is moderate and the weakly informative priors have minimal influence. The Bayesian approach adds the ability to make direct probability statements about parameters.
+
+---
+
+## 23.11 Hamiltonian Monte Carlo (Conceptual)
+
+Stan uses **Hamiltonian Monte Carlo (HMC)**, which augments the parameter space with "momentum" variables and simulates Hamiltonian dynamics. The key advantages:
+
+1. **Proposals are distant** from the current state but still have high acceptance probability.
+2. **Scales well** to hundreds or thousands of parameters.
+3. **Low autocorrelation** -- ESS per iteration is much higher than random walk MH.
+
+The cost is that HMC requires gradients of the log-posterior, which Stan computes via automatic differentiation. You do not need to derive gradients by hand.
+
+---
+
+## Communicating to Stakeholders
+
+- **Diagnostics build trust.** "We checked that our algorithm converged using four independent runs that all agree. The diagnostic statistics confirm reliability."
+- **Software matters.** "We used Stan, a state-of-the-art Bayesian modelling platform trusted by researchers worldwide."
+- **Posterior predictive checks validate the model.** "We asked the model to generate fake data and checked that it looks like the real data. This confirms the model is reasonable."
+- **Compare with familiar results.** "The Bayesian and classical analyses agree closely, giving us extra confidence. The Bayesian version additionally lets us say there is a 97% probability that smoking reduces birthweight."
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Trace plot** | Visual check: "hairy caterpillar" = good mixing |
+| **$\hat{R}$** | Gelman-Rubin statistic; want $< 1.01$ |
+| **ESS** | Effective sample size; want $> 400$ for means |
+| **Burn-in / warmup** | Discard early iterations; Stan calls it "warmup" |
+| **Posterior predictive** | $y^{\text{rep}} \sim p(\tilde{y} \mid \mathbf{y})$; check model fit |
+| **`rstanarm`** | `stan_glm()`, `stan_lm()`; pre-compiled Stan models |
+| **`brms`** | `brm()`; generates Stan code; very flexible |
+| **HMC** | Uses gradients for efficient proposals; Stan's engine |
+| **Priors in `rstanarm`** | `prior = normal(0, 2.5)` (weakly informative default) |
+| **Model comparison** | `loo::loo()` for leave-one-out cross-validation |
+
+---
+
+## Exercises
+
+1. **Convergence failure.** Run 4 chains of the MH sampler from Part 1 with $\sigma_{\text{prop}} = 0.01$ and starting values $\{-20, -10, 10, 20\}$. Compute $\hat{R}$. Does it indicate convergence? Explain.
+
+2. **Posterior predictive check.** Fit a Bayesian Poisson regression to the biochemist publications data using `rstanarm::stan_glm(..., family = poisson)`. Generate 200 replicated datasets and compare the distribution of the maximum count. Does the Poisson model capture the observed maximum?
+
+3. **`brms` model.** Fit a Bayesian linear regression of birthweight on all available predictors using `brms`. Extract posterior samples for the smoking effect and compute the posterior probability that smoking reduces birthweight by more than 200 grams.
+
+4. **Prior sensitivity with `rstanarm`.** Fit the birthweight logistic regression with three prior choices: $N(0, 1)$, $N(0, 2.5)$, and $N(0, 10)$. Compare posterior summaries. At what point does the prior stop mattering?
+
+5. **ESS vs iterations.** Fit a Bayesian model with `iter = 1000`, `2000`, `4000`, and `8000`. For each, report the minimum ESS across all parameters. Plot minimum ESS vs total iterations. Is the relationship linear?
+
+6. **LOO comparison.** Fit both a Poisson and a negative binomial model to count data using `brms`. Compare them using `loo::loo()`. Which model has better out-of-sample predictive performance?

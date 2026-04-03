@@ -1,0 +1,703 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 13: Nonparametric Methods"
+part: "Part 2: Bootstrap and Cross-Validation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, nonparametric, bootstrap, cross-validation, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r dt-helpers, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 13 -- Nonparametric Methods
+
+## Part 2: Bootstrap and Cross-Validation
+
+In Part 1 we used permutation and rank methods to test hypotheses without distributional assumptions. This part introduces two more nonparametric workhorses:
+
+1. **The bootstrap** -- a universal method for estimating the sampling distribution of almost any statistic. It answers the question: "How variable is my estimate?"
+2. **Cross-validation** -- a resampling strategy for estimating out-of-sample prediction error. It answers: "How well will my model generalise?"
+
+Both methods share a core philosophy: when theory is difficult or unavailable, let the data speak for themselves through resampling.
+
+---
+
+## 13.9 The Bootstrap Principle
+
+### 13.9.1 The Plug-In Principle
+
+Suppose we have an i.i.d. sample $X_1, \ldots, X_n$ from an unknown distribution $F$. We want to estimate some parameter $\theta = T(F)$ -- a functional of the population distribution. The **plug-in estimator** replaces $F$ with the empirical distribution function $\hat{F}_n$:
+
+$$\hat{\theta} = T(\hat{F}_n).$$
+
+For the mean, $T(F) = \int x \, dF(x)$, and the plug-in gives $\hat{\theta} = \bar{X}$. For the median, $T(F) = F^{-1}(0.5)$, and the plug-in gives the sample median. The plug-in principle is powerful because it works for *any* functional $T$.
+
+### 13.9.2 The Bootstrap Idea
+
+We want to know the sampling distribution of $\hat{\theta}$. Ideally we would draw many samples from $F$ and compute $\hat{\theta}$ each time. But we have only one sample. Efron's insight (1979): **treat $\hat{F}_n$ as if it were $F$**, and resample from it.
+
+The **nonparametric bootstrap** algorithm:
+
+1. Draw a sample of size $n$ **with replacement** from $(X_1, \ldots, X_n)$. Call this $X_1^*, \ldots, X_n^*$.
+2. Compute the bootstrap replicate $\hat{\theta}^* = T(\hat{F}_n^*)$ on the resampled data.
+3. Repeat $B$ times to obtain $\hat{\theta}_1^*, \ldots, \hat{\theta}_B^*$.
+4. Use the empirical distribution of the $\hat{\theta}_b^*$ to approximate the sampling distribution of $\hat{\theta}$.
+
+The bootstrap standard error is:
+
+$$\widehat{\text{SE}}_{\text{boot}} = \sqrt{\frac{1}{B-1} \sum_{b=1}^{B} (\hat{\theta}_b^* - \bar{\theta}^*)^2},$$
+
+where $\bar{\theta}^* = \frac{1}{B} \sum_b \hat{\theta}_b^*$.
+
+### 13.9.3 Why Does It Work?
+
+The bootstrap is justified by a deep result: for smooth functionals, the bootstrap distribution approximates the true sampling distribution to order $O(n^{-1})$, which is better than the $O(n^{-1/2})$ of the normal approximation. Informally: the empirical distribution $\hat{F}_n$ converges to $F$ by the Glivenko--Cantelli theorem, so resampling from $\hat{F}_n$ increasingly mimics sampling from $F$.
+
+---
+
+## 13.10 Bootstrap from Scratch
+
+```{r load-packages}
+box::use(data.table)
+box::use(ggplot2)
+
+set.seed(42)
+```
+
+```{r load-data}
+data_dir <- "../../../data"
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+
+# Focus on Gentoo body mass
+gentoo <- penguins[species == "Gentoo" & !is.na(body_mass_g), body_mass_g]
+length(gentoo)
+mean(gentoo)
+median(gentoo)
+```
+
+### 13.10.1 Bootstrapping the Mean
+
+```{r bootstrap-mean-scratch}
+#' Nonparametric bootstrap -- implemented from scratch
+#' @param x numeric vector -- the original sample
+#' @param stat_fn function -- takes a numeric vector, returns a scalar
+#' @param B integer -- number of bootstrap replicates
+#' @return numeric vector of bootstrap replicates
+my_bootstrap <- function(x, stat_fn, B = 5000L) {
+  n <- length(x)
+  replicate(B, {
+    x_star <- sample(x, n, replace = TRUE)
+    stat_fn(x_star)
+  })
+}
+
+boot_means <- my_bootstrap(gentoo, mean, B = 5000)
+
+# Bootstrap standard error
+sd(boot_means)
+
+# Theoretical SE for comparison
+sd(gentoo) / sqrt(length(gentoo))
+```
+
+```{r bootstrap-mean-plot, fig.cap="Bootstrap distribution of the sample mean for Gentoo body mass (5000 replicates). The distribution is approximately normal, consistent with the CLT. The red line marks the observed sample mean."}
+boot_dt <- data.table$data.table(theta_star = boot_means)
+
+ggplot2$ggplot(boot_dt, ggplot2$aes(x = theta_star)) +
+  ggplot2$geom_histogram(
+    bins = 50,
+    fill = "#3182bd",
+    colour = "white",
+    alpha = 0.8
+  ) +
+  ggplot2$geom_vline(
+    xintercept = mean(gentoo),
+    colour = "red",
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  ggplot2$labs(
+    x = "Bootstrap replicate of mean body mass (g)",
+    y = "Count",
+    title = "Bootstrap distribution of the mean"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+### 13.10.2 Bootstrapping the Median
+
+The median has no clean closed-form standard error. This is where the bootstrap truly shines.
+
+```{r bootstrap-median}
+boot_medians <- my_bootstrap(gentoo, median, B = 5000)
+
+# Bootstrap SE of the median
+sd(boot_medians)
+```
+
+### 13.10.3 Bootstrapping a Correlation
+
+```{r bootstrap-correlation}
+pen_complete <- penguins[
+  species == "Gentoo" & !is.na(body_mass_g) & !is.na(flipper_length_mm)
+]
+
+obs_cor <- cor(pen_complete$body_mass_g, pen_complete$flipper_length_mm)
+obs_cor
+
+# Bootstrap the correlation
+n_obs <- nrow(pen_complete)
+B <- 5000
+boot_cors <- replicate(B, {
+  idx <- sample.int(n_obs, n_obs, replace = TRUE)
+  cor(pen_complete$body_mass_g[idx], pen_complete$flipper_length_mm[idx])
+})
+
+sd(boot_cors)
+```
+
+---
+
+## 13.11 Bootstrap Confidence Intervals
+
+### 13.11.1 Percentile Interval
+
+The simplest bootstrap confidence interval uses the quantiles of the bootstrap distribution directly:
+
+$$\text{CI}_{1-\alpha} = \left[ \hat{\theta}^*_{\alpha/2}, \; \hat{\theta}^*_{1-\alpha/2} \right],$$
+
+where $\hat{\theta}^*_q$ denotes the $q$-th quantile of the bootstrap replicates. This is the **percentile interval**.
+
+```{r percentile-ci}
+#' Percentile bootstrap confidence interval
+#' @param boot_reps numeric vector of bootstrap replicates
+#' @param alpha significance level (default 0.05 for 95% CI)
+#' @return named numeric vector with lower and upper bounds
+percentile_ci <- function(boot_reps, alpha = 0.05) {
+  quantile(boot_reps, probs = c(alpha / 2, 1 - alpha / 2))
+}
+
+# 95% CI for the mean
+percentile_ci(boot_means)
+
+# 95% CI for the correlation
+percentile_ci(boot_cors)
+```
+
+### 13.11.2 Basic (Pivotal) Interval
+
+The basic interval reverses the percentile logic using the bootstrap *pivots* $\hat{\theta}^* - \hat{\theta}$:
+
+$$\text{CI}_{1-\alpha} = \left[ 2\hat{\theta} - \hat{\theta}^*_{1-\alpha/2}, \; 2\hat{\theta} - \hat{\theta}^*_{\alpha/2} \right].$$
+
+```{r basic-ci}
+basic_ci <- function(boot_reps, theta_hat, alpha = 0.05) {
+  q <- quantile(boot_reps, probs = c(alpha / 2, 1 - alpha / 2))
+  c(lower = 2 * theta_hat - q[[2]], upper = 2 * theta_hat - q[[1]])
+}
+
+basic_ci(boot_means, mean(gentoo))
+```
+
+### 13.11.3 BCa Interval (Bias-Corrected and Accelerated)
+
+The BCa interval corrects for both **bias** (the bootstrap distribution may not be centred at $\hat{\theta}$) and **skewness** (the bootstrap distribution may be asymmetric). It is the gold standard among bootstrap intervals.
+
+The BCa interval adjusts the percentile endpoints using two corrections:
+
+1. **Bias correction** $\hat{z}_0$: measures how far the bootstrap distribution is centred from $\hat{\theta}$.
+
+$$\hat{z}_0 = \Phi^{-1}\left( \frac{\#\{\hat{\theta}_b^* < \hat{\theta}\}}{B} \right).$$
+
+2. **Acceleration** $\hat{a}$: estimated from the jackknife:
+
+$$\hat{a} = \frac{\sum_{i=1}^{n} (\bar{\theta}_{(\cdot)} - \hat{\theta}_{(-i)})^3}{6 \left[ \sum_{i=1}^{n} (\bar{\theta}_{(\cdot)} - \hat{\theta}_{(-i)})^2 \right]^{3/2}},$$
+
+where $\hat{\theta}_{(-i)}$ is the statistic computed with observation $i$ removed and $\bar{\theta}_{(\cdot)}$ is the mean of the jackknife values.
+
+The adjusted percentiles are:
+
+$$\alpha_1 = \Phi\left( \hat{z}_0 + \frac{\hat{z}_0 + z_{\alpha/2}}{1 - \hat{a}(\hat{z}_0 + z_{\alpha/2})} \right), \quad \alpha_2 = \Phi\left( \hat{z}_0 + \frac{\hat{z}_0 + z_{1-\alpha/2}}{1 - \hat{a}(\hat{z}_0 + z_{1-\alpha/2})} \right).$$
+
+```{r bca-from-scratch}
+#' BCa bootstrap confidence interval -- implemented from scratch
+#' @param x numeric vector -- original data
+#' @param stat_fn function -- statistic
+#' @param boot_reps numeric vector -- bootstrap replicates
+#' @param alpha significance level
+#' @return named numeric vector
+bca_ci <- function(x, stat_fn, boot_reps, alpha = 0.05) {
+  theta_hat <- stat_fn(x)
+  B <- length(boot_reps)
+  n <- length(x)
+
+  # Bias correction
+  z0 <- qnorm(sum(boot_reps < theta_hat) / B)
+
+  # Acceleration (jackknife)
+  theta_jack <- numeric(n)
+  for (i in seq_len(n)) {
+    theta_jack[i] <- stat_fn(x[-i])
+  }
+  theta_bar <- mean(theta_jack)
+  num <- sum((theta_bar - theta_jack)^3)
+  den <- 6 * (sum((theta_bar - theta_jack)^2))^(3/2)
+  a_hat <- num / den
+
+  # Adjusted percentiles
+  z_lo <- qnorm(alpha / 2)
+  z_hi <- qnorm(1 - alpha / 2)
+
+  a1 <- pnorm(z0 + (z0 + z_lo) / (1 - a_hat * (z0 + z_lo)))
+  a2 <- pnorm(z0 + (z0 + z_hi) / (1 - a_hat * (z0 + z_hi)))
+
+  quantile(boot_reps, probs = c(a1, a2))
+}
+
+bca_ci(gentoo, mean, boot_means)
+bca_ci(gentoo, median, boot_medians)
+```
+
+### 13.11.4 Comparing Intervals
+
+```{r compare-intervals}
+ci_comparison <- data.table$data.table(
+  method = c("Percentile", "Basic", "BCa", "Normal theory"),
+  lower = c(
+    percentile_ci(boot_means)[[1]],
+    basic_ci(boot_means, mean(gentoo))[[1]],
+    bca_ci(gentoo, mean, boot_means)[[1]],
+    mean(gentoo) - 1.96 * sd(gentoo) / sqrt(length(gentoo))
+  ),
+  upper = c(
+    percentile_ci(boot_means)[[2]],
+    basic_ci(boot_means, mean(gentoo))[[2]],
+    bca_ci(gentoo, mean, boot_means)[[2]],
+    mean(gentoo) + 1.96 * sd(gentoo) / sqrt(length(gentoo))
+  )
+)
+
+ci_comparison[, width := upper - lower]
+ci_comparison
+```
+
+---
+
+## 13.12 The `boot` Package
+
+R's `boot` package provides a polished, efficient implementation. We demonstrate its use for comparison.
+
+```{r boot-package}
+box::use(boot)
+
+# The statistic function must accept (data, indices)
+mean_fn <- function(data, indices) {
+  mean(data[indices])
+}
+
+boot_obj <- boot$boot(gentoo, mean_fn, R = 5000)
+boot_obj
+
+# BCa interval via boot
+boot$boot.ci(boot_obj, type = c("perc", "basic", "bca"))
+```
+
+---
+
+## 13.13 Interactive: Bootstrap Resampling Animation
+
+The interactive plot below shows how the bootstrap works step by step. Each frame draws a resample (with replacement) from the original data and computes the sample mean. Watch the bootstrap distribution build up over many resamples.
+
+<InteractivePlot
+  controls={[
+    { id: "n_boot", type: "range", label: "Resamples drawn", min: 1, max: 200, step: 1, default: 1 },
+    { id: "speed", type: "range", label: "Animation speed", min: 1, max: 10, step: 1, default: 5 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var w = canvas.width, h = canvas.height;
+    var pad = 55;
+    var nBoot = params.n_boot;
+
+    // Simulated original data (fixed seed via simple LCG)
+    var origData = [4700,5200,4800,5100,5400,4900,5000,5300,4600,5500,
+                    4750,5150,4850,5050,5350,4950,5250,4650,5450,4800,
+                    5100,5000,5200,4900,5300,4700,5400,4800,5150,5050];
+    var n = origData.length;
+
+    // Deterministic pseudo-random for reproducibility
+    function seededRand(seed) {
+      var x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+
+    // Generate bootstrap means
+    var bootMeans = [];
+    for (var b = 0; b < nBoot; b++) {
+      var s = 0;
+      for (var j = 0; j < n; j++) {
+        var idx = Math.floor(seededRand(b * n + j + 1) * n);
+        s += origData[idx];
+      }
+      bootMeans.push(s / n);
+    }
+
+    // Draw original data (top panel)
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Original sample (n = ' + n + ')', pad, 20);
+
+    var xMin = 4500, xMax = 5600;
+    var topH = h * 0.35;
+
+    // Axis
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, topH);
+    ctx.lineTo(w - 10, topH);
+    ctx.stroke();
+
+    // Tick marks
+    ctx.fillStyle = '#666';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    for (var t = 4600; t <= 5500; t += 200) {
+      var tx = pad + (t - xMin) / (xMax - xMin) * (w - pad - 10);
+      ctx.beginPath();
+      ctx.moveTo(tx, topH);
+      ctx.lineTo(tx, topH + 5);
+      ctx.stroke();
+      ctx.fillText(t.toString(), tx, topH + 18);
+    }
+
+    // Plot original points
+    ctx.fillStyle = 'rgba(49,130,189,0.6)';
+    for (var i = 0; i < n; i++) {
+      var px = pad + (origData[i] - xMin) / (xMax - xMin) * (w - pad - 10);
+      ctx.beginPath();
+      ctx.arc(px, topH - 15, 5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    // Bottom panel: bootstrap distribution
+    var botTop = h * 0.48;
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Bootstrap distribution of mean (' + nBoot + ' resamples)', pad, botTop - 5);
+
+    var meanMin = 4800, meanMax = 5350;
+    var nBins = 30;
+    var binWidth = (meanMax - meanMin) / nBins;
+    var bins = new Array(nBins).fill(0);
+    for (var i = 0; i < bootMeans.length; i++) {
+      var bi = Math.floor((bootMeans[i] - meanMin) / binWidth);
+      if (bi >= 0 && bi < nBins) bins[bi]++;
+    }
+    var maxBin = Math.max.apply(null, bins) || 1;
+
+    var barW = (w - pad - 10) / nBins;
+    var botH = h - botTop - 40;
+
+    // Draw bars
+    for (var i = 0; i < nBins; i++) {
+      var barH = (bins[i] / maxBin) * botH;
+      ctx.fillStyle = 'rgba(44,160,44,0.7)';
+      ctx.fillRect(pad + i * barW, botTop + botH - barH, barW - 1, barH);
+    }
+
+    // Bottom axis
+    ctx.strokeStyle = '#666';
+    ctx.beginPath();
+    ctx.moveTo(pad, botTop + botH);
+    ctx.lineTo(w - 10, botTop + botH);
+    ctx.stroke();
+
+    ctx.fillStyle = '#666';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    for (var t = 4900; t <= 5300; t += 100) {
+      var tx = pad + (t - meanMin) / (meanMax - meanMin) * (w - pad - 10);
+      ctx.beginPath();
+      ctx.moveTo(tx, botTop + botH);
+      ctx.lineTo(tx, botTop + botH + 5);
+      ctx.stroke();
+      ctx.fillText(t.toString(), tx, botTop + botH + 18);
+    }
+
+    // Grand mean line
+    if (bootMeans.length > 0) {
+      var grandMean = bootMeans.reduce(function(a,b){return a+b;}, 0) / bootMeans.length;
+      var gmx = pad + (grandMean - meanMin) / (meanMax - meanMin) * (w - pad - 10);
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 3]);
+      ctx.beginPath();
+      ctx.moveTo(gmx, botTop);
+      ctx.lineTo(gmx, botTop + botH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = 'red';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Mean = ' + grandMean.toFixed(1), gmx, botTop + botH + 35);
+    }
+  `}
+/>
+
+---
+
+## 13.14 Cross-Validation
+
+### 13.14.1 The Problem
+
+When we fit a model to data, the training error (e.g., residual sum of squares) is an optimistic estimate of how well the model will predict new observations. A model with many parameters can memorise the training data (overfitting) while predicting poorly on fresh data. We need a way to estimate **out-of-sample** (or generalisation) error using only the data we have.
+
+### 13.14.2 Leave-One-Out Cross-Validation (LOOCV)
+
+The simplest idea: for each observation $i$, fit the model on all data *except* observation $i$, then predict $\hat{Y}_{(-i)}$ for the held-out point. The LOOCV estimate of prediction error is:
+
+$$\text{CV}_{(n)} = \frac{1}{n} \sum_{i=1}^{n} (Y_i - \hat{Y}_{(-i)})^2.$$
+
+LOOCV is nearly unbiased but can have high variance (the $n$ training sets overlap massively) and is computationally expensive for large $n$.
+
+### 13.14.3 $k$-Fold Cross-Validation
+
+A better trade-off: split the data into $k$ roughly equal-sized **folds**. For each fold $j = 1, \ldots, k$:
+
+1. Hold out fold $j$ as the **validation set**.
+2. Train the model on the remaining $k - 1$ folds.
+3. Compute the prediction error on fold $j$.
+
+The $k$-fold CV estimate is:
+
+$$\text{CV}_{(k)} = \frac{1}{k} \sum_{j=1}^{k} \text{MSE}_j,$$
+
+where $\text{MSE}_j = \frac{1}{n_j} \sum_{i \in \text{fold } j} (Y_i - \hat{Y}_i^{(-j)})^2$.
+
+Typical choices are $k = 5$ or $k = 10$. The bias--variance trade-off: larger $k$ reduces bias (training sets are larger) but increases variance (folds overlap more) and computation.
+
+### 13.14.4 Implementation from Scratch
+
+```{r kfold-from-scratch}
+#' k-fold cross-validation for a linear model -- from scratch
+#' @param formula formula for lm()
+#' @param data data.frame or data.table
+#' @param k integer -- number of folds
+#' @return list with fold MSEs and overall CV estimate
+my_kfold_cv <- function(formula, data, k = 10L) {
+  n <- nrow(data)
+  fold_ids <- sample(rep(1:k, length.out = n))
+  mse_folds <- numeric(k)
+
+  for (j in seq_len(k)) {
+    train <- data[fold_ids != j, ]
+    valid <- data[fold_ids == j, ]
+
+    fit <- lm(formula, data = train)
+    preds <- predict(fit, newdata = valid)
+    y_valid <- valid[[all.vars(formula)[1]]]
+    mse_folds[j] <- mean((y_valid - preds)^2)
+  }
+
+  list(
+    fold_mse = mse_folds,
+    cv_estimate = mean(mse_folds),
+    cv_se = sd(mse_folds) / sqrt(k)
+  )
+}
+```
+
+```{r cv-penguins}
+pen_model <- penguins[
+  !is.na(body_mass_g) & !is.na(flipper_length_mm) & !is.na(bill_length_mm),
+  .(body_mass_g, flipper_length_mm, bill_length_mm, species)
+]
+
+set.seed(42)
+
+# Simple model: mass ~ flipper length
+cv_simple <- my_kfold_cv(
+  body_mass_g ~ flipper_length_mm,
+  data = pen_model,
+  k = 10
+)
+
+# Richer model: mass ~ flipper + bill + species
+cv_rich <- my_kfold_cv(
+  body_mass_g ~ flipper_length_mm + bill_length_mm + species,
+  data = pen_model,
+  k = 10
+)
+
+data.table$data.table(
+  model = c("Simple (flipper only)", "Rich (flipper + bill + species)"),
+  cv_mse = c(cv_simple$cv_estimate, cv_rich$cv_estimate),
+  cv_rmse = sqrt(c(cv_simple$cv_estimate, cv_rich$cv_estimate)),
+  cv_se = c(cv_simple$cv_se, cv_rich$cv_se)
+)
+```
+
+### 13.14.5 Visualising Fold Performance
+
+```{r cv-fold-plot, fig.cap="Fold-level MSE for two models predicting penguin body mass. The richer model (with bill length and species) has consistently lower prediction error across all folds."}
+fold_dt <- data.table$rbindlist(list(
+  data.table$data.table(
+    fold = 1:10,
+    mse = cv_simple$fold_mse,
+    model = "Simple"
+  ),
+  data.table$data.table(
+    fold = 1:10,
+    mse = cv_rich$fold_mse,
+    model = "Rich"
+  )
+))
+
+ggplot2$ggplot(fold_dt, ggplot2$aes(x = factor(fold), y = mse, fill = model)) +
+  ggplot2$geom_col(position = "dodge", alpha = 0.85) +
+  ggplot2$scale_fill_manual(values = c(
+    "Simple" = "#1f77b4",
+    "Rich" = "#2ca02c"
+  )) +
+  ggplot2$labs(
+    x = "Fold",
+    y = "Mean squared error",
+    fill = "Model",
+    title = "10-fold CV: fold-level MSE"
+  ) +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
+```
+
+### 13.14.6 Repeated Cross-Validation
+
+A single round of $k$-fold CV depends on the random split. **Repeated CV** runs the procedure $R$ times with different random splits and averages the results. This reduces the variance of the CV estimate.
+
+```{r repeated-cv}
+set.seed(42)
+n_repeats <- 20
+cv_results <- numeric(n_repeats)
+
+for (r in seq_len(n_repeats)) {
+  cv_results[r] <- my_kfold_cv(
+    body_mass_g ~ flipper_length_mm + bill_length_mm + species,
+    data = pen_model,
+    k = 10
+  )$cv_estimate
+}
+
+mean(cv_results)
+sd(cv_results)
+```
+
+---
+
+## 13.15 Bootstrap versus Cross-Validation
+
+Both are resampling methods, but they serve different purposes:
+
+| Feature | Bootstrap | Cross-validation |
+|:---|:---|:---|
+| **Goal** | Estimate sampling variability of a statistic | Estimate prediction error |
+| **Mechanism** | Resample with replacement | Partition into train/test |
+| **Output** | Standard error, confidence interval | MSE, RMSE, classification error |
+| **Typical use** | Inference (CIs, hypothesis tests) | Model selection, tuning |
+| **Bias** | Can be biased for prediction error (0.632 bootstrap corrects) | Low bias for $k \ge 5$ |
+
+They are complementary, not competing. Use the bootstrap when you need a confidence interval for a parameter; use cross-validation when you need to choose between models or tune hyperparameters.
+
+---
+
+## 13.16 Communicating to Stakeholders
+
+When explaining bootstrap and CV results to non-technical audiences:
+
+1. **Bootstrap:** "We simulated drawing new samples from our data thousands of times to understand how much our estimate might vary. The 95% confidence interval tells us the plausible range for the true value."
+
+2. **Cross-validation:** "We repeatedly hid part of the data, trained our model on the rest, and tested how well it predicted the hidden data. This tells us how the model will perform on new data it has never seen."
+
+3. **Avoid technical debt.** Do not say "we resampled with replacement from the empirical distribution" to a business audience. Say "we used a computer-intensive method to quantify uncertainty without making distributional assumptions."
+
+4. **Visualise.** Show the bootstrap histogram with the confidence interval shaded. Show the fold-level CV errors to convey variability.
+
+---
+
+## 13.17 Quick Reference
+
+**Bootstrap:**
+
+- `my_bootstrap(x, stat_fn, B)` -- from-scratch implementation.
+- `boot::boot(data, statistic, R)` -- the standard R package.
+- `boot::boot.ci(boot_obj, type = "bca")` -- BCa confidence intervals.
+- Rule of thumb: $B = 5{,}000$ for standard errors, $B = 10{,}000$ for confidence intervals.
+
+**Cross-validation:**
+
+- `my_kfold_cv(formula, data, k)` -- from-scratch $k$-fold CV.
+- Common choices: $k = 5$ or $k = 10$; repeated 10--20 times.
+- For model comparison, use the **one-standard-error rule**: choose the simplest model whose CV error is within one SE of the minimum.
+
+**When bootstrap fails:**
+
+- Non-smooth statistics (e.g., the maximum of a sample) -- the bootstrap is inconsistent.
+- Very small samples ($n < 15$) -- the bootstrap distribution may be too discrete.
+- Dependent data -- use the block bootstrap or circular bootstrap.
+
+---
+
+## 13.18 Exercises
+
+### Conceptual
+
+1. Explain the plug-in principle in one sentence. Why is it the theoretical foundation of the bootstrap?
+2. Why does resampling *with replacement* (bootstrap) produce a different distribution than resampling *without replacement* (permutation test)?
+3. The BCa interval corrects for bias and skewness. Give an example of a statistic where these corrections are important (hint: think about the sample variance or a ratio of means).
+
+### Computational
+
+4. Bootstrap the **trimmed mean** (10% trim) of Gentoo body mass. Compare the bootstrap SE to the bootstrap SE of the ordinary mean. Which is more variable?
+5. Implement LOOCV from scratch for simple linear regression of body mass on flipper length. Compare the LOOCV estimate to 10-fold CV.
+6. Using the `mtcars` data (available via `data.table::fread`), compare three models for predicting `mpg`:
+   (a) `mpg ~ wt`
+   (b) `mpg ~ wt + hp`
+   (c) `mpg ~ wt + hp + disp + drat`
+   Use 10-fold CV repeated 20 times. Which model has the lowest CV error? Does the one-standard-error rule select a different model?
+
+### Extension
+
+7. Implement the **0.632 bootstrap** estimator of prediction error. Compare it to 10-fold CV on the penguins data.
+8. Investigate the coverage probability of the percentile, basic, and BCa intervals for the **median** by simulation: generate 1,000 samples of size $n = 25$ from an Exponential(1) distribution, compute all three 95% intervals for each sample, and record how often each interval covers the true median ($\ln 2$). Which interval has the best coverage?

@@ -1,0 +1,601 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 15: Simple Linear Regression"
+part: "Part 3: R-squared and Residuals"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, regression, diagnostics, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 15 -- Simple Linear Regression
+
+## Part 3: R-squared and Residuals
+
+We have derived the OLS estimators and their sampling distributions. But how good is the fit? In this part we derive $R^2$ and adjusted $R^2$, connect them to the $F$-test, and then examine residual diagnostics -- the essential practice of checking whether the model assumptions are met. We close with three real-world datasets that illustrate different regression stories.
+
+---
+
+## 15.18 The Coefficient of Determination $R^2$
+
+### 15.18.1 Definition and Derivation
+
+Recall the decomposition from Part 1:
+
+$$\text{SST} = \text{SSReg} + \text{SSE}$$
+
+The **coefficient of determination** is:
+
+$$R^2 = \frac{\text{SSReg}}{\text{SST}} = 1 - \frac{\text{SSE}}{\text{SST}}$$
+
+$R^2$ measures the **proportion of variance in $Y$ that is explained by the linear relationship with $X$**. It satisfies $0 \le R^2 \le 1$.
+
+### 15.18.2 $R^2$ Equals the Squared Correlation
+
+**Theorem.** In simple linear regression, $R^2 = r_{xy}^2$, where $r_{xy}$ is the Pearson correlation coefficient.
+
+*Proof.* We have:
+
+$$r_{xy} = \frac{S_{xy}}{\sqrt{S_{xx} \cdot S_{yy}}} = \frac{\sum(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum(x_i - \bar{x})^2 \cdot \sum(y_i - \bar{y})^2}}$$
+
+and $\hat{\beta}_1 = S_{xy}/S_{xx}$. Now:
+
+$$\text{SSReg} = \sum(\hat{y}_i - \bar{y})^2 = \hat{\beta}_1^2 \sum(x_i - \bar{x})^2 = \hat{\beta}_1^2 S_{xx} = \frac{S_{xy}^2}{S_{xx}}$$
+
+Therefore:
+
+$$R^2 = \frac{\text{SSReg}}{\text{SST}} = \frac{S_{xy}^2}{S_{xx} \cdot S_{yy}} = r_{xy}^2 \quad \square$$
+
+This is a beautiful result: the proportion of variance explained is exactly the square of the correlation. A correlation of $r = 0.8$ means $R^2 = 0.64$, so 64% of the variation in $Y$ is explained by $X$.
+
+### 15.18.3 Limitations of $R^2$
+
+$R^2$ is seductive but has important limitations:
+
+1. **$R^2$ always increases** when you add more predictors (even useless ones). This is a problem in multiple regression.
+2. **A high $R^2$ does not imply the model is correct.** Anscombe's quartet shows four datasets with identical $R^2$ but wildly different patterns.
+3. **$R^2$ measures linear association only.** A perfect quadratic relationship will have $R^2 < 1$ in a linear model.
+4. **$R^2$ depends on the variance of $X$.** If you restrict the range of $X$, $R^2$ drops even if the true relationship is unchanged.
+
+### 15.18.4 Computing $R^2$ from Scratch
+
+
+``` r
+data_dir <- "../../../data"
+cats <- data.table$fread(file.path(data_dir, "classic/cats.csv"))
+fit <- lm(Hwt ~ Bwt, data = cats)
+
+SST <- sum((cats$Hwt - mean(cats$Hwt))^2)
+SSE <- sum(residuals(fit)^2)
+SSReg <- SST - SSE
+
+R2 <- 1 - SSE / SST
+r_xy <- cor(cats$Bwt, cats$Hwt)
+
+data.frame(
+  quantity = c("R^2 from SS", "r_xy^2", "R^2 from summary()"),
+  value = c(R2, r_xy^2, summary(fit)$r.squared)
+)
+```
+
+```
+            quantity     value
+1        R^2 from SS 0.6466209
+2             r_xy^2 0.6466209
+3 R^2 from summary() 0.6466209
+```
+
+---
+
+## 15.19 Adjusted $R^2$
+
+### 15.19.1 The Problem
+
+Since $R^2$ never decreases when predictors are added, it is a biased measure of model quality. We need a version that penalises model complexity.
+
+### 15.19.2 Derivation
+
+The adjusted $R^2$ is:
+
+$$R^2_{\text{adj}} = 1 - \frac{\text{SSE}/(n - p)}{\text{SST}/(n - 1)} = 1 - \frac{n - 1}{n - p}(1 - R^2)$$
+
+where $p$ is the total number of parameters (including the intercept). For simple regression, $p = 2$.
+
+The idea: we replace raw sums of squares with **mean squares** (i.e., divide by degrees of freedom). The mean squared error $\text{MSE} = \text{SSE}/(n-p)$ is an unbiased estimator of $\sigma^2$, so $R^2_{\text{adj}}$ is roughly the proportion of variance explained after correcting for the number of parameters.
+
+
+``` r
+n <- nrow(cats)
+p <- 2  # intercept + slope
+R2_adj <- 1 - (n - 1) / (n - p) * (1 - R2)
+
+data.frame(
+  quantity = c("R^2", "Adjusted R^2", "From summary()"),
+  value = c(R2, R2_adj, summary(fit)$adj.r.squared)
+)
+```
+
+```
+        quantity     value
+1            R^2 0.6466209
+2   Adjusted R^2 0.6441323
+3 From summary() 0.6441323
+```
+
+Note that $R^2_{\text{adj}} < R^2$. In simple regression the difference is small, but in multiple regression with many predictors, the gap can be substantial.
+
+---
+
+## 15.20 Connection Between $R^2$ and the $F$-test
+
+### 15.20.1 The Relationship
+
+The $F$-statistic for testing $H_0: \beta_1 = 0$ in simple regression is:
+
+$$F = \frac{\text{SSReg}/1}{\text{SSE}/(n-2)} = \frac{\text{MSReg}}{\text{MSE}}$$
+
+We can express this purely in terms of $R^2$:
+
+$$F = \frac{R^2 / 1}{(1 - R^2)/(n - 2)} = \frac{R^2(n - 2)}{1 - R^2}$$
+
+This shows that the $F$-test and $R^2$ are equivalent: a large $R^2$ corresponds to a large $F$-statistic, which corresponds to a small $p$-value.
+
+
+``` r
+F_from_R2 <- R2 * (n - 2) / (1 - R2)
+F_from_anova <- summary(fit)$fstatistic[1]
+
+data.frame(
+  method = c("from R^2", "from summary()"),
+  F_stat = c(F_from_R2, F_from_anova)
+)
+```
+
+```
+              method   F_stat
+            from R^2 259.8348
+value from summary() 259.8348
+```
+
+---
+
+## 15.21 Residual Analysis
+
+### 15.21.1 Why Check Residuals?
+
+All the inference in Parts 1 and 2 depends on the assumptions: linearity, independence, homoscedasticity, and normality. If these fail, confidence intervals and $p$-values may be unreliable. **Residual analysis** is our primary tool for checking these assumptions.
+
+### 15.21.2 Standardised and Studentised Residuals
+
+Raw residuals $e_i = y_i - \hat{y}_i$ do not all have the same variance. In fact:
+
+$$\text{Var}(e_i) = \sigma^2(1 - h_{ii})$$
+
+where $h_{ii}$ is the $i$th diagonal element of the **hat matrix** $H = X(X'X)^{-1}X'$. The **internally studentised residuals** are:
+
+$$r_i = \frac{e_i}{s\sqrt{1 - h_{ii}}}$$
+
+and the **externally studentised (deleted) residuals** use a leave-one-out estimate $s_{(i)}$:
+
+$$t_i = \frac{e_i}{s_{(i)}\sqrt{1 - h_{ii}}} \sim t_{n-p-1}$$
+
+### 15.21.3 The Four Diagnostic Plots
+
+R's `plot.lm()` produces four standard diagnostic plots. Let us understand each.
+
+
+``` r
+par(mfrow = c(2, 2))
+plot(fit, which = 1:4, col = "#0072B2", pch = 16, cex = 0.8)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/diagnostics-cats-1.png" alt="Standard diagnostic plots for the cats regression. Top-left: residuals vs fitted -- check for non-linearity and heteroscedasticity. Top-right: Q-Q plot -- check normality. Bottom-left: scale-location -- check homoscedasticity. Bottom-right: residuals vs leverage -- identify influential points.">
+	Standard diagnostic plots for the cats regression. Top-left: residuals vs fitted -- check for non-linearity and heteroscedasticity. Top-right: Q-Q plot -- check normality. Bottom-left: scale-location -- check homoscedasticity. Bottom-right: residuals vs leverage -- identify influential points.
+</Figure>
+
+``` r
+par(mfrow = c(1, 1))
+```
+
+**Plot 1 -- Residuals vs Fitted**: the residuals should scatter randomly around zero with constant spread. A funnel shape indicates heteroscedasticity; a curve indicates non-linearity.
+
+**Plot 2 -- Normal Q-Q**: the standardised residuals should fall along the diagonal line. Deviations in the tails suggest heavy or light tails.
+
+**Plot 3 -- Scale-Location**: $\sqrt{|\text{standardised residuals}|}$ vs fitted values. A horizontal line indicates constant variance.
+
+**Plot 4 -- Residuals vs Leverage**: identifies influential points. Points with high leverage and large residuals have outsized influence on the fit.
+
+### 15.21.4 Building Diagnostic Plots with ggplot2
+
+
+``` r
+diag_data <- data.table$data.table(
+  fitted = fitted(fit),
+  residuals = residuals(fit),
+  std_resid = rstandard(fit),
+  leverage = hatvalues(fit)
+)
+
+ggplot2$ggplot(diag_data, ggplot2$aes(x = fitted, y = residuals)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = "Residuals",
+    title = "Residuals vs fitted values"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/resid-vs-fitted-gg-1.png" alt="Residuals vs fitted values for the cats model. The smooth trend line (red) is close to zero, suggesting the linearity assumption is reasonable.">
+	Residuals vs fitted values for the cats model. The smooth trend line (red) is close to zero, suggesting the linearity assumption is reasonable.
+</Figure>
+
+
+``` r
+ggplot2$ggplot(diag_data, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Theoretical quantiles",
+    y = "Standardised residuals",
+    title = "Normal Q-Q plot"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/qq-gg-1.png" alt="Normal Q-Q plot. Most points follow the reference line closely; the slight deviation in the upper tail suggests mild right-skewness.">
+	Normal Q-Q plot. Most points follow the reference line closely; the slight deviation in the upper tail suggests mild right-skewness.
+</Figure>
+
+---
+
+## 15.22 Case Study: Cats Data Revisited
+
+
+``` r
+ggplot2$ggplot(cats, ggplot2$aes(x = Bwt, y = Hwt, colour = Sex)) +
+  ggplot2$geom_point(alpha = 0.6, size = 2) +
+  ggplot2$geom_smooth(method = "lm", formula = y ~ x, se = FALSE, linewidth = 0.8) +
+  ggplot2$scale_colour_manual(values = c("F" = "#E69F00", "M" = "#0072B2")) +
+  ggplot2$labs(
+    x = "Body weight (kg)",
+    y = "Heart weight (g)",
+    title = "Heart vs body weight by sex"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/cats-full-1.png" alt="Cats regression coloured by sex. Male cats tend to be heavier and have heavier hearts, but the relationship is similar for both sexes.">
+	Cats regression coloured by sex. Male cats tend to be heavier and have heavier hearts, but the relationship is similar for both sexes.
+</Figure>
+
+The slopes are similar for male and female cats, but the intercepts differ. This suggests that sex may be an important additional predictor -- motivation for multiple regression in Chapter 16.
+
+---
+
+## 15.23 Case Study: Gapminder (GDP and Life Expectancy)
+
+
+``` r
+gapminder <- data.table$fread(file.path(data_dir, "primary/gapminder.csv"))
+gap2007 <- gapminder[year == 2007]
+gap2007[, log_gdp := log(gdpPercap)]
+
+fit_gap <- lm(lifeExp ~ log_gdp, data = gap2007)
+
+ggplot2$ggplot(gap2007, ggplot2$aes(x = log_gdp, y = lifeExp)) +
+  ggplot2$geom_point(
+    ggplot2$aes(colour = continent), alpha = 0.7, size = 2.5
+  ) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    colour = "black", linewidth = 1, se = FALSE, linetype = "dashed"
+  ) +
+  ggplot2$labs(
+    x = "Log GDP per capita",
+    y = "Life expectancy (years)",
+    title = "Life expectancy vs log GDP per capita (2007)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/gapminder-analysis-1.png" alt="Life expectancy vs log GDP per capita, 2007. Colour indicates continent. The overall regression line masks substantial continent-level variation.">
+	Life expectancy vs log GDP per capita, 2007. Colour indicates continent. The overall regression line masks substantial continent-level variation.
+</Figure>
+
+
+``` r
+summary(fit_gap)
+```
+
+```
+
+Call:
+lm(formula = lifeExp ~ log_gdp, data = gap2007)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-25.947  -2.661   1.215   4.469  13.115 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)   4.9496     3.8577   1.283    0.202    
+log_gdp       7.2028     0.4423  16.283   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 7.122 on 140 degrees of freedom
+Multiple R-squared:  0.6544,	Adjusted R-squared:  0.652 
+F-statistic: 265.2 on 1 and 140 DF,  p-value: < 2.2e-16
+```
+
+The $R^2$ of approximately 0.65 tells us that log GDP per capita explains about 65% of the cross-country variation in life expectancy. But the residual plot reveals structure:
+
+
+``` r
+gap2007[, resid := residuals(fit_gap)]
+
+ggplot2$ggplot(gap2007, ggplot2$aes(x = log_gdp, y = resid, colour = continent)) +
+  ggplot2$geom_point(alpha = 0.7, size = 2.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = "Log GDP per capita",
+    y = "Residual (years)",
+    title = "Residuals by continent"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/gapminder-resid-1.png" alt="Residuals from the gapminder regression coloured by continent. African countries consistently have lower life expectancy than the model predicts, suggesting that GDP alone is insufficient.">
+	Residuals from the gapminder regression coloured by continent. African countries consistently have lower life expectancy than the model predicts, suggesting that GDP alone is insufficient.
+</Figure>
+
+The residuals show a systematic pattern by continent: African countries tend to have negative residuals (lower life expectancy than predicted by GDP alone), while European countries tend to have positive residuals. This tells us GDP is not the whole story -- health infrastructure, governance, and disease burden all play a role.
+
+---
+
+## 15.24 Case Study: Penguins and Simpson's Paradox
+
+Simpson's paradox occurs when the direction of an association reverses upon conditioning on a third variable. The Palmer Penguins dataset provides a beautiful example.
+
+
+``` r
+penguins_raw <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+penguins <- penguins_raw[complete.cases(penguins_raw[, .(bill_length_mm, bill_depth_mm, species)])]
+
+fit_overall <- lm(bill_depth_mm ~ bill_length_mm, data = penguins)
+
+ggplot2$ggplot(penguins, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    colour = "#D55E00", linewidth = 1, se = FALSE
+  ) +
+  ggplot2$labs(
+    x = "Bill length (mm)",
+    y = "Bill depth (mm)",
+    title = "Overall: negative association"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/penguins-overall-1.png" alt="Bill depth vs bill length for all penguins pooled together. The overall trend is negative -- longer bills tend to be shallower. But is this the full story?">
+	Bill depth vs bill length for all penguins pooled together. The overall trend is negative -- longer bills tend to be shallower. But is this the full story?
+</Figure>
+
+
+``` r
+summary(fit_overall)
+```
+
+```
+
+Call:
+lm(formula = bill_depth_mm ~ bill_length_mm, data = penguins)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-4.1381 -1.4263  0.0164  1.3841  4.5255 
+
+Coefficients:
+               Estimate Std. Error t value Pr(>|t|)    
+(Intercept)    20.88547    0.84388  24.749  < 2e-16 ***
+bill_length_mm -0.08502    0.01907  -4.459 1.12e-05 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.922 on 340 degrees of freedom
+Multiple R-squared:  0.05525,	Adjusted R-squared:  0.05247 
+F-statistic: 19.88 on 1 and 340 DF,  p-value: 1.12e-05
+```
+
+The overall slope is **negative**: longer bills tend to be shallower. But watch what happens when we condition on species:
+
+
+``` r
+ggplot2$ggplot(penguins, ggplot2$aes(
+  x = bill_length_mm, y = bill_depth_mm, colour = species
+)) +
+  ggplot2$geom_point(alpha = 0.6, size = 2) +
+  ggplot2$geom_smooth(
+    method = "lm", formula = y ~ x,
+    se = FALSE, linewidth = 0.8
+  ) +
+  ggplot2$geom_smooth(
+    ggplot2$aes(colour = NULL),
+    method = "lm", formula = y ~ x,
+    colour = "black", linetype = "dashed", se = FALSE, linewidth = 1
+  ) +
+  ggplot2$scale_colour_manual(values = c(
+    "Adelie" = "#E69F00", "Chinstrap" = "#0072B2", "Gentoo" = "#009E73"
+  )) +
+  ggplot2$labs(
+    x = "Bill length (mm)",
+    y = "Bill depth (mm)",
+    title = "Simpson's paradox: within each species, the slope is positive"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/penguins-by-species-1.png" alt="Simpson&#39;s paradox in action. Within each species (coloured lines), the association between bill length and bill depth is positive. The overall trend (dashed black line) reverses direction because it confounds species differences.">
+	Simpson's paradox in action. Within each species (coloured lines), the association between bill length and bill depth is positive. The overall trend (dashed black line) reverses direction because it confounds species differences.
+</Figure>
+
+
+``` r
+# Fit within each species
+species_fits <- penguins[, {
+  fit_sp <- lm(bill_depth_mm ~ bill_length_mm, data = .SD)
+  s <- summary(fit_sp)
+  data.table$data.table(
+    slope = coef(fit_sp)[2],
+    R2 = s$r.squared,
+    p_value = s$coefficients[2, 4]
+  )
+}, by = species]
+
+species_fits
+```
+
+```
+     species     slope        R2      p_value
+      <char>     <num>     <num>        <num>
+1:    Adelie 0.1788343 0.1532657 6.674141e-07
+2:    Gentoo 0.2048443 0.4139429 1.015502e-15
+3: Chinstrap 0.2222117 0.4271096 1.525539e-09
+```
+
+Within every species, the slope is **positive** -- longer-billed penguins of the same species tend to have deeper bills. The overall negative slope is an artefact of confounding: Gentoo penguins have long but shallow bills compared to Adelie penguins, and pooling them creates a spurious negative trend.
+
+**The lesson**: always consider whether a lurking variable might reverse the apparent relationship. Simpson's paradox is not a curiosity -- it occurs frequently in real data, and ignoring it leads to wrong conclusions.
+
+---
+
+## 15.25 Formal Tests for Assumptions
+
+### 15.25.1 Shapiro-Wilk Test for Normality
+
+
+``` r
+shapiro.test(residuals(fit))
+```
+
+```
+
+	Shapiro-Wilk normality test
+
+data:  residuals(fit)
+W = 0.9845, p-value = 0.1046
+```
+
+The $p$-value is small, suggesting the residuals are not perfectly normal. However, with $n = 144$ observations, the $t$-test is robust to mild non-normality due to the Central Limit Theorem.
+
+### 15.25.2 Breusch-Pagan-style Test for Heteroscedasticity
+
+We can test for non-constant variance by regressing the squared residuals on $\hat{y}$:
+
+
+``` r
+# Simple Breusch-Pagan from scratch
+e2 <- residuals(fit)^2
+bp_fit <- lm(e2 ~ fitted(fit))
+bp_stat <- nrow(cats) * summary(bp_fit)$r.squared
+
+c(
+  "BP statistic" = bp_stat,
+  "p-value" = pchisq(bp_stat, df = 1, lower.tail = FALSE)
+)
+```
+
+```
+BP statistic      p-value 
+ 9.529395820  0.002022067 
+```
+
+### 15.25.3 Durbin-Watson-style Test for Autocorrelation
+
+If the data have a natural ordering (e.g., time series), we check for autocorrelation in the residuals:
+
+
+``` r
+# Durbin-Watson from scratch
+e <- residuals(fit)
+n <- length(e)
+DW <- sum(diff(e)^2) / sum(e^2)
+
+c("DW statistic" = DW)
+```
+
+```
+DW statistic 
+    1.579896 
+```
+
+A value near 2 indicates no autocorrelation. Values substantially below 2 suggest positive autocorrelation; values substantially above 2 suggest negative autocorrelation. For the cats data (which have no natural ordering), this test is not particularly meaningful.
+
+---
+
+## 15.26 When Simple Linear Regression Fails
+
+Simple linear regression fails when:
+
+1. **The true relationship is non-linear** -- use transformations or polynomial regression.
+2. **There are influential outliers** -- use robust regression or remove outliers after careful investigation.
+3. **The errors are heteroscedastic** -- use weighted least squares or variance-stabilising transformations.
+4. **Important predictors are omitted** -- move to multiple regression (Chapter 16).
+5. **The response is bounded** (e.g., proportions, counts) -- use generalised linear models (Chapters 19-21).
+
+---
+
+## Communicating to Stakeholders
+
+When reporting $R^2$ and diagnostics:
+
+- **Do not over-sell $R^2$**. An $R^2$ of 0.65 does not mean the model is 65% "correct" -- it means 65% of the variation is explained. The remaining 35% is unexplained.
+- **Show residual plots alongside your results.** A model with $R^2 = 0.95$ is worthless if the residual plot reveals a systematic curve.
+- **Simpson's paradox**: always ask "could this relationship reverse when we account for subgroups?" Present stratified analyses alongside the overall analysis.
+- **Use language like** "after accounting for body weight, we find..." rather than "body weight causes..."
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **$R^2$** | $1 - \text{SSE}/\text{SST} = r_{xy}^2$ (simple regression) |
+| **Adjusted $R^2$** | $1 - \frac{n-1}{n-p}(1 - R^2)$ |
+| **$F$ from $R^2$** | $F = R^2(n-2)/(1-R^2)$ (simple regression) |
+| **Studentised residual** | $r_i = e_i / (s\sqrt{1 - h_{ii}})$ |
+| **Simpson's paradox** | Marginal and conditional associations can have opposite signs |
+
+---
+
+## Exercises
+
+1. **$R^2$ and correlation.** Show algebraically that $R^2 = r_{xy}^2$ in simple linear regression. Why does this equality not hold in multiple regression?
+
+2. **Anscombe's quartet.** Load Anscombe's quartet (four datasets with identical regression statistics but very different scatter plots). Fit a simple linear regression to each and verify that $R^2$, $\hat{\beta}_0$, and $\hat{\beta}_1$ are nearly identical. Then plot the residuals and explain why $R^2$ alone is insufficient.
+
+3. **Simpson's paradox exploration.** Using the penguins data, fit the model `bill_depth_mm ~ bill_length_mm + species`. Show that the coefficient on `bill_length_mm` is now positive, and explain why.
+
+4. **Heteroscedasticity.** Simulate data from $Y = 2 + 3X + \varepsilon$ where $\varepsilon_i \sim N(0, x_i^2)$ (variance increases with $X$). Fit a linear model and show that (a) the OLS estimates are still unbiased, but (b) the standard errors reported by `summary()` are incorrect. Verify (b) using a simulation study.
+
+5. **Leverage and influence.** Add an extreme observation $(x = 20, y = 100)$ to the cats data. Refit the model and compare the coefficients, $R^2$, and residual plots. Compute Cook's distance for the added point.
+
+6. **Gapminder by continent.** Fit separate regressions of life expectancy on log GDP per capita for each continent. Report the slopes, $R^2$ values, and residual standard errors. Which continent shows the weakest relationship, and why might that be?

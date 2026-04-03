@@ -1,0 +1,669 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 21: Poisson and Count Models"
+part: "Part 1: Poisson Regression"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, poisson-regression, count-data, glm, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 21 -- Poisson and Count Models
+
+## Part 1: Poisson Regression
+
+Count data are everywhere: the number of insurance claims filed per year, the number of incidents on a ship, the number of publications by a scientist. These outcomes are non-negative integers, often right-skewed, and frequently have variance that increases with the mean. Ordinary linear regression is the wrong tool -- it predicts negative counts and assumes constant variance. **Poisson regression** is the natural starting point for modelling count data.
+
+In this chapter we derive Poisson regression from the exponential family framework developed in Chapter 19, interpret coefficients as **rate ratios**, handle exposure via offsets, and fit models to real data using `glm(..., family = poisson)`.
+
+---
+
+## 21.1 The Log Link as Canonical for Poisson
+
+### 21.1.1 Review
+
+Recall from Chapter 19 that the Poisson PMF in exponential family form is:
+
+$$P(Y = y \mid \lambda) = \frac{1}{y!} \exp\bigl[y \log \lambda - \lambda\bigr]$$
+
+The canonical parameter is $\theta = \log \lambda$, so the **canonical link** for the Poisson family is the **log link**:
+
+$$g(\mu) = \log \mu$$
+
+The inverse link is:
+
+$$\mu = g^{-1}(\eta) = e^{\eta}$$
+
+### 21.1.2 The Model
+
+The Poisson regression model is:
+
+$$Y_i \sim \text{Poisson}(\mu_i), \qquad \log \mu_i = \mathbf{x}_i^\top \boldsymbol{\beta}$$
+
+or equivalently:
+
+$$\mu_i = \exp(\mathbf{x}_i^\top \boldsymbol{\beta}) = \exp(\beta_0 + \beta_1 x_{i1} + \cdots + \beta_p x_{ip})$$
+
+Because $\mu_i = E[Y_i]$ and $\text{Var}(Y_i) = \mu_i$ for the Poisson distribution, the mean-variance relationship is fixed: **the variance equals the mean**. This is both a strength (parsimony) and a weakness (rigidity) that we address in Part 2.
+
+---
+
+## 21.2 Deriving the Log-Likelihood
+
+For independent observations $y_1, \ldots, y_n$:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \bigl[y_i \log \mu_i - \mu_i - \log(y_i!)\bigr]$$
+
+Substituting $\log \mu_i = \mathbf{x}_i^\top \boldsymbol{\beta}$:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \bigl[y_i \mathbf{x}_i^\top \boldsymbol{\beta} - \exp(\mathbf{x}_i^\top \boldsymbol{\beta})\bigr] + \text{const}$$
+
+The score equations are:
+
+$$\frac{\partial \ell}{\partial \beta_j} = \sum_{i=1}^n (y_i - \mu_i) x_{ij} = 0$$
+
+These are the same score equations we derived for the GLM in Chapter 19, confirming that Poisson regression is a special case of the GLM framework.
+
+---
+
+## 21.3 Interpreting Coefficients as Rate Ratios
+
+### 21.3.1 The Multiplicative Structure
+
+Because $\mu_i = e^{\beta_0 + \beta_1 x_{i1} + \cdots}$, a one-unit increase in $x_j$ multiplies the mean by $e^{\beta_j}$:
+
+$$\frac{\mu(x_j + 1)}{\mu(x_j)} = e^{\beta_j}$$
+
+This is the **rate ratio** (or **incidence rate ratio**) -- the Poisson analogue of the odds ratio in logistic regression.
+
+- $e^{\beta_j} > 1$: predictor increases the rate.
+- $e^{\beta_j} = 1$: no effect.
+- $e^{\beta_j} < 1$: predictor decreases the rate.
+
+### 21.3.2 Example: Insurance Claims
+
+
+``` r
+data_dir <- "../../../data"
+claims <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
+str(claims)
+```
+
+```
+Classes 'data.table' and 'data.frame':	64 obs. of  5 variables:
+ $ District: int  1 1 1 1 1 1 1 1 1 1 ...
+ $ Group   : chr  "<1l" "<1l" "<1l" "<1l" ...
+ $ Age     : chr  "<25" "25-29" "30-35" ">35" ...
+ $ Holders : int  197 264 246 1680 284 536 696 3582 133 286 ...
+ $ Claims  : int  38 35 20 156 63 84 89 400 19 52 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+``` r
+ggplot2$ggplot(claims, ggplot2$aes(x = Claims)) +
+  ggplot2$geom_histogram(
+    binwidth = 1, fill = "#0072B2", colour = "white", alpha = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Number of claims",
+    y = "Frequency",
+    title = "Distribution of insurance claims"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/claims-eda-1.png" alt="Distribution of insurance claims. The data are right-skewed with many zeros, as is typical for count data.">
+	Distribution of insurance claims. The data are right-skewed with many zeros, as is typical for count data.
+</Figure>
+
+
+``` r
+fit_claims <- glm(Claims ~ Age + Group + District, data = claims, family = poisson)
+summary(fit_claims)
+```
+
+```
+
+Call:
+glm(formula = Claims ~ Age + Group + District, family = poisson, 
+    data = claims)
+
+Coefficients:
+            Estimate Std. Error z value Pr(>|z|)    
+(Intercept)  4.88423    0.06323  77.250  < 2e-16 ***
+Age30-35     0.11448    0.06843   1.673   0.0943 .  
+Age<25      -0.56769    0.08272  -6.863 6.74e-12 ***
+Age>35       1.63147    0.05440  29.990  < 2e-16 ***
+Group1.5-2l -0.51890    0.04299 -12.069  < 2e-16 ***
+Group<1l    -0.98960    0.05045 -19.617  < 2e-16 ***
+Group>2l    -1.57888    0.06351 -24.858  < 2e-16 ***
+District    -0.47218    0.01744 -27.069  < 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for poisson family taken to be 1)
+
+    Null deviance: 4236.68  on 63  degrees of freedom
+Residual deviance:  122.61  on 56  degrees of freedom
+AIC: 455.93
+
+Number of Fisher Scoring iterations: 4
+```
+
+
+``` r
+coefs <- coef(fit_claims)
+ci <- confint.default(fit_claims)
+
+rr_table <- data.frame(
+  Predictor = names(coefs),
+  Coefficient = round(coefs, 4),
+  Rate_Ratio = round(exp(coefs), 4),
+  RR_Lower = round(exp(ci[, 1]), 4),
+  RR_Upper = round(exp(ci[, 2]), 4)
+)
+rownames(rr_table) <- NULL
+knitr::kable(rr_table, caption = "Poisson regression coefficients and rate ratios for insurance claims.")
+```
+
+
+
+Table: Poisson regression coefficients and rate ratios for insurance claims.
+
+|Predictor   | Coefficient| Rate_Ratio| RR_Lower| RR_Upper|
+|:-----------|-----------:|----------:|--------:|--------:|
+|(Intercept) |      4.8842|   132.1884| 116.7817| 149.6277|
+|Age30-35    |      0.1145|     1.1213|   0.9805|   1.2822|
+|Age<25      |     -0.5677|     0.5668|   0.4820|   0.6666|
+|Age>35      |      1.6315|     5.1114|   4.5944|   5.6865|
+|Group1.5-2l |     -0.5189|     0.5952|   0.5471|   0.6475|
+|Group<1l    |     -0.9896|     0.3717|   0.3367|   0.4104|
+|Group>2l    |     -1.5789|     0.2062|   0.1821|   0.2335|
+|District    |     -0.4722|     0.6236|   0.6027|   0.6453|
+
+---
+
+## 21.4 Offsets: Accounting for Exposure
+
+### 21.4.1 The Problem
+
+Often the count depends on the amount of "exposure" -- time at risk, area surveyed, number of employees, etc. If person A was observed for 2 years and person B for 6 months, it is unfair to compare their raw counts directly. We need to model the **rate** (count per unit exposure) rather than the raw count.
+
+### 21.4.2 The Solution: Offset
+
+If $t_i$ is the exposure for observation $i$, we model:
+
+$$\log \mu_i = \log t_i + \mathbf{x}_i^\top \boldsymbol{\beta}$$
+
+The term $\log t_i$ is called an **offset** -- it enters the linear predictor with a fixed coefficient of 1. Equivalently:
+
+$$\mu_i = t_i \cdot \exp(\mathbf{x}_i^\top \boldsymbol{\beta})$$
+
+so $\exp(\mathbf{x}_i^\top \boldsymbol{\beta})$ is the **rate per unit exposure**.
+
+### 21.4.3 Ships Damage Data
+
+The classic ships damage dataset records the number of damage incidents by ship type, year of construction, and period of operation. The exposure is the aggregate months of service.
+
+
+``` r
+ships <- data.table$fread(file.path(data_dir, "count/ships_damage.csv"))
+str(ships)
+```
+
+```
+Classes 'data.table' and 'data.frame':	40 obs. of  5 variables:
+ $ type     : chr  "A" "A" "A" "A" ...
+ $ year     : int  60 60 65 65 70 70 75 75 60 60 ...
+ $ period   : int  60 75 60 75 60 75 60 75 60 75 ...
+ $ service  : int  127 63 1095 1095 1512 3353 0 2244 44882 17176 ...
+ $ incidents: int  0 0 3 4 6 18 0 11 39 29 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+``` r
+ships_summary <- ships[service > 0, .(
+  total_incidents = sum(incidents),
+  total_service = sum(service),
+  rate_per_1000 = sum(incidents) / sum(service) * 1000
+), by = type]
+
+ggplot2$ggplot(ships_summary, ggplot2$aes(x = reorder(type, -rate_per_1000), y = rate_per_1000)) +
+  ggplot2$geom_col(fill = "#0072B2", alpha = 0.8) +
+  ggplot2$labs(
+    x = "Ship type",
+    y = "Incidents per 1000 service months",
+    title = "Ship damage rates by type"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/ships-eda-1.png" alt="Incidents per ship type, showing both the raw counts and the rates per 1000 service months.">
+	Incidents per ship type, showing both the raw counts and the rates per 1000 service months.
+</Figure>
+
+
+``` r
+# Only use rows with positive service
+ships_pos <- ships[service > 0]
+
+fit_ships <- glm(
+  incidents ~ type + factor(year) + factor(period),
+  data = ships_pos,
+  family = poisson,
+  offset = log(service)
+)
+summary(fit_ships)
+```
+
+```
+
+Call:
+glm(formula = incidents ~ type + factor(year) + factor(period), 
+    family = poisson, data = ships_pos, offset = log(service))
+
+Coefficients:
+                 Estimate Std. Error z value Pr(>|z|)    
+(Intercept)      -6.40590    0.21744 -29.460  < 2e-16 ***
+typeB            -0.54334    0.17759  -3.060  0.00222 ** 
+typeC            -0.68740    0.32904  -2.089  0.03670 *  
+typeD            -0.07596    0.29058  -0.261  0.79377    
+typeE             0.32558    0.23588   1.380  0.16750    
+factor(year)65    0.69714    0.14964   4.659 3.18e-06 ***
+factor(year)70    0.81843    0.16977   4.821 1.43e-06 ***
+factor(year)75    0.45343    0.23317   1.945  0.05182 .  
+factor(period)75  0.38447    0.11827   3.251  0.00115 ** 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for poisson family taken to be 1)
+
+    Null deviance: 146.328  on 33  degrees of freedom
+Residual deviance:  38.695  on 25  degrees of freedom
+AIC: 154.56
+
+Number of Fisher Scoring iterations: 5
+```
+
+
+``` r
+coefs_ships <- coef(fit_ships)
+ci_ships <- confint.default(fit_ships)
+
+rr_ships <- data.frame(
+  Predictor = names(coefs_ships),
+  Rate_Ratio = round(exp(coefs_ships), 3),
+  Lower = round(exp(ci_ships[, 1]), 3),
+  Upper = round(exp(ci_ships[, 2]), 3)
+)
+rownames(rr_ships) <- NULL
+knitr::kable(rr_ships, caption = "Rate ratios from the ships damage Poisson regression with offset.")
+```
+
+
+
+Table: Rate ratios from the ships damage Poisson regression with offset.
+
+|Predictor        | Rate_Ratio| Lower| Upper|
+|:----------------|----------:|-----:|-----:|
+|(Intercept)      |      0.002| 0.001| 0.003|
+|typeB            |      0.581| 0.410| 0.823|
+|typeC            |      0.503| 0.264| 0.958|
+|typeD            |      0.927| 0.524| 1.638|
+|typeE            |      1.385| 0.872| 2.199|
+|factor(year)65   |      2.008| 1.498| 2.692|
+|factor(year)70   |      2.267| 1.625| 3.162|
+|factor(year)75   |      1.574| 0.996| 2.485|
+|factor(period)75 |      1.469| 1.165| 1.852|
+
+The offset ensures we are comparing rates, not raw counts. A rate ratio of 2.5 for ship type B means that type B ships have 2.5 times the incident rate of the reference type, after adjusting for year, period, and exposure.
+
+---
+
+## 21.5 Poisson Regression from Scratch
+
+Let us implement the log-likelihood, gradient, and Newton-Raphson fitting for Poisson regression without using `glm()`.
+
+
+``` r
+poisson_loglik <- function(beta, X, y, offset = rep(0, length(y))) {
+  eta <- X %*% beta + offset
+  mu <- exp(eta)
+  sum(y * eta - mu - lgamma(y + 1))
+}
+
+poisson_score <- function(beta, X, y, offset = rep(0, length(y))) {
+  eta <- X %*% beta + offset
+  mu <- exp(eta)
+  t(X) %*% (y - mu)
+}
+
+poisson_fit <- function(X, y, offset = rep(0, length(y)), tol = 1e-8, max_iter = 50) {
+  # Initialise with small positive values to avoid log(0)
+  beta <- rep(0, ncol(X))
+  beta[1] <- log(mean(y) + 0.1)
+
+  for (iter in seq_len(max_iter)) {
+    eta <- X %*% beta + offset
+    mu <- as.vector(exp(eta))
+
+    # Clamp mu for numerical stability
+    mu <- pmax(mu, 1e-10)
+
+    # Working weights (for Poisson with log link: w = mu)
+    w <- mu
+
+    # Working response
+    z <- as.vector(eta + (y - mu) / mu)
+
+    # IRLS update using weighted least squares via QR decomposition
+    W_half <- sqrt(w)
+    Xw <- W_half * X
+    zw <- W_half * z
+    beta_new <- as.vector(qr.solve(Xw, zw))
+
+    if (max(abs(beta_new - beta)) < tol) {
+      beta <- beta_new
+      break
+    }
+    beta <- beta_new
+  }
+
+  eta_final <- X %*% beta + offset
+  mu_final <- exp(eta_final)
+  deviance <- 2 * sum(ifelse(y > 0, y * log(y / mu_final), 0) - (y - mu_final))
+
+  list(
+    coefficients = beta,
+    iterations = iter,
+    deviance = as.numeric(deviance),
+    fitted_values = as.vector(mu_final)
+  )
+}
+
+# Fit to insurance claims data
+X_claims <- model.matrix(~ Age + Group + District, data = claims)
+y_claims <- claims$Claims
+
+fit_scratch <- poisson_fit(X_claims, y_claims)
+
+comp_df <- data.frame(
+  Parameter = colnames(X_claims),
+  Scratch = round(fit_scratch$coefficients, 6),
+  glm = round(coef(fit_claims), 6)
+)
+knitr::kable(comp_df, caption = "Poisson regression: from-scratch vs glm() coefficients.")
+```
+
+
+
+Table: Poisson regression: from-scratch vs glm() coefficients.
+
+|            |Parameter   |   Scratch|       glm|
+|:-----------|:-----------|---------:|---------:|
+|(Intercept) |(Intercept) |  4.884228|  4.884228|
+|Age30-35    |Age30-35    |  0.114477|  0.114477|
+|Age<25      |Age<25      | -0.567693| -0.567693|
+|Age>35      |Age>35      |  1.631471|  1.631471|
+|Group1.5-2l |Group1.5-2l | -0.518904| -0.518904|
+|Group<1l    |Group<1l    | -0.989603| -0.989603|
+|Group>2l    |Group>2l    | -1.578875| -1.578875|
+|District    |District    | -0.472177| -0.472177|
+
+---
+
+## 21.6 Deviance for Poisson Models
+
+The **Poisson deviance** is:
+
+$$D = 2 \sum_{i=1}^n \left[y_i \log\frac{y_i}{\hat{\mu}_i} - (y_i - \hat{\mu}_i)\right]$$
+
+with the convention $0 \log 0 = 0$.
+
+
+``` r
+mu_hat <- fitted(fit_claims)
+dev_terms <- ifelse(y_claims > 0, y_claims * log(y_claims / mu_hat), 0) - (y_claims - mu_hat)
+dev_scratch <- 2 * sum(dev_terms)
+
+c(
+  "Deviance (scratch)" = round(dev_scratch, 4),
+  "Deviance (glm)" = round(deviance(fit_claims), 4)
+)
+```
+
+```
+Deviance (scratch)     Deviance (glm) 
+          122.6057           122.6057 
+```
+
+### 21.6.1 Goodness of Fit
+
+For Poisson data with large $\mu_i$, the deviance is approximately $\chi^2$ with $n - p$ degrees of freedom under the true model. A deviance much larger than the degrees of freedom suggests **overdispersion** (see Part 2).
+
+
+``` r
+gof_df <- data.frame(
+  Measure = c("Residual deviance", "Degrees of freedom", "Ratio (deviance/df)"),
+  Value = round(c(
+    deviance(fit_claims),
+    fit_claims$df.residual,
+    deviance(fit_claims) / fit_claims$df.residual
+  ), 3)
+)
+knitr::kable(gof_df, caption = "Goodness-of-fit summary. A ratio much greater than 1 suggests overdispersion.")
+```
+
+
+
+Table: Goodness-of-fit summary. A ratio much greater than 1 suggests overdispersion.
+
+|Measure             |   Value|
+|:-------------------|-------:|
+|Residual deviance   | 122.606|
+|Degrees of freedom  |  56.000|
+|Ratio (deviance/df) |   2.189|
+
+---
+
+## 21.7 Diagnostic Plots
+
+
+``` r
+claims[, fitted_val := fitted(fit_claims)]
+claims[, pearson_resid := residuals(fit_claims, type = "pearson")]
+claims[, claims := Claims]
+
+p1 <- ggplot2$ggplot(claims, ggplot2$aes(x = fitted_val, y = pearson_resid)) +
+  ggplot2$geom_point(alpha = 0.3, colour = "#0072B2", size = 1.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = "Pearson residuals",
+    title = "Residuals vs fitted"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+
+p2 <- ggplot2$ggplot(claims, ggplot2$aes(x = fitted_val, y = claims)) +
+  ggplot2$geom_jitter(alpha = 0.3, colour = "#0072B2", size = 1.5, width = 0.02, height = 0.2) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = "Observed counts",
+    title = "Observed vs fitted"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/poisson-diagnostics-1.png" alt="Diagnostic plots for the Poisson regression. Left: residuals vs fitted (looking for patterns). Right: observed vs fitted counts.">
+	Diagnostic plots for the Poisson regression. Left: residuals vs fitted (looking for patterns). Right: observed vs fitted counts.
+</Figure>
+
+---
+
+## 21.8 Predicted Rates
+
+
+``` r
+# Age is categorical — create prediction grid from observed factor levels
+pred_grid <- data.table$CJ(
+  Age = unique(claims$Age),
+  Group = unique(claims$Group),
+  District = unique(claims$District)[1]
+)
+pred_grid[, pred_rate := predict(fit_claims, newdata = pred_grid, type = "response")]
+
+ggplot2$ggplot(pred_grid, ggplot2$aes(x = Age, y = pred_rate, fill = Group)) +
+  ggplot2$geom_col(position = "dodge") +
+  ggplot2$labs(
+    x = "Age group",
+    y = "Expected number of claims",
+    fill = "Group",
+    title = "Predicted claim rates by age and gender"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/predicted-rates-1.png" alt="Predicted claim counts by age group and engine group.">
+	Predicted claim counts by age group and engine group.
+</Figure>
+
+---
+
+## 21.9 Model Comparison
+
+
+``` r
+fit_null <- glm(Claims ~ 1, data = claims, family = poisson)
+fit_age <- glm(Claims ~ Age, data = claims, family = poisson)
+fit_full <- glm(Claims ~ Age + Group + District, data = claims, family = poisson)
+
+comp_models <- data.frame(
+  Model = c("Null", "Age only", "Age + Group + District"),
+  Deviance = round(c(deviance(fit_null), deviance(fit_age), deviance(fit_full)), 2),
+  AIC = round(c(AIC(fit_null), AIC(fit_age), AIC(fit_full)), 2),
+  df = c(fit_null$df.residual, fit_age$df.residual, fit_full$df.residual)
+)
+knitr::kable(comp_models, caption = "Poisson regression model comparison.")
+```
+
+
+
+Table: Poisson regression model comparison.
+
+|Model                  | Deviance|     AIC| df|
+|:----------------------|--------:|-------:|--:|
+|Null                   |  4236.68| 4556.00| 63|
+|Age only               |  1863.25| 2188.57| 60|
+|Age + Group + District |   122.61|  455.93| 56|
+
+
+``` r
+anova(fit_age, fit_full, test = "LRT")
+```
+
+```
+Analysis of Deviance Table
+
+Model 1: Claims ~ Age
+Model 2: Claims ~ Age + Group + District
+  Resid. Df Resid. Dev Df Deviance  Pr(>Chi)    
+1        60    1863.25                          
+2        56     122.61  4   1740.7 < 2.2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+---
+
+## 21.10 The Mean-Variance Relationship
+
+A fundamental property of the Poisson distribution is $\text{Var}(Y) = E[Y]$. Let us check this in the data by computing the mean and variance of claims within groups.
+
+
+``` r
+mv_dt <- claims[, .(
+  mean_claims = mean(Claims),
+  var_claims = var(Claims)
+), by = .(Age, District)]
+
+ggplot2$ggplot(mv_dt, ggplot2$aes(x = mean_claims, y = var_claims)) +
+  ggplot2$geom_point(colour = "#0072B2", size = 3) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(
+    x = "Group mean",
+    y = "Group variance",
+    title = "Mean-variance relationship (Poisson expects points on the line)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/mean-var-check-1.png" alt="Mean vs variance of claims by group. Under the Poisson assumption these should fall on the identity line. Points above the line indicate overdispersion.">
+	Mean vs variance of claims by group. Under the Poisson assumption these should fall on the identity line. Points above the line indicate overdispersion.
+</Figure>
+
+If the variance substantially exceeds the mean, we have **overdispersion** -- a signal that the Poisson model is too restrictive. We address this in Part 2.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting Poisson regression results:
+
+- **Use rate ratios.** Say "customers aged 50-60 file claims at 1.3 times the rate of those aged 30-40" rather than quoting log-scale coefficients.
+- **Explain offsets.** "We accounted for the fact that some policyholders were observed for longer than others by modelling the rate (claims per year) rather than the raw count."
+- **Flag overdispersion.** If the deviance is much larger than the degrees of freedom, warn stakeholders that the standard errors may be too small and the model's confidence intervals too narrow.
+- **Visualise predicted rates.** A curve showing how the expected count changes with a predictor is far more accessible than a table of coefficients.
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Model** | $\log \mu_i = \mathbf{x}_i^\top \boldsymbol{\beta}$ |
+| **Inverse link** | $\mu_i = e^{\eta_i}$ |
+| **Rate ratio** | $\text{RR}_j = e^{\beta_j}$ |
+| **Offset** | $\log \mu_i = \log t_i + \mathbf{x}_i^\top \boldsymbol{\beta}$ |
+| **Mean-variance** | $\text{Var}(Y) = \mu$ (Poisson assumption) |
+| **Deviance** | $2\sum[y_i \log(y_i / \hat{\mu}_i) - (y_i - \hat{\mu}_i)]$ |
+| **GOF check** | Deviance / df $\approx 1$ if model is adequate |
+| **R syntax** | `glm(y ~ x, family = poisson)` |
+| **With offset** | `glm(y ~ x, family = poisson, offset = log(t))` |
+
+---
+
+## Exercises
+
+1. **Derivation.** Derive the score equations for Poisson regression from the log-likelihood. Show that they reduce to $\mathbf{X}^\top \mathbf{y} = \mathbf{X}^\top \hat{\boldsymbol{\mu}}$ (the canonical link property).
+
+2. **Rate ratio interpretation.** In a Poisson regression for hospital admissions, the coefficient for a binary treatment variable is $\hat{\beta} = -0.25$. What is the rate ratio? Interpret it in plain language.
+
+3. **Offset vs predictor.** Fit the ships data two ways: (a) with `log(service)` as an offset and (b) with `log(service)` as a regular predictor. Compare the coefficients. Under what condition are they equivalent?
+
+4. **Deviance residuals.** For the insurance claims model, plot the deviance residuals against the fitted values. Compare with the Pearson residual plot. Which appears more symmetric?
+
+5. **Prediction.** Using the ships model, predict the expected number of incidents for a type A ship built in 1970, operating in the period 1975-1979, with 2000 months of service. Provide a 95% confidence interval for the prediction.
+
+6. **Simulation.** Generate 500 observations from a Poisson regression with $\log \mu = 1 + 0.5 x$ where $x \sim U(0, 5)$. Fit the model and verify that the estimated coefficients are close to the true values. Repeat 1000 times and examine the distribution of $\hat{\beta}_1$.

@@ -1,0 +1,621 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 7: Convergence and Limit Theorems"
+part: "Part 1: Inequalities and Convergence Types"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, convergence, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 7 -- Convergence and Limit Theorems
+
+## Part 1: Inequalities and Convergence Types
+
+Statistics works because of a remarkable fact: averages of random quantities become predictable when the sample is large. This chapter makes that claim precise. We begin with inequalities that bound how far a random variable can stray from its expected value, and then formalise exactly what it means for a sequence of random variables to "converge."
+
+These tools form the bridge between probability theory and statistical inference. Every confidence interval, every hypothesis test, and every asymptotic result in later chapters rests on the foundations we lay here.
+
+---
+
+## 7.1 Why Convergence Matters
+
+Suppose you flip a fair coin many times and compute the running proportion of heads. Intuitively, this proportion should settle near 0.5. But what does "settle" mean mathematically? How quickly? With what guarantees?
+
+These are not idle questions. The entire edifice of frequentist statistics -- $p$-values, confidence intervals, maximum likelihood -- depends on the behaviour of estimators as the sample size grows. If sample averages did *not* converge to population means, none of our standard methods would work.
+
+We need three things:
+
+1. **Inequalities** that bound tail probabilities without knowing the full distribution.
+2. **Modes of convergence** that formalise "a sequence of random variables approaches a limit."
+3. **Limit theorems** (the LLN and CLT, covered in Parts 2 and 3) that tell us *what* the limits are.
+
+Let us start with the inequalities.
+
+---
+
+## 7.2 Markov's Inequality
+
+### 7.2.1 Statement
+
+**Markov's inequality.** Let $X$ be a non-negative random variable with finite expectation. Then for any $a > 0$:
+
+$$P(X \ge a) \le \frac{E[X]}{a}.$$
+
+This is astonishingly general: we need know *nothing* about the distribution of $X$ beyond its mean and the fact that it is non-negative.
+
+### 7.2.2 Proof
+
+The proof is short and elegant. We use the indicator trick.
+
+Define the indicator variable $I = \mathbf{1}(X \ge a)$. Since $X \ge 0$, whenever $X \ge a$ we certainly have $X \ge a \cdot 1 = a \cdot I$. And when $X < a$, we have $a \cdot I = 0 \le X$. Therefore, in all cases:
+
+$$a \cdot I \le X.$$
+
+Taking expectations on both sides (expectation preserves inequalities):
+
+$$a \cdot E[I] \le E[X].$$
+
+But $E[I] = P(X \ge a)$ (the expectation of an indicator is the probability of the event). Dividing both sides by $a > 0$:
+
+$$P(X \ge a) \le \frac{E[X]}{a}. \quad \blacksquare$$
+
+### 7.2.3 Simulation: Markov's Bound is Conservative but Valid
+
+```{r markov-sim}
+box::use(ggplot2)
+box::use(data.table)
+
+set.seed(42)
+
+# Exponential(rate=1): E[X] = 1, X >= 0
+n_sim <- 100000
+x <- rexp(n_sim, rate = 1)
+
+a_vals <- seq(0.5, 6, by = 0.25)
+
+results <- data.table$data.table(
+  a = a_vals,
+  empirical = vapply(a_vals, function(a) mean(x >= a), numeric(1)),
+  markov_bound = 1 / a_vals  # E[X]/a = 1/a
+)
+
+results_long <- data.table$melt(
+  results,
+  id.vars = "a",
+  variable.name = "type",
+  value.name = "probability"
+)
+```
+
+```{r markov-plot, fig.cap="Markov's inequality for Exp(1). The bound (orange) is always above the true tail probability (blue), confirming validity. The bound is loose -- it does not use information about the shape of the distribution."}
+ggplot2$ggplot(results_long, ggplot2$aes(x = a, y = probability, colour = type)) +
+  ggplot2$geom_line(linewidth = 1.2) +
+  ggplot2$scale_colour_manual(
+    values = c("empirical" = "#0072B2", "markov_bound" = "#D55E00"),
+    labels = c("True P(X >= a)", "Markov bound: E[X]/a")
+  ) +
+  ggplot2$labs(
+    x = "a",
+    y = "Probability",
+    title = "Markov's inequality for X ~ Exp(1)",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+The Markov bound is valid (always above the true probability) but quite loose. This is the price of generality -- the bound uses only the mean.
+
+---
+
+## 7.3 Chebyshev's Inequality
+
+### 7.3.1 Deriving Chebyshev from Markov
+
+Chebyshev's inequality sharpens Markov by incorporating the variance. The derivation is a clever application of Markov's inequality.
+
+**Theorem (Chebyshev).** Let $X$ be a random variable with finite mean $\mu$ and finite variance $\sigma^2$. Then for any $k > 0$:
+
+$$P(|X - \mu| \ge k\sigma) \le \frac{1}{k^2}.$$
+
+**Proof.** Consider the random variable $Y = (X - \mu)^2$. Note that $Y \ge 0$ and $E[Y] = \text{Var}(X) = \sigma^2$.
+
+The event $|X - \mu| \ge k\sigma$ is the same as $(X - \mu)^2 \ge k^2\sigma^2$, i.e., $Y \ge k^2\sigma^2$.
+
+Applying **Markov's inequality** to $Y$ with $a = k^2\sigma^2$:
+
+$$P(Y \ge k^2\sigma^2) \le \frac{E[Y]}{k^2\sigma^2} = \frac{\sigma^2}{k^2\sigma^2} = \frac{1}{k^2}. \quad \blacksquare$$
+
+**Equivalent form.** Setting $\epsilon = k\sigma$ (so $k = \epsilon / \sigma$):
+
+$$P(|X - \mu| \ge \epsilon) \le \frac{\sigma^2}{\epsilon^2}.$$
+
+This form is often more convenient in proofs.
+
+### 7.3.2 What Does Chebyshev Tell Us?
+
+| $k$ (number of std deviations) | Upper bound on $P(\|X - \mu\| \ge k\sigma)$ |
+|:---:|:---:|
+| 1 | 1.000 (trivial) |
+| 2 | 0.250 |
+| 3 | 0.111 |
+| 4 | 0.063 |
+| 5 | 0.040 |
+
+For any distribution with finite variance, at most 25% of the probability lies more than 2 standard deviations from the mean. At most 11.1% lies beyond 3 standard deviations. Compare this with the normal distribution, where only about 4.6% lies beyond 2$\sigma$ and 0.3% beyond 3$\sigma$. Chebyshev's bound is conservative because it applies to *every* distribution.
+
+### 7.3.3 Simulation: Chebyshev for Different Distributions
+
+```{r chebyshev-sim}
+set.seed(42)
+
+n_sim <- 100000
+
+distributions <- list(
+  "Normal(0,1)" = rnorm(n_sim),
+  "Exp(1) - 1" = rexp(n_sim, 1) - 1,
+  "Uniform(-1,1)" = runif(n_sim, -1, 1)
+)
+
+# Standardise each to mean 0, variance 1
+distributions <- lapply(distributions, function(x) {
+  (x - mean(x)) / sd(x)
+})
+
+k_vals <- seq(1, 5, by = 0.1)
+
+sim_results <- do.call(rbind, lapply(names(distributions), function(dname) {
+  x <- distributions[[dname]]
+  data.table$data.table(
+    k = k_vals,
+    distribution = dname,
+    empirical = vapply(k_vals, function(k) mean(abs(x) >= k), numeric(1))
+  )
+}))
+
+chebyshev <- data.table$data.table(
+  k = k_vals,
+  distribution = "Chebyshev bound",
+  empirical = 1 / k_vals^2
+)
+
+plot_data <- data.table$rbindlist(list(sim_results, chebyshev))
+```
+
+```{r chebyshev-plot, fig.cap="Chebyshev's inequality compared with three distributions (all standardised to mean 0, variance 1). The bound (dashed) is valid for all, but particularly loose for the normal."}
+ggplot2$ggplot(plot_data, ggplot2$aes(x = k, y = empirical, colour = distribution)) +
+  ggplot2$geom_line(
+    ggplot2$aes(linetype = distribution),
+    linewidth = 1.1
+  ) +
+  ggplot2$scale_linetype_manual(values = c(
+    "Normal(0,1)" = "solid",
+    "Exp(1) - 1" = "solid",
+    "Uniform(-1,1)" = "solid",
+    "Chebyshev bound" = "dashed"
+  )) +
+  ggplot2$scale_colour_manual(values = c(
+    "Normal(0,1)" = "#0072B2",
+    "Exp(1) - 1" = "#009E73",
+    "Uniform(-1,1)" = "#CC79A7",
+    "Chebyshev bound" = "#D55E00"
+  )) +
+  ggplot2$labs(
+    x = "k (standard deviations from mean)",
+    y = "P(|X - mu| >= k * sigma)",
+    title = "Chebyshev's inequality: bound vs. reality",
+    colour = NULL,
+    linetype = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+---
+
+## 7.4 Jensen's Inequality
+
+### 7.4.1 Statement
+
+**Jensen's inequality.** If $g$ is a **convex** function and $X$ is a random variable with finite expectation, then:
+
+$$g(E[X]) \le E[g(X)].$$
+
+If $g$ is **concave**, the inequality reverses: $g(E[X]) \ge E[g(X)]$.
+
+A function $g$ is convex if for all $x, y$ and $\lambda \in [0,1]$:
+$$g(\lambda x + (1-\lambda)y) \le \lambda g(x) + (1-\lambda) g(y).$$
+
+Informally, a convex function "curves upward" -- its graph lies below any secant line.
+
+### 7.4.2 Proof for the Discrete Case
+
+Let $X$ take values $x_1, x_2, \ldots, x_m$ with probabilities $p_1, p_2, \ldots, p_m$. We prove Jensen's inequality by induction on $m$.
+
+**Base case ($m = 1$).** Then $X = x_1$ with probability 1, so $E[X] = x_1$ and $E[g(X)] = g(x_1) = g(E[X])$. The inequality holds with equality.
+
+**Base case ($m = 2$).** We have $E[X] = p_1 x_1 + p_2 x_2$ where $p_1 + p_2 = 1$. By the definition of convexity (setting $\lambda = p_1$):
+
+$$g(p_1 x_1 + p_2 x_2) \le p_1 g(x_1) + p_2 g(x_2) = E[g(X)].$$
+
+The left-hand side is $g(E[X])$. Done.
+
+**Inductive step.** Assume the result holds for any discrete distribution on $m - 1$ points. Consider $X$ on $m$ points. Write $\alpha = p_1$ and $\beta = 1 - p_1$. Then:
+
+$$E[X] = \alpha x_1 + \beta \underbrace{\left(\frac{p_2}{\beta} x_2 + \cdots + \frac{p_m}{\beta} x_m\right)}_{\equiv \mu^*}.$$
+
+By convexity of $g$:
+
+$$g(E[X]) = g(\alpha x_1 + \beta \mu^*) \le \alpha g(x_1) + \beta g(\mu^*).$$
+
+By the induction hypothesis applied to the $(m-1)$-point distribution on $x_2, \ldots, x_m$ with probabilities $p_2/\beta, \ldots, p_m/\beta$:
+
+$$g(\mu^*) \le \frac{p_2}{\beta} g(x_2) + \cdots + \frac{p_m}{\beta} g(x_m).$$
+
+Combining:
+
+$$g(E[X]) \le \alpha g(x_1) + \beta \left(\frac{p_2}{\beta} g(x_2) + \cdots + \frac{p_m}{\beta} g(x_m)\right) = \sum_{i=1}^{m} p_i g(x_i) = E[g(X)]. \quad \blacksquare$$
+
+### 7.4.3 Example: $E[X^2] \ge (E[X])^2$
+
+Since $g(x) = x^2$ is convex, Jensen's inequality immediately gives:
+
+$$E[X^2] \ge (E[X])^2.$$
+
+This is equivalent to $\text{Var}(X) = E[X^2] - (E[X])^2 \ge 0$, which we already knew. Jensen's inequality provides a one-line proof.
+
+### 7.4.4 Simulation: Jensen's Inequality in Action
+
+```{r jensen-sim}
+set.seed(42)
+
+n_sim <- 50000
+x <- rexp(n_sim, rate = 1)  # E[X] = 1
+
+# Convex function: g(x) = x^2
+g_of_E <- mean(x)^2
+E_of_g <- mean(x^2)
+
+# Concave function: h(x) = sqrt(x)
+h_of_E <- sqrt(mean(x))
+E_of_h <- mean(sqrt(x))
+
+data.frame(
+  function_type = c("Convex: g(x) = x^2", "Concave: h(x) = sqrt(x)"),
+  g_of_EX = round(c(g_of_E, h_of_E), 4),
+  E_of_gX = round(c(E_of_g, E_of_h), 4),
+  inequality_holds = c(g_of_E <= E_of_g, h_of_E >= E_of_h)
+)
+```
+
+```{r jensen-plot, fig.cap="Jensen's inequality for the convex function g(x) = x squared applied to Exp(1). The value of g at the mean (red point) lies below the mean of g(X) (blue dashed line), exactly as Jensen predicts."}
+x_grid <- seq(0, 5, length.out = 200)
+
+curve_data <- data.table$data.table(
+  x = x_grid,
+  gx = x_grid^2
+)
+
+ggplot2$ggplot(curve_data, ggplot2$aes(x = x, y = gx)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+  ggplot2$geom_hline(yintercept = E_of_g, linetype = "dashed", colour = "#009E73", linewidth = 0.8) +
+  ggplot2$geom_point(
+    data = data.table$data.table(x = mean(x), gx = mean(x)^2),
+    colour = "#D55E00", size = 4
+  ) +
+  ggplot2$annotate("text", x = 4, y = E_of_g + 0.7, label = "E[g(X)]", colour = "#009E73", size = 5) +
+  ggplot2$annotate("text", x = mean(x) + 0.6, y = mean(x)^2, label = "g(E[X])", colour = "#D55E00", size = 5) +
+  ggplot2$labs(
+    x = "x",
+    y = expression(g(x) == x^2),
+    title = "Jensen's inequality: g(E[X]) <= E[g(X)]"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 7.5 Types of Convergence
+
+We now address the central question of this chapter: what does it mean for a sequence of random variables $X_1, X_2, X_3, \ldots$ to "converge" to a random variable $X$?
+
+Unlike sequences of real numbers, where convergence has a single definition, random variables live in a richer world. There are several notions of convergence, each useful in different contexts.
+
+### 7.5.1 Intuition First: Three Simulations
+
+Before the formal definitions, let us build intuition by watching convergence in action.
+
+```{r convergence-intuition}
+set.seed(42)
+
+n_values <- c(10, 50, 200, 1000, 5000)
+
+# Sequence 1: Sample mean of Bernoulli(0.5) -- converges in probability to 0.5
+# Sequence 2: Maximum of n Uniform(0,1) draws -- converges in distribution
+# Sequence 3: Running proportion of Bernoulli -- converges almost surely
+
+n_reps <- 2000
+
+# For convergence in probability: many repetitions of X_n = mean of n Bernoulli(0.5)
+conv_prob <- do.call(rbind, lapply(n_values, function(n) {
+  x_n <- replicate(n_reps, mean(rbinom(n, 1, 0.5)))
+  data.table$data.table(n = n, x_n = x_n, type = "in probability")
+}))
+```
+
+```{r convergence-prob-plot, fig.cap="Convergence in probability: the sample mean of n Bernoulli(0.5) draws. As n grows, the distribution of the sample mean concentrates around 0.5."}
+conv_prob[, n_label := factor(paste0("n = ", n), levels = paste0("n = ", n_values))]
+
+ggplot2$ggplot(conv_prob, ggplot2$aes(x = x_n)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.7
+  ) +
+  ggplot2$geom_vline(xintercept = 0.5, linetype = "dashed", colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ n_label, scales = "free_y", ncol = 5) +
+  ggplot2$labs(
+    x = expression(bar(X)[n]),
+    y = "Density",
+    title = "Convergence in probability: sample mean concentrates around 0.5"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+```{r convergence-dist-setup}
+# Convergence in distribution: M_n = max of n Uniform(0,1) draws
+# The CDF of M_n is F(x) = x^n. As n -> inf, the distribution degenerates at 1.
+# But after rescaling, n(1 - M_n) -> Exp(1).
+
+conv_dist <- do.call(rbind, lapply(n_values, function(n) {
+  m_n <- replicate(n_reps, max(runif(n)))
+  rescaled <- n * (1 - m_n)
+  data.table$data.table(n = n, rescaled = rescaled, type = "in distribution")
+}))
+```
+
+```{r convergence-dist-plot, fig.cap="Convergence in distribution: n(1 - M_n) where M_n is the maximum of n Uniform(0,1) draws. The rescaled quantity converges to an Exp(1) distribution (orange curve)."}
+conv_dist[, n_label := factor(paste0("n = ", n), levels = paste0("n = ", n_values))]
+
+exp_curve <- data.table$data.table(
+  x = seq(0, 6, length.out = 200),
+  density = dexp(seq(0, 6, length.out = 200), rate = 1)
+)
+
+ggplot2$ggplot(conv_dist, ggplot2$aes(x = rescaled)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.7
+  ) +
+  ggplot2$geom_line(
+    data = exp_curve,
+    ggplot2$aes(x = x, y = density),
+    colour = "#D55E00", linewidth = 1
+  ) +
+  ggplot2$facet_wrap(~ n_label, ncol = 5) +
+  ggplot2$coord_cartesian(xlim = c(0, 7)) +
+  ggplot2$labs(
+    x = expression(n(1 - M[n])),
+    y = "Density",
+    title = "Convergence in distribution: rescaled maximum -> Exp(1)"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+Now let us define these notions precisely.
+
+### 7.5.2 Convergence in Probability
+
+**Definition.** A sequence $\{X_n\}$ converges **in probability** to $X$ -- written $X_n \xrightarrow{P} X$ -- if for every $\epsilon > 0$:
+
+$$\lim_{n \to \infty} P(|X_n - X| > \epsilon) = 0.$$
+
+In words: the probability that $X_n$ differs from $X$ by more than any fixed tolerance $\epsilon$ goes to zero.
+
+This is the mode of convergence used in the **Weak Law of Large Numbers** (Part 2).
+
+### 7.5.3 Almost Sure Convergence
+
+**Definition.** A sequence $\{X_n\}$ converges **almost surely** (a.s.) to $X$ -- written $X_n \xrightarrow{a.s.} X$ -- if:
+
+$$P\!\left(\lim_{n \to \infty} X_n = X\right) = 1.$$
+
+In words: with probability 1, the individual sample paths converge. This is a stronger statement than convergence in probability -- it says that for (almost) every outcome $\omega$ in the sample space, the numerical sequence $X_1(\omega), X_2(\omega), \ldots$ converges to $X(\omega)$.
+
+**Almost sure implies in probability.** If $X_n \xrightarrow{a.s.} X$, then $X_n \xrightarrow{P} X$. The converse is false in general.
+
+This is the mode of convergence used in the **Strong Law of Large Numbers**.
+
+### 7.5.4 Convergence in Distribution
+
+**Definition.** A sequence $\{X_n\}$ converges **in distribution** to $X$ -- written $X_n \xrightarrow{d} X$ -- if:
+
+$$\lim_{n \to \infty} F_{X_n}(x) = F_X(x)$$
+
+at every point $x$ where $F_X$ is continuous.
+
+This is the **weakest** mode of convergence. It says only that the CDFs converge pointwise, not that the random variables themselves are close on any particular outcome. This is the mode of convergence used in the **Central Limit Theorem** (Part 3).
+
+### 7.5.5 The Hierarchy
+
+$$\text{Almost sure} \implies \text{In probability} \implies \text{In distribution}.$$
+
+Neither implication reverses in general. However, convergence in distribution to a **constant** $c$ does imply convergence in probability to $c$.
+
+### 7.5.6 Visualising the Difference: Paths vs. Distributions
+
+```{r convergence-paths}
+set.seed(42)
+
+# Almost sure convergence: running average of iid N(0,1)
+n_max <- 2000
+z <- rnorm(n_max)
+running_avg <- cumsum(z) / seq_len(n_max)
+
+# 10 sample paths
+n_paths <- 10
+paths_data <- do.call(rbind, lapply(1:n_paths, function(path_id) {
+  z_path <- rnorm(n_max)
+  avg_path <- cumsum(z_path) / seq_len(n_max)
+  data.table$data.table(
+    n = seq_len(n_max),
+    running_mean = avg_path,
+    path = as.factor(path_id)
+  )
+}))
+```
+
+```{r convergence-paths-plot, fig.cap="Almost sure convergence: ten independent sample paths of the running mean of N(0,1) draws. Every path converges to 0 -- this is the Strong Law of Large Numbers in action."}
+ggplot2$ggplot(paths_data, ggplot2$aes(x = n, y = running_mean, colour = path)) +
+  ggplot2$geom_line(alpha = 0.7, linewidth = 0.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "black", linewidth = 0.8) +
+  ggplot2$scale_x_log10() +
+  ggplot2$labs(
+    x = "n (log scale)",
+    y = expression(bar(X)[n]),
+    title = "Almost sure convergence: every path settles at 0"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+### 7.5.7 A Counterexample: In Probability but Not Almost Surely
+
+The classic "typewriter sequence" provides the counterexample. On $[0,1]$ with uniform measure, define $X_n = \mathbf{1}_{[a_n, b_n]}$ where the intervals sweep repeatedly across $[0,1]$ with decreasing length.
+
+We can simulate a simpler variant. Consider $X_n = \mathbf{1}(U_n \le 1/n)$ where $U_n$ are independent Uniform(0,1). Then $P(X_n = 1) = 1/n \to 0$, so $X_n \xrightarrow{P} 0$.
+
+But since $\sum_{n=1}^{\infty} P(X_n = 1) = \sum 1/n = \infty$, by the second Borel--Cantelli lemma (the $X_n$ are independent), infinitely many of the $X_n$ equal 1 with probability 1. Thus $X_n$ does *not* converge to 0 almost surely.
+
+```{r borel-cantelli-sim}
+set.seed(42)
+
+n_max <- 5000
+u <- runif(n_max)
+
+# X_n = 1 if U_n <= 1/n
+x_n <- as.integer(u <= 1 / seq_len(n_max))
+
+# Count how many "spikes" (X_n = 1) we see up to each n
+cumulative_spikes <- cumsum(x_n)
+
+spike_data <- data.table$data.table(
+  n = seq_len(n_max),
+  spikes = cumulative_spikes
+)
+```
+
+```{r borel-cantelli-plot, fig.cap="Cumulative spikes for X_n = 1(U_n <= 1/n). Despite P(X_n = 1) -> 0 (convergence in probability to 0), spikes keep accumulating (no almost sure convergence)."}
+ggplot2$ggplot(spike_data, ggplot2$aes(x = n, y = spikes)) +
+  ggplot2$geom_step(colour = "#0072B2", linewidth = 0.7) +
+  ggplot2$geom_line(
+    data = data.table$data.table(n = seq_len(n_max), spikes = cumsum(1 / seq_len(n_max))),
+    ggplot2$aes(x = n, y = spikes),
+    colour = "#D55E00", linetype = "dashed", linewidth = 0.8
+  ) +
+  ggplot2$labs(
+    x = "n",
+    y = "Cumulative number of spikes",
+    title = "Convergence in probability but not almost surely",
+    subtitle = "Orange dashed: expected cumulative spikes = sum of 1/k (harmonic series)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The spikes never stop. The cumulative count grows like the harmonic series $\sum 1/k \approx \ln(n)$. This is convergence in probability to 0 without almost sure convergence -- the key distinction.
+
+---
+
+## 7.6 Continuous Mapping Theorem
+
+We state without proof a result that is used constantly in asymptotic theory.
+
+**Continuous Mapping Theorem.** If $X_n \xrightarrow{P} X$ and $g$ is a continuous function, then $g(X_n) \xrightarrow{P} g(X)$.
+
+The same holds for convergence in distribution and almost sure convergence.
+
+This is why, for instance, if $\bar{X}_n \xrightarrow{P} \mu$, then $\bar{X}_n^2 \xrightarrow{P} \mu^2$.
+
+---
+
+## 7.7 Slutsky's Theorem
+
+Another indispensable tool:
+
+**Slutsky's Theorem.** If $X_n \xrightarrow{d} X$ and $Y_n \xrightarrow{P} c$ (a constant), then:
+
+- $X_n + Y_n \xrightarrow{d} X + c$
+- $X_n Y_n \xrightarrow{d} cX$
+- $X_n / Y_n \xrightarrow{d} X / c$ (provided $c \ne 0$)
+
+We will use Slutsky's theorem heavily in Chapter 8 when working with plug-in estimators for asymptotic variances.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining these ideas to a non-technical audience:
+
+- **Markov and Chebyshev** are useful for the *idea* they represent: "unlikely to be far from the average." You rarely need to quote the bounds themselves -- instead say: "With any distribution, the probability of an extreme outcome decreases predictably."
+- **Convergence** can be explained with a simple metaphor: "As we gather more data, our estimate zooms in on the truth -- like a camera lens gradually coming into focus."
+- Avoid mentioning "almost sure" vs. "in probability" to non-statisticians. Simply say the estimate "converges" or "stabilises."
+- The real punchline comes in Parts 2 and 3: sample averages converge (LLN) and their fluctuations are approximately normal (CLT). These are the results that matter for practice.
+
+---
+
+## Quick Reference
+
+| Inequality/Concept | Statement | Conditions |
+|:---|:---|:---|
+| **Markov** | $P(X \ge a) \le E[X]/a$ | $X \ge 0$, $a > 0$ |
+| **Chebyshev** | $P(\|X - \mu\| \ge k\sigma) \le 1/k^2$ | Finite variance |
+| **Jensen** | $g(E[X]) \le E[g(X)]$ | $g$ convex |
+| **Conv. in prob.** | $P(\|X_n - X\| > \epsilon) \to 0$ | For all $\epsilon > 0$ |
+| **Almost sure** | $P(\lim X_n = X) = 1$ | Strongest mode |
+| **Conv. in dist.** | $F_{X_n}(x) \to F_X(x)$ | At continuity points of $F_X$ |
+| **Hierarchy** | a.s. $\Rightarrow$ in prob. $\Rightarrow$ in dist. | |
+
+---
+
+## Exercises
+
+**Exercise 7.1.** Let $X \sim \text{Exp}(\lambda)$. Using Markov's inequality, find an upper bound for $P(X \ge 3/\lambda)$. Compare with the exact value.
+
+**Exercise 7.2.** A random variable $X$ has mean 100 and standard deviation 15. Without knowing the distribution of $X$, find an upper bound for $P(|X - 100| \ge 45)$ using Chebyshev's inequality. If $X$ is actually normal, compute the exact probability and compare.
+
+**Exercise 7.3.** Prove that $E[1/X] \ge 1/E[X]$ for any positive random variable $X$ with finite expectation. (*Hint*: use Jensen's inequality with an appropriate convex function.)
+
+**Exercise 7.4.** Let $X_n \sim \text{Uniform}(0, 1 + 1/n)$. Show that $X_n \xrightarrow{d} \text{Uniform}(0,1)$ by verifying pointwise convergence of the CDF at every continuity point.
+
+**Exercise 7.5.** Simulate the Borel--Cantelli example from Section 7.5.7 with 50,000 draws. Plot the cumulative number of spikes and overlay $\ln(n)$. Does the growth rate match the harmonic series?
+
+**Exercise 7.6.** Using Chebyshev's inequality, show that if $X_1, X_2, \ldots$ are iid with mean $\mu$ and variance $\sigma^2$, then $\bar{X}_n \xrightarrow{P} \mu$. (This is the one-line proof of the Weak Law of Large Numbers -- you are deriving it from scratch.)
+
+**Exercise 7.7.** Write an R function `chebyshev_bound(k)` that returns $1/k^2$. For a sample from the $\text{Gamma}(2, 1)$ distribution (mean 2, variance 2), compare the Chebyshev bound with the simulated tail probability for $k = 1, 2, 3, 4, 5$.

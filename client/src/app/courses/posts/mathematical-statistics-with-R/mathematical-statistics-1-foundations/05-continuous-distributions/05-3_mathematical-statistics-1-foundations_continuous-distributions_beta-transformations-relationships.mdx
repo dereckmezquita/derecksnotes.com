@@ -1,0 +1,613 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 5: Continuous Distributions"
+part: "Part 3: Beta, Transformations, and Relationships"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+# Chapter 5 -- Continuous Distributions
+
+## Part 3: Beta, Transformations, and Relationships
+
+In Parts 1 and 2 we built a collection of continuous distributions: the uniform, exponential, Gamma, normal, chi-square, $t$, and $F$. In this final part we add the Beta distribution (the natural model for proportions), introduce the change-of-variables technique (Jacobian method) to derive the log-normal distribution, and then step back to survey the entire landscape -- a family tree connecting every distribution we have studied.
+
+---
+
+## 5.6 The Beta Distribution
+
+### 5.6.1 Motivation and Definition
+
+The Beta distribution lives on the interval $[0, 1]$, making it a natural model for **proportions**, **probabilities**, and **percentages**. It is astonishingly flexible: by varying two shape parameters $\alpha$ and $\beta$, it can be uniform, U-shaped, J-shaped, left-skewed, right-skewed, or symmetric.
+
+**Definition.** A random variable $X$ has a **Beta distribution** with parameters $\alpha > 0$ and $\beta > 0$ -- written $X \sim \text{Beta}(\alpha, \beta)$ -- if its PDF is:
+
+$$f(x; \alpha, \beta) = \frac{1}{B(\alpha, \beta)} x^{\alpha - 1}(1 - x)^{\beta - 1}, \quad 0 < x < 1,$$
+
+where $B(\alpha, \beta)$ is the **Beta function**:
+
+$$B(\alpha, \beta) = \int_0^1 t^{\alpha-1}(1-t)^{\beta-1}\,dt = \frac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha + \beta)}.$$
+
+The second equality -- connecting the Beta function to the Gamma function -- is a standard result proved by a double-integral argument.
+
+### 5.6.2 Moments
+
+**Mean:**
+
+$$E[X] = \frac{\alpha}{\alpha + \beta}.$$
+
+**Variance:**
+
+$$\text{Var}(X) = \frac{\alpha\beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}.$$
+
+**Intuition.** The mean is the "balance point" $\alpha / (\alpha + \beta)$ -- if $\alpha > \beta$, the distribution is shifted towards 1; if $\alpha < \beta$, towards 0. The variance shrinks as the total "concentration" $\alpha + \beta$ increases.
+
+### 5.6.3 Special Cases
+
+| Parameters | Shape | Distribution |
+|:-----------|:------|:-------------|
+| $\alpha = 1, \beta = 1$ | Flat | Uniform(0, 1) |
+| $\alpha = \beta$ | Symmetric | Centred at 0.5 |
+| $\alpha < 1, \beta < 1$ | U-shaped | Bimodal at boundaries |
+| $\alpha > 1, \beta > 1$ | Unimodal | Bell-shaped on $[0, 1]$ |
+| $\alpha = 1, \beta > 1$ | J-shaped (left) | Decreasing |
+| $\alpha > 1, \beta = 1$ | J-shaped (right) | Increasing |
+
+### 5.6.4 Connection to Order Statistics
+
+The Beta distribution has a deep connection to order statistics. If $U_1, U_2, \ldots, U_n$ are independent $\text{Uniform}(0, 1)$ random variables and we sort them to get $U_{(1)} \le U_{(2)} \le \cdots \le U_{(n)}$, then:
+
+$$U_{(k)} \sim \text{Beta}(k, n - k + 1).$$
+
+This result explains why the Beta appears in nonparametric statistics and reliability theory.
+
+### 5.6.5 Bayesian Preview
+
+The Beta distribution is the **conjugate prior** for the Bernoulli and Binomial likelihoods. If our prior belief about a probability $p$ is $p \sim \text{Beta}(\alpha, \beta)$, and we observe $k$ successes in $n$ Bernoulli trials, then the posterior is:
+
+$$p \mid \text{data} \sim \text{Beta}(\alpha + k,\; \beta + n - k).$$
+
+The parameters $\alpha$ and $\beta$ can be interpreted as "prior pseudo-counts" -- $\alpha$ prior successes and $\beta$ prior failures. This elegant updating rule is explored in depth in Chapter 22.
+
+### 5.6.6 R: The Beta Shape Gallery
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+beta_params <- list(
+  c(0.5, 0.5), c(1, 1), c(2, 2), c(2, 5), c(5, 2), c(5, 1), c(1, 3), c(10, 10)
+)
+
+x_seq <- seq(0.001, 0.999, length.out = 500)
+
+df_beta <- data.table$rbindlist(lapply(beta_params, function(p) {
+  data.table$data.table(
+    x = x_seq,
+    y = dbeta(x_seq, p[1], p[2]),
+    params = paste0("Beta(", p[1], ", ", p[2], ")")
+  )
+}))
+
+ggplot2$ggplot(df_beta, ggplot2$aes(x = x, y = y, colour = params)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(
+    "#E69F00", "#56B4E9", "#009E73", "#0072B2",
+    "#D55E00", "#CC79A7", "#F0E442", "#999999"
+  )) +
+  ggplot2$coord_cartesian(ylim = c(0, 4)) +
+  ggplot2$labs(
+    x = "x", y = "Density", colour = NULL,
+    title = "The Beta distribution family"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "right")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/beta-shapes-1.png" alt="Beta densities for various parameter combinations, illustrating the family&#39;s remarkable flexibility.">
+	Beta densities for various parameter combinations, illustrating the family's remarkable flexibility.
+</Figure>
+
+### 5.6.7 Interactive: Beta with α and β Sliders
+
+<InteractivePlot
+  controls={[
+    { id: "alpha", type: "range", label: "α", min: 0.1, max: 10, step: 0.1, default: 2 },
+    { id: "beta", type: "range", label: "β", min: 0.1, max: 10, step: 0.1, default: 5 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var a = params.alpha, b = params.beta;
+    var w = canvas.width, h = canvas.height;
+    var pad = 50;
+
+    // Axes
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad); ctx.lineTo(w - 10, h - pad);
+    ctx.moveTo(pad, h - pad); ctx.lineTo(pad, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#333'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('x', w / 2, h - 5);
+
+    // Title and stats
+    var mean = a / (a + b);
+    var variance = (a * b) / ((a + b) * (a + b) * (a + b + 1));
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('Beta(α = ' + a.toFixed(1) + ', β = ' + b.toFixed(1) + ')   Mean = ' + mean.toFixed(3), w / 2, 25);
+
+    var plotW = w - pad - 20, plotH = h - pad - 40;
+
+    // Compute Beta function using log-gamma (Stirling approx for JS)
+    function lnGamma(z) {
+      if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
+      z -= 1;
+      var x = 0.99999999999980993;
+      var p = [676.5203681218851, -1259.1392167224028, 771.32342877765313,
+               -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+               9.9843695780195716e-6, 1.5056327351493116e-7];
+      for (var i = 0; i < p.length; i++) x += p[i] / (z + i + 1);
+      var t = z + p.length - 0.5;
+      return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+    }
+    function betaPDF(x, a, b) {
+      if (x <= 0 || x >= 1) return 0;
+      var lnB = lnGamma(a) + lnGamma(b) - lnGamma(a + b);
+      return Math.exp((a - 1) * Math.log(x) + (b - 1) * Math.log(1 - x) - lnB);
+    }
+
+    // Find yMax
+    var yMax = 0;
+    for (var i = 1; i < 400; i++) {
+      var x = i / 400;
+      var y = betaPDF(x, a, b);
+      if (y > yMax) yMax = y;
+    }
+    yMax = Math.max(yMax * 1.15, 0.5);
+
+    function toX(x) { return pad + x * plotW; }
+    function toY(y) { return (h - pad) - (y / yMax) * plotH; }
+
+    // Ticks
+    ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
+    for (var tx = 0; tx <= 1; tx += 0.2) {
+      var cx = toX(tx);
+      ctx.beginPath(); ctx.moveTo(cx, h - pad); ctx.lineTo(cx, h - pad + 5); ctx.stroke();
+      ctx.fillText(tx.toFixed(1), cx, h - pad + 18);
+    }
+
+    // Uniform reference
+    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(toX(0), toY(1)); ctx.lineTo(toX(1), toY(1)); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Beta PDF
+    ctx.strokeStyle = '#0072B2'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    var first = true;
+    for (var i = 1; i < 400; i++) {
+      var x = i / 400;
+      var y = betaPDF(x, a, b);
+      if (y > yMax * 2) y = yMax * 2;
+      if (first) { ctx.moveTo(toX(x), toY(y)); first = false; }
+      else ctx.lineTo(toX(x), toY(y));
+    }
+    ctx.stroke();
+
+    // Fill
+    ctx.fillStyle = 'rgba(0, 114, 178, 0.12)';
+    ctx.beginPath(); ctx.moveTo(toX(1/400), toY(0));
+    for (var i = 1; i < 400; i++) {
+      var x = i / 400;
+      var y = betaPDF(x, a, b);
+      if (y > yMax * 2) y = yMax * 2;
+      ctx.lineTo(toX(x), toY(y));
+    }
+    ctx.lineTo(toX(399/400), toY(0)); ctx.closePath(); ctx.fill();
+
+    // Mean line
+    ctx.strokeStyle = '#D55E00'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(toX(mean), toY(0));
+    ctx.lineTo(toX(mean), toY(betaPDF(mean, a, b)));
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#D55E00'; ctx.font = '12px sans-serif';
+    ctx.fillText('mean', toX(mean), toY(0) + 32);
+
+    ctx.fillStyle = '#999'; ctx.font = '11px sans-serif';
+    ctx.fillText('grey dashed = Uniform(0,1)', w - 130, 45);
+  `}
+  width={600}
+  Height={400}
+/>
+
+### 5.6.8 Bayesian Updating: A Quick Demonstration
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+x_seq <- seq(0, 1, length.out = 500)
+
+prior_a <- 2; prior_b <- 2
+k <- 7; n <- 10
+post_a <- prior_a + k; post_b <- prior_b + (n - k)
+
+df_bayes <- data.table$rbindlist(list(
+  data.table$data.table(x = x_seq, y = dbeta(x_seq, prior_a, prior_b),
+    stage = "Prior: Beta(2, 2)"),
+  data.table$data.table(x = x_seq, y = dbeta(x_seq, post_a, post_b),
+    stage = "Posterior: Beta(9, 5)")
+))
+df_bayes[, stage := factor(stage, levels = c("Prior: Beta(2, 2)", "Posterior: Beta(9, 5)"))]
+
+ggplot2$ggplot(df_bayes, ggplot2$aes(x = x, y = y, colour = stage, fill = stage)) +
+  ggplot2$geom_line(linewidth = 1.2) +
+  ggplot2$geom_area(alpha = 0.15, position = "identity") +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$geom_vline(xintercept = k / n, linetype = "dashed", colour = "#666") +
+  ggplot2$annotate("text", x = k / n + 0.03, y = 3, label = "MLE = 0.7",
+    colour = "#666", size = 4, hjust = 0) +
+  ggplot2$labs(
+    x = "p (probability of success)", y = "Density", colour = NULL, fill = NULL,
+    title = "Bayesian updating: Beta-Binomial conjugacy"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/beta-bayesian-1.png" alt="Bayesian updating with the Beta-Binomial model. The prior Beta(2, 2) is updated after observing 7 successes in 10 trials, yielding a posterior Beta(9, 5).">
+	Bayesian updating with the Beta-Binomial model. The prior Beta(2, 2) is updated after observing 7 successes in 10 trials, yielding a posterior Beta(9, 5).
+</Figure>
+
+The posterior mean $9/(9+5) = 0.643$ is a compromise between the prior mean ($0.5$) and the maximum likelihood estimate ($0.7$), pulled slightly towards the prior.
+
+---
+
+## 5.7 The Log-Normal Distribution
+
+### 5.7.1 Crash Course: Change of Variables (Jacobian Method)
+
+When we transform a continuous random variable $X$ with known PDF $f_X(x)$ via a monotone function $Y = g(X)$, the PDF of $Y$ is:
+
+$$f_Y(y) = f_X\!\left(g^{-1}(y)\right) \cdot \left|\frac{d}{dy} g^{-1}(y)\right|.$$
+
+The absolute value of the derivative of the inverse transformation is the **Jacobian**. It accounts for the stretching or compressing of the probability scale under the transformation.
+
+**Why the Jacobian?** Probabilities must be preserved:
+
+$$P(a < X < b) = P(g(a) < Y < g(b)).$$
+
+In terms of densities: $f_X(x)\,dx = f_Y(y)\,dy$, so $f_Y(y) = f_X(x) \cdot |dx/dy|$.
+
+### 5.7.2 Deriving the Log-Normal PDF
+
+**Definition.** If $X \sim N(\mu, \sigma^2)$, then $Y = e^X$ has a **log-normal distribution**, written $Y \sim \text{LogNormal}(\mu, \sigma^2)$.
+
+Equivalently: $Y$ is log-normal if $\ln(Y) \sim N(\mu, \sigma^2)$.
+
+**Applying the Jacobian method.** The transformation is $Y = g(X) = e^X$, so $X = g^{-1}(Y) = \ln(Y)$ and:
+
+$$\frac{dX}{dY} = \frac{d}{dY}\ln(Y) = \frac{1}{Y}.$$
+
+The PDF of $X$ is the normal density $f_X(x) = \frac{1}{\sigma\sqrt{2\pi}} e^{-(x - \mu)^2/(2\sigma^2)}$. Substituting $x = \ln(y)$:
+
+$$\boxed{f_Y(y) = \frac{1}{y\sigma\sqrt{2\pi}} \exp\left(-\frac{(\ln y - \mu)^2}{2\sigma^2}\right), \quad y > 0.}$$
+
+### 5.7.3 Log-Normal Moments
+
+$$E[Y] = e^{\mu + \sigma^2/2}, \qquad \text{Var}(Y) = \left(e^{\sigma^2} - 1\right)e^{2\mu + \sigma^2}.$$
+
+These follow from the normal MGF: $E[Y] = E[e^X] = M_X(1) = e^{\mu + \sigma^2/2}$.
+
+Note that $E[Y] \ne e^\mu$ -- a common error. The "extra" factor $e^{\sigma^2/2}$ is Jensen's inequality in action: for a convex function ($e^x$), $E[g(X)] > g(E[X])$.
+
+### 5.7.4 Why Log-Normal?
+
+Many real-world quantities are log-normal:
+
+- **Incomes and wealth** -- multiplicative growth processes produce log-normal distributions.
+- **Stock prices** -- the Black-Scholes model assumes log-normal prices.
+- **Particle sizes**, **city populations**, **biological measurements** that cannot be negative and are right-skewed.
+
+The mechanism is multiplicative: if a quantity grows by a sequence of random percentage changes, the *logarithm* of the quantity is a sum of independent terms, which by the CLT tends to normal. Hence the quantity itself tends to log-normal.
+
+### 5.7.5 Air Quality Data: Ozone is Log-Normal
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+data_dir <- "../../../data"
+aq <- data.table$fread(file.path(data_dir, "classic/airquality.csv"))
+aq_clean <- aq[!is.na(Ozone)]
+
+df_raw <- data.table$data.table(x = aq_clean$Ozone, panel = "Ozone (ppb)")
+df_log <- data.table$data.table(x = log(aq_clean$Ozone), panel = "log(Ozone)")
+df_both <- data.table$rbindlist(list(df_raw, df_log))
+
+ggplot2$ggplot(df_both, ggplot2$aes(x = x)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 25, fill = "#0072B2", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_density(colour = "#D55E00", linewidth = 1) +
+  ggplot2$facet_wrap(~panel, scales = "free") +
+  ggplot2$labs(x = NULL, y = "Density",
+    title = "New York ozone: raw (left) vs log-transformed (right)") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/airquality-lognormal-1.png" alt="Ozone concentrations from the New York airquality dataset. The raw data (left) is right-skewed; the log-transformed data (right) is approximately normal.">
+	Ozone concentrations from the New York airquality dataset. The raw data (left) is right-skewed; the log-transformed data (right) is approximately normal.
+</Figure>
+
+
+``` r
+# Fit log-normal parameters
+mu_hat <- mean(log(aq_clean$Ozone))
+sigma_hat <- sd(log(aq_clean$Ozone))
+c(mu = mu_hat, sigma = sigma_hat)
+```
+
+```
+       mu     sigma 
+3.4185151 0.8654745 
+```
+
+The log-transformed ozone values are approximately normal, confirming that the raw ozone data follows a log-normal distribution. The fitted parameters are $\hat{\mu} \approx 3.42$ and $\hat{\sigma} \approx 0.87$.
+
+
+``` r
+x_seq <- seq(0.1, max(aq_clean$Ozone) + 20, length.out = 500)
+df_fit <- data.table$data.table(
+  x = x_seq,
+  y = dlnorm(x_seq, meanlog = mu_hat, sdlog = sigma_hat)
+)
+
+ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = data.table$data.table(x = aq_clean$Ozone),
+    ggplot2$aes(x = x, y = ggplot2::after_stat(density)),
+    bins = 25, fill = "#0072B2", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_line(
+    data = df_fit,
+    ggplot2$aes(x = x, y = y),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = "Ozone (ppb)", y = "Density",
+    title = "Fitted log-normal density on ozone data"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/lognormal-overlay-1.png" alt="Ozone histogram with the fitted log-normal density overlaid.">
+	Ozone histogram with the fitted log-normal density overlaid.
+</Figure>
+
+---
+
+## 5.8 The Distribution Family Tree
+
+### 5.8.1 Relationships Summary
+
+Every distribution we have studied is connected to the others through limiting cases, transformations, or sums. The diagram below traces the major relationships.
+
+**Transformations and special cases:**
+
+| From | To | Relationship |
+|:-----|:---|:-------------|
+| Uniform(0, 1) | Exp($\lambda$) | Inverse transform: $X = -\ln(U)/\lambda$ |
+| Exp($\lambda$) | Gamma($\alpha, \lambda$) | Sum of $\alpha$ independent copies |
+| Gamma($k/2, 1/2$) | $\chi^2_k$ | Definition |
+| Gamma($1, \lambda$) | Exp($\lambda$) | Special case $\alpha = 1$ |
+| Beta($1, 1$) | Uniform(0, 1) | Special case |
+| $N(0,1)$ squared | $\chi^2_1$ | $Z^2 \sim \chi^2_1$ |
+| $\chi^2_k$ (sum) | $\chi^2_{k_1 + k_2}$ | Sum of independent chi-squares |
+| $N(0,1) / \sqrt{\chi^2_k/k}$ | $t_k$ | Definition |
+| $\chi^2_{d_1}/d_1 \div \chi^2_{d_2}/d_2$ | $F_{d_1, d_2}$ | Definition |
+| $t_k^2$ | $F_{1,k}$ | Squaring a $t$ |
+| $N(\mu, \sigma^2)$ exponentiated | LogNormal($\mu, \sigma^2$) | $Y = e^X$ |
+| Binomial$(n, \lambda/n)$, $n \to \infty$ | Poisson($\lambda$) | Limit |
+| Geometric($p$) | Exp($\lambda$) | Continuous analogue |
+
+**Limit theorems:**
+
+| From | To | Condition |
+|:-----|:---|:----------|
+| Binomial($n, p$) | $N(np, np(1-p))$ | $n \to \infty$ (CLT) |
+| Poisson($\lambda$) | $N(\lambda, \lambda)$ | $\lambda \to \infty$ (CLT) |
+| Gamma($\alpha, \lambda$) | $N(\alpha/\lambda, \alpha/\lambda^2)$ | $\alpha \to \infty$ (CLT) |
+| $t_k$ | $N(0, 1)$ | $k \to \infty$ |
+| $\chi^2_k / k$ | 1 | $k \to \infty$ (LLN) |
+
+### 5.8.2 Comparison Table: All Continuous Distributions
+
+| Distribution | Support | PDF | E[X] | Var(X) | Key use |
+|:-------------|:--------|:----|:-----|:-------|:--------|
+| Uniform($a,b$) | $[a,b]$ | $1/(b-a)$ | $(a+b)/2$ | $(b-a)^2/12$ | Simulation engine |
+| Exp($\lambda$) | $[0, \infty)$ | $\lambda e^{-\lambda x}$ | $1/\lambda$ | $1/\lambda^2$ | Waiting times |
+| Gamma($\alpha, \lambda$) | $(0, \infty)$ | $\frac{\lambda^\alpha}{\Gamma(\alpha)}x^{\alpha-1}e^{-\lambda x}$ | $\alpha/\lambda$ | $\alpha/\lambda^2$ | Sum of waiting times |
+| Normal($\mu, \sigma^2$) | $(-\infty, \infty)$ | $\frac{1}{\sigma\sqrt{2\pi}}e^{-(x-\mu)^2/(2\sigma^2)}$ | $\mu$ | $\sigma^2$ | CLT, measurement error |
+| $\chi^2_k$ | $(0, \infty)$ | Gamma$(k/2, 1/2)$ | $k$ | $2k$ | Goodness of fit, variance |
+| $t_k$ | $(-\infty, \infty)$ | See Part 2 | 0 | $k/(k-2)$ | Small-sample means |
+| $F_{d_1,d_2}$ | $(0, \infty)$ | See Part 2 | $d_2/(d_2-2)$ | — | ANOVA, variance ratios |
+| Beta($\alpha, \beta$) | $(0, 1)$ | $\frac{x^{\alpha-1}(1-x)^{\beta-1}}{B(\alpha,\beta)}$ | $\frac{\alpha}{\alpha+\beta}$ | $\frac{\alpha\beta}{(\alpha+\beta)^2(\alpha+\beta+1)}$ | Proportions, Bayesian |
+| LogNormal($\mu, \sigma^2$) | $(0, \infty)$ | $\frac{1}{y\sigma\sqrt{2\pi}}e^{-(\ln y - \mu)^2/(2\sigma^2)}$ | $e^{\mu+\sigma^2/2}$ | $(e^{\sigma^2}-1)e^{2\mu+\sigma^2}$ | Multiplicative processes |
+
+### 5.8.3 R: The Family Tree as a Network Diagram
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+# Node positions (hand-tuned)
+nodes <- data.table$data.table(
+  name = c("Uniform(0,1)", "Exponential", "Gamma", "Chi-square",
+           "Normal", "t", "F", "Beta", "Log-Normal", "Poisson\n(discrete)"),
+  x = c(1, 2.5, 4, 5.5, 5.5, 7, 8.5, 1, 7, 2.5),
+  y = c(4, 4, 4, 4, 6, 6, 6, 6, 4, 6)
+)
+
+# Edges: from -> to
+edges <- data.table$data.table(
+  x = c(1, 2.5, 4, 5.5, 5.5, 5.5, 7, 5.5, 2.5),
+  y = c(4, 4, 4, 4, 6, 6, 6, 6, 6),
+  xend = c(2.5, 4, 5.5, 7, 7, 8.5, 8.5, 7, 2.5),
+  yend = c(4, 4, 4, 6, 6, 6, 6, 4, 4),
+  label = c("inv.\ntransform", "sum of\nα copies", "α=k/2\nλ=1/2",
+            "Z²", "Z/√(V/k)", "U/V\nratio", "T²",
+            "exp(X)", "limit"),
+  type = c("solid", "solid", "solid", "solid", "solid", "solid", "solid",
+           "solid", "dashed")
+)
+
+ggplot2$ggplot() +
+  ggplot2$geom_segment(
+    data = edges,
+    ggplot2$aes(x = x, y = y, xend = xend, yend = yend, linetype = type),
+    arrow = ggplot2$arrow(length = ggplot2$unit(0.15, "inches"), type = "closed"),
+    colour = "#555", linewidth = 0.8
+  ) +
+  ggplot2$geom_label(
+    data = nodes,
+    ggplot2$aes(x = x, y = y, label = name),
+    fill = "#E8F4FD", colour = "#0072B2", size = 3.5,
+    fontface = "bold", label.padding = ggplot2$unit(0.4, "lines")
+  ) +
+  ggplot2$geom_text(
+    data = edges,
+    ggplot2$aes(x = (x + xend) / 2, y = (y + yend) / 2 + 0.3, label = label),
+    size = 2.5, colour = "#888"
+  ) +
+  ggplot2$scale_linetype_manual(values = c("solid" = "solid", "dashed" = "dashed"),
+    guide = "none") +
+  ggplot2$coord_cartesian(xlim = c(0, 9.5), ylim = c(3, 7)) +
+  ggplot2$labs(title = "Distribution family tree") +
+  ggplot2$theme_void(base_size = 13) +
+  ggplot2$theme(plot.title = ggplot2$element_text(face = "bold", hjust = 0.5))
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/family-tree-1.png" alt="Relationships between the continuous distributions studied in this chapter. Solid arrows indicate &#39;is a special case of&#39; or &#39;is derived from&#39;; dashed arrows indicate limiting relationships.">
+	Relationships between the continuous distributions studied in this chapter. Solid arrows indicate 'is a special case of' or 'is derived from'; dashed arrows indicate limiting relationships.
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+When presenting these distributions to a non-technical audience:
+
+- For the **Beta**, say "a flexible model for proportions between 0 and 1." Use the Bayesian story: "We started believing the probability was around 50-50. After seeing 7 out of 10 successes, we updated our belief to around 64%."
+- For the **log-normal**, explain: "When data can only be positive and is right-skewed, taking the logarithm often makes it look normal. This is common for incomes, prices, and environmental concentrations."
+- For the **change of variables**, you rarely need to explain the Jacobian itself. Instead, say: "Transforming data (like taking the log) changes the shape of the distribution in a predictable way."
+- The **family tree** is a powerful visual. Show it to emphasise that these distributions are not isolated facts but a connected system.
+
+---
+
+## Quick Reference
+
+| Property | Beta($\alpha, \beta$) | LogNormal($\mu, \sigma^2$) |
+|:---------|:---------------------|:--------------------------|
+| **Support** | $(0, 1)$ | $(0, \infty)$ |
+| **PDF** | $\frac{x^{\alpha-1}(1-x)^{\beta-1}}{B(\alpha,\beta)}$ | $\frac{1}{y\sigma\sqrt{2\pi}}e^{-(\ln y - \mu)^2/(2\sigma^2)}$ |
+| **E[X]** | $\frac{\alpha}{\alpha + \beta}$ | $e^{\mu + \sigma^2/2}$ |
+| **Var(X)** | $\frac{\alpha\beta}{(\alpha+\beta)^2(\alpha+\beta+1)}$ | $(e^{\sigma^2} - 1)e^{2\mu + \sigma^2}$ |
+| **Key property** | Conjugate prior for Binomial | $\ln(Y) \sim N(\mu, \sigma^2)$ |
+| **R functions** | `dbeta`, `pbeta`, `rbeta` | `dlnorm`, `plnorm`, `rlnorm` |
+
+**Key transformation rules:**
+
+| Transformation | If $X$ has distribution... | Then $Y = g(X)$ has... |
+|:---------------|:--------------------------|:----------------------|
+| $Y = aX + b$ | $N(\mu, \sigma^2)$ | $N(a\mu + b,\; a^2\sigma^2)$ |
+| $Y = e^X$ | $N(\mu, \sigma^2)$ | LogNormal($\mu, \sigma^2$) |
+| $Y = X^2$ | $N(0, 1)$ | $\chi^2_1$ |
+| $Y = -\ln(X)/\lambda$ | Uniform(0, 1) | Exp($\lambda$) |
+| $Y = F^{-1}(X)$ | Uniform(0, 1) | CDF $= F$ |
+
+---
+
+## Exercises
+
+### Pen-and-Paper Exercises
+
+**Exercise 5.22.** Let $X \sim \text{Beta}(3, 2)$. Compute $E[X]$ and $\text{Var}(X)$.
+
+**Exercise 5.23.** Derive the PDF of $Y = X^2$ when $X \sim \text{Uniform}(0, 1)$ using the Jacobian method. Identify the resulting distribution.
+
+*Solution sketch.* $X = g^{-1}(Y) = \sqrt{Y}$, so $|dX/dY| = 1/(2\sqrt{Y})$, and $f_Y(y) = 1 \cdot 1/(2\sqrt{y}) = \frac{1}{2}y^{-1/2}$ for $0 < y < 1$. This is a $\text{Beta}(1/2, 1)$ density.
+
+**Exercise 5.24.** If $Y \sim \text{LogNormal}(2, 0.5^2)$, compute $E[Y]$ and the median of $Y$. *(Hint: the median of a log-normal is $e^\mu$, not $E[Y]$.)*
+
+**Exercise 5.25.** Show that if $X \sim \text{Beta}(\alpha, \beta)$, then $1 - X \sim \text{Beta}(\beta, \alpha)$. *(Hint: use the Jacobian method with $Y = 1 - X$.)*
+
+**Exercise 5.26.** Explain in your own words why the family tree diagram places the Uniform at the root. What does it mean practically that every other distribution can be derived from the Uniform?
+
+### R Exercises
+
+**Exercise 5.27.** Using the inverse transform method, write a function that generates Beta(2, 5) random variables from `runif()`. *(Hint: the inverse CDF of the Beta has no closed form, so use `qbeta()` as the inverse.)*
+
+
+``` r
+my_rbeta <- function(n, alpha, beta) {
+  u <- runif(n)
+  qbeta(u, alpha, beta)
+}
+set.seed(42)
+x <- my_rbeta(50000, 2, 5)
+mean(x)  # ≈ 2/7 ≈ 0.286
+```
+
+**Exercise 5.28.** Load the air quality data and fit a log-normal distribution to the `Wind` column. Is the log-normal a good fit? Use a Q-Q plot to assess.
+
+
+``` r
+box::use(data.table)
+data_dir <- "../../../data"
+aq <- data.table$fread(file.path(data_dir, "classic/airquality.csv"))
+qqnorm(log(aq$Wind), main = "Q-Q plot of log(Wind)")
+qqline(log(aq$Wind), col = "red")
+```
+
+**Exercise 5.29.** Simulate the order statistics of $n = 20$ uniform random variables. Plot the histogram of the 5th order statistic $U_{(5)}$ from 50,000 replications and overlay the $\text{Beta}(5, 16)$ density. Verify the match.
+
+
+``` r
+set.seed(42)
+n <- 20; k <- 5; n_sim <- 50000
+order_stats <- replicate(n_sim, sort(runif(n))[k])
+mean(order_stats)  # ≈ k / (n + 1) = 5/21 ≈ 0.238
+```
+
+**Exercise 5.30.** Create a single figure with 4 panels showing the PDF of: (a) Gamma(2, 1), (b) Chi-square(4), (c) Beta(2, 5), and (d) LogNormal(0, 1). Include the mean as a dashed vertical line in each panel.
+
+### Spot-the-Error Exercises
+
+**Exercise 5.31.** A student writes: "If $Y \sim \text{LogNormal}(\mu, \sigma^2)$, then $E[Y] = e^\mu$."
+
+*What is the error?* *(The correct formula is $E[Y] = e^{\mu + \sigma^2/2}$. The quantity $e^\mu$ is the median, not the mean. Jensen's inequality guarantees $E[e^X] > e^{E[X]}$ for any non-degenerate $X$.)*
+
+**Exercise 5.32.** A colleague says: "The Beta distribution is useless because it's defined on $[0, 1]$. Real data is rarely on $[0, 1]$."
+
+*What is the flaw?* *(Many quantities of interest are naturally on $[0, 1]$: probabilities, proportions, percentages (after dividing by 100), and rates. Moreover, any bounded quantity $X \in [a, b]$ can be linearly transformed to $[0, 1]$ via $(X - a)/(b - a)$.)*

@@ -1,0 +1,744 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 17: Regression Diagnostics"
+part: "Part 1: Assumptions and Residuals"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, regression, diagnostics, residuals, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 17 -- Regression Diagnostics
+
+## Part 1: Assumptions and Residuals
+
+Chapters 15 and 16 derived the OLS estimator and showed that it is BLUE (Best Linear Unbiased Estimator) under the Gauss-Markov assumptions. But every theorem has premises, and the validity of confidence intervals, $p$-values, and prediction intervals depends entirely on whether those premises hold. In this part we state the assumptions precisely, develop residual-based diagnostics to check each one, and rebuild the four standard `plot(lm())` diagnostics from scratch in ggplot2.
+
+---
+
+## 17.1 The Four Assumptions -- Stated Precisely
+
+Write the linear model as:
+
+$$Y_i = \mathbf{x}_i'\boldsymbol{\beta} + \varepsilon_i, \quad i = 1, \ldots, n$$
+
+The classical assumptions are:
+
+### 17.1.1 (A1) Linearity
+
+The conditional expectation of $Y$ given $\mathbf{x}$ is a linear function of the parameters:
+
+$$E[Y_i \mid \mathbf{x}_i] = \mathbf{x}_i'\boldsymbol{\beta}$$
+
+This does **not** require that $Y$ be a linear function of the raw predictors -- $Y = \beta_0 + \beta_1 x + \beta_2 x^2 + \varepsilon$ is perfectly linear *in the parameters*. The assumption fails when the true relationship involves interactions or non-linear functions of $\boldsymbol{\beta}$ that are not captured by the model.
+
+### 17.1.2 (A2) Independence
+
+The errors $\varepsilon_1, \ldots, \varepsilon_n$ are mutually independent:
+
+$$\text{Cov}(\varepsilon_i, \varepsilon_j) = 0 \quad \text{for all } i \neq j$$
+
+In matrix notation: $\text{Cov}(\boldsymbol{\varepsilon})$ is diagonal. This assumption is violated by time-series data (serial correlation), clustered data (observations within the same group are correlated), and spatial data.
+
+### 17.1.3 (A3) Homoscedasticity
+
+The variance of each error is the same constant $\sigma^2$:
+
+$$\text{Var}(\varepsilon_i \mid \mathbf{x}_i) = \sigma^2 \quad \text{for all } i$$
+
+Combined with (A2), this gives $\text{Cov}(\boldsymbol{\varepsilon}) = \sigma^2 \mathbf{I}_n$. Heteroscedasticity (non-constant variance) does not bias $\hat{\boldsymbol{\beta}}$, but it invalidates the usual standard errors.
+
+### 17.1.4 (A4) Normality
+
+The errors follow a normal distribution:
+
+$$\varepsilon_i \sim N(0, \sigma^2)$$
+
+This is the strongest assumption and is only needed for exact $t$ and $F$ inference in finite samples. When $n$ is large, the Central Limit Theorem ensures that $\hat{\boldsymbol{\beta}}$ is approximately normal regardless of the error distribution (see Part 2).
+
+### 17.1.5 Summary Table
+
+| Assumption | Mathematical statement | What breaks if violated |
+|:-----------|:----------------------|:------------------------|
+| Linearity | $E[Y \mid \mathbf{x}] = \mathbf{x}'\boldsymbol{\beta}$ | $\hat{\boldsymbol{\beta}}$ is biased |
+| Independence | $\text{Cov}(\varepsilon_i, \varepsilon_j) = 0$ | SEs wrong, $p$-values wrong |
+| Homoscedasticity | $\text{Var}(\varepsilon_i) = \sigma^2$ | SEs wrong, efficiency lost |
+| Normality | $\varepsilon_i \sim N(0, \sigma^2)$ | Finite-sample inference inexact |
+
+---
+
+## 17.2 Residuals -- The Diagnostic Currency
+
+### 17.2.1 Raw Residuals
+
+Given the fitted model $\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$, the residual vector is:
+
+$$\mathbf{e} = \mathbf{Y} - \hat{\mathbf{Y}} = (\mathbf{I} - \mathbf{H})\mathbf{Y}$$
+
+The raw residual $e_i$ estimates the unobservable error $\varepsilon_i$, but with a crucial difference: the residuals have **unequal variances** even when the true errors do not.
+
+### 17.2.2 Variance of Residuals
+
+Since $\mathbf{e} = (\mathbf{I} - \mathbf{H})\boldsymbol{\varepsilon}$ (under the true model):
+
+$$\text{Cov}(\mathbf{e}) = \sigma^2(\mathbf{I} - \mathbf{H})$$
+
+Therefore:
+
+$$\text{Var}(e_i) = \sigma^2(1 - h_{ii})$$
+
+where $h_{ii}$ is the $i$th diagonal element of the hat matrix $\mathbf{H}$. Points with high leverage ($h_{ii}$ close to 1) have residuals that are artificially shrunk towards zero -- the model is forced to pass close to high-leverage points.
+
+### 17.2.3 Standardised (Internally Studentised) Residuals
+
+To give every residual the same scale, we standardise:
+
+$$r_i = \frac{e_i}{\hat{\sigma}\sqrt{1 - h_{ii}}}$$
+
+where $\hat{\sigma} = \sqrt{\text{MSE}} = \sqrt{\text{SSE}/(n-p)}$. Under the model assumptions, $r_i$ has approximate mean 0 and approximate variance 1.
+
+### 17.2.4 Externally Studentised (Deleted) Residuals
+
+A more refined version uses the leave-one-out estimate $\hat{\sigma}_{(i)}$ computed without observation $i$:
+
+$$t_i = \frac{e_i}{\hat{\sigma}_{(i)}\sqrt{1 - h_{ii}}}$$
+
+Under the assumptions, $t_i \sim t_{n-p-1}$ exactly. This gives a genuine $t$-test for whether observation $i$ is an outlier.
+
+
+``` r
+data_dir <- "../../../data"
+boston <- data.table$fread(file.path(data_dir, "classic/boston.csv"))
+
+fit_boston <- lm(medv ~ lstat + rm + age, data = boston)
+
+diag_dt <- data.table$data.table(
+  obs = seq_len(nrow(boston)),
+  raw = residuals(fit_boston),
+  standardised = rstandard(fit_boston),
+  studentised = rstudent(fit_boston),
+  leverage = hatvalues(fit_boston)
+)
+
+# Compare the three types for the first 8 observations
+diag_dt[1:8]
+```
+
+```
+     obs        raw standardised studentised    leverage
+   <int>      <num>        <num>       <num>       <num>
+1:     1 -5.0890507  -0.92080002 -0.92066026 0.005540973
+2:     2 -4.0596410  -0.73397917 -0.73364152 0.004017345
+3:     3  1.9514649   0.35320800  0.35289987 0.006187543
+4:     4  1.0004610   0.18103952  0.18086502 0.005745610
+5:     5  4.5739891   0.82746238  0.82720212 0.005195524
+6:     6  0.5515753   0.09978152  0.09968308 0.005159689
+7:     7  1.6044158   0.28985738  0.28959277 0.002508630
+8:     8  9.2255680   1.66838646  1.67136406 0.004509988
+```
+
+Notice how the standardised and studentised residuals differ from the raw residuals, particularly for observations with higher leverage.
+
+---
+
+## 17.3 Diagnostic Plot 1: Residuals vs Fitted
+
+This plot checks **(A1) linearity** and **(A3) homoscedasticity** simultaneously. Under the assumptions, the residuals should scatter randomly around zero with constant spread.
+
+### 17.3.1 What to Look For
+
+- **A curve or pattern**: suggests non-linearity (A1 violated).
+- **A funnel shape** (spread increases with fitted values): suggests heteroscedasticity (A3 violated).
+- **Random scatter**: the assumptions appear satisfied.
+
+### 17.3.2 Base R Version
+
+
+``` r
+plot(fit_boston, which = 1, col = "#0072B2", pch = 16, cex = 0.7)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/base-plot1-1.png" alt="Base R residuals vs fitted plot for the Boston housing model. The red smooth curve departs noticeably from zero, indicating potential non-linearity.">
+	Base R residuals vs fitted plot for the Boston housing model. The red smooth curve departs noticeably from zero, indicating potential non-linearity.
+</Figure>
+
+### 17.3.3 ggplot2 Recreation
+
+
+``` r
+diag_dt[, fitted := fitted(fit_boston)]
+
+ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = raw)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = "Residuals",
+    title = "Residuals vs Fitted"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/ggplot-resid-fitted-1.png" alt="Residuals vs fitted values for the Boston housing model, recreated in ggplot2. The loess smooth (red) deviates from zero at both ends, suggesting the linear model misses curvature in the relationship.">
+	Residuals vs fitted values for the Boston housing model, recreated in ggplot2. The loess smooth (red) deviates from zero at both ends, suggesting the linear model misses curvature in the relationship.
+</Figure>
+
+The loess curve bends away from zero at both extremes. This pattern suggests the true relationship between `medv` and the predictors contains curvature that the linear model does not capture.
+
+---
+
+## 17.4 Diagnostic Plot 2: Normal Q-Q Plot
+
+This plot checks **(A4) normality** of the residuals.
+
+### 17.4.1 How a Q-Q Plot Works
+
+The idea is simple: if $Z_1, \ldots, Z_n$ are a sample from $N(0,1)$, and we sort them as $Z_{(1)} \le \cdots \le Z_{(n)}$, then $Z_{(i)}$ should be close to the $i$th theoretical quantile $\Phi^{-1}(p_i)$, where $p_i = (i - 0.5)/n$ (or a similar plotting position).
+
+For regression, we plot the sorted standardised residuals $r_{(i)}$ against $\Phi^{-1}(p_i)$. If the residuals are normally distributed, the points fall on a straight line.
+
+**Deviations:**
+- **S-shape**: heavy tails (leptokurtic) -- more extreme values than expected.
+- **Reverse S-shape**: light tails (platykurtic).
+- **Curvature at one end**: skewness.
+
+### 17.4.2 Building a Q-Q Plot from Scratch
+
+
+``` r
+n <- nrow(diag_dt)
+diag_dt[, sorted_std := sort(standardised)]
+diag_dt[, theoretical := qnorm(ppoints(n))]
+
+# Reference line through 1st and 3rd quartiles
+q_sample <- quantile(diag_dt$standardised, c(0.25, 0.75))
+q_theory <- qnorm(c(0.25, 0.75))
+slope_qq <- diff(q_sample) / diff(q_theory)
+int_qq <- q_sample[1] - slope_qq * q_theory[1]
+
+ggplot2$ggplot(diag_dt, ggplot2$aes(x = theoretical, y = sorted_std)) +
+  ggplot2$geom_abline(
+    intercept = int_qq, slope = slope_qq,
+    colour = "#D55E00", linewidth = 0.8
+  ) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 1.5) +
+  ggplot2$labs(
+    x = "Theoretical quantiles",
+    y = "Standardised residuals",
+    title = "Normal Q-Q plot (from scratch)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/qq-from-scratch-1.png" alt="Normal Q-Q plot constructed from first principles. The sorted standardised residuals are plotted against theoretical normal quantiles. Departure in the right tail indicates right-skewed residuals.">
+	Normal Q-Q plot constructed from first principles. The sorted standardised residuals are plotted against theoretical normal quantiles. Departure in the right tail indicates right-skewed residuals.
+</Figure>
+
+### 17.4.3 Using ggplot2 Built-in Q-Q Layers
+
+
+``` r
+ggplot2$ggplot(diag_dt, ggplot2$aes(sample = standardised)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.5, size = 1.5) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Theoretical quantiles",
+    y = "Standardised residuals",
+    title = "Normal Q-Q plot"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/ggplot-qq-1.png" alt="Normal Q-Q plot using ggplot2&#39;s built-in stat_qq layers. The result is identical to our from-scratch version.">
+	Normal Q-Q plot using ggplot2's built-in stat_qq layers. The result is identical to our from-scratch version.
+</Figure>
+
+The right tail departs upward from the reference line, indicating that the Boston housing residuals are right-skewed -- there are more large positive residuals than a normal distribution would predict.
+
+---
+
+## 17.5 Diagnostic Plot 3: Scale-Location
+
+This plot checks **(A3) homoscedasticity** specifically. It plots $\sqrt{|r_i|}$ against $\hat{y}_i$.
+
+### 17.5.1 Why the Square Root of Absolute Residuals?
+
+Under homoscedasticity:
+
+$$E[|r_i|] \approx \sqrt{2/\pi} \approx 0.798$$
+
+for all $i$ (using the fact that $|Z|$ has a half-normal distribution when $Z \sim N(0,1)$). If we plot $\sqrt{|r_i|}$ against $\hat{y}_i$, a horizontal smooth trend indicates constant variance. An upward trend indicates increasing variance.
+
+### 17.5.2 ggplot2 Recreation
+
+
+``` r
+diag_dt[, sqrt_abs_std := sqrt(abs(standardised))]
+
+ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = sqrt_abs_std)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Fitted values",
+    y = expression(sqrt("|Standardised residuals|")),
+    title = "Scale-Location plot"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/ggplot-scale-loc-1.png" alt="Scale-location plot for the Boston housing model. The smooth trend rises slightly with fitted values, suggesting mild heteroscedasticity.">
+	Scale-location plot for the Boston housing model. The smooth trend rises slightly with fitted values, suggesting mild heteroscedasticity.
+</Figure>
+
+The upward trend of the smooth confirms that the variance of the residuals increases with the fitted values. Homes with higher predicted values have more variable actual prices.
+
+---
+
+## 17.6 Diagnostic Plot 4: Residuals vs Leverage
+
+This plot identifies **influential observations** -- points that have an outsized effect on the fitted regression.
+
+### 17.6.1 Leverage Recap
+
+The leverage $h_{ii}$ measures how far observation $i$'s predictor values are from the centre of the predictor space. We showed in Chapter 16 that:
+
+$$h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$$
+
+Properties:
+- $0 \le h_{ii} \le 1$
+- $\sum_{i=1}^n h_{ii} = p$ (the number of parameters)
+- Average leverage: $\bar{h} = p/n$
+- Rule of thumb: $h_{ii} > 2p/n$ is "high leverage"
+
+### 17.6.2 Cook's Distance Preview
+
+The fourth plot overlays contours of Cook's distance (derived fully in Part 2). For now, note that Cook's distance combines leverage and residual size:
+
+$$D_i = \frac{r_i^2}{p} \cdot \frac{h_{ii}}{1 - h_{ii}}$$
+
+Points with large $D_i$ are simultaneously far from the centre of the predictor space and poorly fitted.
+
+### 17.6.3 ggplot2 Recreation
+
+
+``` r
+diag_dt[, cooks_d := cooks.distance(fit_boston)]
+
+p_params <- length(coef(fit_boston))
+leverage_cutoff <- 2 * p_params / n
+
+ggplot2$ggplot(diag_dt, ggplot2$aes(x = leverage, y = standardised)) +
+  ggplot2$geom_point(
+    ggplot2$aes(size = cooks_d),
+    colour = "#0072B2", alpha = 0.4
+  ) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_vline(
+    xintercept = leverage_cutoff,
+    linetype = "dotted", colour = "#D55E00"
+  ) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$scale_size_continuous(range = c(0.5, 5), name = "Cook's D") +
+  ggplot2$labs(
+    x = "Leverage",
+    y = "Standardised residuals",
+    title = "Residuals vs Leverage"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/ggplot-resid-leverage-1.png" alt="Standardised residuals vs leverage for the Boston housing model. Observations in the upper-right and lower-right quadrants have both high leverage and large residuals, warranting further investigation.">
+	Standardised residuals vs leverage for the Boston housing model. Observations in the upper-right and lower-right quadrants have both high leverage and large residuals, warranting further investigation.
+</Figure>
+
+Several observations in the Boston data have both high leverage and large residuals. These are candidates for closer inspection -- they may be data entry errors, genuinely unusual observations, or signs that the model specification is inadequate in certain regions of the predictor space.
+
+---
+
+## 17.7 All Four Plots Together
+
+Let us create a combined panel that mirrors `par(mfrow = c(2,2)); plot(lm())` but with the clarity and flexibility of ggplot2.
+
+
+``` r
+p1 <- ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = raw)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.3, size = 1) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.8
+  ) +
+  ggplot2$labs(x = "Fitted", y = "Residuals", title = "Residuals vs Fitted") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p2 <- ggplot2$ggplot(diag_dt, ggplot2$aes(sample = standardised)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.3, size = 1) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Theoretical quantiles", y = "Std. residuals",
+    title = "Normal Q-Q"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+p3 <- ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = sqrt_abs_std)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.3, size = 1) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Fitted", y = expression(sqrt("|Std. resid.|")),
+    title = "Scale-Location"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+p4 <- ggplot2$ggplot(diag_dt, ggplot2$aes(x = leverage, y = standardised)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.3, size = 1) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Leverage", y = "Std. residuals",
+    title = "Residuals vs Leverage"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/four-panel-1.png" alt="All four standard diagnostic plots for the Boston housing model, built in ggplot2. Together they reveal non-linearity (top-left), right-skewed residuals (top-right), heteroscedasticity (bottom-left), and a handful of potentially influential points (bottom-right).">
+	All four standard diagnostic plots for the Boston housing model, built in ggplot2. Together they reveal non-linearity (top-left), right-skewed residuals (top-right), heteroscedasticity (bottom-left), and a handful of potentially influential points (bottom-right).
+</Figure>
+
+---
+
+## 17.8 Simulated Data -- What Good and Bad Diagnostics Look Like
+
+Understanding what *violations* look like is just as important as knowing the ideal pattern. Let us simulate data under the correct assumptions and under three common violations.
+
+### 17.8.1 Well-Behaved Model
+
+
+``` r
+set.seed(42)
+n_sim <- 300
+x_sim <- runif(n_sim, 0, 10)
+y_good <- 2 + 3 * x_sim + rnorm(n_sim, 0, 2)
+fit_good <- lm(y_good ~ x_sim)
+
+good_dt <- data.table$data.table(
+  fitted = fitted(fit_good),
+  resid = residuals(fit_good),
+  std_resid = rstandard(fit_good),
+  leverage = hatvalues(fit_good)
+)
+
+p_good1 <- ggplot2$ggplot(good_dt, ggplot2$aes(x = fitted, y = resid)) +
+  ggplot2$geom_point(colour = "#009E73", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE
+  ) +
+  ggplot2$labs(x = "Fitted", y = "Residuals", title = "Good: residuals vs fitted") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p_good2 <- ggplot2$ggplot(good_dt, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(colour = "#009E73", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_qq_line(colour = "#D55E00") +
+  ggplot2$labs(x = "Theoretical", y = "Std. residuals", title = "Good: Q-Q plot") +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p_good1, p_good2, ncol = 2)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sim-good-1.png" alt="Diagnostic plots for a correctly specified model. Residuals scatter randomly, the Q-Q plot is linear, the scale-location plot is flat, and no points have excessive influence.">
+	Diagnostic plots for a correctly specified model. Residuals scatter randomly, the Q-Q plot is linear, the scale-location plot is flat, and no points have excessive influence.
+</Figure>
+
+### 17.8.2 Non-Linearity
+
+
+``` r
+y_nonlin <- 2 + 3 * x_sim - 0.4 * x_sim^2 + rnorm(n_sim, 0, 2)
+fit_nonlin <- lm(y_nonlin ~ x_sim)
+
+nonlin_dt <- data.table$data.table(
+  fitted = fitted(fit_nonlin),
+  resid = residuals(fit_nonlin)
+)
+
+ggplot2$ggplot(nonlin_dt, ggplot2$aes(x = fitted, y = resid)) +
+  ggplot2$geom_point(colour = "#E69F00", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Fitted", y = "Residuals",
+    title = "Non-linearity: clear U-shape in residuals"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sim-nonlinear-1.png" alt="When the true relationship is quadratic but we fit a linear model, the residuals vs fitted plot shows a clear U-shape.">
+	When the true relationship is quadratic but we fit a linear model, the residuals vs fitted plot shows a clear U-shape.
+</Figure>
+
+### 17.8.3 Heteroscedasticity
+
+
+``` r
+y_hetero <- 2 + 3 * x_sim + rnorm(n_sim, 0, 0.5 * x_sim)
+fit_hetero <- lm(y_hetero ~ x_sim)
+
+hetero_dt <- data.table$data.table(
+  fitted = fitted(fit_hetero),
+  resid = residuals(fit_hetero)
+)
+
+ggplot2$ggplot(hetero_dt, ggplot2$aes(x = fitted, y = resid)) +
+  ggplot2$geom_point(colour = "#CC79A7", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Fitted", y = "Residuals",
+    title = "Heteroscedasticity: funnel-shaped residuals"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sim-hetero-1.png" alt="When the error variance increases with the predictor, the residuals vs fitted plot shows a funnel shape -- narrow on the left, wide on the right.">
+	When the error variance increases with the predictor, the residuals vs fitted plot shows a funnel shape -- narrow on the left, wide on the right.
+</Figure>
+
+### 17.8.4 Non-Normal Errors
+
+
+``` r
+y_nonnorm <- 2 + 3 * x_sim + (rexp(n_sim, 1) - 1) * 2
+fit_nonnorm <- lm(y_nonnorm ~ x_sim)
+
+nonnorm_dt <- data.table$data.table(
+  std_resid = rstandard(fit_nonnorm)
+)
+
+ggplot2$ggplot(nonnorm_dt, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(colour = "#56B4E9", alpha = 0.4, size = 1.5) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Theoretical quantiles", y = "Standardised residuals",
+    title = "Non-normality: right-skewed errors"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sim-nonnormal-1.png" alt="When errors are drawn from an exponential distribution (shifted to have mean zero), the Q-Q plot shows a clear departure from the reference line in the right tail.">
+	When errors are drawn from an exponential distribution (shifted to have mean zero), the Q-Q plot shows a clear departure from the reference line in the right tail.
+</Figure>
+
+---
+
+## 17.9 NHANES BMI Model Diagnostics
+
+We revisit the NHANES BMI model from Chapter 16 and run the full diagnostic suite.
+
+
+``` r
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes_clean <- nhanes[
+  complete.cases(nhanes[, .(BMI, Age, Height, Weight)]) & Age >= 18
+]
+
+fit_nhanes <- lm(BMI ~ Age + Height + Weight, data = nhanes_clean)
+
+nh_diag <- data.table$data.table(
+  fitted = fitted(fit_nhanes),
+  resid = residuals(fit_nhanes),
+  std_resid = rstandard(fit_nhanes),
+  leverage = hatvalues(fit_nhanes)
+)
+nh_diag[, sqrt_abs_std := sqrt(abs(std_resid))]
+
+p_nh1 <- ggplot2$ggplot(nh_diag, ggplot2$aes(x = fitted, y = resid)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.05, size = 0.8) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(x = "Fitted", y = "Residuals", title = "NHANES: Resid. vs Fitted") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p_nh2 <- ggplot2$ggplot(nh_diag, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.05, size = 0.8) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(x = "Theoretical", y = "Std. resid.", title = "NHANES: Q-Q") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p_nh3 <- ggplot2$ggplot(nh_diag, ggplot2$aes(x = fitted, y = sqrt_abs_std)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.05, size = 0.8) +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Fitted", y = expression(sqrt("|Std. resid.|")),
+    title = "NHANES: Scale-Location"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+p_nh4 <- ggplot2$ggplot(nh_diag, ggplot2$aes(x = leverage, y = std_resid)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.05, size = 0.8) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_smooth(
+    method = "loess", formula = y ~ x,
+    colour = "#D55E00", se = FALSE, linewidth = 0.9
+  ) +
+  ggplot2$labs(
+    x = "Leverage", y = "Std. resid.",
+    title = "NHANES: Resid. vs Leverage"
+  ) +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p_nh1, p_nh2, p_nh3, p_nh4, ncol = 2)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/nhanes-diagnostics-1.png" alt="Diagnostic plots for the NHANES BMI model (BMI ~ Age + Height + Weight). The residuals vs fitted plot is reasonably flat; the Q-Q plot reveals heavy right tails; the scale-location plot shows mild heteroscedasticity.">
+	Diagnostic plots for the NHANES BMI model (BMI ~ Age + Height + Weight). The residuals vs fitted plot is reasonably flat; the Q-Q plot reveals heavy right tails; the scale-location plot shows mild heteroscedasticity.
+</Figure>
+
+The NHANES BMI model shows a reasonably flat residual-fitted trend (linearity is approximately satisfied), but the Q-Q plot reveals heavier right tails than a normal distribution. With $n > 5{,}000$, the CLT ensures the coefficient estimates remain approximately normally distributed -- a theme we develop fully in Part 2.
+
+---
+
+## 17.10 Formal Tests for Assumptions
+
+Graphical diagnostics are the primary tool, but formal tests provide a complementary check.
+
+### 17.10.1 Shapiro-Wilk Test for Normality
+
+
+``` r
+# Shapiro-Wilk on a subsample (test limited to n <= 5000)
+set.seed(42)
+idx <- sample(nrow(boston), min(nrow(boston), 5000))
+shapiro.test(residuals(fit_boston)[idx])
+```
+
+```
+
+	Shapiro-Wilk normality test
+
+data:  residuals(fit_boston)[idx]
+W = 0.91406, p-value = 2.385e-16
+```
+
+### 17.10.2 Breusch-Pagan Test for Heteroscedasticity
+
+The Breusch-Pagan test regresses the squared residuals on the predictors. Under homoscedasticity, $nR^2 \sim \chi^2_k$ where $k$ is the number of predictors.
+
+
+``` r
+e2 <- residuals(fit_boston)^2
+bp_fit <- lm(e2 ~ lstat + rm + age, data = boston)
+bp_stat <- nrow(boston) * summary(bp_fit)$r.squared
+bp_df <- length(coef(bp_fit)) - 1
+
+c(
+  "BP statistic" = bp_stat,
+  "df" = bp_df,
+  "p-value" = pchisq(bp_stat, df = bp_df, lower.tail = FALSE)
+)
+```
+
+```
+BP statistic           df      p-value 
+1.977069e+01 3.000000e+00 1.893656e-04 
+```
+
+The highly significant result confirms what the scale-location plot suggested: the Boston housing model exhibits heteroscedasticity.
+
+### 17.10.3 Durbin-Watson for Autocorrelation
+
+
+``` r
+e_bos <- residuals(fit_boston)
+DW <- sum(diff(e_bos)^2) / sum(e_bos^2)
+c("Durbin-Watson" = DW)
+```
+
+```
+Durbin-Watson 
+    0.8507235 
+```
+
+A value close to 2 indicates no first-order autocorrelation. Spatial correlation (observations that are close geographically have similar residuals) is a real concern in the Boston data but requires specialised tests.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting regression diagnostics:
+
+- **Lead with the plots, not the tests.** A residual-vs-fitted plot tells a richer story than a single $p$-value. Show the four-panel diagnostic display and explain what each panel checks.
+- **Translate the jargon.** "The funnel shape in the residuals tells us the model's predictions are less reliable for expensive homes than for cheap homes."
+- **Be honest about violations.** If the diagnostics reveal problems, say so -- and say what you plan to do about it (transformations, robust standard errors, different model). A model with acknowledged limitations is more trustworthy than one presented without caveats.
+- **Context matters.** Mild non-normality with $n = 5{,}000$ is far less concerning than the same violation with $n = 30$.
+
+---
+
+## Quick Reference
+
+| Diagnostic | Checks | Pattern under violation |
+|:-----------|:-------|:----------------------|
+| Residuals vs Fitted | Linearity + homoscedasticity | Curve = non-linear; funnel = heteroscedastic |
+| Normal Q-Q | Normality of errors | S-shape = heavy tails; curve = skew |
+| Scale-Location | Homoscedasticity | Upward trend = increasing variance |
+| Residuals vs Leverage | Influential points | Large residual + high leverage = influential |
+| Shapiro-Wilk | Normality (formal) | Small $p$ = non-normal |
+| Breusch-Pagan | Homoscedasticity (formal) | Small $p$ = heteroscedastic |
+| Durbin-Watson | Autocorrelation | $\ll 2$ = positive; $\gg 2$ = negative |
+
+---
+
+## Exercises
+
+1. **Residual variance.** Starting from $\mathbf{e} = (\mathbf{I} - \mathbf{H})\boldsymbol{\varepsilon}$, derive $\text{Var}(e_i) = \sigma^2(1 - h_{ii})$. Explain why high-leverage points have artificially small residuals.
+
+2. **Q-Q by hand.** For a sample of 20 standard normal draws, compute the plotting positions $p_i = (i - 0.5)/n$, the theoretical quantiles $\Phi^{-1}(p_i)$, and construct the Q-Q plot manually using ggplot2. Repeat with 20 draws from a $t_3$ distribution and note the difference in the tails.
+
+3. **Simulated violations.** Modify the simulation in Section 17.8 to produce (a) a model with autocorrelated errors ($\varepsilon_i = 0.7\varepsilon_{i-1} + u_i$ where $u_i \sim N(0,1)$), and (b) a model with a single high-leverage outlier. Create the four diagnostic plots for each and describe the patterns.
+
+4. **Boston diagnostics.** Fit `medv ~ lstat + rm + age + crim + nox` to the Boston data. Produce the four ggplot2 diagnostic plots and interpret each. Is the model better specified than the three-predictor version?
+
+5. **Formal tests from scratch.** Implement the Breusch-Pagan test as a function that takes an `lm` object and returns the test statistic and $p$-value. Verify your function against the `lmtest::bptest()` output.
+
+6. **NHANES diagnostics.** Add `Gender` as a predictor to the NHANES BMI model. Compare the diagnostic plots before and after adding the categorical variable. Does `Gender` improve the residual behaviour?

@@ -1,0 +1,510 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 10: Hypothesis Testing Framework"
+part: "Part 1: Logic and P-values"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, hypothesis-testing, p-values, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 10 -- Hypothesis Testing Framework
+
+## Part 1: Logic and P-values
+
+In Chapters 8 and 9 we learnt to *estimate* parameters -- point estimates, confidence intervals. But estimation answers the question "what is the value of $\theta$?" In practice, we often face a sharper question: "is there evidence that $\theta$ differs from some reference value?" This is the domain of **hypothesis testing**, one of the most widely used -- and widely misunderstood -- tools in all of science.
+
+We open with a historical episode that captures the spirit of testing beautifully: James Lind's scurvy trial of 1747.
+
+---
+
+## 10.1 Motivation: The Scurvy Trial
+
+In 1747, the Scottish physician James Lind conducted what is often considered the first controlled clinical trial. Twelve sailors suffering from scurvy were divided into six pairs. Each pair received a different treatment: cider, elixir of vitriol, vinegar, seawater, oranges and lemons, or a purgative. The pair given citrus fruit recovered dramatically; the others did not.
+
+Lind's reasoning was, in essence, a hypothesis test. His **null hypothesis** was that no treatment was effective against scurvy -- that recovery (or lack thereof) was governed by chance alone. The dramatic recovery of the citrus pair constituted evidence *against* this null. The question we formalise in this chapter is: how do we quantify such evidence rigorously?
+
+```{r scurvy-data}
+# Lind's scurvy trial data (simplified)
+scurvy <- data.frame(
+  treatment = c("Cider", "Elixir of vitriol", "Vinegar",
+                 "Seawater", "Citrus fruit", "Purgative"),
+  n_patients = rep(2, 6),
+  n_improved = c(0, 0, 0, 0, 2, 0)
+)
+
+scurvy$prop_improved <- scurvy$n_improved / scurvy$n_patients
+scurvy
+```
+
+With only 2 patients per group, formal inference is limited. But the signal is unmistakable: every other group showed zero improvement. This is the archetype -- we observe something surprising under the assumption of no effect, and we must decide whether to attribute it to chance or to a real phenomenon.
+
+---
+
+## 10.2 The Logic of Hypothesis Testing
+
+### 10.2.1 Innocent Until Proven Guilty
+
+Hypothesis testing follows the logic of proof by contradiction, borrowing directly from the legal principle of "innocent until proven guilty."
+
+1. **Assume the null hypothesis $H_0$ is true.** This is the "innocent" state -- the status quo, the default, the claim of no effect.
+2. **Collect data and compute a test statistic.**
+3. **Ask: how surprising are these data if $H_0$ were true?**
+4. **If the data are sufficiently surprising, reject $H_0$.** The "burden of proof" has been met.
+
+The defendant (null hypothesis) is presumed innocent. The prosecution (the data) must present evidence strong enough to convince us beyond a reasonable threshold. If the evidence is weak, we do not convict -- we "fail to reject $H_0$." Note carefully: we do **not** declare the defendant innocent; we merely state that the evidence was insufficient to convict.
+
+### 10.2.2 The Asymmetry of Testing
+
+This asymmetry is fundamental and often a source of confusion:
+
+- **Rejecting $H_0$** is a strong conclusion: the data provide sufficient evidence against the null.
+- **Failing to reject $H_0$** is a weak conclusion: the data are consistent with the null, but they might also be consistent with many alternative hypotheses.
+
+"Absence of evidence is not evidence of absence." Failing to reject $H_0$ does *not* mean $H_0$ is true.
+
+---
+
+## 10.3 Null and Alternative Hypotheses
+
+### 10.3.1 Formal Definitions
+
+Let $\theta$ be a parameter of interest. A hypothesis test involves two competing claims:
+
+- **Null hypothesis $H_0$:** $\theta \in \Theta_0$, where $\Theta_0$ is some subset of the parameter space.
+- **Alternative hypothesis $H_1$ (or $H_a$):** $\theta \in \Theta_0^c$ (the complement of $\Theta_0$).
+
+In the simplest and most common case, the null specifies a single value:
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta \neq \theta_0 \quad \text{(two-sided)}$$
+
+or a direction:
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta > \theta_0 \quad \text{(one-sided, right)}$$
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta < \theta_0 \quad \text{(one-sided, left)}$$
+
+### 10.3.2 Simple vs. Composite Hypotheses
+
+A hypothesis is **simple** if it specifies the distribution completely (i.e., a single point in the parameter space). It is **composite** if it specifies a set of distributions.
+
+- $H_0: \mu = 5$ is simple (for a normal distribution with known $\sigma$).
+- $H_1: \mu \neq 5$ is composite -- it includes all values $\mu \in \mathbb{R} \setminus \{5\}$.
+
+The distinction matters theoretically: the Neyman-Pearson lemma (Part 3) applies to simple hypotheses. For composite alternatives, we need more general tools such as likelihood ratio tests.
+
+### 10.3.3 Choosing the Null
+
+The null hypothesis should always represent the "conservative" claim -- the one that places the burden of proof on the researcher. In pharmaceutical trials, $H_0$ states that the drug has no effect. In quality control, $H_0$ states that the production process is operating within specification. In basic science, $H_0$ states that there is no relationship between variables.
+
+We never set out to "prove" $H_0$. We set out to see whether the data are incompatible with it.
+
+---
+
+## 10.4 Test Statistics and Rejection Regions
+
+### 10.4.1 Test Statistics
+
+A **test statistic** $T = T(X_1, \ldots, X_n)$ is a function of the data that measures how far the observed data deviate from what we would expect under $H_0$. Good test statistics are large (in absolute value) when the data are inconsistent with $H_0$ and small when they are consistent.
+
+**Example.** Suppose $X_1, \ldots, X_n \overset{iid}{\sim} N(\mu, \sigma^2)$ with $\sigma^2$ known, and we test $H_0: \mu = \mu_0$ vs. $H_1: \mu \neq \mu_0$. A natural test statistic is:
+
+$$Z = \frac{\bar{X} - \mu_0}{\sigma / \sqrt{n}}.$$
+
+Under $H_0$, $Z \sim N(0, 1)$. Large values of $|Z|$ suggest $\mu \neq \mu_0$.
+
+### 10.4.2 Rejection Regions
+
+The **rejection region** (or critical region) $\mathcal{R}$ is the set of values of the test statistic for which we reject $H_0$. For a two-sided test at significance level $\alpha$:
+
+$$\mathcal{R} = \{z : |z| > z_{\alpha/2}\}$$
+
+where $z_{\alpha/2}$ is the upper $\alpha/2$ quantile of $N(0, 1)$. For $\alpha = 0.05$, $z_{0.025} \approx 1.96$.
+
+```{r rejection-region, fig.cap="The standard normal distribution with the rejection region for a two-sided test at alpha = 0.05. The shaded tails each contain 2.5% of the probability."}
+box::use(ggplot2)
+box::use(data.table)
+
+alpha <- 0.05
+z_crit <- qnorm(1 - alpha / 2)
+
+x_seq <- seq(-4, 4, length.out = 500)
+density_vals <- dnorm(x_seq)
+
+df <- data.table$data.table(x = x_seq, y = density_vals)
+df[, region := ifelse(abs(x) > z_crit, "Reject H0", "Fail to reject")]
+
+ggplot2$ggplot(df, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_area(
+    data = df[region == "Fail to reject"],
+    ggplot2$aes(x = x, y = y),
+    fill = "#999999", alpha = 0.4
+  ) +
+  ggplot2$geom_area(
+    data = df[region == "Reject H0"],
+    ggplot2$aes(x = x, y = y),
+    fill = "#D55E00", alpha = 0.6
+  ) +
+  ggplot2$geom_line(linewidth = 0.8) +
+  ggplot2$geom_vline(xintercept = c(-z_crit, z_crit), linetype = "dashed", colour = "#D55E00") +
+  ggplot2$annotate("text", x = 0, y = 0.15, label = "Fail to reject H0",
+                   size = 4.5, colour = "#333333") +
+  ggplot2$annotate("text", x = -3, y = 0.05, label = "Reject H0",
+                   size = 4, colour = "#D55E00") +
+  ggplot2$annotate("text", x = 3, y = 0.05, label = "Reject H0",
+                   size = 4, colour = "#D55E00") +
+  ggplot2$annotate("text", x = z_crit + 0.3, y = 0.25,
+                   label = sprintf("z = %.2f", z_crit), size = 3.5) +
+  ggplot2$annotate("text", x = -z_crit - 0.3, y = 0.25,
+                   label = sprintf("z = -%.2f", z_crit), size = 3.5) +
+  ggplot2$labs(
+    x = "z", y = "Density",
+    title = sprintf("Rejection region for two-sided z-test (alpha = %.2f)", alpha)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The decision rule is mechanical: if the observed $z$ falls in the shaded region, reject $H_0$; otherwise, do not.
+
+---
+
+## 10.5 P-values
+
+### 10.5.1 Formal Definition
+
+The **p-value** is the probability, under $H_0$, of observing a test statistic at least as extreme as the one actually observed.
+
+Formally, if $T$ is the test statistic and $t_{\text{obs}}$ is the observed value:
+
+$$\text{p-value} = P_{H_0}(T \geq t_{\text{obs}}) \quad \text{(one-sided, right)}$$
+
+$$\text{p-value} = P_{H_0}(|T| \geq |t_{\text{obs}}|) \quad \text{(two-sided)}$$
+
+The p-value measures the *compatibility* of the data with the null hypothesis. A small p-value means the data are surprising under $H_0$; a large p-value means they are unremarkable.
+
+The decision rule: reject $H_0$ if $\text{p-value} \leq \alpha$.
+
+### 10.5.2 A Concrete Example
+
+Suppose $X_1, \ldots, X_{25} \overset{iid}{\sim} N(\mu, 4)$ (variance known to be 4). We test $H_0: \mu = 10$ vs. $H_1: \mu \neq 10$ at $\alpha = 0.05$. We observe $\bar{x} = 10.85$.
+
+```{r pvalue-example}
+n <- 25
+sigma <- 2
+mu_0 <- 10
+x_bar <- 10.85
+
+z_obs <- (x_bar - mu_0) / (sigma / sqrt(n))
+p_value <- 2 * (1 - pnorm(abs(z_obs)))
+
+c(z_observed = z_obs, p_value = p_value)
+```
+
+The p-value is approximately 0.034, which is less than 0.05. We reject $H_0$ and conclude there is sufficient evidence that $\mu \neq 10$.
+
+### 10.5.3 What P-values ARE
+
+1. The p-value is the probability of the observed data (or more extreme) **under the null hypothesis.**
+2. It is a measure of the **evidence against** $H_0$.
+3. It is a **continuous** measure of evidence -- not a binary yes/no.
+4. Smaller p-values indicate stronger evidence against $H_0$.
+
+### 10.5.4 What P-values are NOT -- Common Misinterpretations
+
+This list is critical. Misinterpretation of p-values is arguably the single greatest source of confusion in applied statistics.
+
+1. **The p-value is NOT the probability that $H_0$ is true.** This is the most common error. $P(\text{data} \mid H_0)$ is not the same as $P(H_0 \mid \text{data})$. The latter requires Bayes' theorem and a prior.
+
+2. **The p-value is NOT the probability that the result is due to chance.** It is the probability of the data under the assumption that only chance is operating. These are logically distinct statements.
+
+3. **A non-significant p-value does NOT mean there is no effect.** It means the data are not sufficiently surprising under $H_0$. The effect could be real but small, or the sample size could be insufficient.
+
+4. **The p-value is NOT the probability of making a Type I error.** The significance level $\alpha$ is the *pre-specified* probability of Type I error. The p-value is a random variable that depends on the data.
+
+5. **$p = 0.05$ does NOT mean there is a 95% chance the result is real.** This confuses the frequentist p-value with a posterior probability.
+
+6. **Two studies, one with $p = 0.04$ and one with $p = 0.06$, do NOT necessarily show fundamentally different results.** The difference between "significant" and "not significant" is not itself necessarily significant.
+
+---
+
+## 10.6 P-values Under the Null are Uniform(0, 1)
+
+This is one of the most elegant and important results in testing theory.
+
+**Theorem.** If $H_0$ is true and the test statistic has a continuous distribution, then the p-value follows a $\text{Uniform}(0, 1)$ distribution.
+
+**Proof sketch.** Let $F_0$ be the CDF of the test statistic under $H_0$. For a one-sided test (rejecting for large values of $T$):
+
+$$\text{p-value} = 1 - F_0(T).$$
+
+Let $U = 1 - F_0(T)$. By the probability integral transform (Chapter 5), $F_0(T) \sim \text{Uniform}(0,1)$, and therefore $U = 1 - F_0(T) \sim \text{Uniform}(0,1)$. $\blacksquare$
+
+This means that if there is no effect, p-values are equally likely to be anywhere in $[0, 1]$. In particular, there is exactly a 5% chance of obtaining $p \leq 0.05$ -- which is precisely the Type I error rate.
+
+### 10.6.1 Simulation: P-values Under the Null
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+```
+
+```{r pvalue-uniform, fig.cap="Distribution of p-values from 10,000 one-sample z-tests when H0 is true (mu = 0). The p-values follow a Uniform(0, 1) distribution, shown by the flat histogram and the theoretical density line."}
+set.seed(42)
+n_sim <- 10000
+n <- 30
+mu_0 <- 0
+sigma <- 1
+
+# Simulate data under H0: mu = 0
+p_values_null <- replicate(n_sim, {
+  x <- rnorm(n, mean = mu_0, sd = sigma)
+  z <- (mean(x) - mu_0) / (sigma / sqrt(n))
+  2 * (1 - pnorm(abs(z)))
+})
+
+pval_df <- data.table$data.table(p = p_values_null)
+
+ggplot2$ggplot(pval_df, ggplot2$aes(x = p)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, fill = "#0072B2", alpha = 0.7, colour = "white"
+  ) +
+  ggplot2$geom_hline(yintercept = 1, linetype = "dashed",
+                     colour = "#D55E00", linewidth = 1) +
+  ggplot2$annotate("text", x = 0.5, y = 1.15,
+                   label = "Uniform(0, 1) density", colour = "#D55E00", size = 4.5) +
+  ggplot2$labs(
+    x = "P-value",
+    y = "Density",
+    title = "P-values under the null hypothesis are Uniform(0, 1)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r pvalue-uniform-check}
+# Formal check: proportion below alpha = 0.05 should be ~0.05
+alpha_levels <- c(0.01, 0.05, 0.10, 0.20)
+data.frame(
+  alpha = alpha_levels,
+  expected = alpha_levels,
+  observed = sapply(alpha_levels, function(a) mean(p_values_null <= a))
+)
+```
+
+The observed rejection rates match the nominal levels almost exactly. This is the Uniform(0, 1) property in action.
+
+### 10.6.2 P-values Under the Alternative
+
+When $H_0$ is false -- i.e., there is a real effect -- p-values are no longer uniform. They are skewed towards 0. The stronger the effect (or the larger the sample), the more concentrated the p-values become near 0.
+
+```{r pvalue-alternative, fig.cap="P-value distributions under the null (mu = 0) and under three alternative hypotheses. As the true mean moves further from the null value, p-values concentrate near 0. This is precisely what 'statistical power' captures."}
+set.seed(42)
+n <- 30
+sigma <- 1
+mu_0 <- 0
+n_sim <- 10000
+
+mu_values <- c(0, 0.2, 0.5, 1.0)
+
+pval_list <- lapply(mu_values, function(mu_true) {
+  pvals <- replicate(n_sim, {
+    x <- rnorm(n, mean = mu_true, sd = sigma)
+    z <- (mean(x) - mu_0) / (sigma / sqrt(n))
+    2 * (1 - pnorm(abs(z)))
+  })
+  data.table$data.table(
+    p = pvals,
+    scenario = sprintf("mu = %.1f", mu_true)
+  )
+})
+
+pval_all <- data.table$rbindlist(pval_list)
+pval_all[, scenario := factor(scenario, levels = sprintf("mu = %.1f", mu_values))]
+
+ggplot2$ggplot(pval_all, ggplot2$aes(x = p)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, fill = "#0072B2", alpha = 0.7, colour = "white"
+  ) +
+  ggplot2$facet_wrap(~scenario, ncol = 2, scales = "free_y") +
+  ggplot2$geom_hline(yintercept = 1, linetype = "dashed",
+                     colour = "#D55E00", linewidth = 0.7) +
+  ggplot2$labs(
+    x = "P-value",
+    y = "Density",
+    title = "P-value distributions under null vs. alternative hypotheses"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+When $\mu = 0$ (the null is true), p-values are flat. As the true $\mu$ moves away from 0, the histogram piles up near 0 -- most tests correctly detect the effect. This pile-up is the visual signature of **power**, which we formalise in Part 2.
+
+---
+
+## 10.7 The Testing Procedure: A Summary
+
+To conduct a hypothesis test:
+
+1. **State the hypotheses:** $H_0$ and $H_1$.
+2. **Choose the significance level** $\alpha$ (typically 0.05, but context-dependent).
+3. **Choose a test statistic** $T$ and determine its distribution under $H_0$.
+4. **Compute the observed test statistic** $t_{\text{obs}}$ from the data.
+5. **Compute the p-value** or compare $t_{\text{obs}}$ to the critical value.
+6. **Make a decision:** reject $H_0$ if $p \leq \alpha$ (or $t_{\text{obs}} \in \mathcal{R}$).
+7. **Interpret in context.**
+
+```{r z-test-example}
+# Complete example: one-sample z-test
+# H0: mu = 50, H1: mu != 50, sigma = 10
+set.seed(42)
+x <- rnorm(36, mean = 53, sd = 10)
+
+mu_0 <- 50
+sigma <- 10
+n <- length(x)
+x_bar <- mean(x)
+
+z_obs <- (x_bar - mu_0) / (sigma / sqrt(n))
+p_val <- 2 * (1 - pnorm(abs(z_obs)))
+
+data.frame(
+  quantity = c("Sample mean", "z-statistic", "p-value", "Decision (alpha=0.05)"),
+  value = c(
+    sprintf("%.3f", x_bar),
+    sprintf("%.3f", z_obs),
+    sprintf("%.4f", p_val),
+    ifelse(p_val <= 0.05, "Reject H0", "Fail to reject H0")
+  )
+)
+```
+
+---
+
+## 10.8 One-sided vs. Two-sided Tests
+
+The choice between one-sided and two-sided depends on the scientific question, and should be decided **before** looking at the data.
+
+```{r one-vs-two-sided, fig.cap="Comparison of one-sided (right) and two-sided rejection regions at alpha = 0.05. The one-sided test places all of alpha in one tail, making it more sensitive to effects in that direction but blind to effects in the opposite direction."}
+alpha <- 0.05
+x_seq <- seq(-4, 4, length.out = 500)
+y_seq <- dnorm(x_seq)
+
+df_base <- data.table$data.table(x = x_seq, y = y_seq)
+
+# Two-sided
+z_two <- qnorm(1 - alpha / 2)
+df_base[, two_sided := ifelse(abs(x) > z_two, "Reject", "Fail to reject")]
+
+# One-sided (right)
+z_one <- qnorm(1 - alpha)
+df_base[, one_sided := ifelse(x > z_one, "Reject", "Fail to reject")]
+
+p1 <- ggplot2$ggplot(df_base, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_area(
+    data = df_base[two_sided == "Reject"],
+    fill = "#D55E00", alpha = 0.5
+  ) +
+  ggplot2$geom_area(
+    data = df_base[two_sided == "Fail to reject"],
+    fill = "#999999", alpha = 0.3
+  ) +
+  ggplot2$geom_line(linewidth = 0.7) +
+  ggplot2$labs(title = sprintf("Two-sided (z_crit = +/-%.2f)", z_two),
+               x = "z", y = "Density") +
+  ggplot2$theme_minimal(base_size = 12)
+
+p2 <- ggplot2$ggplot(df_base, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_area(
+    data = df_base[one_sided == "Reject"],
+    fill = "#D55E00", alpha = 0.5
+  ) +
+  ggplot2$geom_area(
+    data = df_base[one_sided == "Fail to reject"],
+    fill = "#999999", alpha = 0.3
+  ) +
+  ggplot2$geom_line(linewidth = 0.7) +
+  ggplot2$labs(title = sprintf("One-sided right (z_crit = %.2f)", z_one),
+               x = "z", y = "Density") +
+  ggplot2$theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+**When to use one-sided tests:**
+
+- You have a strong *a priori* reason to expect an effect in one direction.
+- A result in the opposite direction is scientifically irrelevant (e.g., a drug cannot be worse than placebo by design).
+- The choice was made before data collection.
+
+**When in doubt:** use a two-sided test. It is more conservative and less susceptible to accusations of p-hacking.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting hypothesis test results to a non-technical audience:
+
+- Avoid jargon like "reject the null." Instead say: "We found statistically significant evidence that the treatment affects the outcome" or "We did not find sufficient evidence of a difference."
+- Never say "the p-value proves there is an effect." Say: "The data are unlikely under the assumption of no effect (p = 0.03)."
+- Always report effect sizes alongside p-values. A result can be statistically significant but practically meaningless.
+- Use the Lind scurvy analogy: "We assumed the treatment does nothing, then checked whether the data are consistent with that assumption. They were not."
+- Be honest about limitations. A p-value of 0.048 is not qualitatively different from 0.052.
+
+---
+
+## Quick Reference
+
+| Concept | Definition |
+|:--------|:-----------|
+| **$H_0$ (null)** | Default claim; the hypothesis of no effect or no difference |
+| **$H_1$ (alternative)** | The claim we seek evidence for |
+| **Test statistic** | Function of data measuring deviation from $H_0$ |
+| **Rejection region** | Values of test statistic leading to rejection of $H_0$ |
+| **P-value** | $P_{H_0}(\text{data as extreme or more extreme than observed})$ |
+| **Significance level $\alpha$** | Pre-specified threshold for rejection (typically 0.05) |
+| **Two-sided test** | $H_1: \theta \neq \theta_0$; rejects for large $|T|$ |
+| **One-sided test** | $H_1: \theta > \theta_0$ or $H_1: \theta < \theta_0$; rejects in one tail |
+| **P-value under $H_0$** | $\sim \text{Uniform}(0, 1)$ for continuous test statistics |
+
+---
+
+## Exercises
+
+1. A pharmaceutical company claims that a drug reduces blood pressure by 10 mmHg on average. You test $H_0: \mu = 10$ vs. $H_1: \mu \neq 10$ using a sample of 50 patients. The sample mean is 8.5 mmHg with known $\sigma = 5$. Compute the z-statistic and p-value. What do you conclude at $\alpha = 0.05$?
+
+2. Explain, in your own words, why "the p-value is the probability that $H_0$ is true" is incorrect. What additional information would you need to compute $P(H_0 \mid \text{data})$?
+
+3. Simulate 5,000 one-sample z-tests under $H_0: \mu = 0$ with $n = 20$ and $\sigma = 1$. Verify that the proportion of p-values below 0.05 is approximately 0.05. Now increase $n$ to 200 and repeat. Does the proportion change? Explain.
+
+4. A researcher conducts 20 independent tests, each at $\alpha = 0.05$, and finds that one test is significant. Should they be surprised? What is the expected number of false positives? (This foreshadows Chapter 12.)
+
+5. Derive the p-value for a one-sided test of $H_0: \mu = 0$ vs. $H_1: \mu > 0$ when the test statistic is $Z = \bar{X} / (\sigma / \sqrt{n})$ and $Z_{\text{obs}} = 1.5$.
+
+6. Generate 10,000 p-values under the alternative $H_1: \mu = 0.3$ with $n = 50$ and $\sigma = 1$. Plot the histogram and estimate the power (proportion of p-values $\leq 0.05$). Repeat with $\mu = 0.5$ and $\mu = 1.0$, and comment on the trend.

@@ -11,10 +11,6 @@ on:
         options:
           - dev
           - prod
-      ref:
-        description: 'Branch or tag to deploy (leave empty for current branch)'
-        required: false
-        default: ''
   release:
     types: [published]
 
@@ -22,36 +18,76 @@ concurrency:
   group: deploy-${{ github.event.inputs.environment || 'prod' }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/dereckmezquita/derecksnotes
+
 jobs:
-  deploy:
-    name: Deploy to ${{ github.event.inputs.environment || 'prod' }}
+  build_and_push:
+    name: Build image
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.vars.outputs.environment }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+    steps:
+      - name: Set variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "image_tag=prod" >> $GITHUB_OUTPUT
+          else
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "image_tag=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.image_tag }}
+          build-args: |
+            BUILD_ENV=${{ steps.vars.outputs.environment }}
+            COMMIT_SHA=${{ github.sha }}
+
+  deploy:
+    name: Deploy to ${{ needs.build_and_push.outputs.environment }}
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    env:
+      ENV: ${{ needs.build_and_push.outputs.environment }}
+      TAG: ${{ needs.build_and_push.outputs.image_tag }}
     steps:
       - name: Set deployment variables
         id: vars
         run: |
-          # Determine environment
-          if [ "${{ github.event_name }}" = "release" ]; then
-            ENV="prod"
-            DEPLOY_REF="${{ github.event.release.tag_name }}"
-          else
-            ENV="${{ inputs.environment }}"
-            DEPLOY_REF="${{ inputs.ref || github.ref_name }}"
-          fi
-
-          echo "environment=$ENV" >> $GITHUB_OUTPUT
-          echo "deploy_ref=$DEPLOY_REF" >> $GITHUB_OUTPUT
-          echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
-
-          if [ "$ENV" = "prod" ]; then
-            echo "repo_dir=/opt/derecksnotes/prod" >> $GITHUB_OUTPUT
+          if [ "${{ env.ENV }}" = "prod" ]; then
             echo "container_name=prod_derecksnotes" >> $GITHUB_OUTPUT
             echo "port_client=3000" >> $GITHUB_OUTPUT
             echo "port_server=3001" >> $GITHUB_OUTPUT
             echo "data_path=/var/www/derecksnotes.com/data" >> $GITHUB_OUTPUT
             echo "public_path=/var/www/derecksnotes.com/public" >> $GITHUB_OUTPUT
           else
-            echo "repo_dir=/opt/derecksnotes/dev" >> $GITHUB_OUTPUT
             echo "container_name=dev_derecksnotes" >> $GITHUB_OUTPUT
             echo "port_client=3010" >> $GITHUB_OUTPUT
             echo "port_server=3011" >> $GITHUB_OUTPUT
@@ -59,58 +95,54 @@ jobs:
             echo "public_path=/var/www/dev.derecksnotes.com/public" >> $GITHUB_OUTPUT
           fi
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout docker-compose.yml
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: docker-compose.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Copy docker-compose.yml to server
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          command_timeout: 30m
+          source: docker-compose.yml
+          target: /opt/derecksnotes/${{ env.ENV }}/
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USERNAME }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          envs: GH_TOKEN
+          command_timeout: 10m
           script: |
             set -e
 
-            REPO_DIR="${{ steps.vars.outputs.repo_dir }}"
-            DEPLOY_REF="${{ steps.vars.outputs.deploy_ref }}"
-            REPO_URL="https://github.com/dereckmezquita/derecksnotes.com.git"
+            WORK_DIR="/opt/derecksnotes/${{ env.ENV }}"
+            IMAGE="${{ env.IMAGE_NAME }}:${{ env.TAG }}"
 
-            echo "=== Deploying ${{ steps.vars.outputs.environment }} ==="
-            echo "Ref: ${DEPLOY_REF}"
-            echo "Dir: ${REPO_DIR}"
+            echo "=== Deploying ${{ env.ENV }} ==="
+            echo "Image: ${IMAGE}"
 
-            # ---- Clone or pull ----
-
-            if [ ! -d "${REPO_DIR}/.git" ]; then
-              echo "First deploy — cloning repo..."
-              mkdir -p "$(dirname "$REPO_DIR")"
-              git clone "$REPO_URL" "$REPO_DIR"
-            fi
-
-            cd "$REPO_DIR"
-
-            echo "Fetching latest..."
-            git fetch --all --tags --prune
-
-            echo "Checking out: ${DEPLOY_REF}"
-            git checkout "$DEPLOY_REF"
-
-            # If on a branch (not a detached tag), pull latest
-            if git symbolic-ref -q HEAD >/dev/null 2>&1; then
-              git pull origin "$DEPLOY_REF"
-            fi
+            cd "$WORK_DIR"
 
             # ---- Write .env ----
 
-            echo "Writing .env..."
             printf '%s\n' \
-              "IMAGE_NAME=derecksnotes" \
+              "IMAGE_NAME=${IMAGE}" \
               "CONTAINER_NAME=${{ steps.vars.outputs.container_name }}" \
               "PORT_CLIENT=${{ steps.vars.outputs.port_client }}" \
               "PORT_SERVER=${{ steps.vars.outputs.port_server }}" \
-              "BUILD_ENV=${{ steps.vars.outputs.environment }}" \
-              "COMMIT_SHA=${{ steps.vars.outputs.commit_sha }}" \
+              "BUILD_ENV=${{ env.ENV }}" \
+              "COMMIT_SHA=${{ github.sha }}" \
               "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \
-              "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}" \
               "DATA_PATH=${{ steps.vars.outputs.data_path }}" \
               "PUBLIC_PATH=${{ steps.vars.outputs.public_path }}" \
               > .env
@@ -122,12 +154,13 @@ jobs:
             mkdir -p "${{ steps.vars.outputs.data_path }}"
             mkdir -p "${{ steps.vars.outputs.public_path }}"
 
-            # ---- Build and deploy ----
+            # ---- Login to ghcr.io and pull ----
 
-            echo "Building Docker image..."
-            docker compose build
+            echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker pull "$IMAGE"
 
-            echo "Starting containers..."
+            # ---- Start containers ----
+
             docker compose down || true
             docker compose up -d
 
@@ -142,9 +175,9 @@ jobs:
             else
               echo ""
               echo "Warning: Health check failed. Check logs with:"
-              echo "  cd ${REPO_DIR} && docker compose logs"
+              echo "  cd ${WORK_DIR} && docker compose logs"
             fi
 
-            # ---- Cleanup old images ----
+            # ---- Cleanup ----
 
             docker image prune -f 2>/dev/null || true

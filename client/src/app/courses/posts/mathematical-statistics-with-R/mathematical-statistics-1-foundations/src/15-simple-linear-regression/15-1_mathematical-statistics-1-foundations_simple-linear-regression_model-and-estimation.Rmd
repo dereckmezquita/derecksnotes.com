@@ -1,0 +1,513 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 15: Simple Linear Regression"
+part: "Part 1: Model and Estimation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, linear-models, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 15 -- Simple Linear Regression
+
+## Part 1: Model and Estimation
+
+We have now assembled every tool we need: probability, random variables, distributions, estimation, hypothesis testing, and linear algebra. It is time to put them all to work on the most important modelling technique in applied statistics -- **linear regression**.
+
+The central question of regression is deceptively simple: given observations of two variables $X$ and $Y$, can we describe how $Y$ changes as $X$ changes? In this first part we formalise the model, derive the least-squares estimators from scratch using calculus, and implement them in R without relying on any built-in fitting function.
+
+---
+
+## 15.1 The Simple Linear Regression Model
+
+### 15.1.1 Setup and Assumptions
+
+Suppose we observe $n$ pairs $(x_1, y_1), (x_2, y_2), \ldots, (x_n, y_n)$. We model the relationship as:
+
+$$Y_i = \beta_0 + \beta_1 x_i + \varepsilon_i, \quad i = 1, 2, \ldots, n$$
+
+where:
+
+- $\beta_0$ is the **intercept** (the expected value of $Y$ when $X = 0$).
+- $\beta_1$ is the **slope** (the expected change in $Y$ per unit increase in $X$).
+- $\varepsilon_i$ is the **random error** for observation $i$.
+
+We assume:
+
+1. **Linearity**: the conditional mean $E[Y_i \mid x_i] = \beta_0 + \beta_1 x_i$ is a linear function of $x_i$.
+2. **Independence**: the errors $\varepsilon_1, \ldots, \varepsilon_n$ are independent.
+3. **Homoscedasticity**: $\text{Var}(\varepsilon_i) = \sigma^2$ for all $i$ (constant variance).
+4. **Zero mean errors**: $E[\varepsilon_i] = 0$ for all $i$.
+
+Under these four assumptions, we say the model satisfies the **Gauss-Markov conditions**. When we additionally assume $\varepsilon_i \sim N(0, \sigma^2)$, we have the **normal linear model** and can perform exact inference.
+
+### 15.1.2 What the Model Means Geometrically
+
+The equation $E[Y \mid X = x] = \beta_0 + \beta_1 x$ describes a line in the $(x, y)$-plane. Each observed point $(x_i, y_i)$ lies some vertical distance above or below this line. That vertical distance is the residual $\varepsilon_i$. Our task is to find the line that, in some precise sense, makes these vertical distances as small as possible.
+
+### 15.1.3 A First Look at Data
+
+Let us load the cats dataset (heart weight vs body weight) and visualise it before doing any modelling.
+
+```{r cats-scatter, fig.cap="Scatter plot of cat heart weight versus body weight. There is a clear positive association: heavier cats tend to have heavier hearts."}
+data_dir <- "../../../data"
+cats <- data.table$fread(file.path(data_dir, "classic/cats.csv"))
+
+ggplot2$ggplot(cats, ggplot2$aes(x = Bwt, y = Hwt)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.6, size = 2) +
+  ggplot2$labs(
+    x = "Body weight (kg)",
+    y = "Heart weight (g)",
+    title = "Cat heart weight vs body weight"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The positive trend is unmistakable. We now want to find the "best" straight line through these points.
+
+---
+
+## 15.2 The Least Squares Criterion
+
+### 15.2.1 Defining the Sum of Squared Residuals
+
+Given candidate values $b_0$ and $b_1$ for the intercept and slope, the **predicted value** for observation $i$ is:
+
+$$\hat{y}_i = b_0 + b_1 x_i$$
+
+The **residual** is:
+
+$$e_i = y_i - \hat{y}_i = y_i - b_0 - b_1 x_i$$
+
+The **sum of squared residuals** (SSR) is:
+
+$$S(b_0, b_1) = \sum_{i=1}^{n} e_i^2 = \sum_{i=1}^{n} (y_i - b_0 - b_1 x_i)^2$$
+
+The **Ordinary Least Squares** (OLS) estimators $\hat{\beta}_0$ and $\hat{\beta}_1$ are the values that minimise $S(b_0, b_1)$.
+
+### 15.2.2 Why Squares?
+
+We square the residuals for several reasons:
+
+- Squaring prevents positive and negative residuals from cancelling.
+- The squared function is differentiable everywhere, which makes optimisation tractable.
+- Under normality of errors, minimising SSR is equivalent to maximising the likelihood (we prove this below).
+
+### 15.2.3 Connection to Maximum Likelihood
+
+If $\varepsilon_i \sim N(0, \sigma^2)$, then $Y_i \sim N(\beta_0 + \beta_1 x_i, \sigma^2)$. The likelihood is:
+
+$$L(\beta_0, \beta_1, \sigma^2) = \prod_{i=1}^{n} \frac{1}{\sqrt{2\pi\sigma^2}} \exp\!\left(-\frac{(y_i - \beta_0 - \beta_1 x_i)^2}{2\sigma^2}\right)$$
+
+The log-likelihood is:
+
+$$\ell = -\frac{n}{2}\log(2\pi) - \frac{n}{2}\log(\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^{n}(y_i - \beta_0 - \beta_1 x_i)^2$$
+
+Maximising $\ell$ with respect to $\beta_0$ and $\beta_1$ (for any fixed $\sigma^2 > 0$) is equivalent to minimising $\sum(y_i - \beta_0 - \beta_1 x_i)^2$. Thus OLS and MLE yield the same point estimates for the regression coefficients.
+
+---
+
+## 15.3 Deriving the OLS Estimators
+
+### 15.3.1 Taking Partial Derivatives
+
+We minimise $S(b_0, b_1) = \sum_{i=1}^{n} (y_i - b_0 - b_1 x_i)^2$ by setting the partial derivatives to zero.
+
+**Partial derivative with respect to $b_0$:**
+
+$$\frac{\partial S}{\partial b_0} = -2\sum_{i=1}^{n}(y_i - b_0 - b_1 x_i) = 0$$
+
+Dividing by $-2$ and expanding:
+
+$$\sum_{i=1}^{n} y_i - nb_0 - b_1\sum_{i=1}^{n} x_i = 0$$
+
+$$\Rightarrow \quad b_0 = \bar{y} - b_1\bar{x} \tag{1}$$
+
+**Partial derivative with respect to $b_1$:**
+
+$$\frac{\partial S}{\partial b_1} = -2\sum_{i=1}^{n} x_i(y_i - b_0 - b_1 x_i) = 0$$
+
+Expanding:
+
+$$\sum_{i=1}^{n} x_i y_i - b_0\sum_{i=1}^{n} x_i - b_1\sum_{i=1}^{n} x_i^2 = 0 \tag{2}$$
+
+### 15.3.2 Solving the Normal Equations
+
+Substituting equation (1) into equation (2):
+
+$$\sum x_i y_i - (\bar{y} - b_1\bar{x})\sum x_i - b_1\sum x_i^2 = 0$$
+
+$$\sum x_i y_i - \bar{y}\sum x_i + b_1\bar{x}\sum x_i - b_1\sum x_i^2 = 0$$
+
+$$\sum x_i y_i - n\bar{x}\bar{y} = b_1\left(\sum x_i^2 - n\bar{x}^2\right)$$
+
+Therefore:
+
+$$\boxed{\hat{\beta}_1 = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^{n}(x_i - \bar{x})^2} = \frac{S_{xy}}{S_{xx}}}$$
+
+where $S_{xy} = \sum(x_i - \bar{x})(y_i - \bar{y})$ and $S_{xx} = \sum(x_i - \bar{x})^2$.
+
+And from equation (1):
+
+$$\boxed{\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}}$$
+
+### 15.3.3 Verifying the Minimum
+
+The Hessian matrix of $S$ is:
+
+$$H = 2\begin{pmatrix} n & \sum x_i \\ \sum x_i & \sum x_i^2 \end{pmatrix}$$
+
+This is positive definite whenever $S_{xx} > 0$ (i.e., the $x$ values are not all identical), confirming that our solution is indeed a minimum.
+
+### 15.3.4 An Important Identity: the Line Passes Through $(\bar{x}, \bar{y})$
+
+From $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$, we see that:
+
+$$\hat{y}(\bar{x}) = \hat{\beta}_0 + \hat{\beta}_1\bar{x} = \bar{y}$$
+
+The fitted regression line always passes through the point of means $(\bar{x}, \bar{y})$.
+
+---
+
+## 15.4 Implementation from Scratch
+
+Let us now implement OLS without using `lm()`. We build the estimators directly from the formulae we derived.
+
+```{r ols-from-scratch}
+#' Ordinary Least Squares -- simple linear regression from scratch
+#' @param x numeric vector of predictor values
+#' @param y numeric vector of response values
+#' @return named list with intercept, slope, fitted, residuals
+my_ols <- function(x, y) {
+  n <- length(x)
+  stopifnot(length(y) == n, n >= 2)
+
+  x_bar <- mean(x)
+  y_bar <- mean(y)
+
+  Sxy <- sum((x - x_bar) * (y - y_bar))
+  Sxx <- sum((x - x_bar)^2)
+
+  beta1 <- Sxy / Sxx
+  beta0 <- y_bar - beta1 * x_bar
+
+  fitted <- beta0 + beta1 * x
+  residuals <- y - fitted
+
+  list(
+    intercept = beta0,
+    slope = beta1,
+    fitted = fitted,
+    residuals = residuals,
+    SSR = sum(residuals^2),
+    n = n
+  )
+}
+```
+
+```{r ols-cats}
+fit_scratch <- my_ols(cats$Bwt, cats$Hwt)
+
+data.frame(
+  parameter = c("intercept", "slope", "SSR"),
+  from_scratch = c(fit_scratch$intercept, fit_scratch$slope, fit_scratch$SSR)
+)
+```
+
+### 15.4.1 Verification Against `lm()`
+
+```{r ols-verify}
+fit_lm <- lm(Hwt ~ Bwt, data = cats)
+
+data.frame(
+  parameter = c("intercept", "slope"),
+  from_scratch = c(fit_scratch$intercept, fit_scratch$slope),
+  from_lm = coef(fit_lm)
+)
+```
+
+The values agree to machine precision.
+
+### 15.4.2 Visualising the Fit
+
+```{r cats-fit, fig.cap="OLS regression line fitted to the cats data. The line passes through the point of means (marked with the red cross)."}
+ggplot2$ggplot(cats, ggplot2$aes(x = Bwt, y = Hwt)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.5, size = 2) +
+  ggplot2$geom_abline(
+    intercept = fit_scratch$intercept,
+    slope = fit_scratch$slope,
+    colour = "#D55E00", linewidth = 1
+  ) +
+  ggplot2$annotate(
+    "point", x = mean(cats$Bwt), y = mean(cats$Hwt),
+    colour = "red", size = 4, shape = 4, stroke = 2
+  ) +
+  ggplot2$labs(
+    x = "Body weight (kg)",
+    y = "Heart weight (g)",
+    title = "OLS fit: cat heart weight vs body weight"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 15.5 Understanding What OLS Does Geometrically
+
+### 15.5.1 The Residual Sum of Squares Surface
+
+$S(b_0, b_1)$ is a function of two variables. Its graph is a paraboloid -- a bowl-shaped surface. The OLS solution sits at the bottom of the bowl.
+
+```{r ssr-surface, fig.cap="Contour plot of the SSR surface. The minimum (marked with the red point) corresponds to the OLS estimates."}
+set.seed(42)
+b0_grid <- seq(-2, 2, length.out = 100)
+b1_grid <- seq(2, 6, length.out = 100)
+
+grid <- data.table$CJ(b0 = b0_grid, b1 = b1_grid)
+grid[, SSR := sapply(seq_len(nrow(grid)), function(i) {
+  sum((cats$Hwt - grid$b0[i] - grid$b1[i] * cats$Bwt)^2)
+})]
+
+ggplot2$ggplot(grid, ggplot2$aes(x = b0, y = b1, z = SSR)) +
+  ggplot2$geom_contour_filled(bins = 20) +
+  ggplot2$annotate(
+    "point",
+    x = fit_scratch$intercept, y = fit_scratch$slope,
+    colour = "red", size = 3
+  ) +
+  ggplot2$labs(
+    x = expression(b[0]),
+    y = expression(b[1]),
+    title = "SSR contour plot"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<InteractivePlot>
+
+**Drag the slider to adjust the slope and watch the SSR change in real time.**
+
+This interactive visualisation lets you explore how the sum of squared residuals responds to changes in the slope parameter $b_1$, with $b_0$ automatically set to $\bar{y} - b_1\bar{x}$ so the line always passes through $(\bar{x}, \bar{y})$. The minimum of the SSR curve corresponds to the OLS estimate $\hat{\beta}_1$.
+
+</InteractivePlot>
+
+### 15.5.2 Properties of the Residuals
+
+The OLS residuals satisfy two important identities. These follow directly from the normal equations.
+
+**Property 1.** The residuals sum to zero:
+
+$$\sum_{i=1}^{n} e_i = 0$$
+
+*Proof*: from $\partial S/\partial b_0 = 0$ we obtained $\sum(y_i - \hat{\beta}_0 - \hat{\beta}_1 x_i) = 0$, which is $\sum e_i = 0$.
+
+**Property 2.** The residuals are orthogonal to the predictor:
+
+$$\sum_{i=1}^{n} x_i e_i = 0$$
+
+*Proof*: from $\partial S/\partial b_1 = 0$ we obtained $\sum x_i(y_i - \hat{\beta}_0 - \hat{\beta}_1 x_i) = 0$, which is $\sum x_i e_i = 0$.
+
+```{r residual-properties}
+# Verify numerically
+c(
+  "sum of residuals" = sum(fit_scratch$residuals),
+  "sum of x*residuals" = sum(cats$Bwt * fit_scratch$residuals)
+)
+```
+
+Both sums are zero (up to floating-point precision).
+
+---
+
+## 15.6 Decomposition of Total Variation
+
+### 15.6.1 SST = SSR + SSE
+
+Define:
+
+- $\text{SST} = \sum(y_i - \bar{y})^2$ -- **Total Sum of Squares** (total variation in $Y$).
+- $\text{SSReg} = \sum(\hat{y}_i - \bar{y})^2$ -- **Regression Sum of Squares** (variation explained by the model).
+- $\text{SSE} = \sum(y_i - \hat{y}_i)^2 = \sum e_i^2$ -- **Error Sum of Squares** (unexplained variation).
+
+**Theorem.** $\text{SST} = \text{SSReg} + \text{SSE}$.
+
+*Proof*:
+
+$$y_i - \bar{y} = (\hat{y}_i - \bar{y}) + (y_i - \hat{y}_i) = (\hat{y}_i - \bar{y}) + e_i$$
+
+Squaring both sides and summing:
+
+$$\text{SST} = \text{SSReg} + \text{SSE} + 2\sum(\hat{y}_i - \bar{y})e_i$$
+
+The cross-term vanishes because $\hat{y}_i - \bar{y} = \hat{\beta}_1(x_i - \bar{x})$ and $\sum(x_i - \bar{x})e_i = \sum x_i e_i - \bar{x}\sum e_i = 0 - 0 = 0$. $\square$
+
+```{r ss-decomposition}
+SST <- sum((cats$Hwt - mean(cats$Hwt))^2)
+SSReg <- sum((fit_scratch$fitted - mean(cats$Hwt))^2)
+SSE <- fit_scratch$SSR
+
+data.frame(
+  quantity = c("SST", "SSReg", "SSE", "SSReg + SSE"),
+  value = c(SST, SSReg, SSE, SSReg + SSE)
+)
+```
+
+---
+
+## 15.7 Estimating $\sigma^2$
+
+The error variance $\sigma^2 = \text{Var}(\varepsilon_i)$ is unknown and must be estimated. The natural estimator is:
+
+$$\hat{\sigma}^2 = s^2 = \frac{\text{SSE}}{n - 2} = \frac{\sum e_i^2}{n - 2}$$
+
+We divide by $n - 2$ (not $n$) because we estimated two parameters ($\beta_0$ and $\beta_1$), consuming two degrees of freedom.
+
+**Theorem.** $E[s^2] = \sigma^2$ -- the estimator is unbiased.
+
+```{r sigma-hat}
+n <- nrow(cats)
+s2 <- SSE / (n - 2)
+
+c(
+  "s^2 (from scratch)" = s2,
+  "s^2 (from lm)" = summary(fit_lm)$sigma^2
+)
+```
+
+The quantity $s = \sqrt{s^2}$ is called the **residual standard error** and is reported by R's `summary.lm()`.
+
+---
+
+## 15.8 Alternative Formula for $\hat{\beta}_1$
+
+It is sometimes useful to write the slope estimator in terms of the sample correlation and sample standard deviations:
+
+$$\hat{\beta}_1 = r_{xy} \cdot \frac{s_y}{s_x}$$
+
+where $r_{xy}$ is the Pearson correlation coefficient. This shows that the sign of the slope is determined entirely by the sign of the correlation, and the magnitude is the correlation scaled by the ratio of standard deviations.
+
+```{r slope-correlation}
+r_xy <- cor(cats$Bwt, cats$Hwt)
+s_x <- sd(cats$Bwt)
+s_y <- sd(cats$Hwt)
+
+c(
+  "beta1 from formula" = fit_scratch$slope,
+  "r * sy/sx" = r_xy * s_y / s_x
+)
+```
+
+---
+
+## 15.9 A Second Example: Gapminder
+
+Let us fit a simple linear regression of life expectancy on log GDP per capita using the gapminder data for the year 2007.
+
+```{r gapminder-slr, fig.cap="Life expectancy vs log GDP per capita (2007). The positive association is strong but there is curvature at the lower end -- a hint that a more flexible model may be warranted."}
+gapminder <- data.table$fread(file.path(data_dir, "primary/gapminder.csv"))
+gap2007 <- gapminder[year == 2007]
+gap2007[, log_gdp := log(gdpPercap)]
+
+fit_gap <- my_ols(gap2007$log_gdp, gap2007$lifeExp)
+
+ggplot2$ggplot(gap2007, ggplot2$aes(x = log_gdp, y = lifeExp)) +
+  ggplot2$geom_point(colour = "#0072B2", alpha = 0.6, size = 2) +
+  ggplot2$geom_abline(
+    intercept = fit_gap$intercept, slope = fit_gap$slope,
+    colour = "#D55E00", linewidth = 1
+  ) +
+  ggplot2$labs(
+    x = "Log GDP per capita",
+    y = "Life expectancy (years)",
+    title = "Life expectancy vs log GDP per capita (2007)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r gapminder-interp}
+data.frame(
+  parameter = c("intercept", "slope"),
+  estimate = c(fit_gap$intercept, fit_gap$slope)
+)
+```
+
+**Interpretation**: a 1-unit increase in log GDP per capita is associated with approximately `r round(fit_gap$slope, 1)` additional years of life expectancy. Since $\log$ is the natural logarithm, a 1-unit increase corresponds roughly to a 2.7-fold increase in GDP per capita.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining a simple linear regression:
+
+- **Avoid jargon**: instead of "the OLS slope estimate is 4.03", say "for every additional kilogram of body weight, we expect the heart to weigh about 4 grams more."
+- **Always show the scatter plot with the fitted line**. The line alone is meaningless without seeing the data it summarises.
+- **Report the intercept carefully**. If $X = 0$ is outside the range of the data (as it often is), do not interpret the intercept literally. Say "the intercept is a mathematical artefact needed to position the line correctly."
+- **Mention the residual standard error** in practical units: "our predictions are typically off by about $\pm s$ units."
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **Model** | $Y_i = \beta_0 + \beta_1 x_i + \varepsilon_i$ |
+| **Slope** | $\hat{\beta}_1 = S_{xy}/S_{xx} = r_{xy} \cdot s_y / s_x$ |
+| **Intercept** | $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$ |
+| **SSE** | $\sum(y_i - \hat{y}_i)^2$ |
+| **$\hat{\sigma}^2$** | $\text{SSE}/(n-2)$ |
+| **Key property** | Line passes through $(\bar{x}, \bar{y})$ |
+| **Residual properties** | $\sum e_i = 0$, $\sum x_i e_i = 0$ |
+| **Decomposition** | $\text{SST} = \text{SSReg} + \text{SSE}$ |
+
+---
+
+## Exercises
+
+1. **Derivation practice.** Starting from $S(b_0, b_1) = \sum(y_i - b_0 - b_1 x_i)^2$, derive the normal equations and solve for $\hat{\beta}_0$ and $\hat{\beta}_1$ without looking at the notes. Verify that the Hessian is positive definite.
+
+2. **No-intercept model.** Suppose we fit $Y_i = \beta_1 x_i + \varepsilon_i$ (regression through the origin). Derive $\hat{\beta}_1$ by minimising $\sum(y_i - b_1 x_i)^2$. Implement it in R and compare with `lm(Hwt ~ 0 + Bwt, data = cats)`.
+
+3. **Centering.** Show algebraically that if we define $x_i^* = x_i - \bar{x}$, then fitting $Y_i = \alpha_0 + \alpha_1 x_i^* + \varepsilon_i$ yields $\hat{\alpha}_0 = \bar{y}$ and $\hat{\alpha}_1 = \hat{\beta}_1$. Why is this useful numerically?
+
+4. **MLE for $\sigma^2$.** Under normality, derive the MLE for $\sigma^2$ and show that $\hat{\sigma}^2_{\text{MLE}} = \text{SSE}/n$. Explain why we prefer $s^2 = \text{SSE}/(n-2)$ in practice.
+
+5. **Simulation study.** Generate 1000 datasets from $Y = 2 + 3X + \varepsilon$ with $X \sim U(0, 10)$ and $\varepsilon \sim N(0, 4)$. For each, compute $\hat{\beta}_1$ using your `my_ols()` function. Plot the distribution of $\hat{\beta}_1$ and verify that the mean is close to 3.
+
+6. **Gapminder exploration.** Using the gapminder data, fit a simple linear regression of life expectancy on log GDP per capita separately for each continent. Compare the slopes and intercepts. What do the differences tell you?

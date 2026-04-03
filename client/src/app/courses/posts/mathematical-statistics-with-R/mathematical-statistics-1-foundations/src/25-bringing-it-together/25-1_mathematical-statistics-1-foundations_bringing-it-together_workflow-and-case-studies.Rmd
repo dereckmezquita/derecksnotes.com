@@ -1,0 +1,450 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 25: Bringing It Together"
+part: "Part 1: Workflow and Case Studies"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, workflow, case-study, nhanes, logistic-regression, bayesian, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 25 -- Bringing It Together
+
+## Part 1: Workflow and Case Studies
+
+We have covered a great deal of ground: from descriptive statistics (Chapter 1) through probability, estimation, testing, regression, GLMs, and Bayesian methods. But these tools are not meant to be used in isolation. A real statistical analysis follows a **workflow** -- a structured sequence of decisions, each informed by the previous step.
+
+In this final chapter we codify the statistical workflow, then apply the full pipeline to two extended case studies that draw on methods from across the book.
+
+---
+
+## 25.1 The Statistical Workflow
+
+Every good analysis follows seven stages:
+
+$$\text{Question} \to \text{Design} \to \text{Collect} \to \text{Explore} \to \text{Model} \to \text{Check} \to \text{Interpret}$$
+
+### Stage 1: Question
+
+State the scientific question precisely. A vague question ("Is X related to Y?") produces a vague analysis. A precise question ("Does smoking during pregnancy reduce birthweight by more than 200 grams, after adjusting for maternal Age, Weight, and race?") dictates the model, the outcome, and the measure of effect.
+
+### Stage 2: Design
+
+Choose the study type (Chapter 24). Calculate the required sample size. Specify the primary outcome and the analysis plan **before** looking at data.
+
+### Stage 3: Collect
+
+Gather data according to the design. Document the process -- missing data, measurement protocols, deviations from the plan.
+
+### Stage 4: Explore
+
+Chapters 1-3 in action: compute summary statistics, visualise distributions, check for outliers, examine missingness patterns. **Never skip this step.** Exploration often reveals data quality issues that invalidate downstream models.
+
+### Stage 5: Model
+
+Select and fit a model appropriate for the data type and question. This may be a $t$-test (Chapter 11), a linear regression (Chapters 15-17), a GLM (Chapters 19-21), or a Bayesian model (Chapters 22-23).
+
+### Stage 6: Check
+
+Diagnose the model (Chapter 17): residual plots, influence measures, goodness-of-fit tests. If diagnostics reveal violations, return to Stage 5 and modify the model.
+
+### Stage 7: Interpret
+
+Translate statistical results into answers to the original question. Report effect sizes, confidence or credible intervals, and caveats. Communicate findings clearly to the intended audience.
+
+---
+
+## 25.2 Case Study 1: NHANES Full Analysis
+
+### 25.2.1 Question
+
+**Does systolic blood pressure depend on Age, BMI, and Gender in US adults, and how strong is the association?**
+
+### 25.2.2 Data Loading and Exploration
+
+```{r nhanes-load}
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+cols_needed <- c("BPSysAve", "Age", "BMI", "Gender", "Height", "Weight", "Diabetes")
+nhanes_bp <- nhanes[complete.cases(nhanes[, ..cols_needed])]
+nhanes_bp <- nhanes_bp[Age >= 18]
+
+sprintf("Complete cases (adults): %d", nrow(nhanes_bp))
+```
+
+```{r nhanes-summary}
+summary(nhanes_bp[, .(BPSysAve, Age, BMI)])
+nhanes_bp[, .N, by = Gender]
+```
+
+```{r nhanes-eda-1, fig.cap="Distribution of systolic blood pressure by gender. Both distributions are right-skewed with a few high values."}
+ggplot2$ggplot(nhanes_bp, ggplot2$aes(x = BPSysAve, fill = Gender)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, alpha = 0.6, colour = "white", position = "identity"
+  ) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$labs(
+    x = "Systolic blood pressure (mmHg)", y = "Density",
+    title = "Distribution of systolic blood pressure by gender (NHANES)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+```{r nhanes-eda-2, fig.cap="Scatterplots of systolic blood pressure against Age and BMI. Both show positive associations."}
+eda_long <- data.table$melt(
+  nhanes_bp[, .(BPSysAve, Age, BMI)],
+  id.vars = "BPSysAve",
+  variable.name = "predictor",
+  value.name = "value"
+)
+
+ggplot2$ggplot(eda_long, ggplot2$aes(x = value, y = BPSysAve)) +
+  ggplot2$geom_point(alpha = 0.1, colour = "#0072B2", size = 0.5) +
+  ggplot2$geom_smooth(method = "loess", colour = "#D55E00", linewidth = 1) +
+  ggplot2$facet_wrap(~ predictor, scales = "free_x") +
+  ggplot2$labs(
+    x = "Predictor value", y = "Systolic BP (mmHg)",
+    title = "Systolic blood pressure vs Age and BMI"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+### 25.2.3 Model Fitting
+
+```{r nhanes-model}
+fit_bp <- lm(BPSysAve ~ Age + BMI + Gender, data = nhanes_bp)
+summary(fit_bp)
+```
+
+```{r nhanes-anova}
+anova(fit_bp)
+```
+
+### 25.2.4 Diagnostics
+
+```{r nhanes-diag, fig.cap="Regression diagnostics for the blood pressure model. Residuals are approximately normal with mild heteroscedasticity at high fitted values."}
+diag_dt <- data.table$data.table(
+  fitted = fitted(fit_bp),
+  residuals = residuals(fit_bp),
+  std_resid = rstandard(fit_bp)
+)
+
+p1 <- ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = residuals)) +
+  ggplot2$geom_point(alpha = 0.1, colour = "#0072B2", size = 0.5) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$geom_smooth(method = "loess", colour = "#009E73", se = FALSE) +
+  ggplot2$labs(x = "Fitted values", y = "Residuals", title = "Residuals vs Fitted") +
+  ggplot2$theme_minimal(base_size = 11)
+
+p2 <- ggplot2$ggplot(diag_dt, ggplot2$aes(sample = std_resid)) +
+  ggplot2$geom_qq(alpha = 0.1, colour = "#0072B2", size = 0.5) +
+  ggplot2$geom_qq_line(colour = "#D55E00") +
+  ggplot2$labs(x = "Theoretical quantiles", y = "Standardised residuals", title = "Normal Q-Q") +
+  ggplot2$theme_minimal(base_size = 11)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+### 25.2.5 Interpretation
+
+```{r nhanes-interpret}
+coef_ci <- cbind(Estimate = coef(fit_bp), confint(fit_bp))
+knitr::kable(round(coef_ci, 3),
+             caption = "Coefficients and 95% confidence intervals for the blood pressure model.")
+```
+
+```{r nhanes-r2}
+r2 <- summary(fit_bp)$r.squared
+adj_r2 <- summary(fit_bp)$adj.r.squared
+sprintf("R-squared: %.4f, Adjusted R-squared: %.4f", r2, adj_r2)
+```
+
+**Key findings:**
+
+- Each additional year of Age is associated with an increase of approximately `r round(coef(fit_bp)["Age"], 2)` mmHg in systolic BP ($p < 0.001$).
+- Each unit increase in BMI is associated with an increase of approximately `r round(coef(fit_bp)["BMI"], 2)` mmHg.
+- Males have higher systolic BP than females by approximately `r abs(round(coef(fit_bp)["Gendermale"], 1))` mmHg.
+- The model explains about `r round(r2 * 100, 1)`% of the variation in systolic BP. Much remains unexplained -- blood pressure depends on many factors not in our model (genetics, medication, diet, physical activity).
+
+---
+
+## 25.3 Case Study 2: Birthweight -- Frequentist, ROC, and Bayesian
+
+### 25.3.1 Question
+
+**Can we predict low birthweight from maternal characteristics, and does a Bayesian analysis add value?**
+
+### 25.3.2 Data Preparation
+
+```{r birthwt-load}
+birthwt <- data.table$fread(file.path(data_dir, "classic/birthwt.csv"))
+
+birthwt[, `:=`(
+  low = factor(low, levels = c(0, 1), labels = c("Normal", "Low")),
+  smoke = factor(smoke, levels = c(0, 1), labels = c("No", "Yes")),
+  race = factor(race, levels = c(1, 2, 3), labels = c("White", "Black", "Other")),
+  ht = factor(ht, levels = c(0, 1), labels = c("No", "Yes")),
+  ui = factor(ui, levels = c(0, 1), labels = c("No", "Yes"))
+)]
+
+str(birthwt[, .(low, age, lwt, smoke, race, ht, ui)])
+```
+
+```{r birthwt-eda, fig.cap="Maternal weight distribution by low birthweight status. Mothers with low birthweight babies tend to weigh less."}
+ggplot2$ggplot(birthwt, ggplot2$aes(x = lwt, fill = low)) +
+  ggplot2$geom_density(alpha = 0.5) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$labs(
+    x = "Mother's weight at last menstrual period (lbs)",
+    y = "Density",
+    title = "Maternal weight by birthweight status",
+    fill = "Birthweight"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+### 25.3.3 Frequentist Logistic Regression
+
+```{r birthwt-glm}
+fit_logit <- glm(low ~ age + lwt + smoke + race + ht + ui, data = birthwt, family = binomial)
+summary(fit_logit)
+```
+
+```{r birthwt-or}
+or_table <- data.table$data.table(
+  Parameter = names(coef(fit_logit))[-1],
+  OR = round(exp(coef(fit_logit)[-1]), 3),
+  CI_lower = round(exp(confint.default(fit_logit)[-1, 1]), 3),
+  CI_upper = round(exp(confint.default(fit_logit)[-1, 2]), 3),
+  p_value = round(summary(fit_logit)$coefficients[-1, 4], 4)
+)
+knitr::kable(or_table, caption = "Odds ratios for low birthweight predictors.")
+```
+
+### 25.3.4 ROC Analysis
+
+```{r roc-analysis, fig.cap="ROC curve for the low birthweight logistic regression. The AUC indicates moderate discriminative ability."}
+pred_probs <- predict(fit_logit, type = "response")
+
+roc_data <- function(probs, actual, n_thresholds = 200) {
+  thresholds <- seq(0, 1, length.out = n_thresholds)
+  actual_bin <- as.integer(actual == "Low")
+  roc_list <- lapply(thresholds, function(th) {
+    pred_bin <- as.integer(probs >= th)
+    tp <- sum(pred_bin == 1 & actual_bin == 1)
+    fp <- sum(pred_bin == 1 & actual_bin == 0)
+    fn <- sum(pred_bin == 0 & actual_bin == 1)
+    tn <- sum(pred_bin == 0 & actual_bin == 0)
+    data.table$data.table(
+      threshold = th,
+      tpr = tp / (tp + fn),
+      fpr = fp / (fp + tn)
+    )
+  })
+  data.table$rbindlist(roc_list)
+}
+
+roc_dt <- roc_data(pred_probs, birthwt$low)
+
+auc_val <- -sum(diff(roc_dt$fpr) * (roc_dt$tpr[-1] + roc_dt$tpr[-nrow(roc_dt)]) / 2)
+
+ggplot2$ggplot(roc_dt, ggplot2$aes(x = fpr, y = tpr)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", alpha = 0.5) +
+  ggplot2$annotate("text", x = 0.6, y = 0.3, label = sprintf("AUC = %.3f", auc_val),
+                   size = 5, colour = "#D55E00") +
+  ggplot2$labs(
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)",
+    title = "ROC curve for low birthweight prediction"
+  ) +
+  ggplot2$coord_equal() +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 25.3.5 Bayesian Logistic Regression
+
+```{r bayes-birthwt, message=FALSE, results='hide'}
+fit_bayes_bwt <- rstanarm::stan_glm(
+  low ~ age + lwt + smoke + race + ht + ui,
+  data = birthwt,
+  family = binomial(link = "logit"),
+  prior = rstanarm::normal(0, 2.5),
+  prior_intercept = rstanarm::normal(0, 10),
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  seed = 42
+)
+```
+
+```{r bayes-summary}
+summary(fit_bayes_bwt, digits = 3)
+```
+
+```{r bayes-compare, fig.cap="Comparison of frequentist and Bayesian coefficient estimates. The two approaches yield nearly identical results with weakly informative priors."}
+posterior_bwt <- as.data.frame(fit_bayes_bwt)
+param_names <- names(coef(fit_logit))[-1]
+
+comp_list <- list()
+for (p in param_names) {
+  comp_list[[length(comp_list) + 1]] <- data.table$data.table(
+    parameter = p,
+    method = c("Frequentist", "Bayesian"),
+    estimate = c(coef(fit_logit)[p], mean(posterior_bwt[[p]])),
+    lower = c(confint.default(fit_logit)[p, 1], quantile(posterior_bwt[[p]], 0.025)),
+    upper = c(confint.default(fit_logit)[p, 2], quantile(posterior_bwt[[p]], 0.975))
+  )
+}
+comp_dt <- data.table$rbindlist(comp_list)
+
+ggplot2$ggplot(comp_dt, ggplot2$aes(x = estimate, y = parameter, xmin = lower, xmax = upper,
+                                     colour = method)) +
+  ggplot2$geom_pointrange(position = ggplot2$position_dodge(width = 0.4), linewidth = 0.8) +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dashed") +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "Coefficient (log-odds)", y = NULL,
+    title = "Frequentist vs Bayesian estimates for low birthweight model",
+    colour = "Method"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+### 25.3.6 Bayesian Probability Statements
+
+The key advantage of the Bayesian approach: direct probability statements about parameters.
+
+```{r bayes-prob}
+p_smoke_positive <- mean(posterior_bwt$smokeYes > 0)
+sprintf("P(smoking increases risk of low BW | data) = %.4f", p_smoke_positive)
+
+p_smoke_large <- mean(exp(posterior_bwt$smokeYes) > 2)
+sprintf("P(OR for smoking > 2.0 | data) = %.4f", p_smoke_large)
+
+p_ht_positive <- mean(posterior_bwt$htYes > 0)
+sprintf("P(hypertension increases risk | data) = %.4f", p_ht_positive)
+```
+
+---
+
+## 25.4 Where to Go Next: Roadmap to Book II
+
+This book has laid the foundations. **Book II: Mathematical Statistics with R -- Advanced Methods** will build on this foundation to cover:
+
+1. **Generalised Linear Mixed Models (GLMMs)** -- random effects for hierarchical data.
+2. **Survival Analysis** -- time-to-event data with censoring: Kaplan-Meier, Cox regression.
+3. **Causal Inference** -- propensity scores, instrumental variables, difference-in-differences.
+4. **Time Series** -- ARIMA, state-space models, forecasting.
+5. **Multivariate Methods** -- PCA, factor analysis, clustering.
+6. **Advanced Bayesian Methods** -- hierarchical models, Stan programming, model comparison.
+7. **Machine Learning Foundations** -- regularisation (LASSO, ridge), cross-validation, bias-variance trade-off.
+8. **Nonparametric Regression** -- kernel smoothing, splines, GAMs.
+
+Each of these topics extends something you have already learnt:
+
+| Foundation (Book I) | Extension (Book II) |
+|:-------------------|:-------------------|
+| Linear regression | Mixed models, regularisation |
+| GLMs | GLMMs, GAMs |
+| Hypothesis testing | Causal inference |
+| Bayesian conjugates | Hierarchical Bayes, Stan |
+| Bootstrap | Machine learning validation |
+| ANOVA | Multivariate ANOVA |
+
+---
+
+## 25.5 Final Reflections
+
+Statistical reasoning is not about memorising formulae. It is about asking good questions, choosing appropriate tools, checking assumptions, and communicating honestly. The best statistician is not the one who knows the most tests -- it is the one who asks: "What is the question? What does the data actually say? What are the limitations?"
+
+We leave you with three principles:
+
+1. **Always explore before modelling.** A plot reveals what no test statistic can.
+2. **Always check your assumptions.** A model that violates its assumptions produces answers that are precisely wrong.
+3. **Always report uncertainty.** A point estimate without an interval is a half-told story.
+
+---
+
+## Communicating to Stakeholders
+
+- **Tell a story.** The workflow is a narrative: "We asked this question, collected this data, found this pattern, fitted this model, checked it was reasonable, and concluded X."
+- **Lead with the answer.** Stakeholders want the conclusion first, then the supporting evidence.
+- **Use visually intuitive plots.** Effect plots, predicted probabilities, and forest plots are more accessible than coefficient tables.
+- **Acknowledge limitations.** "Our model explains 25% of the variation in blood pressure. The remaining 75% is driven by factors we did not measure." This honesty builds trust.
+- **Provide actionable insights.** "Smokers have twice the odds of low birthweight babies. Smoking cessation programmes during pregnancy could meaningfully reduce this risk."
+
+---
+
+## Quick Reference
+
+| Workflow Stage | Key Tools (Chapter) |
+|:--------------|:-------------------|
+| **Question** | Precise hypothesis formulation |
+| **Design** | Power analysis, randomisation (Ch 24) |
+| **Collect** | Data management, documentation |
+| **Explore** | Summary stats, plots (Ch 1), EDA |
+| **Model** | $t$-test (11), regression (15-17), GLM (19-21), Bayesian (22-23) |
+| **Check** | Residual plots, influence (17), PPC (23) |
+| **Interpret** | Effect sizes, CIs/CrIs, caveats |
+| **ROC analysis** | Sensitivity, specificity, AUC (Ch 20) |
+| **Bayesian advantage** | Direct $P(\theta \in A \mid \text{data})$ statements |
+| **Model comparison** | AIC/BIC (frequentist), LOO/WAIC (Bayesian) |
+
+---
+
+## Exercises
+
+1. **Full NHANES analysis.** Extend the blood pressure analysis to include Height, Weight, and Diabetes as predictors. Perform model selection using AIC. Check diagnostics and interpret the final model.
+
+2. **Prediction comparison.** Split the birthweight data into 70% training and 30% test. Fit the logistic regression on the training set, predict on the test set, and compute the AUC. Compare with the training-set AUC. Is there evidence of overfitting?
+
+3. **Bayesian blood pressure.** Fit the NHANES blood pressure model using `rstanarm::stan_lm()` or `brms::brm()`. Compare posterior intervals with frequentist confidence intervals. Compute $P(\beta_{\text{Age}} > 0.5 \mid \text{data})$.
+
+4. **Complete workflow.** Choose a dataset from the `data/` directory that we have not used in this chapter. Apply the full seven-stage workflow. Write a one-page report summarising your findings.
+
+5. **Cross-validation.** Implement 5-fold cross-validation for the birthweight logistic regression. Report the cross-validated AUC and compare with the full-sample AUC.
+
+6. **Book I reflection.** For each of the 25 chapters, write one sentence describing the most important concept. Then identify which three chapters are most relevant to your own research or work.

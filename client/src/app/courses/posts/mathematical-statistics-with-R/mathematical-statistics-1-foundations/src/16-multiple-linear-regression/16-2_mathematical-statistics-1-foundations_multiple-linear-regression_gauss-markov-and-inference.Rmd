@@ -1,0 +1,452 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 16: Multiple Linear Regression"
+part: "Part 2: Gauss-Markov and Inference"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, gauss-markov, inference, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 16 -- Multiple Linear Regression
+
+## Part 2: Gauss-Markov and Inference
+
+In Part 1 we derived $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$ and showed that OLS is orthogonal projection. Now we ask: is this the *best* estimator? The **Gauss-Markov theorem** gives a precise and affirmative answer. We then derive the full sampling distribution under normality, develop $t$-tests for individual coefficients and $F$-tests for groups of coefficients, and interpret R's `summary()` and `anova()` output.
+
+---
+
+## 16.8 Properties of the OLS Estimator
+
+### 16.8.1 Unbiasedness
+
+**Theorem.** Under the assumptions $E[\boldsymbol{\varepsilon}] = \mathbf{0}$ and $\text{rank}(\mathbf{X}) = p$, the OLS estimator is unbiased: $E[\hat{\boldsymbol{\beta}}] = \boldsymbol{\beta}$.
+
+*Proof.*
+
+$$\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'(\mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}) = \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon}$$
+
+Taking expectations (with $\mathbf{X}$ treated as fixed):
+
+$$E[\hat{\boldsymbol{\beta}}] = \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'E[\boldsymbol{\varepsilon}] = \boldsymbol{\beta} + \mathbf{0} = \boldsymbol{\beta} \quad \square$$
+
+### 16.8.2 Covariance Matrix
+
+**Theorem.** $\text{Cov}(\hat{\boldsymbol{\beta}}) = \sigma^2(\mathbf{X}'\mathbf{X})^{-1}$.
+
+*Proof.* From $\hat{\boldsymbol{\beta}} - \boldsymbol{\beta} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon}$:
+
+$$\text{Cov}(\hat{\boldsymbol{\beta}}) = E[(\hat{\boldsymbol{\beta}} - \boldsymbol{\beta})(\hat{\boldsymbol{\beta}} - \boldsymbol{\beta})']$$
+
+$$= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' \, E[\boldsymbol{\varepsilon}\boldsymbol{\varepsilon}'] \, \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}$$
+
+$$= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' \, \sigma^2\mathbf{I} \, \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}$$
+
+$$= \sigma^2 (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} = \sigma^2(\mathbf{X}'\mathbf{X})^{-1} \quad \square$$
+
+The standard error of $\hat{\beta}_j$ is therefore:
+
+$$\text{SE}(\hat{\beta}_j) = s\sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}$$
+
+where $s = \sqrt{\text{SSE}/(n - p)}$ is the residual standard error.
+
+---
+
+## 16.9 The Gauss-Markov Theorem -- Full Proof
+
+### 16.9.1 Statement
+
+**Gauss-Markov Theorem.** Under the conditions:
+
+1. $E[\boldsymbol{\varepsilon}] = \mathbf{0}$
+2. $\text{Cov}(\boldsymbol{\varepsilon}) = \sigma^2\mathbf{I}$
+3. $\text{rank}(\mathbf{X}) = p$
+
+the OLS estimator $\hat{\boldsymbol{\beta}}$ is the **Best Linear Unbiased Estimator** (BLUE) of $\boldsymbol{\beta}$. That is, for any linear function $\mathbf{a}'\boldsymbol{\beta}$, the OLS estimator $\mathbf{a}'\hat{\boldsymbol{\beta}}$ has the smallest variance among all linear unbiased estimators of $\mathbf{a}'\boldsymbol{\beta}$.
+
+### 16.9.2 Proof
+
+Let $\tilde{\boldsymbol{\beta}} = \mathbf{C}\mathbf{Y}$ be any other linear estimator of $\boldsymbol{\beta}$, where $\mathbf{C}$ is a $p \times n$ matrix. Write $\mathbf{C} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' + \mathbf{D}$, where $\mathbf{D} = \mathbf{C} - (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$ is the "deviation" from the OLS solution.
+
+**Step 1: Unbiasedness constraint.**
+
+$$E[\tilde{\boldsymbol{\beta}}] = \mathbf{C}\mathbf{X}\boldsymbol{\beta} = [(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' + \mathbf{D}]\mathbf{X}\boldsymbol{\beta} = \boldsymbol{\beta} + \mathbf{D}\mathbf{X}\boldsymbol{\beta}$$
+
+For $\tilde{\boldsymbol{\beta}}$ to be unbiased for all $\boldsymbol{\beta}$, we need $\mathbf{D}\mathbf{X} = \mathbf{0}$.
+
+**Step 2: Variance of $\tilde{\boldsymbol{\beta}}$.**
+
+$$\text{Cov}(\tilde{\boldsymbol{\beta}}) = \sigma^2 \mathbf{C}\mathbf{C}' = \sigma^2[(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' + \mathbf{D}][(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' + \mathbf{D}]'$$
+
+Expanding:
+
+$$= \sigma^2\left[(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{D}' + \mathbf{D}\mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} + \mathbf{D}\mathbf{D}'\right]$$
+
+Since $\mathbf{D}\mathbf{X} = \mathbf{0}$, the cross-terms vanish:
+
+$$\text{Cov}(\tilde{\boldsymbol{\beta}}) = \sigma^2(\mathbf{X}'\mathbf{X})^{-1} + \sigma^2\mathbf{D}\mathbf{D}'$$
+
+**Step 3: Conclusion.**
+
+The matrix $\mathbf{D}\mathbf{D}'$ is positive semi-definite (since for any vector $\mathbf{v}$, we have $\mathbf{v}'\mathbf{D}\mathbf{D}'\mathbf{v} = \|\mathbf{D}'\mathbf{v}\|^2 \ge 0$). Therefore:
+
+$$\text{Cov}(\tilde{\boldsymbol{\beta}}) - \text{Cov}(\hat{\boldsymbol{\beta}}) = \sigma^2\mathbf{D}\mathbf{D}' \succeq \mathbf{0}$$
+
+In particular, for any $\mathbf{a}$:
+
+$$\text{Var}(\mathbf{a}'\tilde{\boldsymbol{\beta}}) = \mathbf{a}'\text{Cov}(\tilde{\boldsymbol{\beta}})\mathbf{a} \ge \mathbf{a}'\text{Cov}(\hat{\boldsymbol{\beta}})\mathbf{a} = \text{Var}(\mathbf{a}'\hat{\boldsymbol{\beta}})$$
+
+with equality if and only if $\mathbf{D}'\mathbf{a} = \mathbf{0}$. Thus OLS is BLUE. $\square$
+
+### 16.9.3 What BLUE Does and Does Not Mean
+
+BLUE says OLS is optimal **among linear unbiased estimators**. It does not say:
+
+- OLS is optimal among all estimators (biased estimators like ridge regression can have lower MSE).
+- OLS is the MLE (it is, but only under normality).
+- The assumptions hold in practice (they must be checked via diagnostics).
+
+---
+
+## 16.10 Sampling Distributions Under Normality
+
+If $\boldsymbol{\varepsilon} \sim N(\mathbf{0}, \sigma^2\mathbf{I})$, then:
+
+$$\hat{\boldsymbol{\beta}} \sim N\!\left(\boldsymbol{\beta},\, \sigma^2(\mathbf{X}'\mathbf{X})^{-1}\right)$$
+
+and:
+
+$$\frac{(n - p)s^2}{\sigma^2} = \frac{\mathbf{e}'\mathbf{e}}{\sigma^2} \sim \chi^2_{n-p}$$
+
+Moreover, $\hat{\boldsymbol{\beta}}$ and $s^2$ are independent (because $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$ depends on $\mathbf{H}\mathbf{Y}$ while $\mathbf{e} = (\mathbf{I} - \mathbf{H})\mathbf{Y}$, and for normal vectors, uncorrelatedness implies independence).
+
+---
+
+## 16.11 $t$-Tests for Individual Coefficients
+
+### 16.11.1 The Test Statistic
+
+For testing $H_0: \beta_j = 0$ vs $H_1: \beta_j \ne 0$:
+
+$$t_j = \frac{\hat{\beta}_j}{\text{SE}(\hat{\beta}_j)} = \frac{\hat{\beta}_j}{s\sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}} \sim t_{n-p} \quad \text{under } H_0$$
+
+### 16.11.2 Implementation and Interpretation
+
+```{r mtcars-t-tests}
+data_dir <- "../../../data"
+mtcars_dt <- data.table$fread(file.path(data_dir, "classic/mtcars.csv"))
+fit <- lm(mpg ~ hp + wt + qsec, data = mtcars_dt)
+s <- summary(fit)
+s
+```
+
+```{r t-tests-scratch}
+# Compute t-tests from scratch
+X_mat <- cbind(1, as.matrix(mtcars_dt[, .(hp, wt, qsec)]))
+n <- nrow(X_mat)
+p <- ncol(X_mat)
+
+XtX_inv <- solve(crossprod(X_mat))
+sigma_hat <- s$sigma
+beta_hat <- coef(fit)
+
+se <- sigma_hat * sqrt(diag(XtX_inv))
+t_stat <- beta_hat / se
+p_val <- 2 * pt(abs(t_stat), df = n - p, lower.tail = FALSE)
+
+data.frame(
+  parameter = names(beta_hat),
+  estimate = beta_hat,
+  std_error = se,
+  t_value = t_stat,
+  p_value = p_val
+)
+```
+
+**Interpretation**: the $t$-test for each coefficient tests whether that predictor has a non-zero **partial** effect (i.e., holding all other predictors constant). A non-significant $t$-test does not mean the variable is unimportant -- it may be collinear with other predictors.
+
+---
+
+## 16.12 The $F$-Test for Overall Model Significance
+
+### 16.12.1 The Hypothesis
+
+$$H_0: \beta_1 = \beta_2 = \cdots = \beta_{p-1} = 0 \quad \text{(all slopes are zero)}$$
+
+$$H_1: \text{at least one } \beta_j \ne 0$$
+
+### 16.12.2 The Test Statistic
+
+$$F = \frac{(\text{SST} - \text{SSE})/(p - 1)}{\text{SSE}/(n - p)} = \frac{\text{SSReg}/(p-1)}{\text{MSE}} \sim F_{p-1,\, n-p} \quad \text{under } H_0$$
+
+```{r overall-f-test}
+SST <- sum((mtcars_dt$mpg - mean(mtcars_dt$mpg))^2)
+SSE <- sum(residuals(fit)^2)
+SSReg <- SST - SSE
+
+F_stat <- (SSReg / (p - 1)) / (SSE / (n - p))
+p_val_F <- pf(F_stat, df1 = p - 1, df2 = n - p, lower.tail = FALSE)
+
+data.frame(
+  quantity = c("F-statistic", "df1", "df2", "p-value"),
+  value = c(F_stat, p - 1, n - p, p_val_F)
+)
+```
+
+---
+
+## 16.13 The $F$-Test for Nested Models
+
+### 16.13.1 Comparing a Full and Reduced Model
+
+Suppose we want to test whether a subset of predictors can be dropped. Let the **full model** have $p$ parameters and the **reduced model** have $q$ parameters (with $q < p$). The test statistic is:
+
+$$F = \frac{(\text{SSE}_{\text{reduced}} - \text{SSE}_{\text{full}})/(p - q)}{\text{SSE}_{\text{full}}/(n - p)} \sim F_{p-q,\, n-p}$$
+
+This tests $H_0$: the extra $p - q$ parameters in the full model are all zero.
+
+### 16.13.2 Example: Does horsepower add anything?
+
+```{r nested-f-test}
+fit_full <- lm(mpg ~ hp + wt + qsec, data = mtcars_dt)
+fit_reduced <- lm(mpg ~ wt + qsec, data = mtcars_dt)
+
+anova(fit_reduced, fit_full)
+```
+
+```{r nested-f-scratch}
+SSE_full <- sum(residuals(fit_full)^2)
+SSE_reduced <- sum(residuals(fit_reduced)^2)
+p_full <- length(coef(fit_full))
+p_reduced <- length(coef(fit_reduced))
+
+F_nested <- ((SSE_reduced - SSE_full) / (p_full - p_reduced)) /
+            (SSE_full / (n - p_full))
+p_val_nested <- pf(F_nested, df1 = p_full - p_reduced,
+                    df2 = n - p_full, lower.tail = FALSE)
+
+data.frame(
+  quantity = c("Extra SS", "F-statistic", "p-value"),
+  value = c(SSE_reduced - SSE_full, F_nested, p_val_nested)
+)
+```
+
+### 16.13.3 Sequential (Type I) ANOVA
+
+```{r sequential-anova}
+anova(fit_full)
+```
+
+The sequential ANOVA table tests each predictor **given those already in the model**. The order matters! `hp` is tested after the intercept, `wt` after the intercept and `hp`, and `qsec` after the intercept, `hp`, and `wt`.
+
+---
+
+## 16.14 Confidence Intervals and Prediction
+
+### 16.14.1 Confidence Intervals for Coefficients
+
+A $(1-\alpha)$ confidence interval for $\beta_j$ is:
+
+$$\hat{\beta}_j \pm t_{n-p, \alpha/2} \cdot \text{SE}(\hat{\beta}_j)$$
+
+```{r ci-mlr}
+confint(fit, level = 0.95)
+```
+
+```{r ci-scratch}
+t_crit <- qt(0.975, df = n - p)
+ci_lower <- beta_hat - t_crit * se
+ci_upper <- beta_hat + t_crit * se
+
+data.frame(
+  parameter = names(beta_hat),
+  lower = ci_lower,
+  upper = ci_upper
+)
+```
+
+### 16.14.2 Prediction at New Points
+
+```{r predict-mlr}
+new_data <- data.frame(hp = c(100, 150, 200), wt = c(2.5, 3.0, 3.5), qsec = c(18, 17, 16))
+
+# Confidence interval for mean response
+predict(fit, newdata = new_data, interval = "confidence", level = 0.95)
+
+# Prediction interval for individual response
+predict(fit, newdata = new_data, interval = "prediction", level = 0.95)
+```
+
+As in simple regression, the prediction interval is wider because it includes the irreducible error $\sigma^2$.
+
+---
+
+## 16.15 Simulation: Verifying the Gauss-Markov Theorem
+
+Let us empirically verify that OLS has the smallest variance among linear unbiased estimators.
+
+```{r gauss-markov-sim, fig.cap="Distribution of slope estimates for beta_1 from OLS (blue) and a competing linear unbiased estimator (orange). OLS has smaller variance, confirming the Gauss-Markov theorem."}
+set.seed(42)
+n_sims <- 5000
+n <- 100
+p_true <- 3  # intercept + 2 predictors
+
+beta_true <- c(1, 2, -1)  # intercept, beta1, beta2
+sigma_true <- 3
+
+b1_ols <- numeric(n_sims)
+b1_alt <- numeric(n_sims)
+
+# Fixed design matrix
+x1 <- runif(n, 0, 10)
+x2 <- runif(n, 0, 10)
+X_mat <- cbind(1, x1, x2)
+
+# Alternative linear unbiased estimator:
+# C = (X'X)^{-1}X' + D where DX = 0
+# Choose D as a random matrix satisfying DX = 0
+XtX_inv <- solve(crossprod(X_mat))
+ols_mat <- XtX_inv %*% t(X_mat)
+
+# Project a random matrix onto null space of X'
+set.seed(123)
+D_raw <- matrix(rnorm(p_true * n), nrow = p_true)
+# D must satisfy DX = 0, so D = D_raw * (I - H)' where H = X(X'X)^{-1}X'
+H <- X_mat %*% XtX_inv %*% t(X_mat)
+D <- 0.01 * D_raw %*% (diag(n) - H)  # small perturbation
+alt_mat <- ols_mat + D
+
+for (k in seq_len(n_sims)) {
+  eps <- rnorm(n, 0, sigma_true)
+  y <- X_mat %*% beta_true + eps
+  b1_ols[k] <- (ols_mat %*% y)[2]
+  b1_alt[k] <- (alt_mat %*% y)[2]
+}
+
+sim_data <- data.table$data.table(
+  estimate = c(b1_ols, b1_alt),
+  method = rep(c("OLS", "Alternative LUE"), each = n_sims)
+)
+
+ggplot2$ggplot(sim_data, ggplot2$aes(x = estimate, fill = method)) +
+  ggplot2$geom_density(alpha = 0.5) +
+  ggplot2$geom_vline(xintercept = beta_true[2], linetype = "dashed") +
+  ggplot2$scale_fill_manual(values = c("OLS" = "#0072B2", "Alternative LUE" = "#E69F00")) +
+  ggplot2$labs(
+    x = expression(hat(beta)[1]),
+    y = "Density",
+    title = "OLS vs alternative linear unbiased estimator"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r gauss-markov-variance}
+data.frame(
+  method = c("OLS", "Alternative LUE"),
+  mean = c(mean(b1_ols), mean(b1_alt)),
+  variance = c(var(b1_ols), var(b1_alt))
+)
+```
+
+Both estimators are unbiased (mean $\approx 2$), but OLS has smaller variance -- exactly as the Gauss-Markov theorem predicts.
+
+---
+
+## 16.16 Putting It Together: mtcars Full Analysis
+
+```{r mtcars-full, fig.cap="Diagnostic plots for the mtcars multiple regression model."}
+par(mfrow = c(2, 2))
+plot(fit, which = 1:4, col = "#0072B2", pch = 16, cex = 0.8)
+par(mfrow = c(1, 1))
+```
+
+```{r mtcars-observed-vs-fitted, fig.cap="Observed vs fitted mpg for the mtcars model. Points cluster near the diagonal, indicating a good fit."}
+mtcars_dt[, fitted_mpg := fitted(fit)]
+
+ggplot2$ggplot(mtcars_dt, ggplot2$aes(x = fitted_mpg, y = mpg)) +
+  ggplot2$geom_point(colour = "#0072B2", size = 2.5) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Fitted mpg",
+    y = "Observed mpg",
+    title = sprintf("Observed vs fitted (R^2 = %.3f)", summary(fit)$r.squared)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## Communicating to Stakeholders
+
+When presenting multiple regression results:
+
+- **Lead with the research question**, not the mathematics. "We investigated which car characteristics most strongly predict fuel efficiency."
+- **Present the coefficients table** with confidence intervals, not just point estimates. "Holding horsepower and acceleration constant, each additional 1000 lbs of weight reduces fuel efficiency by about 3.9 mpg (95% CI: 2.2 to 5.6)."
+- **Explain partial effects carefully.** The coefficient on `wt` assumes the other predictors are held constant. In reality, heavier cars also tend to have more horsepower -- the partial effect isolates the weight effect.
+- **The overall $F$-test** answers: "do these predictors collectively tell us anything about fuel efficiency?" The individual $t$-tests answer: "does this predictor add information beyond what the others already provide?"
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **$\text{Cov}(\hat{\boldsymbol{\beta}})$** | $\sigma^2(\mathbf{X}'\mathbf{X})^{-1}$ |
+| **$\text{SE}(\hat{\beta}_j)$** | $s\sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}$ |
+| **$t$-test** | $t_j = \hat{\beta}_j / \text{SE}(\hat{\beta}_j) \sim t_{n-p}$ |
+| **Overall $F$** | $F = \text{MSReg}/\text{MSE} \sim F_{p-1, n-p}$ |
+| **Nested $F$** | $F = \frac{(\text{SSE}_R - \text{SSE}_F)/(p-q)}{\text{SSE}_F/(n-p)}$ |
+| **Gauss-Markov** | OLS is BLUE under $E[\boldsymbol{\varepsilon}]=\mathbf{0}$, $\text{Cov}(\boldsymbol{\varepsilon})=\sigma^2\mathbf{I}$ |
+
+---
+
+## Exercises
+
+1. **Gauss-Markov proof details.** Fill in the algebra showing that the cross-terms in $\text{Cov}(\tilde{\boldsymbol{\beta}})$ vanish when $\mathbf{D}\mathbf{X} = \mathbf{0}$. Specifically, show that $(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{D}' = \mathbf{0}$.
+
+2. **When BLUE is not best.** Simulate data with $n = 20$, $p = 15$, and compare OLS to ridge regression ($\hat{\boldsymbol{\beta}}_{\text{ridge}} = (\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}'\mathbf{Y}$). Show that ridge can have lower MSE than OLS despite being biased.
+
+3. **Partial $F$-test.** Using the mtcars data, test whether the pair (hp, qsec) can be dropped from the model `mpg ~ hp + wt + qsec` simultaneously. Carry out the test from scratch and verify with `anova()`.
+
+4. **Confidence ellipsoid.** Show that a joint $(1-\alpha)$ confidence region for $(\beta_1, \beta_2)$ in a two-predictor model is an ellipse. Hint: the pivotal quantity $(\hat{\boldsymbol{\beta}} - \boldsymbol{\beta})'(\mathbf{X}'\mathbf{X})(\hat{\boldsymbol{\beta}} - \boldsymbol{\beta})/(ps^2) \sim F_{p, n-p}$.
+
+5. **Type I vs Type III SS.** Show with a concrete example (use the mtcars data) that the sequential (Type I) sums of squares depend on the order of predictors, but the partial (Type III) sums of squares do not.
+
+6. **Simulation study.** Generate 1000 datasets from $Y = 1 + 2X_1 - X_2 + \varepsilon$ with $n = 50$ and $\varepsilon \sim N(0, 9)$. For each, compute all four $t$-statistics (including the intercept). Verify that the distribution of each $t$-statistic is approximately $t_{47}$.

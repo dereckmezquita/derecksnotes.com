@@ -1,0 +1,764 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 18: Analysis of Variance"
+part: "Part 1: One-Way ANOVA and Comparisons"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, anova, regression, f-test, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 18 -- Analysis of Variance
+
+## Part 1: One-Way ANOVA and Comparisons
+
+Analysis of Variance (ANOVA) is among the most widely used procedures in experimental science. It is often taught as a standalone technique, but the deepest understanding comes from recognising that **ANOVA is regression with categorical predictors**. The $F$-test in ANOVA is exactly the $F$-test for comparing a full model against a reduced (intercept-only) model. In this part we derive the one-way ANOVA $F$-test as a nested model comparison, show that `aov()` and `anova(lm())` give identical results, and connect multiple comparisons to Chapter 12.
+
+---
+
+## 18.1 The One-Way Layout
+
+### 18.1.1 Setup
+
+We observe $n_{j}$ responses in each of $k$ groups (levels of a factor), for a total of $N = \sum_{j=1}^k n_j$ observations. The model is:
+
+$$Y_{ij} = \mu_j + \varepsilon_{ij}, \quad i = 1, \ldots, n_j, \quad j = 1, \ldots, k$$
+
+where $\varepsilon_{ij} \stackrel{\text{iid}}{\sim} N(0, \sigma^2)$.
+
+Equivalently, using the "effects" parametrisation with overall mean $\mu$ and group effects $\alpha_j$:
+
+$$Y_{ij} = \mu + \alpha_j + \varepsilon_{ij}, \quad \sum_{j=1}^k n_j \alpha_j = 0$$
+
+### 18.1.2 The Hypothesis
+
+$$H_0: \mu_1 = \mu_2 = \cdots = \mu_k \quad \text{(all group means are equal)}$$
+$$H_1: \text{at least two means differ}$$
+
+Under the effects parametrisation, $H_0: \alpha_1 = \alpha_2 = \cdots = \alpha_k = 0$.
+
+---
+
+## 18.2 ANOVA as Regression
+
+### 18.2.1 Dummy Coding
+
+A categorical variable with $k$ levels is encoded using $k - 1$ dummy (indicator) variables. If group $j = 1$ is the reference category, define:
+
+$$D_{ij}^{(m)} = \begin{cases} 1 & \text{if observation } i \text{ belongs to group } m \\ 0 & \text{otherwise} \end{cases}, \quad m = 2, \ldots, k$$
+
+The regression model becomes:
+
+$$Y_i = \beta_0 + \beta_2 D_i^{(2)} + \beta_3 D_i^{(3)} + \cdots + \beta_k D_i^{(k)} + \varepsilon_i$$
+
+where $\beta_0 = \mu_1$ (the reference group mean) and $\beta_m = \mu_m - \mu_1$ (the difference between group $m$ and the reference).
+
+### 18.2.2 The Full and Reduced Models
+
+- **Full model** (one mean per group): $Y_i = \beta_0 + \beta_2 D_i^{(2)} + \cdots + \beta_k D_i^{(k)} + \varepsilon_i$ -- this has $p = k$ parameters.
+- **Reduced model** (one common mean): $Y_i = \beta_0 + \varepsilon_i$ -- this has $p_0 = 1$ parameter.
+
+Testing $H_0: \beta_2 = \cdots = \beta_k = 0$ is equivalent to comparing these two nested models.
+
+### 18.2.3 Deriving the $F$-test
+
+The general $F$-statistic for comparing nested models is:
+
+$$F = \frac{(\text{SSE}_{\text{reduced}} - \text{SSE}_{\text{full}}) / (p - p_0)}{\text{SSE}_{\text{full}} / (N - p)}$$
+
+For the ANOVA problem:
+
+- $\text{SSE}_{\text{reduced}} = \text{SST} = \sum_{j=1}^k \sum_{i=1}^{n_j}(Y_{ij} - \bar{Y}_{\cdot\cdot})^2$ (total SS).
+- $\text{SSE}_{\text{full}} = \text{SSW} = \sum_{j=1}^k \sum_{i=1}^{n_j}(Y_{ij} - \bar{Y}_{\cdot j})^2$ (within-group SS).
+- $\text{SST} - \text{SSW} = \text{SSB} = \sum_{j=1}^k n_j(\bar{Y}_{\cdot j} - \bar{Y}_{\cdot\cdot})^2$ (between-group SS).
+- $p - p_0 = k - 1$, $N - p = N - k$.
+
+Therefore:
+
+$$\boxed{F = \frac{\text{SSB}/(k-1)}{\text{SSW}/(N-k)} = \frac{\text{MSB}}{\text{MSW}} \sim F_{k-1, N-k} \quad \text{under } H_0}$$
+
+This is the one-way ANOVA $F$-test. Under $H_0$, the ratio of mean squares follows an $F$-distribution because both the numerator and denominator are independent $\chi^2$ random variables (divided by their degrees of freedom), by the properties of normal quadratic forms.
+
+---
+
+## 18.3 Building the ANOVA Table from Scratch
+
+
+``` r
+data_dir <- "../../../data"
+penguins_raw <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+penguins <- penguins_raw[
+  complete.cases(penguins_raw[, .(flipper_length_mm, species)])
+]
+
+# One-way ANOVA: flipper length by species
+y <- penguins$flipper_length_mm
+g <- penguins$species
+
+groups <- unique(g)
+k <- length(groups)
+N <- length(y)
+grand_mean <- mean(y)
+
+# Group means and sizes
+group_stats <- penguins[, .(
+  mean = mean(flipper_length_mm),
+  n = .N
+), by = species]
+
+# Sums of squares
+SST <- sum((y - grand_mean)^2)
+SSB <- sum(group_stats$n * (group_stats$mean - grand_mean)^2)
+SSW <- SST - SSB
+
+# Mean squares
+df_between <- k - 1
+df_within <- N - k
+MSB <- SSB / df_between
+MSW <- SSW / df_within
+
+# F statistic and p-value
+F_stat <- MSB / MSW
+p_value <- pf(F_stat, df_between, df_within, lower.tail = FALSE)
+
+anova_table <- data.table$data.table(
+  Source = c("Between (species)", "Within (residual)", "Total"),
+  df = c(df_between, df_within, N - 1),
+  SS = c(SSB, SSW, SST),
+  MS = c(MSB, MSW, NA),
+  `F` = c(F_stat, NA, NA),
+  `p-value` = c(p_value, NA, NA)
+)
+
+anova_table
+```
+
+```
+              Source    df       SS         MS        F      p-value
+              <char> <num>    <num>      <num>    <num>        <num>
+1: Between (species)     2 52473.28 26236.6419 594.8016 1.35171e-111
+2: Within (residual)   339 14953.26    44.1099       NA           NA
+3:             Total   341 67426.54         NA       NA           NA
+```
+
+---
+
+## 18.4 `aov()` = `anova(lm())` -- The Equivalence
+
+### 18.4.1 Using aov()
+
+
+``` r
+fit_aov <- aov(flipper_length_mm ~ species, data = penguins)
+summary(fit_aov)
+```
+
+```
+             Df Sum Sq Mean Sq F value Pr(>F)    
+species       2  52473   26237   594.8 <2e-16 ***
+Residuals   339  14953      44                   
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+### 18.4.2 Using lm() + anova()
+
+
+``` r
+fit_lm <- lm(flipper_length_mm ~ species, data = penguins)
+anova(fit_lm)
+```
+
+```
+Analysis of Variance Table
+
+Response: flipper_length_mm
+           Df Sum Sq Mean Sq F value    Pr(>F)    
+species     2  52473 26236.6   594.8 < 2.2e-16 ***
+Residuals 339  14953    44.1                      
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+### 18.4.3 Verifying Equivalence
+
+
+``` r
+# The F-statistics should be identical
+c(
+  "F from scratch" = F_stat,
+  "F from aov" = summary(fit_aov)[[1]]["species", "F value"],
+  "F from anova(lm)" = anova(fit_lm)["species", "F value"]
+)
+```
+
+```
+  F from scratch       F from aov F from anova(lm) 
+        594.8016         594.8016         594.8016 
+```
+
+All three approaches produce the same $F$-statistic. The `aov()` function is simply a wrapper around `lm()` that formats the output as an ANOVA table. Behind the scenes, it fits a linear model with dummy variables.
+
+### 18.4.4 What the Dummy Coefficients Mean
+
+
+``` r
+summary(fit_lm)
+```
+
+```
+
+Call:
+lm(formula = flipper_length_mm ~ species, data = penguins)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-17.9536  -4.8235   0.0464   4.8130  20.0464 
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)      189.9536     0.5405 351.454  < 2e-16 ***
+speciesChinstrap   5.8699     0.9699   6.052 3.79e-09 ***
+speciesGentoo     27.2333     0.8067  33.760  < 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 6.642 on 339 degrees of freedom
+Multiple R-squared:  0.7782,	Adjusted R-squared:  0.7769 
+F-statistic: 594.8 on 2 and 339 DF,  p-value: < 2.2e-16
+```
+
+R uses treatment (dummy) coding by default with the first level (`Adelie`) as the reference. The intercept $\hat{\beta}_0$ is the mean flipper length for Adelie penguins; `speciesChinstrap` is the difference between Chinstrap and Adelie means; `speciesGentoo` is the difference between Gentoo and Adelie means.
+
+
+``` r
+group_stats[, .(
+  species,
+  group_mean = mean,
+  from_coefs = c(
+    coef(fit_lm)[1],
+    coef(fit_lm)[1] + coef(fit_lm)[2],
+    coef(fit_lm)[1] + coef(fit_lm)[3]
+  )
+)]
+```
+
+```
+     species group_mean from_coefs
+      <char>      <num>      <num>
+1:    Adelie   189.9536   189.9536
+2:    Gentoo   217.1870   195.8235
+3: Chinstrap   195.8235   217.1870
+```
+
+---
+
+## 18.5 Visualising the Data
+
+
+``` r
+ggplot2$ggplot(penguins, ggplot2$aes(x = species, y = flipper_length_mm, fill = species)) +
+  ggplot2$geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.alpha = 0.5) +
+  ggplot2$geom_jitter(width = 0.15, alpha = 0.2, size = 1) +
+  ggplot2$scale_fill_manual(values = c(
+    "Adelie" = "#E69F00", "Chinstrap" = "#0072B2", "Gentoo" = "#009E73"
+  )) +
+  ggplot2$labs(
+    x = "Species",
+    y = "Flipper length (mm)",
+    title = sprintf("Flipper length by species (F = %.1f, p < 0.001)", F_stat)
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/penguins-boxplot-1.png" alt="Flipper length by species in the Palmer Penguins dataset. Gentoo penguins have markedly longer flippers than Adelie and Chinstrap penguins. The ANOVA F-test confirms that the species means are not all equal.">
+	Flipper length by species in the Palmer Penguins dataset. Gentoo penguins have markedly longer flippers than Adelie and Chinstrap penguins. The ANOVA F-test confirms that the species means are not all equal.
+</Figure>
+
+
+``` r
+group_stats[, `:=`(
+  se = penguins[, .(se = sd(flipper_length_mm) / sqrt(.N)), by = species]$se,
+  lower = mean - qt(0.975, n - 1) * penguins[, .(se = sd(flipper_length_mm) / sqrt(.N)), by = species]$se,
+  upper = mean + qt(0.975, n - 1) * penguins[, .(se = sd(flipper_length_mm) / sqrt(.N)), by = species]$se
+)]
+
+ggplot2$ggplot(group_stats, ggplot2$aes(x = species, y = mean, colour = species)) +
+  ggplot2$geom_pointrange(
+    ggplot2$aes(ymin = lower, ymax = upper),
+    size = 1, linewidth = 0.8
+  ) +
+  ggplot2$scale_colour_manual(values = c(
+    "Adelie" = "#E69F00", "Chinstrap" = "#0072B2", "Gentoo" = "#009E73"
+  )) +
+  ggplot2$labs(
+    x = "Species",
+    y = "Flipper length (mm)",
+    title = "Group means with 95% CIs"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/penguins-means-1.png" alt="Group means with 95 per cent confidence intervals. The intervals for Adelie and Chinstrap overlap slightly, but both are well separated from Gentoo.">
+	Group means with 95 per cent confidence intervals. The intervals for Adelie and Chinstrap overlap slightly, but both are well separated from Gentoo.
+</Figure>
+
+---
+
+## 18.6 Checking ANOVA Assumptions
+
+ANOVA inherits the same assumptions as regression: independence, normality within each group, and equal variances (homoscedasticity) across groups.
+
+### 18.6.1 Normality within Groups
+
+
+``` r
+penguins[, resid := residuals(fit_lm)]
+
+ggplot2$ggplot(penguins, ggplot2$aes(sample = resid)) +
+  ggplot2$geom_qq(colour = "#0072B2", alpha = 0.4, size = 1.2) +
+  ggplot2$geom_qq_line(colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ species) +
+  ggplot2$labs(
+    x = "Theoretical quantiles",
+    y = "Residuals",
+    title = "Q-Q plots by species"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/anova-qq-1.png" alt="Q-Q plots of residuals by species. All three groups show approximately normal residuals.">
+	Q-Q plots of residuals by species. All three groups show approximately normal residuals.
+</Figure>
+
+### 18.6.2 Homogeneity of Variance -- Levene's Test from Scratch
+
+Levene's test applies ANOVA to the **absolute deviations** from group medians:
+
+
+``` r
+# Levene's test from scratch
+penguins[, group_median := median(flipper_length_mm), by = species]
+penguins[, abs_dev := abs(flipper_length_mm - group_median)]
+
+fit_levene <- lm(abs_dev ~ species, data = penguins)
+levene_anova <- anova(fit_levene)
+
+c(
+  "Levene F" = levene_anova["species", "F value"],
+  "p-value" = levene_anova["species", "Pr(>F)"]
+)
+```
+
+```
+ Levene F   p-value 
+0.3305621 0.7187511 
+```
+
+A non-significant result suggests the equal variance assumption is reasonable.
+
+---
+
+## 18.7 The PlantGrowth Example
+
+The PlantGrowth dataset contains yields from 30 plants under three conditions: control, treatment 1, and treatment 2.
+
+
+``` r
+# PlantGrowth is a built-in R dataset
+pg <- data.table$as.data.table(PlantGrowth)
+pg[, .(.N, mean = mean(weight), sd = sd(weight)), by = group]
+```
+
+```
+    group     N  mean        sd
+   <fctr> <int> <num>     <num>
+1:   ctrl    10 5.032 0.5830914
+2:   trt1    10 4.661 0.7936757
+3:   trt2    10 5.526 0.4425733
+```
+
+
+``` r
+ggplot2$ggplot(pg, ggplot2$aes(x = group, y = weight, fill = group)) +
+  ggplot2$geom_boxplot(alpha = 0.7) +
+  ggplot2$geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  ggplot2$scale_fill_manual(values = c(
+    "ctrl" = "#999999", "trt1" = "#E69F00", "trt2" = "#0072B2"
+  )) +
+  ggplot2$labs(
+    x = "Group",
+    y = "Dried weight",
+    title = "PlantGrowth: dried weight by treatment group"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/plantgrowth-plot-1.png" alt="Dried weight of plants under three conditions. Treatment 2 appears to produce heavier plants than the control and treatment 1.">
+	Dried weight of plants under three conditions. Treatment 2 appears to produce heavier plants than the control and treatment 1.
+</Figure>
+
+
+``` r
+fit_pg <- lm(weight ~ group, data = pg)
+anova(fit_pg)
+```
+
+```
+Analysis of Variance Table
+
+Response: weight
+          Df  Sum Sq Mean Sq F value  Pr(>F)  
+group      2  3.7663  1.8832  4.8461 0.01591 *
+Residuals 27 10.4921  0.3886                  
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+The $F$-test is marginally significant ($p \approx 0.016$). But which pairs of groups differ? The $F$-test tells us only that *at least* two means differ -- it does not say which. This is where multiple comparisons come in.
+
+---
+
+## 18.8 Multiple Comparisons -- Connecting to Chapter 12
+
+### 18.8.1 The Problem
+
+With $k = 3$ groups, there are $\binom{3}{2} = 3$ pairwise comparisons. If we perform each at $\alpha = 0.05$, the probability of at least one false rejection under $H_0$ is:
+
+$$1 - (1 - 0.05)^3 = 0.143$$
+
+With $k = 10$ groups, there are 45 comparisons and the family-wise error rate exceeds 0.9. This is exactly the multiple testing problem from Chapter 12.
+
+### 18.8.2 Bonferroni Correction
+
+The simplest approach: test each pair at level $\alpha / m$ where $m = \binom{k}{2}$. This controls the family-wise error rate at $\alpha$ but is conservative (the adjusted $p$-values are larger than necessary).
+
+
+``` r
+# All pairwise t-tests with Bonferroni correction
+pairwise.t.test(pg$weight, pg$group, p.adjust.method = "bonferroni")
+```
+
+```
+
+	Pairwise comparisons using t tests with pooled SD 
+
+data:  pg$weight and pg$group 
+
+     ctrl  trt1 
+trt1 0.583 -    
+trt2 0.263 0.013
+
+P value adjustment method: bonferroni 
+```
+
+### 18.8.3 Tukey's Honest Significant Difference (HSD)
+
+Tukey's HSD uses the **studentised range distribution** to account for all pairwise comparisons simultaneously. For balanced designs ($n_j = n$ for all $j$), the critical value is:
+
+$$q_{\alpha, k, N-k} \cdot \frac{s_W}{\sqrt{n}}$$
+
+where $q_{\alpha, k, N-k}$ is the upper $\alpha$ quantile of the studentised range distribution with $k$ groups and $N - k$ degrees of freedom, and $s_W = \sqrt{\text{MSW}}$.
+
+Two means $\bar{Y}_{\cdot j}$ and $\bar{Y}_{\cdot m}$ are significantly different at level $\alpha$ if:
+
+$$|\bar{Y}_{\cdot j} - \bar{Y}_{\cdot m}| > q_{\alpha, k, N-k} \cdot \sqrt{\frac{\text{MSW}}{n}}$$
+
+### 18.8.4 Tukey HSD from Scratch
+
+
+``` r
+# Tukey HSD from scratch for PlantGrowth (balanced)
+group_means <- pg[, .(mean = mean(weight), n = .N), by = group]
+MSW_pg <- anova(fit_pg)["Residuals", "Mean Sq"]
+df_w <- anova(fit_pg)["Residuals", "Df"]
+n_per <- group_means$n[1]  # balanced design
+
+q_crit <- qtukey(0.95, nmeans = 3, df = df_w)
+hsd <- q_crit * sqrt(MSW_pg / n_per)
+
+# All pairwise differences
+pairs <- combn(group_means$group, 2, simplify = FALSE)
+tukey_results <- data.table$rbindlist(lapply(pairs, function(p) {
+  m1 <- group_means[group == p[1], mean]
+  m2 <- group_means[group == p[2], mean]
+  diff <- m2 - m1
+  data.table$data.table(
+    comparison = paste(p[2], "-", p[1]),
+    diff = diff,
+    lower = diff - hsd,
+    upper = diff + hsd,
+    significant = abs(diff) > hsd
+  )
+}))
+
+tukey_results
+```
+
+```
+    comparison   diff      lower     upper significant
+        <char>  <num>      <num>     <num>      <lgcl>
+1: trt1 - ctrl -0.371 -1.0622161 0.3202161       FALSE
+2: trt2 - ctrl  0.494 -0.1972161 1.1852161       FALSE
+3: trt2 - trt1  0.865  0.1737839 1.5562161        TRUE
+```
+
+### 18.8.5 Comparing with TukeyHSD()
+
+
+``` r
+TukeyHSD(aov(weight ~ group, data = pg))
+```
+
+```
+  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = weight ~ group, data = pg)
+
+$group
+            diff        lwr       upr     p adj
+trt1-ctrl -0.371 -1.0622161 0.3202161 0.3908711
+trt2-ctrl  0.494 -0.1972161 1.1852161 0.1979960
+trt2-trt1  0.865  0.1737839 1.5562161 0.0120064
+```
+
+### 18.8.6 Visualising Tukey HSD
+
+
+``` r
+tukey_obj <- TukeyHSD(aov(weight ~ group, data = pg))
+tukey_dt <- data.table$as.data.table(tukey_obj$group, keep.rownames = "comparison")
+
+ggplot2$ggplot(tukey_dt, ggplot2$aes(x = diff, y = comparison)) +
+  ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_pointrange(
+    ggplot2$aes(xmin = lwr, xmax = upr),
+    colour = "#0072B2", size = 0.8, linewidth = 0.7
+  ) +
+  ggplot2$labs(
+    x = "Difference in means",
+    y = "Comparison",
+    title = "Tukey HSD: 95% family-wise confidence intervals"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/tukey-plot-1.png" alt="Tukey HSD 95 per cent family-wise confidence intervals. Treatment 2 is significantly different from treatment 1 (the interval does not contain zero), but neither treatment is significantly different from the control.">
+	Tukey HSD 95 per cent family-wise confidence intervals. Treatment 2 is significantly different from treatment 1 (the interval does not contain zero), but neither treatment is significantly different from the control.
+</Figure>
+
+Treatment 2 vs treatment 1 is the only significant pairwise difference. The comparison between each treatment and the control is not significant at the family-wise $\alpha = 0.05$ level.
+
+---
+
+## 18.9 The Pooled Variance Assumption
+
+### 18.9.1 Why It Matters
+
+The $F$-test assumes a common within-group variance $\sigma^2$. When variances are very unequal, the $F$-test can have inflated Type I error rates. Welch's ANOVA provides a robust alternative:
+
+
+``` r
+# Standard ANOVA
+anova(lm(flipper_length_mm ~ species, data = penguins))
+
+# Welch's ANOVA (does not assume equal variances)
+oneway.test(flipper_length_mm ~ species, data = penguins, var.equal = FALSE)
+```
+
+```
+Analysis of Variance Table
+
+Response: flipper_length_mm
+           Df Sum Sq Mean Sq F value    Pr(>F)    
+species     2  52473 26236.6   594.8 < 2.2e-16 ***
+Residuals 339  14953    44.1                      
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+	One-way analysis of means (not assuming equal variances)
+
+data:  flipper_length_mm and species
+F = 614.01, num df = 2.00, denom df = 172.76, p-value < 2.2e-16
+```
+
+For the penguins data, the conclusions are essentially identical because the within-group variances are similar. When they are not, Welch's ANOVA is preferred.
+
+---
+
+## 18.10 Effect Size: Eta-Squared and Omega-Squared
+
+### 18.10.1 Eta-Squared
+
+$$\eta^2 = \frac{\text{SSB}}{\text{SST}}$$
+
+This is the $R^2$ of the ANOVA model -- the proportion of variance explained by the grouping factor. It is upward-biased.
+
+### 18.10.2 Omega-Squared
+
+A less biased alternative:
+
+$$\omega^2 = \frac{\text{SSB} - (k-1)\text{MSW}}{\text{SST} + \text{MSW}}$$
+
+
+``` r
+SSB_pen <- anova(fit_lm)["species", "Sum Sq"]
+SSW_pen <- anova(fit_lm)["Residuals", "Sum Sq"]
+SST_pen <- SSB_pen + SSW_pen
+MSW_pen <- anova(fit_lm)["Residuals", "Mean Sq"]
+k_pen <- 3
+
+eta2 <- SSB_pen / SST_pen
+omega2 <- (SSB_pen - (k_pen - 1) * MSW_pen) / (SST_pen + MSW_pen)
+
+c(
+  "eta-squared" = eta2,
+  "omega-squared" = omega2,
+  "R-squared from lm" = summary(fit_lm)$r.squared
+)
+```
+
+```
+      eta-squared     omega-squared R-squared from lm 
+        0.7782289         0.7764126         0.7782289 
+```
+
+$\eta^2 \approx R^2 \approx 0.78$: species explains about 78% of the variance in flipper length. This is a very large effect.
+
+---
+
+## 18.11 Simulated ANOVA: From Null to Alternative
+
+
+``` r
+set.seed(42)
+n_sim <- 1000
+
+# Under H0: all means = 5
+f_null <- replicate(n_sim, {
+  y_sim <- rnorm(90, mean = 5, sd = 2)
+  g_sim <- rep(c("A", "B", "C"), each = 30)
+  anova(lm(y_sim ~ g_sim))["g_sim", "F value"]
+})
+
+# Under H1: means = 5, 5, 7
+f_alt <- replicate(n_sim, {
+  y_sim <- rnorm(90, mean = rep(c(5, 5, 7), each = 30), sd = 2)
+  g_sim <- rep(c("A", "B", "C"), each = 30)
+  anova(lm(y_sim ~ g_sim))["g_sim", "F value"]
+})
+
+sim_f_dt <- data.table$data.table(
+  F_stat = c(f_null, f_alt),
+  scenario = rep(c("H0 true", "H1 true"), each = n_sim)
+)
+
+ggplot2$ggplot(sim_f_dt, ggplot2$aes(x = F_stat, fill = scenario)) +
+  ggplot2$geom_histogram(bins = 50, alpha = 0.6, colour = "white") +
+  ggplot2$facet_wrap(~ scenario, scales = "free_y") +
+  ggplot2$scale_fill_manual(values = c("H0 true" = "#0072B2", "H1 true" = "#D55E00")) +
+  ggplot2$labs(
+    x = "F statistic",
+    y = "Count",
+    title = "Simulated F-statistics: null vs alternative"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sim-anova-1.png" alt="Simulated ANOVA under the null (left: all group means equal) and the alternative (right: one group mean differs). Under the null, the F-statistic follows an F-distribution; under the alternative, it is shifted to the right.">
+	Simulated ANOVA under the null (left: all group means equal) and the alternative (right: one group mean differs). Under the null, the F-statistic follows an F-distribution; under the alternative, it is shifted to the right.
+</Figure>
+
+Under the null, the $F$-statistics cluster near 1 (the expected value of $F_{2, 87}$ is $87/85 \approx 1.02$). Under the alternative, the distribution shifts dramatically to the right.
+
+---
+
+## 18.12 Power Analysis for One-Way ANOVA
+
+The power of the $F$-test depends on the **non-centrality parameter**:
+
+$$\lambda = \frac{\sum_{j=1}^k n_j(\mu_j - \bar{\mu})^2}{\sigma^2}$$
+
+where $\bar{\mu} = \sum n_j\mu_j / N$. The $F$-statistic under $H_1$ follows a non-central $F$ distribution: $F \sim F_{k-1, N-k, \lambda}$.
+
+
+``` r
+lambda_seq <- seq(0, 30, by = 0.5)
+power_vals <- 1 - pf(
+  qf(0.95, df1 = 2, df2 = 87),
+  df1 = 2, df2 = 87,
+  ncp = lambda_seq
+)
+
+pow_dt <- data.table$data.table(lambda = lambda_seq, power = power_vals)
+
+ggplot2$ggplot(pow_dt, ggplot2$aes(x = lambda, y = power)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.9) +
+  ggplot2$geom_hline(yintercept = 0.8, linetype = "dashed", colour = "#D55E00") +
+  ggplot2$labs(
+    x = expression(lambda ~ "(non-centrality parameter)"),
+    y = "Power",
+    title = "Power curve for one-way ANOVA (k = 3, N = 90)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/power-curve-1.png" alt="Power of the one-way ANOVA F-test as a function of the non-centrality parameter lambda. With k = 3 groups and N - k = 87 residual degrees of freedom, power exceeds 0.8 when lambda is greater than approximately 12.">
+	Power of the one-way ANOVA F-test as a function of the non-centrality parameter lambda. With k = 3 groups and N - k = 87 residual degrees of freedom, power exceeds 0.8 when lambda is greater than approximately 12.
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+When presenting ANOVA results:
+
+- **Start with the plot.** Box plots or group mean plots tell the story before any numbers appear. Stakeholders understand "these boxes look different" better than "$F_{2,339} = 594.8$."
+- **The $F$-test is an omnibus test.** It tells you *whether* groups differ, not *which* ones. Always follow up with pairwise comparisons (Tukey HSD) to identify specific differences.
+- **Report effect sizes alongside $p$-values.** "$p < 0.001$" tells you the effect exists; $\eta^2 = 0.78$ tells you it is large. Both pieces of information are needed.
+- **ANOVA is regression.** If your audience is comfortable with regression, explain ANOVA as "a regression with dummy variables." This unifies the framework and makes extensions (ANCOVA, factorial designs) natural.
+
+---
+
+## Quick Reference
+
+| Quantity | Formula |
+|:---------|:--------|
+| **SSB** (between) | $\sum_{j=1}^k n_j(\bar{Y}_{\cdot j} - \bar{Y}_{\cdot\cdot})^2$ |
+| **SSW** (within) | $\sum_{j=1}^k\sum_{i=1}^{n_j}(Y_{ij} - \bar{Y}_{\cdot j})^2$ |
+| **$F$-statistic** | $\frac{\text{SSB}/(k-1)}{\text{SSW}/(N-k)}$ |
+| **Tukey HSD** | $q_{\alpha,k,N-k}\sqrt{\text{MSW}/n}$ |
+| **$\eta^2$** | $\text{SSB}/\text{SST}$ |
+| **$\omega^2$** | $[\text{SSB} - (k-1)\text{MSW}] / [\text{SST} + \text{MSW}]$ |
+
+---
+
+## Exercises
+
+1. **ANOVA as regression.** Using the penguins data, construct the design matrix $\mathbf{X}$ (with dummy columns for Chinstrap and Gentoo) by hand. Compute $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$ and verify that the coefficients match those from `lm(flipper_length_mm ~ species)`.
+
+2. **Deriving the $F$-test.** Starting from the SSB/SSW decomposition, prove that under $H_0$ the ratio $F = \text{MSB}/\text{MSW}$ follows an $F_{k-1, N-k}$ distribution. (*Hint:* use Cochran's theorem.)
+
+3. **Tukey from scratch.** Implement a function `my_tukey_hsd(fit_lm, alpha)` that takes a one-way ANOVA `lm` object and returns all pairwise comparisons with confidence intervals and adjusted $p$-values. Test it on the PlantGrowth data.
+
+4. **Bonferroni vs Tukey.** Using simulation, compare the family-wise error rate and power of Bonferroni and Tukey HSD for $k = 5$ groups with $n = 20$ per group. Which method has greater power?
+
+5. **Welch vs classical.** Simulate one-way ANOVA with $k = 3$ groups where $\sigma_1 = 1$, $\sigma_2 = 1$, $\sigma_3 = 4$ (all means equal). Show that the classical $F$-test has an inflated Type I error rate, while Welch's ANOVA maintains the nominal level.
+
+6. **Penguin effect sizes.** Compute $\eta^2$ and $\omega^2$ for flipper length, body mass, and bill length by species. Which morphometric variable shows the largest between-species variation relative to within-species variation?

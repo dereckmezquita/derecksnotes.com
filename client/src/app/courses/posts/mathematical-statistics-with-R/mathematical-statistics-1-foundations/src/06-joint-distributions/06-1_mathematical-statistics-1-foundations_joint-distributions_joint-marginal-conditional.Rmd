@@ -1,0 +1,586 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 6: Joint Distributions and Multivariate Thinking"
+part: "Part 1: Joint, Marginal, and Conditional Distributions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 6 -- Joint Distributions and Multivariate Thinking
+
+## Part 1: Joint, Marginal, and Conditional Distributions
+
+Until now we have studied random variables one at a time. In practice, data almost always arrive as *collections* of measurements: a patient's height *and* Weight, a country's GDP *and* life expectancy, a penguin's bill length *and* flipper length. To model the relationship between two or more quantities we need the machinery of **joint distributions**.
+
+This chapter extends everything we know about single random variables -- PMFs, PDFs, CDFs, expectations -- to the multivariate setting. The payoff is enormous: once we can describe how two variables behave *together*, we can define dependence, derive conditional expectations, and build the foundations for regression.
+
+---
+
+## 6.1 Joint Distributions
+
+### 6.1.1 The Discrete Case: Joint PMF
+
+Let $X$ and $Y$ be two discrete random variables defined on the same probability space. The **joint probability mass function** is:
+
+$$p_{X,Y}(x, y) = P(X = x \text{ and } Y = y).$$
+
+This function must satisfy two properties:
+
+1. **Non-negativity:** $p_{X,Y}(x, y) \ge 0$ for all $(x, y)$.
+2. **Normalisation:** $\sum_x \sum_y p_{X,Y}(x, y) = 1$.
+
+The joint PMF contains *all* the probabilistic information about $X$ and $Y$ considered together. It tells us the probability of every possible pair of outcomes.
+
+**Example.** Suppose we roll two fair dice. Let $X$ be the value on the first die and $Y$ the value on the second. Then each of the 36 pairs $(x, y)$ where $x, y \in \{1, 2, 3, 4, 5, 6\}$ has joint probability:
+
+$$p_{X,Y}(x, y) = \frac{1}{36}.$$
+
+### 6.1.2 Constructing a Joint PMF Table
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+```{r joint-pmf-dice}
+box::use(data.table)
+
+# Joint PMF for a pair of fair dice
+dice <- data.table$CJ(X = 1:6, Y = 1:6)
+dice[, prob := 1 / 36]
+
+# Define S = X + Y
+dice[, S := X + Y]
+
+# Distribution of S
+sum_dist <- dice[, .(prob = sum(prob)), by = S]
+sum_dist
+```
+
+The classic "triangular" distribution of the sum of two dice emerges naturally from the joint PMF.
+
+### 6.1.3 The Continuous Case: Joint PDF
+
+For continuous random variables $X$ and $Y$, the **joint probability density function** $f_{X,Y}(x, y)$ is defined by the property:
+
+$$P\bigl((X, Y) \in A\bigr) = \iint_A f_{X,Y}(x, y) \, dx \, dy$$
+
+for any region $A \subseteq \mathbb{R}^2$. The density must satisfy:
+
+1. **Non-negativity:** $f_{X,Y}(x, y) \ge 0$ for all $(x, y)$.
+2. **Normalisation:** $\int_{-\infty}^{\infty}\int_{-\infty}^{\infty} f_{X,Y}(x, y) \, dx \, dy = 1$.
+
+Unlike the discrete case, $f_{X,Y}(x, y)$ is *not* a probability -- it is a density. Only when we integrate over a region do we obtain a probability.
+
+### 6.1.4 Example: Uniform Distribution on a Triangle
+
+Consider the joint density:
+
+$$f_{X,Y}(x, y) = 2, \quad 0 \le x \le 1, \; 0 \le y \le x$$
+
+and $f_{X,Y}(x, y) = 0$ elsewhere.
+
+**Verify normalisation:**
+
+$$\int_0^1 \int_0^x 2 \, dy \, dx = \int_0^1 2x \, dx = \left[x^2\right]_0^1 = 1. \quad \checkmark$$
+
+The support is the triangle below the line $y = x$ in the unit square.
+
+```{r triangle-density, fig.cap="Joint density f(x,y) = 2 on the triangular region 0 <= y <= x <= 1. The density is constant over the triangle, so lighter regions outside the triangle have zero density."}
+box::use(ggplot2)
+
+# Grid for the density
+grid <- data.table$CJ(x = seq(0, 1, length.out = 200), y = seq(0, 1, length.out = 200))
+grid[, density := ifelse(y <= x, 2, NA)]
+
+ggplot2$ggplot(grid, ggplot2$aes(x = x, y = y, fill = density)) +
+  ggplot2$geom_raster(interpolate = TRUE) +
+  ggplot2$scale_fill_gradient(low = "#56B4E9", high = "#0072B2", na.value = "grey95") +
+  ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "black") +
+  ggplot2$labs(
+    x = "x", y = "y", fill = "f(x, y)",
+    title = "Joint density f(x, y) = 2 on the triangle 0 <= y <= x <= 1"
+  ) +
+  ggplot2$coord_equal() +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 6.1.5 The Joint CDF
+
+The **joint cumulative distribution function** is defined for both discrete and continuous cases as:
+
+$$F_{X,Y}(x, y) = P(X \le x, \; Y \le y).$$
+
+For the continuous case, the joint PDF can be recovered from the joint CDF by differentiation:
+
+$$f_{X,Y}(x, y) = \frac{\partial^2}{\partial x \, \partial y} F_{X,Y}(x, y).$$
+
+---
+
+## 6.2 Marginal Distributions
+
+### 6.2.1 The Key Idea
+
+If we know the joint distribution of $(X, Y)$, we can always recover the distribution of $X$ alone (or $Y$ alone) by "integrating out" (or summing out) the other variable. These recovered distributions are called **marginal distributions**.
+
+### 6.2.2 Discrete Case
+
+The **marginal PMF** of $X$ is obtained by summing the joint PMF over all possible values of $Y$:
+
+$$p_X(x) = \sum_y p_{X,Y}(x, y).$$
+
+Similarly, the marginal PMF of $Y$ is:
+
+$$p_Y(y) = \sum_x p_{X,Y}(x, y).$$
+
+### 6.2.3 Derivation from First Principles
+
+Why does this work? By the law of total probability:
+
+$$P(X = x) = \sum_y P(X = x, \; Y = y)$$
+
+because the events $\{Y = y\}$ for all possible $y$ form a partition of the sample space. We are simply saying: the probability that $X$ takes a particular value equals the sum over all the ways it can happen, considering every possible companion value for $Y$.
+
+### 6.2.4 Example: Two Dice Marginals
+
+```{r dice-marginals}
+# Marginal distribution of X (first die)
+marginal_X <- dice[, .(marginal_prob = sum(prob)), by = X]
+marginal_X
+
+# Marginal distribution of Y (second die)
+marginal_Y <- dice[, .(marginal_prob = sum(prob)), by = Y]
+marginal_Y
+```
+
+As expected, each die has a uniform marginal distribution with $P(X = x) = 1/6$ for $x = 1, \ldots, 6$.
+
+### 6.2.5 Continuous Case
+
+The **marginal PDF** of $X$ is obtained by integrating the joint density over $y$:
+
+$$f_X(x) = \int_{-\infty}^{\infty} f_{X,Y}(x, y) \, dy.$$
+
+**Example:** For our triangular density $f_{X,Y}(x, y) = 2$ on $0 \le y \le x \le 1$:
+
+$$f_X(x) = \int_0^x 2 \, dy = 2x, \quad 0 \le x \le 1.$$
+
+*Verify:* $\int_0^1 2x \, dx = 1$. $\checkmark$ So $X$ has a linearly increasing density on $[0, 1]$ -- values near 1 are more likely than values near 0.
+
+For $Y$:
+
+$$f_Y(y) = \int_y^1 2 \, dx = 2(1 - y), \quad 0 \le y \le 1.$$
+
+*Verify:* $\int_0^1 2(1-y) \, dy = 1$. $\checkmark$ The marginal of $Y$ is linearly *decreasing*.
+
+### 6.2.6 Visualising Marginals
+
+```{r marginal-triangle, fig.cap="Marginal densities derived from the joint triangular density. X has an increasing marginal density f_X(x) = 2x, while Y has a decreasing marginal density f_Y(y) = 2(1-y). Both integrate to 1 over [0, 1]."}
+x_vals <- seq(0, 1, length.out = 300)
+
+marginals <- data.table$data.table(
+  value = rep(x_vals, 2),
+  density = c(2 * x_vals, 2 * (1 - x_vals)),
+  variable = rep(c("f_X(x) = 2x", "f_Y(y) = 2(1-y)"), each = length(x_vals))
+)
+
+ggplot2$ggplot(marginals, ggplot2$aes(x = value, y = density, colour = variable)) +
+  ggplot2$geom_line(linewidth = 1.2) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$labs(
+    x = "Value", y = "Density", colour = "Marginal",
+    title = "Marginal densities from the triangular joint distribution"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+---
+
+## 6.3 Conditional Distributions
+
+### 6.3.1 Definition
+
+Given the joint distribution of $(X, Y)$, the **conditional distribution** of $Y$ given $X = x$ describes how $Y$ behaves once we know the value of $X$.
+
+**Discrete case:**
+
+$$p_{Y|X}(y | x) = \frac{p_{X,Y}(x, y)}{p_X(x)}, \quad \text{provided } p_X(x) > 0.$$
+
+**Continuous case:**
+
+$$f_{Y|X}(y | x) = \frac{f_{X,Y}(x, y)}{f_X(x)}, \quad \text{provided } f_X(x) > 0.$$
+
+This is the multivariate analogue of Bayes' theorem: the conditional equals the joint divided by the marginal.
+
+### 6.3.2 Derivation
+
+The formula follows directly from the definition of conditional probability. For the discrete case:
+
+$$P(Y = y | X = x) = \frac{P(X = x, Y = y)}{P(X = x)} = \frac{p_{X,Y}(x, y)}{p_X(x)}.$$
+
+The continuous case requires more care (we are conditioning on an event of probability zero), but the intuition is the same: we "slice" the joint density at $X = x$ and renormalise so that the conditional density integrates to 1 over $y$.
+
+### 6.3.3 Verification: Conditional Integrates to 1
+
+For the continuous case:
+
+$$\int_{-\infty}^{\infty} f_{Y|X}(y | x) \, dy = \int_{-\infty}^{\infty} \frac{f_{X,Y}(x, y)}{f_X(x)} \, dy = \frac{1}{f_X(x)} \int_{-\infty}^{\infty} f_{X,Y}(x, y) \, dy = \frac{f_X(x)}{f_X(x)} = 1. \quad \checkmark$$
+
+### 6.3.4 Example: Triangular Density
+
+For the triangular density with $f_{X,Y}(x, y) = 2$ on $0 \le y \le x \le 1$ and $f_X(x) = 2x$:
+
+$$f_{Y|X}(y | x) = \frac{2}{2x} = \frac{1}{x}, \quad 0 \le y \le x.$$
+
+So given $X = x$, the variable $Y$ is **uniformly distributed** on $[0, x]$. This makes geometric sense: if we slice the triangle at a particular $x$ value, we get a horizontal segment from $y = 0$ to $y = x$, and the density is constant along that segment.
+
+### 6.3.5 Conditional Expectation
+
+The **conditional expectation** of $Y$ given $X = x$ is:
+
+$$E[Y | X = x] = \int_{-\infty}^{\infty} y \, f_{Y|X}(y | x) \, dy.$$
+
+For our triangular example:
+
+$$E[Y | X = x] = \int_0^x y \cdot \frac{1}{x} \, dy = \frac{1}{x} \cdot \frac{x^2}{2} = \frac{x}{2}.$$
+
+So the expected value of $Y$ given $X = x$ is $x/2$ -- the midpoint of the interval $[0, x]$. As $X$ increases, the conditional mean of $Y$ increases proportionally.
+
+---
+
+## 6.4 Independence
+
+### 6.4.1 Definition
+
+Two random variables $X$ and $Y$ are **independent** if and only if their joint distribution factors into the product of the marginals:
+
+$$f_{X,Y}(x, y) = f_X(x) \cdot f_Y(y) \quad \text{for all } (x, y).$$
+
+(For the discrete case, replace $f$ with $p$.)
+
+### 6.4.2 Equivalent Formulations
+
+The following statements are all equivalent for two random variables $X$ and $Y$:
+
+1. $f_{X,Y}(x, y) = f_X(x) \cdot f_Y(y)$ for all $(x, y)$.
+2. $f_{Y|X}(y|x) = f_Y(y)$ for all $x, y$ (knowing $X$ tells us nothing about $Y$).
+3. $F_{X,Y}(x, y) = F_X(x) \cdot F_Y(y)$ for all $(x, y)$.
+4. $E[g(X) h(Y)] = E[g(X)] \cdot E[h(Y)]$ for all functions $g, h$.
+
+**Proof of 1 $\Leftrightarrow$ 2:** If $f_{X,Y}(x,y) = f_X(x) f_Y(y)$, then:
+
+$$f_{Y|X}(y|x) = \frac{f_{X,Y}(x,y)}{f_X(x)} = \frac{f_X(x) f_Y(y)}{f_X(x)} = f_Y(y).$$
+
+Conversely, if $f_{Y|X}(y|x) = f_Y(y)$, then $f_{X,Y}(x,y) = f_{Y|X}(y|x) \cdot f_X(x) = f_Y(y) \cdot f_X(x)$. $\square$
+
+### 6.4.3 Testing Independence: The Triangular Example
+
+For our triangular density, $f_{X,Y}(x, y) = 2$ but $f_X(x) \cdot f_Y(y) = 2x \cdot 2(1-y) = 4x(1-y)$. Since $2 \neq 4x(1-y)$ in general, $X$ and $Y$ are **not independent** in this example. This agrees with our intuition: $Y$ is constrained to lie below $X$, so knowing $X$ gives information about $Y$.
+
+### 6.4.4 When Variables Are Independent
+
+```{r independence-test}
+set.seed(42)
+
+# Generate independent standard normals
+n_sim <- 5000
+indep <- data.table$data.table(
+  X = rnorm(n_sim),
+  Y = rnorm(n_sim)
+)
+
+# Generate dependent variables (triangular example)
+U <- runif(n_sim)
+V <- runif(n_sim)
+dep <- data.table$data.table(
+  X = pmax(U, V),   # X = max(U, V) => f_X(x) = 2x
+  Y = pmin(U, V)    # Y = min(U, V) => Y <= X always
+)
+```
+
+```{r independence-scatter, fig.cap="Left: Independent standard normals -- no visible pattern. Right: Dependent variables from the triangular distribution -- Y is always less than or equal to X, reflecting the constraint built into the joint density."}
+indep[, type := "Independent: X, Y ~ N(0,1)"]
+dep[, type := "Dependent: Triangular"]
+both <- data.table$rbindlist(list(indep, dep))
+
+ggplot2$ggplot(both, ggplot2$aes(x = X, y = Y)) +
+  ggplot2$geom_point(alpha = 0.15, size = 0.6, colour = "#0072B2") +
+  ggplot2$facet_wrap(~type, scales = "free") +
+  ggplot2$labs(x = "X", y = "Y") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 6.5 Applied Example: Penguins Data
+
+Let us apply joint, marginal, and conditional distributions to real data. We examine the joint distribution of bill length and flipper length in the Palmer penguins dataset, conditional on species.
+
+```{r load-penguins}
+data_dir <- "../../../data"
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+
+# Remove rows with missing measurements
+penguins <- penguins[!is.na(bill_length_mm) & !is.na(flipper_length_mm)]
+penguins[, .N, by = species]
+```
+
+### 6.5.1 Bivariate Scatterplot
+
+```{r penguins-scatter, fig.cap="Joint distribution of bill length and flipper length by species. Each species occupies a distinct region of the bivariate space, suggesting that the conditional distribution of these measurements depends strongly on species."}
+ggplot2$ggplot(penguins, ggplot2$aes(x = bill_length_mm, y = flipper_length_mm, colour = species)) +
+  ggplot2$geom_point(alpha = 0.6, size = 2) +
+  ggplot2$scale_colour_manual(values = c(Adelie = "#E69F00", Chinstrap = "#56B4E9", Gentoo = "#009E73")) +
+  ggplot2$labs(
+    x = "Bill length (mm)",
+    y = "Flipper length (mm)",
+    colour = "Species",
+    title = "Joint distribution of bill and flipper length"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 6.5.2 Joint Frequency Table (Discretised)
+
+To create a discrete joint distribution, we bin both variables into intervals and construct a frequency table using `data.table`.
+
+```{r joint-freq-table}
+penguins[, bill_bin := cut(bill_length_mm, breaks = seq(30, 60, by = 5))]
+penguins[, flip_bin := cut(flipper_length_mm, breaks = seq(170, 235, by = 10))]
+
+joint_table <- penguins[!is.na(bill_bin) & !is.na(flip_bin),
+  .N, by = .(bill_bin, flip_bin)]
+joint_table[, prop := N / sum(N)]
+
+# Show the most populated cells
+data.table$setorder(joint_table, -N)
+head(joint_table, 10)
+```
+
+### 6.5.3 2D Histogram
+
+```{r penguins-2d-hist, fig.cap="2D histogram of bill length and flipper length. The darker regions indicate higher joint frequency. The bimodal structure reflects the separation between Gentoo (long flippers, moderate bills) and Adelie/Chinstrap (shorter flippers, varying bill lengths)."}
+ggplot2$ggplot(penguins, ggplot2$aes(x = bill_length_mm, y = flipper_length_mm)) +
+  ggplot2$geom_bin2d(bins = 20) +
+  ggplot2$scale_fill_gradient(low = "#56B4E9", high = "#0072B2") +
+  ggplot2$labs(
+    x = "Bill length (mm)",
+    y = "Flipper length (mm)",
+    fill = "Count",
+    title = "2D histogram of bill and flipper length"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 6.5.4 Contour Plot (Density Estimate)
+
+```{r penguins-contour, fig.cap="Kernel density contour plot of the joint distribution. The contour lines represent curves of constant estimated density. Each species forms a distinct cluster, and within each cluster the contours are approximately elliptical -- a hallmark of the bivariate normal, which we study in Part 3 of this chapter."}
+ggplot2$ggplot(penguins, ggplot2$aes(x = bill_length_mm, y = flipper_length_mm, colour = species)) +
+  ggplot2$geom_point(alpha = 0.3, size = 1) +
+  ggplot2$geom_density_2d(linewidth = 0.8) +
+  ggplot2$scale_colour_manual(values = c(Adelie = "#E69F00", Chinstrap = "#56B4E9", Gentoo = "#009E73")) +
+  ggplot2$labs(
+    x = "Bill length (mm)",
+    y = "Flipper length (mm)",
+    colour = "Species",
+    title = "Density contours by species"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 6.5.5 Conditional Distributions by Species
+
+The conditional distribution of bill length given species illustrates how conditioning reshapes the distribution.
+
+```{r penguins-conditional, fig.cap="Conditional density of bill length given species. Adelie penguins have shorter bills (centred around 38 mm), Chinstrap around 49 mm, and Gentoo around 47 mm. The conditional distributions are approximately normal within each species."}
+ggplot2$ggplot(penguins, ggplot2$aes(x = bill_length_mm, fill = species)) +
+  ggplot2$geom_density(alpha = 0.5) +
+  ggplot2$scale_fill_manual(values = c(Adelie = "#E69F00", Chinstrap = "#56B4E9", Gentoo = "#009E73")) +
+  ggplot2$labs(
+    x = "Bill length (mm)",
+    y = "Density",
+    fill = "Species",
+    title = "Conditional distribution of bill length given species"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r conditional-summaries}
+# Conditional means and standard deviations
+penguins[, .(
+  mean_bill = mean(bill_length_mm),
+  sd_bill = sd(bill_length_mm),
+  mean_flipper = mean(flipper_length_mm),
+  sd_flipper = sd(flipper_length_mm),
+  n = .N
+), by = species]
+```
+
+The conditional summaries confirm what the plots suggest: knowing the species dramatically changes our expectation of both bill length and flipper length.
+
+---
+
+## 6.6 Bivariate Simulation from Scratch
+
+To cement our understanding, let us simulate from a known bivariate distribution and verify the marginals and conditionals match theory.
+
+### 6.6.1 Simulating from the Triangular Distribution
+
+```{r triangular-sim, fig.cap="Simulated draws from the triangular joint density f(x,y) = 2 on 0 <= y <= x <= 1. The histogram of simulated X values matches the theoretical marginal f_X(x) = 2x (orange curve), confirming our derivation."}
+set.seed(42)
+n_sim <- 20000
+
+# Method: X = max(U1, U2), Y = min(U1, U2) where U1, U2 ~ Uniform(0,1)
+U1 <- runif(n_sim)
+U2 <- runif(n_sim)
+sim_X <- pmax(U1, U2)
+sim_Y <- pmin(U1, U2)
+
+sim_dt <- data.table$data.table(X = sim_X, Y = sim_Y)
+
+# Plot the marginal of X against theory
+ggplot2$ggplot(sim_dt, ggplot2$aes(x = X)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, fill = "#0072B2", alpha = 0.6
+  ) +
+  ggplot2$stat_function(fun = function(x) 2 * x, colour = "#D55E00", linewidth = 1.2) +
+  ggplot2$labs(
+    x = "X", y = "Density",
+    title = "Simulated marginal of X vs. theoretical f_X(x) = 2x"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 6.6.2 Verifying the Conditional Distribution
+
+We said that $Y | X = x \sim \text{Uniform}(0, x)$. Let us check this empirically by looking at $Y$ values for simulated $X$ near 0.7.
+
+```{r conditional-check, fig.cap="Conditional distribution of Y given X is near 0.7. The histogram of Y values in the window X in (0.68, 0.72) is approximately uniform on (0, 0.7), matching the theoretical conditional Y|X=0.7 ~ Uniform(0, 0.7)."}
+# Filter to X near 0.7
+window <- sim_dt[X > 0.68 & X < 0.72]
+
+ggplot2$ggplot(window, ggplot2$aes(x = Y)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 25, fill = "#009E73", alpha = 0.6
+  ) +
+  ggplot2$geom_hline(yintercept = 1 / 0.7, colour = "#D55E00", linewidth = 1.2, linetype = "dashed") +
+  ggplot2$labs(
+    x = "Y", y = "Density",
+    title = "Conditional of Y given X ≈ 0.7 vs. Uniform(0, 0.7)"
+  ) +
+  ggplot2$annotate("text", x = 0.35, y = 1.7, label = "Theoretical: 1/0.7 ≈ 1.43", colour = "#D55E00", size = 4) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The empirical conditional distribution matches the theoretical Uniform$(0, 0.7)$ density beautifully.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining joint distributions to a non-technical audience:
+
+- Avoid saying "the joint PMF." Instead say: "Here is the probability of observing each combination of outcomes."
+- Marginals are intuitive: "If we ignore one measurement and focus only on the other, here is what we see."
+- Conditional distributions answer the most natural question: "Given that we know X, what can we expect for Y?"
+- Use 2D histograms and contour plots freely -- most people understand heat maps. Label the axes carefully and explain that darker colours mean higher frequency.
+- The independence concept translates well: "Knowing one variable tells us nothing new about the other." Dependence means "they move together (or against each other) in some way."
+
+---
+
+## Quick Reference
+
+| Concept | Discrete | Continuous |
+|:--------|:---------|:-----------|
+| **Joint** | $p_{X,Y}(x,y) = P(X=x, Y=y)$ | $P(A) = \iint_A f_{X,Y}(x,y)\,dx\,dy$ |
+| **Marginal of X** | $p_X(x) = \sum_y p_{X,Y}(x,y)$ | $f_X(x) = \int f_{X,Y}(x,y)\,dy$ |
+| **Conditional of Y given X** | $p_{Y|X}(y|x) = \frac{p_{X,Y}(x,y)}{p_X(x)}$ | $f_{Y|X}(y|x) = \frac{f_{X,Y}(x,y)}{f_X(x)}$ |
+| **Independence** | $p_{X,Y}(x,y) = p_X(x)\,p_Y(y)$ | $f_{X,Y}(x,y) = f_X(x)\,f_Y(y)$ |
+| **Conditional expectation** | $E[Y|X=x] = \sum_y y\,p_{Y|X}(y|x)$ | $E[Y|X=x] = \int y\,f_{Y|X}(y|x)\,dy$ |
+
+---
+
+## Exercises
+
+### Derivation Exercises
+
+**Exercise 6.1.** Let $(X, Y)$ have joint density $f_{X,Y}(x, y) = e^{-x-y}$ for $x > 0, y > 0$. (a) Verify this is a valid density. (b) Find the marginal densities of $X$ and $Y$. (c) Are $X$ and $Y$ independent? Prove your answer.
+
+**Exercise 6.2.** Let $(X, Y)$ have joint density $f_{X,Y}(x, y) = 6x$ for $0 < x < 1$ and $0 < y < 1 - x$. (a) Verify normalisation. (b) Find $f_X(x)$ and $f_Y(y)$. (c) Find $f_{Y|X}(y|x)$.
+
+**Exercise 6.3.** Prove that if $X$ and $Y$ are independent, then $\text{Var}(X + Y) = \text{Var}(X) + \text{Var}(Y)$. *(Hint: expand $E[(X+Y - E[X+Y])^2]$ and use the fact that $E[g(X)h(Y)] = E[g(X)]E[h(Y)]$ for independent variables.)*
+
+### Computation Exercises
+
+**Exercise 6.4.** Roll two fair dice. Let $X$ be the first die and $Y$ be the second. Find:
+(a) $P(X + Y = 7)$
+(b) $P(X > Y)$
+(c) $E[X \cdot Y]$
+(d) The conditional distribution of $Y$ given $X = 3$.
+
+```{r ex-6-4, eval=FALSE}
+dice <- data.table$CJ(X = 1:6, Y = 1:6)
+dice[, prob := 1/36]
+# (a)
+dice[X + Y == 7, sum(prob)]
+# (b)
+dice[X > Y, sum(prob)]
+# (c)
+dice[, sum(X * Y * prob)]
+# (d)
+dice[X == 3, .(Y, cond_prob = prob / sum(prob))]
+```
+
+**Exercise 6.5.** Using the penguins dataset, construct a joint frequency table of species and island. From this table, compute (a) the marginal distribution of species, (b) the conditional distribution of island given species = Adelie.
+
+### R Exercises
+
+**Exercise 6.6.** Simulate 10,000 draws from the joint density $f(x,y) = 6x$ on $0 < x < 1, 0 < y < 1-x$. *(Hint: first simulate $X$ from its marginal, then simulate $Y$ from the conditional given $X$.)* Plot a scatterplot of your simulated points and overlay the boundary $y = 1 - x$.
+
+```{r ex-6-6, eval=FALSE}
+set.seed(42)
+n <- 10000
+# Marginal of X: f_X(x) = 6x(1-x) on (0,1) -- use rejection sampling or inverse CDF
+# Conditional: Y|X=x ~ Uniform(0, 1-x)
+```
+
+**Exercise 6.7.** Write a function `joint_table(x, y)` that takes two categorical vectors and returns a data.table containing the joint probabilities, marginal probabilities of `x`, marginal probabilities of `y`, and a column indicating whether the cell's joint probability equals the product of the marginals (a test of independence).
+
+### Spot-the-Error Exercises
+
+**Exercise 6.8.** A student says: "I computed the correlation between bill length and flipper length and it's 0.65, so they are independent." What is the error?
+
+**Exercise 6.9.** A colleague proposes the joint density $f(x,y) = x + y$ on $0 < x < 1$, $0 < y < 1$. Is this a valid density? If so, find the marginals and check for independence.

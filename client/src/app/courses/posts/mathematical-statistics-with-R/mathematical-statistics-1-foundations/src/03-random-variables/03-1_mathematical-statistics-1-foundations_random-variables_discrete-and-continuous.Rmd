@@ -1,0 +1,643 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 3: Random Variables"
+part: "Part 1: Discrete and Continuous Random Variables"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, random-variables, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+## 3.1 What Is a Random Variable?
+
+In everyday language, a **random variable** is a rule that assigns a number to each possible outcome of a random experiment. If you roll a die and record the number showing, you have a random variable. If you flip three coins and count the heads, you have a random variable. The key idea is deceptively simple: *a random variable is not a number — it is a function*.
+
+### Formal Definition
+
+Let $(\Omega, \mathcal{F}, P)$ be a probability space. A **random variable** is a function
+
+$$
+X: \Omega \to \mathbb{R}
+$$
+
+that maps each outcome $\omega \in \Omega$ to a real number $X(\omega)$, with the additional requirement that for every real number $x$, the set $\{\omega \in \Omega : X(\omega) \leq x\}$ belongs to $\mathcal{F}$ (i.e., is a measurable set).
+
+In plain English: $X$ takes something from the abstract world of random outcomes and converts it into a number we can do arithmetic with. The measurability condition simply ensures we can compute probabilities involving $X$.
+
+### Why This Matters
+
+The distinction between the random variable (the function) and any particular value it produces (a realisation) is fundamental. When we write $X$, we mean the entire mapping — all possible values at once, weighted by their probabilities. When we write $x$, we mean a specific number that $X$ might take. This notational convention pervades all of mathematical statistics.
+
+### R Demonstration: Dice Rolling
+
+Let us make this concrete. Consider rolling a fair die. The sample space is $\Omega = \{1, 2, 3, 4, 5, 6\}$, and the random variable $X(\omega) = \omega$ simply records the face value. In this case the mapping is trivial — but it need not be. We could define $Y(\omega) = \omega^2$ or $Z(\omega) = \mathbb{1}(\omega \text{ is even})$.
+
+```{r dice-rv, fig.cap="Simulated realisations of a random variable: recording the face value of a fair die over 1000 rolls."}
+set.seed(42)
+box::use(ggplot2)
+
+# Simulate 1000 rolls of a fair die
+n_rolls <- 1000
+outcomes <- sample(1:6, size = n_rolls, replace = TRUE)
+
+# The random variable X maps each roll to its face value
+# Here, X(omega) = omega — the identity mapping
+rv_table <- as.data.frame(table(outcomes))
+names(rv_table) <- c("x", "count")
+rv_table$x <- as.integer(as.character(rv_table$x))
+rv_table$relative_freq <- rv_table$count / n_rolls
+
+ggplot2$ggplot(rv_table, ggplot2$aes(x = x, y = relative_freq)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.6) +
+  ggplot2$geom_hline(yintercept = 1/6, linetype = "dashed", colour = "red", linewidth = 0.8) +
+  ggplot2$scale_y_continuous(limits = c(0, 0.25)) +
+  ggplot2$labs(
+    x = "x (face value)",
+    y = "Relative frequency",
+    title = "Simulated relative frequencies vs. theoretical probability (dashed)"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+Each bar shows how often each value appeared. The dashed red line at $1/6 \approx 0.167$ is the theoretical probability. With 1000 rolls, the relative frequencies are close but not exactly $1/6$ — this is the distinction between probability (a theoretical quantity) and relative frequency (an empirical quantity).
+
+### Example: Counting Heads in Three Coin Flips
+
+Define $X$ = number of heads in three fair coin flips. The sample space has $2^3 = 8$ outcomes:
+
+| Outcome $\omega$ | $X(\omega)$ |
+|:---|:---|
+| TTT | 0 |
+| HTT, THT, TTH | 1 |
+| HHT, HTH, THH | 2 |
+| HHH | 3 |
+
+The random variable $X$ compresses eight outcomes into four possible values: $\{0, 1, 2, 3\}$.
+
+```{r coin-flip-enum}
+# Enumerate all outcomes of 3 coin flips
+omega <- expand.grid(
+  flip1 = c("T", "H"),
+  flip2 = c("T", "H"),
+  flip3 = c("T", "H")
+)
+
+# The random variable X counts the number of heads
+omega$X <- rowSums(omega == "H")
+
+# All outcomes and their X values
+omega
+
+# Probability distribution of X
+x_table <- table(omega$X)
+x_table / 8
+```
+
+Notice that $P(X = 0) = 1/8$, $P(X = 1) = 3/8$, $P(X = 2) = 3/8$, and $P(X = 3) = 1/8$. These are binomial coefficients: $\binom{3}{k}/2^3$.
+
+---
+
+## 3.2 Discrete Random Variables
+
+A random variable $X$ is **discrete** if it can take on a finite or countably infinite number of distinct values $x_1, x_2, x_3, \ldots$. Examples include counts (number of defects), integers (dice rolls), and indicators (success/failure).
+
+### The Probability Mass Function (PMF)
+
+The **probability mass function** (PMF) of a discrete random variable $X$ is the function
+
+$$
+p(x) = P(X = x)
+$$
+
+that gives the probability of each possible value.
+
+The PMF must satisfy two properties:
+
+1. **Non-negativity**: $p(x) \geq 0$ for all $x$.
+2. **Normalisation**: $\sum_{x} p(x) = 1$, where the sum is over all possible values of $X$.
+
+In plain English: every value has a non-negative probability, and the total probability across all values is exactly one.
+
+### Implementing the PMF from Scratch
+
+```{r pmf-scratch}
+#' Compute the PMF for a discrete random variable
+#'
+#' @param values Numeric vector of possible values
+#' @param probs Numeric vector of corresponding probabilities
+#' @param x The value(s) at which to evaluate the PMF
+#' @return Numeric vector of probabilities
+my_pmf <- function(values, probs, x) {
+  # Validate inputs
+  stopifnot(length(values) == length(probs))
+  stopifnot(all(probs >= 0))
+  stopifnot(abs(sum(probs) - 1) < 1e-10)
+
+  # For each query point, find matching value and return its probability
+  sapply(x, function(xi) {
+    idx <- which(values == xi)
+    if (length(idx) == 0) return(0)
+    probs[idx]
+  })
+}
+
+# PMF for a fair die
+die_values <- 1:6
+die_probs <- rep(1/6, 6)
+
+# PMF of a fair die
+sapply(1:6, function(v) my_pmf(die_values, die_probs, v))
+
+# PMF for number of heads in 3 coin flips
+heads_values <- 0:3
+heads_probs <- c(1/8, 3/8, 3/8, 1/8)
+
+sapply(0:3, function(v) my_pmf(heads_values, heads_probs, v))
+
+# Query a value not in the support -- returns 0
+my_pmf(heads_values, heads_probs, 5)
+```
+
+### The Cumulative Distribution Function (CDF)
+
+The **cumulative distribution function** (CDF) of any random variable $X$ is
+
+$$
+F(x) = P(X \leq x)
+$$
+
+For a discrete random variable, this becomes
+
+$$
+F(x) = \sum_{t \leq x} p(t)
+$$
+
+The CDF accumulates probability as we move from left to right along the number line. It has the following properties:
+
+1. $F$ is non-decreasing: if $a < b$ then $F(a) \leq F(b)$.
+2. $\lim_{x \to -\infty} F(x) = 0$ and $\lim_{x \to \infty} F(x) = 1$.
+3. $F$ is right-continuous: $\lim_{h \to 0^+} F(x + h) = F(x)$.
+
+For discrete random variables, the CDF is a **step function** — it jumps at each value in the support and is flat in between.
+
+### Implementing the Discrete CDF from Scratch
+
+```{r cdf-discrete-scratch}
+#' Compute the CDF for a discrete random variable
+#'
+#' @param values Numeric vector of possible values (sorted)
+#' @param probs Numeric vector of corresponding probabilities
+#' @param x The value(s) at which to evaluate the CDF
+#' @return Numeric vector of cumulative probabilities
+my_cdf_discrete <- function(values, probs, x) {
+  # Ensure values are sorted
+  ord <- order(values)
+  values <- values[ord]
+  probs <- probs[ord]
+
+  sapply(x, function(xi) {
+    sum(probs[values <= xi])
+  })
+}
+
+# CDF of a fair die
+sapply(0:7, function(v) my_cdf_discrete(die_values, die_probs, v))
+```
+
+### Visualising PMF and CDF
+
+```{r pmf-cdf-discrete-plot, fig.cap="PMF (left) and CDF (right) for the number of heads in three fair coin flips. The PMF is a bar plot; the CDF is a step function.", fig.width=12, fig.height=5}
+box::use(ggplot2)
+box::use(patchwork)
+
+x_vals <- 0:3
+pmf_vals <- c(1/8, 3/8, 3/8, 1/8)
+
+# Build CDF values
+cdf_vals <- cumsum(pmf_vals)
+
+df_pmf <- data.frame(x = x_vals, pmf = pmf_vals)
+df_cdf <- data.frame(x = x_vals, cdf = cdf_vals)
+
+p1 <- ggplot2$ggplot(df_pmf, ggplot2$aes(x = x, y = pmf)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.5) +
+  ggplot2$scale_x_continuous(breaks = 0:3) +
+  ggplot2$scale_y_continuous(limits = c(0, 0.5)) +
+  ggplot2$labs(x = "x", y = "p(x)", title = "PMF") +
+  ggplot2$theme_minimal(base_size = 14)
+
+# Step function for CDF using segments for each step
+p2 <- ggplot2$ggplot() +
+  # Horizontal segments
+  ggplot2$geom_segment(
+    data = data.frame(
+      x_start = c(-0.5, x_vals),
+      x_end = c(x_vals, 3.5),
+      y = c(0, cdf_vals)
+    ),
+    ggplot2$aes(x = x_start, xend = x_end, y = y, yend = y),
+    linewidth = 0.8, colour = "#D55E00"
+  ) +
+  # Closed circles at jump destinations
+  ggplot2$geom_point(data = df_cdf, ggplot2$aes(x = x, y = cdf),
+    size = 3, colour = "#D55E00") +
+  # Open circles at jump origins
+  ggplot2$geom_point(
+    data = data.frame(x = x_vals, cdf = c(0, cdf_vals[-length(cdf_vals)])),
+    ggplot2$aes(x = x, y = cdf),
+    size = 3, colour = "#D55E00", shape = 1
+  ) +
+  ggplot2$scale_x_continuous(breaks = 0:3) +
+  ggplot2$scale_y_continuous(limits = c(0, 1.05)) +
+  ggplot2$labs(x = "x", y = "F(x)", title = "CDF (step function)") +
+  ggplot2$theme_minimal(base_size = 14)
+
+p1 + p2
+```
+
+Observe the CDF: it is flat between the possible values and jumps by exactly $p(x)$ at each value $x$. The closed circles indicate that the CDF includes the value at the jump point (right-continuity).
+
+---
+
+## 3.3 Continuous Random Variables
+
+A random variable $X$ is **continuous** if it can take on any value in an interval (or union of intervals) of the real line. Examples include Height, Weight, temperature, and time.
+
+Before we can properly define continuous random variables, we need a brief detour into integration.
+
+### Crash Course: Integration Basics
+
+**What is an integral?** The definite integral $\int_a^b f(x)\,dx$ represents the **signed area** under the curve $y = f(x)$ between $x = a$ and $x = b$. If $f(x) \geq 0$ on $[a, b]$, the integral is simply the area.
+
+Geometrically, imagine approximating the area by stacking thin rectangles of width $\Delta x$ and height $f(x_i)$. As the rectangles get thinner ($\Delta x \to 0$), the sum of their areas converges to the integral:
+
+$$
+\int_a^b f(x)\,dx = \lim_{n \to \infty} \sum_{i=1}^{n} f(x_i) \Delta x
+$$
+
+**Key properties** of integrals:
+
+1. **Linearity**: $\int_a^b [c_1 f(x) + c_2 g(x)]\,dx = c_1\int_a^b f(x)\,dx + c_2\int_a^b g(x)\,dx$
+2. **Additivity over intervals**: $\int_a^c f(x)\,dx = \int_a^b f(x)\,dx + \int_b^c f(x)\,dx$
+3. **Fundamental Theorem of Calculus**: If $F'(x) = f(x)$, then $\int_a^b f(x)\,dx = F(b) - F(a)$
+
+This is not a calculus course. You need only enough intuition to read the definitions that follow: an integral accumulates a function's values over an interval, just as a sum accumulates discrete values.
+
+```{r integration-demo}
+# R's integrate() function computes definite integrals numerically
+
+# integral of x^2 from 0 to 1 (should be 1/3)
+integrate(function(x) x^2, lower = 0, upper = 1)
+
+# integral of exp(-x) from 0 to infinity (should be 1)
+integrate(function(x) exp(-x), lower = 0, upper = Inf)
+
+# integral of dnorm(x) from -Inf to Inf (should be 1)
+integrate(dnorm, lower = -Inf, upper = Inf)
+```
+
+### The Probability Density Function (PDF)
+
+A random variable $X$ is continuous if there exists a non-negative function $f(x)$, called the **probability density function** (PDF), such that for any interval $[a, b]$:
+
+$$
+P(a \leq X \leq b) = \int_a^b f(x)\,dx
+$$
+
+The PDF must satisfy:
+
+1. **Non-negativity**: $f(x) \geq 0$ for all $x$.
+2. **Normalisation**: $\int_{-\infty}^{\infty} f(x)\,dx = 1$.
+
+### A Critical Insight: Density Is Not Probability
+
+This is perhaps the single most confusing point for newcomers to continuous probability, so let us be very clear:
+
+**$f(x)$ is NOT a probability.** It is a *density*. For a continuous random variable, $P(X = x) = 0$ for every single value $x$.
+
+Why? Because $P(X = x) = P(x \leq X \leq x) = \int_x^x f(t)\,dt = 0$. The integral over an interval of zero width is zero.
+
+This means that for continuous random variables, asking "what is the probability that $X$ equals exactly 3.7?" is meaningless — the answer is always zero. Instead, we ask "what is the probability that $X$ falls between 3.5 and 3.9?"
+
+**Analogy**: Think of a thin metal rod with varying density (mass per unit length). The density at a point tells you how concentrated the mass is *near* that point, but a single point has zero length and therefore zero mass. To find the mass of a section, you must integrate the density over an interval. Probability density works exactly the same way.
+
+Note that $f(x)$ can exceed 1. For example, the uniform distribution on $[0, 0.5]$ has $f(x) = 2$ for $x \in [0, 0.5]$. This is perfectly fine — densities are not probabilities.
+
+### CDF for Continuous Random Variables
+
+The CDF of a continuous random variable is
+
+$$
+F(x) = P(X \leq x) = \int_{-\infty}^{x} f(t)\,dt
+$$
+
+and the fundamental relationship between PDF and CDF is:
+
+$$
+f(x) = F'(x) = \frac{d}{dx}F(x)
+$$
+
+The PDF is the derivative of the CDF. Equivalently, the CDF is the integral (antiderivative) of the PDF. This is the continuous analogue of the discrete relationship $p(x) = F(x) - F(x^-)$, where $F(x^-)$ is the left-hand limit.
+
+### R Demonstration: The Uniform Distribution
+
+The simplest continuous distribution is the **uniform distribution** on $[a, b]$:
+
+$$
+f(x) = \begin{cases} \frac{1}{b - a} & \text{if } a \leq x \leq b \\ 0 & \text{otherwise} \end{cases}
+$$
+
+Every value in $[a, b]$ is equally likely (in the density sense). Let us implement this and verify it.
+
+```{r uniform-pdf-cdf}
+# Uniform(0, 1) PDF and CDF from scratch
+my_uniform_pdf <- function(x, a = 0, b = 1) {
+  ifelse(x >= a & x <= b, 1 / (b - a), 0)
+}
+
+my_uniform_cdf <- function(x, a = 0, b = 1) {
+  ifelse(x < a, 0, ifelse(x > b, 1, (x - a) / (b - a)))
+}
+
+# Verify normalisation (should be 1)
+integrate(my_uniform_pdf, lower = -Inf, upper = Inf)
+
+# Compute P(0.3 <= X <= 0.7) (exact: 0.4)
+integrate(my_uniform_pdf, lower = 0.3, upper = 0.7)
+
+# Equivalently via CDF
+my_uniform_cdf(0.7) - my_uniform_cdf(0.3)
+```
+
+### Visualising PDF and CDF
+
+```{r pdf-cdf-continuous-plot, fig.cap="PDF (left) and CDF (right) for the Uniform(0,1) distribution. The shaded region in the PDF corresponds to P(0.3 <= X <= 0.7) = 0.4.", fig.width=12, fig.height=5}
+box::use(ggplot2)
+box::use(patchwork)
+
+x_seq <- seq(-0.5, 1.5, length.out = 500)
+
+df <- data.frame(
+  x = x_seq,
+  pdf = my_uniform_pdf(x_seq),
+  cdf = my_uniform_cdf(x_seq)
+)
+
+# Shaded region
+shade_df <- data.frame(
+  x = seq(0.3, 0.7, length.out = 100),
+  pdf = my_uniform_pdf(seq(0.3, 0.7, length.out = 100))
+)
+
+p1 <- ggplot2$ggplot(df, ggplot2$aes(x = x, y = pdf)) +
+  ggplot2$geom_area(data = shade_df, ggplot2$aes(x = x, y = pdf),
+    fill = "#0072B2", alpha = 0.3) +
+  ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+  ggplot2$annotate("text", x = 0.5, y = 0.5,
+    label = "P(0.3 <= X <= 0.7) = 0.4", size = 4) +
+  ggplot2$labs(x = "x", y = "f(x)", title = "PDF") +
+  ggplot2$theme_minimal(base_size = 14)
+
+p2 <- ggplot2$ggplot(df, ggplot2$aes(x = x, y = cdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#D55E00") +
+  ggplot2$geom_segment(ggplot2$aes(x = 0.3, xend = 0.3, y = 0, yend = 0.3),
+    linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_segment(ggplot2$aes(x = 0.7, xend = 0.7, y = 0, yend = 0.7),
+    linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_segment(ggplot2$aes(x = -0.5, xend = 0.3, y = 0.3, yend = 0.3),
+    linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_segment(ggplot2$aes(x = -0.5, xend = 0.7, y = 0.7, yend = 0.7),
+    linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(x = "x", y = "F(x)", title = "CDF") +
+  ggplot2$theme_minimal(base_size = 14)
+
+p1 + p2
+```
+
+### Comparing Discrete and Continuous
+
+```{r discrete-vs-continuous, fig.cap="Discrete (top) vs. continuous (bottom) random variables. Discrete RVs have bar-plot PMFs and step-function CDFs. Continuous RVs have smooth PDFs and smooth CDFs.", fig.width=12, fig.height=9}
+box::use(ggplot2)
+box::use(patchwork)
+
+# --- Discrete: Binomial(5, 0.4) ---
+n <- 5; prob <- 0.4
+x_disc <- 0:n
+pmf_disc <- dbinom(x_disc, n, prob)
+cdf_disc <- pbinom(x_disc, n, prob)
+
+df_disc_pmf <- data.frame(x = x_disc, y = pmf_disc)
+df_disc_cdf <- data.frame(x = x_disc, y = cdf_disc)
+
+p_disc_pmf <- ggplot2$ggplot(df_disc_pmf, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.5) +
+  ggplot2$labs(x = "x", y = "p(x)", title = "Discrete PMF: Binomial(5, 0.4)") +
+  ggplot2$theme_minimal(base_size = 13)
+
+p_disc_cdf <- ggplot2$ggplot() +
+  ggplot2$geom_segment(
+    data = data.frame(
+      x_start = c(-0.5, x_disc),
+      x_end = c(x_disc, n + 0.5),
+      y = c(0, cdf_disc)
+    ),
+    ggplot2$aes(x = x_start, xend = x_end, y = y, yend = y),
+    linewidth = 0.8, colour = "#D55E00"
+  ) +
+  ggplot2$geom_point(data = df_disc_cdf, ggplot2$aes(x = x, y = y),
+    size = 2.5, colour = "#D55E00") +
+  ggplot2$labs(x = "x", y = "F(x)", title = "Discrete CDF (step function)") +
+  ggplot2$theme_minimal(base_size = 13)
+
+# --- Continuous: Normal(2, 1) ---
+x_cont <- seq(-2, 6, length.out = 500)
+df_cont <- data.frame(
+  x = x_cont,
+  pdf = dnorm(x_cont, mean = 2, sd = 1),
+  cdf = pnorm(x_cont, mean = 2, sd = 1)
+)
+
+p_cont_pdf <- ggplot2$ggplot(df_cont, ggplot2$aes(x = x, y = pdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+  ggplot2$labs(x = "x", y = "f(x)", title = "Continuous PDF: Normal(2, 1)") +
+  ggplot2$theme_minimal(base_size = 13)
+
+p_cont_cdf <- ggplot2$ggplot(df_cont, ggplot2$aes(x = x, y = cdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#D55E00") +
+  ggplot2$labs(x = "x", y = "F(x)", title = "Continuous CDF (smooth)") +
+  ggplot2$theme_minimal(base_size = 13)
+
+(p_disc_pmf | p_disc_cdf) / (p_cont_pdf | p_cont_cdf)
+```
+
+The contrast is stark. Discrete distributions produce bar charts and staircase CDFs; continuous distributions produce smooth curves throughout. Yet both obey the same fundamental rules: probabilities (or densities) are non-negative, and the total probability is one.
+
+---
+
+## 3.4 The Quantile Function
+
+The **quantile function** (or inverse CDF) is defined as:
+
+$$
+Q(p) = F^{-1}(p) = \inf\{x : F(x) \geq p\} \quad \text{for } 0 < p < 1
+$$
+
+In plain English: $Q(p)$ is the smallest value $x$ such that the probability of $X$ being at most $x$ is at least $p$. The quantile function answers the question: "Below what value does $p \times 100\%$ of the distribution fall?"
+
+For continuous distributions with strictly increasing CDFs, the quantile function is simply the algebraic inverse of $F$. For discrete distributions, we use the infimum definition because the CDF has flat regions.
+
+### The Quantile Function in R
+
+R provides quantile functions for every built-in distribution, named with the `q` prefix:
+
+```{r quantile-demo}
+# Standard normal: what value has 95% of the distribution below it?
+q95 <- qnorm(0.95)
+q95
+pnorm(q95)  # verify: should be 0.95
+
+# Median of an Exponential(rate = 2)
+med <- qexp(0.5, rate = 2)
+med
+pexp(med, rate = 2)  # verify: should be 0.5
+
+# Quartiles of a Chi-squared(df = 5)
+qchisq(c(0.25, 0.50, 0.75), df = 5)
+```
+
+### Visualising the CDF-Quantile Relationship
+
+```{r cdf-quantile-relationship, fig.cap="The quantile function Q(p) is the inverse of the CDF F(x). To find Q(0.75), draw a horizontal line at 0.75 on the CDF and read off the x-value.", fig.width=10, fig.height=5}
+box::use(ggplot2)
+box::use(patchwork)
+
+x_seq <- seq(-3, 3, length.out = 500)
+p_seq <- seq(0.001, 0.999, length.out = 500)
+
+df <- data.frame(
+  x = x_seq,
+  cdf = pnorm(x_seq),
+  p = p_seq,
+  quantile = qnorm(p_seq)
+)
+
+# CDF plot with annotation for p = 0.75
+q75 <- qnorm(0.75)
+
+p1 <- ggplot2$ggplot(df, ggplot2$aes(x = x, y = cdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+  ggplot2$geom_segment(ggplot2$aes(x = -3, xend = q75, y = 0.75, yend = 0.75),
+    linetype = "dashed", colour = "red") +
+  ggplot2$geom_segment(ggplot2$aes(x = q75, xend = q75, y = 0, yend = 0.75),
+    linetype = "dashed", colour = "red") +
+  ggplot2$geom_point(ggplot2$aes(x = q75, y = 0.75), colour = "red", size = 3) +
+  ggplot2$annotate("text", x = q75 + 0.3, y = 0.5,
+    label = sprintf("Q(0.75) = %.2f", q75), size = 4, hjust = 0) +
+  ggplot2$labs(x = "x", y = "F(x) = P(X <= x)", title = "CDF: F(x)") +
+  ggplot2$theme_minimal(base_size = 14)
+
+# Quantile function plot
+p2 <- ggplot2$ggplot(df, ggplot2$aes(x = p, y = quantile)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#D55E00") +
+  ggplot2$geom_segment(ggplot2$aes(x = 0.75, xend = 0.75, y = -3, yend = q75),
+    linetype = "dashed", colour = "red") +
+  ggplot2$geom_segment(ggplot2$aes(x = 0, xend = 0.75, y = q75, yend = q75),
+    linetype = "dashed", colour = "red") +
+  ggplot2$geom_point(ggplot2$aes(x = 0.75, y = q75), colour = "red", size = 3) +
+  ggplot2$labs(x = "p", y = "Q(p)", title = "Quantile function: Q(p)") +
+  ggplot2$theme_minimal(base_size = 14)
+
+p1 + p2
+```
+
+The CDF and quantile function are mirror images of each other, reflected across the line $y = x$. The CDF asks "given a value, what probability?"; the quantile function asks "given a probability, what value?"
+
+### The Four Functions in R
+
+For every distribution in R, there are four functions following a consistent naming convention:
+
+| Prefix | Function | Example (Normal) |
+|:---|:---|:---|
+| `d` | Density/mass function | `dnorm(x)` |
+| `p` | CDF (cumulative probability) | `pnorm(q)` |
+| `q` | Quantile function (inverse CDF) | `qnorm(p)` |
+| `r` | Random number generation | `rnorm(n)` |
+
+This pattern holds for `binom`, `pois`, `unif`, `exp`, `gamma`, `chisq`, `t`, `f`, and many more.
+
+```{r four-functions}
+# The four normal distribution functions
+dnorm(0)       # density at x = 0
+pnorm(0)       # CDF at x = 0
+qnorm(0.975)   # 97.5th percentile
+
+set.seed(42)
+rnorm(5)        # 5 random draws
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining random variables to a non-technical audience, focus on the mapping idea: "A random variable is a rule that converts uncertain outcomes into numbers." Avoid the formal measure-theoretic definition. Instead, use concrete examples: "If we randomly sample a customer, their spending amount is a random variable."
+
+For the PMF/PDF distinction, use the weight analogy: in a bag of distinctly labelled balls, each ball has a specific probability of being drawn (PMF). In contrast, for something like Height, we talk about the probability of falling within a range, not of being exactly a particular value (PDF).
+
+When discussing CDFs, the phrase "the probability of being at or below a threshold" is universally understood.
+
+---
+
+## Quick Reference
+
+| Concept | Discrete | Continuous |
+|:---|:---|:---|
+| **Probability function** | PMF: $p(x) = P(X = x)$ | PDF: $f(x)$, where $P(a \leq X \leq b) = \int_a^b f(x)\,dx$ |
+| **CDF** | $F(x) = \sum_{t \leq x} p(t)$ | $F(x) = \int_{-\infty}^{x} f(t)\,dt$ |
+| **Key constraint** | $\sum_x p(x) = 1$ | $\int_{-\infty}^{\infty} f(x)\,dx = 1$ |
+| **$P(X = x)$** | $= p(x) \geq 0$ | $= 0$ always |
+| **Quantile** | $Q(p) = \inf\{x : F(x) \geq p\}$ | $Q(p) = F^{-1}(p)$ |
+| **R density** | `dbinom(x, n, p)` | `dnorm(x, mu, sigma)` |
+| **R CDF** | `pbinom(q, n, p)` | `pnorm(q, mu, sigma)` |
+| **R quantile** | `qbinom(p, n, p)` | `qnorm(p, mu, sigma)` |
+| **R random** | `rbinom(n, size, p)` | `rnorm(n, mu, sigma)` |
+
+---
+
+## Exercises
+
+**Exercise 3.1.** Let $X$ be the number of sixes in four rolls of a fair die. (a) Write out the PMF of $X$. (b) Compute $P(X \geq 2)$. (c) Plot the PMF and CDF in R.
+
+**Exercise 3.2.** Implement a function `my_cdf_continuous(f, x)` that takes a PDF function `f` and a value `x`, and returns $F(x) = \int_{-\infty}^{x} f(t)\,dt$ using `integrate()`.
+
+**Exercise 3.3.** The triangular distribution on $[0, 2]$ has PDF $f(x) = x$ for $0 \leq x \leq 1$ and $f(x) = 2 - x$ for $1 < x \leq 2$ (and zero elsewhere). (a) Verify that this is a valid PDF. (b) Derive the CDF. (c) Plot both. (d) Find the median (i.e., $Q(0.5)$).
+
+**Exercise 3.4.** Generate 10,000 samples from a Uniform(0,1) distribution. (a) Plot a histogram and overlay the theoretical PDF. (b) Plot the empirical CDF (using `ecdf()`) and overlay the theoretical CDF. (c) At what sample size do the empirical and theoretical curves become visually indistinguishable?
+
+**Exercise 3.5.** Prove that for any CDF $F$, we have $P(a < X \leq b) = F(b) - F(a)$. Explain why the strict inequality is on the left for a right-continuous CDF.

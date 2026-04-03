@@ -32,10 +32,8 @@ jobs:
 
           if [ "$ENV" = "prod" ]; then
             echo "domain=derecksnotes.com" >> $GITHUB_OUTPUT
-            echo "repo_dir=/opt/derecksnotes/prod" >> $GITHUB_OUTPUT
           else
             echo "domain=dev.derecksnotes.com" >> $GITHUB_OUTPUT
-            echo "repo_dir=/opt/derecksnotes/dev" >> $GITHUB_OUTPUT
           fi
 
           echo "env=$ENV" >> $GITHUB_OUTPUT
@@ -54,34 +52,29 @@ jobs:
             DB_PATH="/var/www/${DOMAIN}/data/database.sqlite"
             BACKUP_DIR="/var/www/${DOMAIN}/backups"
             MAX_BACKUPS="${{ steps.vars.outputs.max_backups }}"
-            REPO_DIR="${{ steps.vars.outputs.repo_dir }}"
 
-            # Use the backup script from the repo if available
-            if [ -f "${REPO_DIR}/scripts/backup-db.sh" ]; then
-              bash "${REPO_DIR}/scripts/backup-db.sh" "$DB_PATH" "$BACKUP_DIR" "$MAX_BACKUPS"
-            else
-              # Fallback: inline backup
-              echo "Warning: backup-db.sh not found, running inline backup"
-
-              if [ ! -f "$DB_PATH" ]; then
-                echo "Database not found: $DB_PATH"
-                exit 1
-              fi
-
-              mkdir -p "$BACKUP_DIR"
-              TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
-              BACKUP="${BACKUP_DIR}/db-${TIMESTAMP}.sqlite"
-
-              sqlite3 "$DB_PATH" ".backup '${BACKUP}'"
-              gzip "$BACKUP"
-
-              # Rotate
-              BACKUP_COUNT=$(find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f | wc -l)
-              if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
-                DELETE_COUNT=$((BACKUP_COUNT - MAX_BACKUPS))
-                find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f -printf '%T@ %p\n' \
-                  | sort -n | head -n "$DELETE_COUNT" | cut -d' ' -f2- | xargs rm -f
-              fi
-
-              echo "Backup complete: db-${TIMESTAMP}.sqlite.gz"
+            if [ ! -f "$DB_PATH" ]; then
+              echo "Database not found: $DB_PATH"
+              exit 1
             fi
+
+            mkdir -p "$BACKUP_DIR"
+            TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
+            BACKUP="${BACKUP_DIR}/db-${TIMESTAMP}.sqlite"
+
+            echo "Backing up: $DB_PATH"
+            sqlite3 "$DB_PATH" ".backup '${BACKUP}'"
+            gzip "$BACKUP"
+            echo "Created: db-${TIMESTAMP}.sqlite.gz"
+
+            # Rotate — keep last N backups
+            BACKUP_COUNT=$(find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f | wc -l)
+            if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
+              DELETE_COUNT=$((BACKUP_COUNT - MAX_BACKUPS))
+              echo "Rotating: removing ${DELETE_COUNT} old backup(s)..."
+              find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f -printf '%T@ %p\n' \
+                | sort -n | head -n "$DELETE_COUNT" | cut -d' ' -f2- | xargs rm -f
+            fi
+
+            REMAINING=$(find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f | wc -l)
+            echo "Done. ${REMAINING} backup(s) in ${BACKUP_DIR}"

@@ -1,0 +1,591 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 5: Continuous Distributions"
+part: "Part 2: Normal and Derived Distributions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 5 -- Continuous Distributions
+
+## Part 2: Normal and Derived Distributions
+
+The normal (Gaussian) distribution is the most important distribution in all of statistics. It appears everywhere -- not by coincidence, but because of deep mathematical theorems (the central limit theorem, the maximum entropy principle) that force it to arise in a vast range of settings. In this part, we derive its properties from scratch, then construct the three distributions that flow from it: the chi-square, Student's $t$, and Fisher's $F$. These "derived" distributions are the backbone of classical statistical inference.
+
+---
+
+## 5.4 The Normal (Gaussian) Distribution
+
+### 5.4.1 Why the Normal?
+
+Three independent lines of reasoning all point to the same distribution:
+
+1. **The Central Limit Theorem (preview).** The sum (or average) of many independent random variables, regardless of their individual distributions, tends toward a normal distribution. We prove this rigorously in Chapter 7, but the intuition is simple: aggregation washes out the idiosyncrasies of individual variables, leaving a universal bell shape.
+
+2. **Maximum entropy.** Among all distributions on $(-\infty, \infty)$ with a given mean $\mu$ and variance $\sigma^2$, the normal has the *highest entropy* -- it is the distribution that makes the fewest assumptions beyond specifying the first two moments. If all you know is the mean and variance, the normal is the most honest guess.
+
+3. **Stability under addition.** The normal is *closed* under linear combinations: if $X$ and $Y$ are independent normals, then $aX + bY$ is also normal. This algebraic convenience makes the normal uniquely tractable.
+
+### 5.4.2 The PDF
+
+A random variable $X$ has a **normal distribution** with mean $\mu$ and variance $\sigma^2$ -- written $X \sim N(\mu, \sigma^2)$ -- if its PDF is:
+
+$$f(x) = \frac{1}{\sigma\sqrt{2\pi}} \exp\left(-\frac{(x - \mu)^2}{2\sigma^2}\right), \quad -\infty < x < \infty.$$
+
+The special case $\mu = 0$, $\sigma = 1$ is the **standard normal**, denoted $Z \sim N(0, 1)$:
+
+$$\phi(z) = \frac{1}{\sqrt{2\pi}} e^{-z^2/2}.$$
+
+**Verifying it integrates to 1.** This is the famous Gaussian integral. The trick is to square the integral and convert to polar coordinates:
+
+$$\left(\int_{-\infty}^\infty e^{-z^2/2}\,dz\right)^2 = \int_{-\infty}^\infty \int_{-\infty}^\infty e^{-(x^2 + y^2)/2}\,dx\,dy = \int_0^{2\pi}\int_0^\infty r\,e^{-r^2/2}\,dr\,d\theta = 2\pi.$$
+
+Therefore $\int_{-\infty}^\infty e^{-z^2/2}\,dz = \sqrt{2\pi}$, confirming that $\phi(z)$ integrates to 1.
+
+### 5.4.3 Deriving the Moments
+
+**Mean of the standard normal.** The function $z \cdot e^{-z^2/2}$ is odd (antisymmetric about zero), so $E[Z] = 0$.
+
+**Variance of the standard normal.** Integration by parts with $u = z$ and $dv = z e^{-z^2/2}\,dz$:
+
+$$E[Z^2] = \frac{1}{\sqrt{2\pi}} \int_{-\infty}^\infty z^2 e^{-z^2/2}\,dz = \frac{1}{\sqrt{2\pi}} \left[-z e^{-z^2/2}\Big|_{-\infty}^\infty + \int_{-\infty}^\infty e^{-z^2/2}\,dz\right] = \frac{1}{\sqrt{2\pi}} \cdot \sqrt{2\pi} = 1.$$
+
+So $\text{Var}(Z) = E[Z^2] - (E[Z])^2 = 1 - 0 = 1$. $\checkmark$
+
+**General normal.** If $X = \mu + \sigma Z$, then $E[X] = \mu$ and $\text{Var}(X) = \sigma^2$, confirming the parameters.
+
+### 5.4.4 The Moment-Generating Function
+
+The MGF of $Z \sim N(0, 1)$ is:
+
+$$M_Z(t) = E[e^{tZ}] = \frac{1}{\sqrt{2\pi}} \int_{-\infty}^\infty e^{tz} e^{-z^2/2}\,dz.$$
+
+Complete the square in the exponent: $tz - z^2/2 = -(z - t)^2/2 + t^2/2$. So:
+
+$$M_Z(t) = e^{t^2/2} \cdot \frac{1}{\sqrt{2\pi}} \int_{-\infty}^\infty e^{-(z-t)^2/2}\,dz = e^{t^2/2}.$$
+
+For $X \sim N(\mu, \sigma^2)$: $M_X(t) = e^{\mu t + \sigma^2 t^2/2}$.
+
+### 5.4.5 Linear Combinations of Normals
+
+**Theorem.** If $X_1 \sim N(\mu_1, \sigma_1^2)$ and $X_2 \sim N(\mu_2, \sigma_2^2)$ are independent, then for constants $a, b$:
+
+$$aX_1 + bX_2 \sim N(a\mu_1 + b\mu_2,\; a^2\sigma_1^2 + b^2\sigma_2^2).$$
+
+**Proof via MGF.**
+
+$$M_{aX_1 + bX_2}(t) = M_{X_1}(at) \cdot M_{X_2}(bt) = e^{a\mu_1 t + a^2\sigma_1^2 t^2/2} \cdot e^{b\mu_2 t + b^2\sigma_2^2 t^2/2} = e^{(a\mu_1 + b\mu_2)t + (a^2\sigma_1^2 + b^2\sigma_2^2)t^2/2}.$$
+
+This is the MGF of $N(a\mu_1 + b\mu_2, a^2\sigma_1^2 + b^2\sigma_2^2)$. Since the MGF uniquely determines the distribution, the result follows. $\square$
+
+### 5.4.6 Z-Scores: Standardisation
+
+If $X \sim N(\mu, \sigma^2)$, the **Z-score** or **standardised value** is:
+
+$$Z = \frac{X - \mu}{\sigma} \sim N(0, 1).$$
+
+This allows us to convert any normal probability into a standard normal probability. In R, the four standard functions handle this:
+
+- `dnorm(x, mean, sd)` -- density
+- `pnorm(x, mean, sd)` -- CDF (probability to the left)
+- `qnorm(p, mean, sd)` -- quantile (inverse CDF)
+- `rnorm(n, mean, sd)` -- random generation
+
+### 5.4.7 Interactive: Normal Distribution with Sliding μ and σ
+
+<InteractivePlot
+  controls={[
+    { id: "mu", type: "range", label: "μ", min: -4, max: 4, step: 0.1, default: 0 },
+    { id: "sigma", type: "range", label: "σ", min: 0.3, max: 3, step: 0.1, default: 1 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var mu = params.mu, sigma = params.sigma;
+    var w = canvas.width, h = canvas.height;
+    var pad = 50;
+
+    // Axes
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad); ctx.lineTo(w - 10, h - pad);
+    ctx.moveTo(pad, h - pad); ctx.lineTo(pad, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#333'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('x', w / 2, h - 5);
+
+    // Title
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('N(μ = ' + mu.toFixed(1) + ', σ = ' + sigma.toFixed(1) + ')', w / 2, 25);
+
+    var xMin = -8, xMax = 8;
+    var yMax = 0.5;
+    var plotW = w - pad - 20, plotH = h - pad - 40;
+
+    function toX(x) { return pad + ((x - xMin) / (xMax - xMin)) * plotW; }
+    function toY(y) { return (h - pad) - (y / yMax) * plotH; }
+
+    // Ticks
+    ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
+    for (var tx = -6; tx <= 6; tx += 2) {
+      var cx = toX(tx);
+      ctx.beginPath(); ctx.moveTo(cx, h - pad); ctx.lineTo(cx, h - pad + 5); ctx.stroke();
+      ctx.fillText(tx.toString(), cx, h - pad + 18);
+    }
+
+    // Standard normal reference (grey)
+    ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    for (var i = 0; i <= 400; i++) {
+      var x = xMin + (i / 400) * (xMax - xMin);
+      var y = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-x * x / 2);
+      if (i === 0) ctx.moveTo(toX(x), toY(y));
+      else ctx.lineTo(toX(x), toY(y));
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Normal PDF
+    ctx.strokeStyle = '#0072B2'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    var first = true;
+    for (var i = 0; i <= 400; i++) {
+      var x = xMin + (i / 400) * (xMax - xMin);
+      var z = (x - mu) / sigma;
+      var y = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-z * z / 2);
+      if (first) { ctx.moveTo(toX(x), toY(y)); first = false; }
+      else ctx.lineTo(toX(x), toY(y));
+    }
+    ctx.stroke();
+
+    // Fill
+    ctx.fillStyle = 'rgba(0, 114, 178, 0.12)';
+    ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0));
+    for (var i = 0; i <= 400; i++) {
+      var x = xMin + (i / 400) * (xMax - xMin);
+      var z = (x - mu) / sigma;
+      var y = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-z * z / 2);
+      ctx.lineTo(toX(x), toY(y));
+    }
+    ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+
+    // Mean line
+    ctx.strokeStyle = '#D55E00'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(toX(mu), toY(0));
+    var peakY = 1 / (sigma * Math.sqrt(2 * Math.PI));
+    ctx.lineTo(toX(mu), toY(peakY)); ctx.stroke(); ctx.setLineDash([]);
+
+    ctx.fillStyle = '#999'; ctx.font = '11px sans-serif';
+    ctx.fillText('grey dashed = N(0,1) reference', w - 120, 45);
+  `}
+  width={600}
+  Height={400}
+/>
+
+### 5.4.8 NHANES: Heights Are Approximately Normal
+
+Real human measurements frequently follow the normal distribution. Let us check this with NHANES data.
+
+```{r nhanes-heights, fig.cap="Distribution of adult heights in NHANES, stratified by sex. Both distributions are approximately normal."}
+box::use(ggplot2)
+box::use(data.table)
+
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Filter to adults with recorded height
+adults <- nhanes[!is.na(Height) & Age >= 18]
+
+ggplot2$ggplot(adults, ggplot2$aes(x = Height)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, fill = "#0072B2", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_density(colour = "#D55E00", linewidth = 1) +
+  ggplot2$facet_wrap(~Gender, scales = "free_y") +
+  ggplot2$labs(
+    x = "Height (cm)", y = "Density",
+    title = "NHANES adult heights by sex"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+```{r nhanes-height-stats}
+adults[, .(mean_ht = mean(Height, na.rm = TRUE),
+           sd_ht = sd(Height, na.rm = TRUE),
+           n = .N), by = Gender]
+```
+
+The bell-shaped histograms and the close match between the kernel density and a normal curve confirm that height is well-modelled by a normal distribution within each sex.
+
+### 5.4.9 NHANES: Blood Pressure
+
+```{r nhanes-bp, fig.cap="Systolic blood pressure in NHANES adults. The distribution is approximately normal, with a slight right skew from hypertensive individuals."}
+bp_data <- nhanes[!is.na(BPSysAve) & Age >= 18]
+
+ggplot2$ggplot(bp_data, ggplot2$aes(x = BPSysAve)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 45, fill = "#009E73", alpha = 0.5, colour = "white"
+  ) +
+  ggplot2$geom_density(colour = "#D55E00", linewidth = 1) +
+  ggplot2$labs(
+    x = "Systolic blood pressure (mmHg)", y = "Density",
+    title = "NHANES adult systolic blood pressure"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+Blood pressure is approximately normal with a slight right skew -- the bulk of the population clusters around the mean, with a tail of high values from hypertensive individuals. This is typical of many biological measurements.
+
+---
+
+## 5.5 Distributions Derived from the Normal
+
+The normal distribution is a *mother* distribution. Three children flow from it: the chi-square, the $t$, and the $F$. Each is defined as a specific algebraic transformation of normal random variables, and each plays a starring role in classical inference.
+
+### 5.5.1 The Chi-Square Distribution
+
+**Definition.** If $Z_1, Z_2, \ldots, Z_k$ are independent $N(0, 1)$ random variables, then
+
+$$Q = Z_1^2 + Z_2^2 + \cdots + Z_k^2 \sim \chi^2_k.$$
+
+The parameter $k$ is called the **degrees of freedom** (df).
+
+**Deriving the PDF for $k = 1$.** When $k = 1$, $Q = Z^2$ where $Z \sim N(0, 1)$. We use the CDF method.
+
+For $q > 0$:
+
+$$F_Q(q) = P(Z^2 \le q) = P(-\sqrt{q} \le Z \le \sqrt{q}) = 2\Phi(\sqrt{q}) - 1,$$
+
+where $\Phi$ is the standard normal CDF. Differentiating:
+
+$$f_Q(q) = 2\phi(\sqrt{q}) \cdot \frac{1}{2\sqrt{q}} = \frac{1}{\sqrt{q}} \cdot \frac{1}{\sqrt{2\pi}} e^{-q/2} = \frac{1}{2^{1/2} \Gamma(1/2)} q^{1/2 - 1} e^{-q/2}.$$
+
+This is a $\text{Gamma}(1/2, 1/2)$ density. Recall from Part 1 that $\Gamma(1/2) = \sqrt{\pi}$.
+
+**General $k$: using the Gamma connection.** Since $Z_i^2 \sim \text{Gamma}(1/2, 1/2)$ and the sum of independent Gamma variables with the same rate is Gamma:
+
+$$Q = \sum_{i=1}^k Z_i^2 \sim \text{Gamma}(k/2, 1/2) = \chi^2_k.$$
+
+The PDF is therefore:
+
+$$f(q; k) = \frac{1}{2^{k/2}\,\Gamma(k/2)}\, q^{k/2 - 1}\, e^{-q/2}, \quad q > 0.$$
+
+**Moments:**
+
+$$E[Q] = k, \qquad \text{Var}(Q) = 2k.$$
+
+These follow directly from the Gamma moments: $E = \alpha/\lambda = (k/2)/(1/2) = k$.
+
+### 5.5.2 Student's $t$-Distribution
+
+**Definition.** If $Z \sim N(0, 1)$ and $V \sim \chi^2_k$ are independent, then
+
+$$T = \frac{Z}{\sqrt{V/k}} \sim t_k.$$
+
+**Deriving the PDF.** This derivation is dense but important. We use the joint density and integrate out the chi-square variable.
+
+The joint density of $(Z, V)$ is:
+
+$$f_{Z,V}(z, v) = \phi(z) \cdot f_{\chi^2_k}(v) = \frac{1}{\sqrt{2\pi}} e^{-z^2/2} \cdot \frac{v^{k/2-1} e^{-v/2}}{2^{k/2}\Gamma(k/2)}.$$
+
+We want the density of $T = Z / \sqrt{V/k}$. Substitute $z = t\sqrt{v/k}$ (so $dz = \sqrt{v/k}\,dt$) and integrate over $v$:
+
+$$f_T(t) = \int_0^\infty \frac{1}{\sqrt{2\pi}} e^{-t^2 v/(2k)} \cdot \frac{v^{k/2-1} e^{-v/2}}{2^{k/2}\Gamma(k/2)} \cdot \sqrt{\frac{v}{k}}\,dv.$$
+
+Collect powers of $v$ and exponentials:
+
+$$f_T(t) = \frac{1}{\sqrt{2\pi k}\,2^{k/2}\Gamma(k/2)} \int_0^\infty v^{(k+1)/2 - 1} \exp\left(-\frac{v}{2}\left(1 + \frac{t^2}{k}\right)\right)dv.$$
+
+The integral is a Gamma integral. With $\beta = \frac{1}{2}(1 + t^2/k)$:
+
+$$\int_0^\infty v^{(k+1)/2 - 1} e^{-\beta v}\,dv = \frac{\Gamma((k+1)/2)}{\beta^{(k+1)/2}}.$$
+
+Substituting and simplifying yields:
+
+$$\boxed{f_T(t) = \frac{\Gamma\!\left(\frac{k+1}{2}\right)}{\sqrt{k\pi}\;\Gamma\!\left(\frac{k}{2}\right)} \left(1 + \frac{t^2}{k}\right)^{-(k+1)/2}, \quad -\infty < t < \infty.}$$
+
+**Key properties:**
+
+- $E[T] = 0$ (for $k > 1$); the distribution is symmetric.
+- $\text{Var}(T) = k/(k - 2)$ for $k > 2$; heavier tails than the normal.
+- As $k \to \infty$, $t_k \to N(0, 1)$.
+
+### 5.5.3 Fisher's $F$-Distribution
+
+**Definition.** If $U \sim \chi^2_{d_1}$ and $V \sim \chi^2_{d_2}$ are independent, then
+
+$$F = \frac{U/d_1}{V/d_2} \sim F_{d_1, d_2}.$$
+
+**Deriving the PDF.** The approach mirrors the $t$-derivation. Write $F = \frac{d_2}{d_1} \cdot \frac{U}{V}$ and use the ratio distribution formula with Gamma densities.
+
+Starting from independent Gamma variables $U \sim \text{Gamma}(d_1/2, 1/2)$ and $V \sim \text{Gamma}(d_2/2, 1/2)$, and setting $W = U/V$, the density of $W$ involves a Beta function:
+
+$$f_W(w) = \frac{\Gamma((d_1+d_2)/2)}{\Gamma(d_1/2)\Gamma(d_2/2)} \cdot \frac{w^{d_1/2-1}}{(1+w)^{(d_1+d_2)/2}}, \quad w > 0.$$
+
+Applying the linear transformation $F = (d_2/d_1)W$ yields:
+
+$$\boxed{f_F(x) = \frac{\Gamma\!\left(\frac{d_1+d_2}{2}\right)}{\Gamma\!\left(\frac{d_1}{2}\right)\Gamma\!\left(\frac{d_2}{2}\right)} \left(\frac{d_1}{d_2}\right)^{d_1/2} \frac{x^{d_1/2-1}}{\left(1 + \frac{d_1}{d_2}x\right)^{(d_1+d_2)/2}}, \quad x > 0.}$$
+
+**Key properties:**
+
+- $E[F] = d_2/(d_2 - 2)$ for $d_2 > 2$.
+- The $F$-distribution is always right-skewed.
+- If $T \sim t_k$, then $T^2 \sim F_{1, k}$.
+
+### 5.5.4 R: Visualising the Chi-Square, $t$, and $F$
+
+```{r chisq-shapes, fig.cap="Chi-square densities for various degrees of freedom. As k increases, the density shifts rightward and becomes more symmetric."}
+box::use(ggplot2)
+box::use(data.table)
+
+dfs <- c(1, 2, 3, 5, 10, 20)
+x_seq <- seq(0.01, 40, length.out = 500)
+
+df_chisq <- data.table$rbindlist(lapply(dfs, function(k) {
+  data.table$data.table(
+    x = x_seq,
+    y = dchisq(x_seq, df = k),
+    df = paste0("k = ", k)
+  )
+}))
+
+ggplot2$ggplot(df_chisq, ggplot2$aes(x = x, y = y, colour = df)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(
+    "#E69F00", "#D55E00", "#0072B2", "#009E73", "#CC79A7", "#56B4E9"
+  )) +
+  ggplot2$coord_cartesian(xlim = c(0, 35), ylim = c(0, 0.5)) +
+  ggplot2$labs(
+    x = "x", y = "Density", colour = "Degrees of freedom",
+    title = "The chi-square family"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r t-shapes, fig.cap="Student's t-densities for various degrees of freedom, with the standard normal (grey dashed) for comparison. Heavy tails diminish as k increases."}
+dfs_t <- c(1, 2, 5, 10, 30)
+x_seq <- seq(-5, 5, length.out = 500)
+
+df_t <- data.table$rbindlist(lapply(dfs_t, function(k) {
+  data.table$data.table(
+    x = x_seq,
+    y = dt(x_seq, df = k),
+    df = paste0("k = ", k)
+  )
+}))
+
+df_norm <- data.table$data.table(
+  x = x_seq,
+  y = dnorm(x_seq),
+  df = "N(0,1)"
+)
+
+df_all <- data.table$rbindlist(list(df_t, df_norm))
+
+ggplot2$ggplot(df_all, ggplot2$aes(x = x, y = y, colour = df, linetype = df)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(
+    "#E69F00", "#D55E00", "#0072B2", "#009E73", "#CC79A7", "#999999"
+  )) +
+  ggplot2$scale_linetype_manual(values = c(rep("solid", 5), "dashed")) +
+  ggplot2$labs(
+    x = "x", y = "Density", colour = NULL, linetype = NULL,
+    title = "Student's t-distribution vs the standard normal"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "right")
+```
+
+```{r f-shapes, fig.cap="F-densities for various combinations of degrees of freedom. The distribution is always right-skewed but approaches normality for large df."}
+f_params <- list(
+  c(1, 10), c(5, 5), c(5, 20), c(10, 10), c(20, 20)
+)
+x_seq <- seq(0.01, 5, length.out = 500)
+
+df_f <- data.table$rbindlist(lapply(f_params, function(p) {
+  data.table$data.table(
+    x = x_seq,
+    y = df(x_seq, df1 = p[1], df2 = p[2]),
+    params = paste0("F(", p[1], ", ", p[2], ")")
+  )
+}))
+
+ggplot2$ggplot(df_f, ggplot2$aes(x = x, y = y, colour = params)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(
+    "#E69F00", "#D55E00", "#0072B2", "#009E73", "#CC79A7"
+  )) +
+  ggplot2$coord_cartesian(ylim = c(0, 1.2)) +
+  ggplot2$labs(
+    x = "x", y = "Density", colour = NULL,
+    title = "The F-distribution family"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 5.5.5 R: Verifying the Definitions by Simulation
+
+We construct each derived distribution from scratch using only `rnorm()`, confirming the definitions.
+
+```{r derived-from-scratch, fig.cap="Chi-square, t, and F distributions built from scratch using only normal random variables."}
+set.seed(42)
+n_sim <- 50000
+
+# Chi-square(5): sum of 5 squared standard normals
+k <- 5
+z_mat <- matrix(rnorm(n_sim * k), nrow = n_sim, ncol = k)
+chisq_sim <- rowSums(z_mat^2)
+
+# t(10): Z / sqrt(V/k)
+k_t <- 10
+z_t <- rnorm(n_sim)
+z_mat_t <- matrix(rnorm(n_sim * k_t), nrow = n_sim, ncol = k_t)
+v_t <- rowSums(z_mat_t^2)
+t_sim <- z_t / sqrt(v_t / k_t)
+
+# F(5, 10): (U/d1) / (V/d2)
+d1 <- 5; d2 <- 10
+z_u <- matrix(rnorm(n_sim * d1), nrow = n_sim, ncol = d1)
+z_v <- matrix(rnorm(n_sim * d2), nrow = n_sim, ncol = d2)
+u_sim <- rowSums(z_u^2)
+v_sim <- rowSums(z_v^2)
+f_sim <- (u_sim / d1) / (v_sim / d2)
+
+# Combine for plotting
+df_sims <- data.table$rbindlist(list(
+  data.table$data.table(x = chisq_sim, dist = "chi-square(5)"),
+  data.table$data.table(x = t_sim, dist = "t(10)"),
+  data.table$data.table(x = f_sim, dist = "F(5, 10)")
+))
+
+ggplot2$ggplot(df_sims, ggplot2$aes(x = x, y = ggplot2::after_stat(density))) +
+  ggplot2$geom_histogram(bins = 80, fill = "#0072B2", alpha = 0.5, colour = "white") +
+  ggplot2$facet_wrap(~dist, scales = "free", ncol = 3) +
+  ggplot2$labs(x = "x", y = "Density",
+    title = "Derived distributions built from standard normals") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+```{r derived-moments-check}
+# Chi-square(5): E = 5, Var = 10
+c(mean = mean(chisq_sim), var = var(chisq_sim))
+
+# t(10): E = 0, Var = 10/8 = 1.25
+c(mean = mean(t_sim), var = var(t_sim))
+
+# F(5, 10): E = 10/8 = 1.25
+c(mean = mean(f_sim), var = var(f_sim))
+```
+
+---
+
+## Communicating to Stakeholders
+
+When discussing normal-family distributions with a non-technical audience:
+
+- For the **normal**, say "bell-shaped curve" and use the 68-95-99.7 rule: "About 68% of values fall within one standard deviation of the mean, 95% within two, and 99.7% within three."
+- For the **chi-square**, frame it in terms of its application: "This measures how far our observed counts deviate from what we expected."
+- For the **$t$-distribution**, explain: "It's like the normal curve but with heavier tails -- it accounts for the extra uncertainty when we estimate the standard deviation from the data rather than knowing it in advance. With large samples, it becomes indistinguishable from the normal."
+- For the **$F$-distribution**, use the ANOVA story: "It compares the variability *between* groups to the variability *within* groups. A large $F$ means the group differences are large relative to the noise."
+
+---
+
+## Quick Reference
+
+| Property | $\chi^2_k$ | $t_k$ | $F_{d_1, d_2}$ |
+|:---------|:-----------|:------|:----------------|
+| **Definition** | $\sum_{i=1}^k Z_i^2$ | $Z / \sqrt{V_k/k}$ | $(U/d_1)/(V/d_2)$ |
+| **Support** | $(0, \infty)$ | $(-\infty, \infty)$ | $(0, \infty)$ |
+| **E[X]** | $k$ | $0$ ($k > 1$) | $d_2/(d_2-2)$ ($d_2 > 2$) |
+| **Var(X)** | $2k$ | $k/(k-2)$ ($k > 2$) | complex formula |
+| **Connection to Gamma** | $\text{Gamma}(k/2, 1/2)$ | — | — |
+| **Convergence** | — | $t_k \to N(0,1)$ as $k \to \infty$ | — |
+| **R functions** | `dchisq`, `pchisq`, `rchisq` | `dt`, `pt`, `rt` | `df`, `pf`, `rf` |
+
+---
+
+## Exercises
+
+### Pen-and-Paper Exercises
+
+**Exercise 5.12.** Let $X \sim N(3, 16)$. Compute $P(X > 7)$ by standardising and using the standard normal CDF.
+
+**Exercise 5.13.** Prove that if $X \sim N(\mu, \sigma^2)$, then $M_X(t) = e^{\mu t + \sigma^2 t^2/2}$ using the standard normal MGF and the relation $X = \mu + \sigma Z$.
+
+**Exercise 5.14.** If $Z_1, Z_2, Z_3$ are independent $N(0, 1)$, find the distribution of $Z_1^2 + Z_2^2 + Z_3^2$. State its mean and variance.
+
+**Exercise 5.15.** Show that if $T \sim t_k$, then $T^2 \sim F_{1, k}$. *(Hint: write $T^2 = Z^2 / (V/k)$ and recognise $Z^2 \sim \chi^2_1$.)*
+
+**Exercise 5.16.** Explain in your own words why the $t$-distribution has heavier tails than the normal. What happens to the tails as $k$ increases?
+
+### R Exercises
+
+**Exercise 5.17.** Using `rnorm()` only, simulate 100,000 values from the $\chi^2_3$ distribution. Plot the histogram and overlay the theoretical density using `dchisq()`. Verify $E[X] \approx 3$ and $\text{Var}(X) \approx 6$.
+
+```{r ex-5-17, eval=FALSE}
+set.seed(42)
+z <- matrix(rnorm(100000 * 3), ncol = 3)
+chisq3 <- rowSums(z^2)
+mean(chisq3)   # ≈ 3
+var(chisq3)    # ≈ 6
+```
+
+**Exercise 5.18.** Using the NHANES data, compute the Z-scores of adult heights (within each sex). Verify that the standardised heights have mean $\approx 0$ and standard deviation $\approx 1$. Plot the Q-Q normal plot for each sex.
+
+```{r ex-5-18, eval=FALSE}
+box::use(data.table)
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+adults <- nhanes[Age >= 18 & !is.na(Height)]
+adults[, z_height := (Height - mean(Height, na.rm = TRUE)) / sd(Height, na.rm = TRUE),
+       by = Gender]
+```
+
+**Exercise 5.19.** Simulate 50,000 values from the $t_5$ distribution from scratch (using `rnorm()` to build $Z$ and $\chi^2_5$). Count the fraction of values exceeding 2 in absolute value. Compare this to `pt(-2, df = 5) * 2` and to the normal probability `pnorm(-2) * 2`. Which has heavier tails?
+
+### Spot-the-Error Exercises
+
+**Exercise 5.20.** A student writes: "The $t$-distribution always has variance 1, just like the standard normal."
+
+*What is the error?* *(The variance of $t_k$ is $k/(k-2)$, which exceeds 1 for all finite $k > 2$ and is undefined for $k \le 2$.)*
+
+**Exercise 5.21.** A colleague says: "I have 25 data points that look roughly normal, so I used a Z-test instead of a $t$-test. It shouldn't matter much."
+
+*What is the issue?* *(With $n = 25$, $t_{24}$ has heavier tails than $N(0,1)$, making confidence intervals wider and $p$-values larger. Using the normal approximation is anti-conservative. For $n = 25$, $\text{Var}(t_{24}) = 24/22 \approx 1.09$ -- a non-trivial difference.)*

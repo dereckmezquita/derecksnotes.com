@@ -1,0 +1,731 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 10: Hypothesis Testing Framework"
+part: "Part 3: Neyman-Pearson and the Likelihood Ratio Test"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, neyman-pearson, likelihood-ratio, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 10 -- Hypothesis Testing Framework
+
+## Part 3: Neyman-Pearson and the Likelihood Ratio Test
+
+In Parts 1 and 2 we developed the logic of testing and the concepts of errors and power. A natural question arises: among all tests at a given significance level $\alpha$, which one has the **highest power**? This is the question that Jerzy Neyman and Egon Pearson answered in their celebrated 1933 lemma -- one of the foundational results of mathematical statistics. We then generalise to the **likelihood ratio test**, which provides a unified framework for testing composite hypotheses.
+
+---
+
+## 10.7 The Neyman-Pearson Lemma
+
+### 10.7.1 The Question of Optimality
+
+Consider testing a **simple** null against a **simple** alternative:
+
+$$H_0: \theta = \theta_0 \quad \text{vs.} \quad H_1: \theta = \theta_1.$$
+
+Among all tests with significance level $\alpha$ (i.e., $P_{\theta_0}(\text{reject}) = \alpha$), we seek the one that maximises the power $P_{\theta_1}(\text{reject})$.
+
+A test is described by its **critical function** $\phi(\mathbf{x})$, which gives the probability of rejecting $H_0$ when we observe data $\mathbf{x}$. For deterministic tests, $\phi(\mathbf{x}) \in \{0, 1\}$.
+
+### 10.7.2 Statement of the Lemma
+
+**Neyman-Pearson Lemma.** Let $X_1, \ldots, X_n$ be a random sample with joint density (or mass function) $f(\mathbf{x} \mid \theta)$. Consider testing $H_0: \theta = \theta_0$ vs. $H_1: \theta = \theta_1$. Define the **likelihood ratio**:
+
+$$\Lambda(\mathbf{x}) = \frac{L(\theta_1 \mid \mathbf{x})}{L(\theta_0 \mid \mathbf{x})} = \frac{f(\mathbf{x} \mid \theta_1)}{f(\mathbf{x} \mid \theta_0)}.$$
+
+Then:
+
+**(a) Existence.** There exists a test that rejects $H_0$ when $\Lambda(\mathbf{x}) > k$ (and rejects with probability $\gamma$ when $\Lambda(\mathbf{x}) = k$), where $k$ and $\gamma$ are chosen so that:
+
+$$E_{\theta_0}[\phi(\mathbf{X})] = \alpha.$$
+
+**(b) Optimality.** This test is **most powerful** at level $\alpha$. That is, for any other test $\phi'$ with $E_{\theta_0}[\phi'(\mathbf{X})] \leq \alpha$:
+
+$$E_{\theta_1}[\phi(\mathbf{X})] \geq E_{\theta_1}[\phi'(\mathbf{X})].$$
+
+**(c) Uniqueness.** If a most powerful test of level $\alpha$ exists, every most powerful test is a likelihood ratio test (except possibly on a set of measure zero).
+
+### 10.7.3 Proof of the Neyman-Pearson Lemma
+
+We prove part (b): the likelihood ratio test is most powerful.
+
+**Proof.** Let $\phi$ be the NP test (rejecting when $\Lambda > k$) and $\phi'$ be any other test at level $\alpha$. We need to show:
+
+$$E_{\theta_1}[\phi(\mathbf{X})] \geq E_{\theta_1}[\phi'(\mathbf{X})].$$
+
+Equivalently, we show:
+
+$$\int [\phi(\mathbf{x}) - \phi'(\mathbf{x})] f(\mathbf{x} \mid \theta_1) \, d\mathbf{x} \geq 0.$$
+
+**Step 1.** Consider the difference $\phi(\mathbf{x}) - \phi'(\mathbf{x})$ on the partition of the sample space:
+
+- **Region A**: $\Lambda(\mathbf{x}) > k$. Here $\phi(\mathbf{x}) = 1$, so $\phi(\mathbf{x}) - \phi'(\mathbf{x}) \geq 0$ (since $0 \leq \phi' \leq 1$).
+- **Region B**: $\Lambda(\mathbf{x}) < k$. Here $\phi(\mathbf{x}) = 0$, so $\phi(\mathbf{x}) - \phi'(\mathbf{x}) \leq 0$.
+- **Region C**: $\Lambda(\mathbf{x}) = k$. This boundary set can be ignored for continuous distributions.
+
+**Step 2.** In region A, $\Lambda(\mathbf{x}) > k$ means $f(\mathbf{x} \mid \theta_1) > k \cdot f(\mathbf{x} \mid \theta_0)$. Since $\phi - \phi' \geq 0$ here:
+
+$$[\phi(\mathbf{x}) - \phi'(\mathbf{x})] \cdot f(\mathbf{x} \mid \theta_1) \geq k \cdot [\phi(\mathbf{x}) - \phi'(\mathbf{x})] \cdot f(\mathbf{x} \mid \theta_0).$$
+
+In region B, $\Lambda(\mathbf{x}) < k$ means $f(\mathbf{x} \mid \theta_1) < k \cdot f(\mathbf{x} \mid \theta_0)$. Since $\phi - \phi' \leq 0$ here:
+
+$$[\phi(\mathbf{x}) - \phi'(\mathbf{x})] \cdot f(\mathbf{x} \mid \theta_1) \geq k \cdot [\phi(\mathbf{x}) - \phi'(\mathbf{x})] \cdot f(\mathbf{x} \mid \theta_0).$$
+
+(Both sides are negative, and the left side is less negative because $f(\mathbf{x}|\theta_1) < k \cdot f(\mathbf{x}|\theta_0)$.)
+
+**Step 3.** Combining over both regions:
+
+$$\int [\phi(\mathbf{x}) - \phi'(\mathbf{x})] f(\mathbf{x} \mid \theta_1) \, d\mathbf{x} \geq k \int [\phi(\mathbf{x}) - \phi'(\mathbf{x})] f(\mathbf{x} \mid \theta_0) \, d\mathbf{x}.$$
+
+**Step 4.** The right-hand side equals:
+
+$$k \left[E_{\theta_0}[\phi(\mathbf{X})] - E_{\theta_0}[\phi'(\mathbf{X})]\right] = k[\alpha - \alpha'] \geq 0$$
+
+since $\alpha' \leq \alpha$ (both tests have level at most $\alpha$, and the NP test has level exactly $\alpha$).
+
+Therefore:
+
+$$E_{\theta_1}[\phi(\mathbf{X})] - E_{\theta_1}[\phi'(\mathbf{X})] \geq k(\alpha - \alpha') \geq 0.$$
+
+This proves the NP test is most powerful. $\blacksquare$
+
+### 10.7.4 Intuition
+
+The proof is elegant but the intuition is simple. The likelihood ratio $\Lambda(\mathbf{x})$ tells us how much more compatible the data are with $\theta_1$ than with $\theta_0$. By rejecting when $\Lambda$ is large, we are rejecting precisely when the data "look like" they came from $\theta_1$ rather than $\theta_0$. Any other allocation of rejection probability would waste some of it on data points where the alternative is relatively unlikely -- reducing power.
+
+### 10.7.5 Example: Normal Mean, Known Variance
+
+Let $X_1, \ldots, X_n \overset{iid}{\sim} N(\mu, \sigma^2)$ with $\sigma^2$ known. Test $H_0: \mu = \mu_0$ vs. $H_1: \mu = \mu_1$ where $\mu_1 > \mu_0$.
+
+The likelihood ratio is:
+
+$$\Lambda(\mathbf{x}) = \frac{\prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{(x_i-\mu_1)^2}{2\sigma^2}\right)}{\prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma}\exp\left(-\frac{(x_i-\mu_0)^2}{2\sigma^2}\right)}$$
+
+$$= \exp\left(-\frac{1}{2\sigma^2}\sum_{i=1}^n\left[(x_i-\mu_1)^2 - (x_i-\mu_0)^2\right]\right).$$
+
+Expanding the squares:
+
+$$= \exp\left(\frac{(\mu_1 - \mu_0)}{\sigma^2}\left[n\bar{x} - \frac{n(\mu_1+\mu_0)}{2}\right]\right).$$
+
+Since $\mu_1 > \mu_0$, rejecting when $\Lambda > k$ is equivalent to rejecting when $\bar{x} > c$ for some constant $c$. Under $H_0$, $\bar{X} \sim N(\mu_0, \sigma^2/n)$, so this is the familiar one-sided z-test. The **NP lemma tells us this is the most powerful test** for this problem.
+
+
+``` r
+box::use(ggplot2)
+box::use(data.table)
+
+# Demonstrate the NP test for normal mean
+set.seed(42)
+n <- 20
+sigma <- 2
+mu_0 <- 5
+mu_1 <- 7
+alpha <- 0.05
+
+# Generate data under H1
+x <- rnorm(n, mean = mu_1, sd = sigma)
+
+# Compute likelihood ratio for each observation is not needed;
+# NP says reject when x_bar is large
+x_bar <- mean(x)
+z_crit <- qnorm(1 - alpha)
+crit_val <- mu_0 + z_crit * sigma / sqrt(n)
+
+lr <- exp(sum(dnorm(x, mu_1, sigma, log = TRUE) - dnorm(x, mu_0, sigma, log = TRUE)))
+
+data.frame(
+  quantity = c("x_bar", "Critical value", "Likelihood ratio",
+               "Decision"),
+  value = c(sprintf("%.3f", x_bar),
+            sprintf("%.3f", crit_val),
+            sprintf("%.2f", lr),
+            ifelse(x_bar > crit_val, "Reject H0", "Fail to reject H0"))
+)
+```
+
+```
+          quantity      value
+1            x_bar      7.384
+2   Critical value      5.736
+3 Likelihood ratio 1023153.81
+4         Decision  Reject H0
+```
+
+### 10.7.6 Visualising the NP Test
+
+
+``` r
+se <- sigma / sqrt(n)
+
+x_seq <- seq(mu_0 - 4*se, mu_1 + 4*se, length.out = 500)
+
+df_null <- data.table$data.table(x = x_seq, y = dnorm(x_seq, mu_0, se))
+df_alt  <- data.table$data.table(x = x_seq, y = dnorm(x_seq, mu_1, se))
+
+ggplot2$ggplot() +
+  # Power region (alt, right of crit)
+  ggplot2$geom_area(
+    data = df_alt[x >= crit_val],
+    ggplot2$aes(x = x, y = y),
+    fill = "#0072B2", alpha = 0.3
+  ) +
+  # Alpha region (null, right of crit)
+  ggplot2$geom_area(
+    data = df_null[x >= crit_val],
+    ggplot2$aes(x = x, y = y),
+    fill = "#D55E00", alpha = 0.4
+  ) +
+  # Curves
+  ggplot2$geom_line(data = df_null, ggplot2$aes(x = x, y = y),
+                    colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_line(data = df_alt, ggplot2$aes(x = x, y = y),
+                    colour = "#CC79A7", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = crit_val, linetype = "dashed", colour = "grey40") +
+  ggplot2$annotate("text", x = mu_0, y = max(df_null$y) * 1.05,
+                   label = sprintf("H0: mu = %d", mu_0), colour = "#0072B2", size = 4) +
+  ggplot2$annotate("text", x = mu_1, y = max(df_alt$y) * 1.05,
+                   label = sprintf("H1: mu = %d", mu_1), colour = "#CC79A7", size = 4) +
+  ggplot2$annotate("text", x = crit_val + 0.15, y = max(df_null$y) * 0.7,
+                   label = sprintf("c = %.2f", crit_val), size = 3.5) +
+  ggplot2$labs(
+    x = expression(bar(X)), y = "Density",
+    title = "Neyman-Pearson most powerful test"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/np-visual-1.png" alt="The Neyman-Pearson test for H0: mu = 5 vs H1: mu = 7 with sigma = 2 and n = 20. The test rejects when x-bar exceeds the critical value. The shaded orange region is alpha; the shaded blue region under the alternative to the right of the critical value is the power.">
+	The Neyman-Pearson test for H0: mu = 5 vs H1: mu = 7 with sigma = 2 and n = 20. The test rejects when x-bar exceeds the critical value. The shaded orange region is alpha; the shaded blue region under the alternative to the right of the critical value is the power.
+</Figure>
+
+
+``` r
+# Exact power computation
+power_np <- 1 - pnorm(crit_val, mean = mu_1, sd = se)
+sprintf("Power of NP test: %.4f", power_np)
+```
+
+```
+[1] "Power of NP test: 0.9977"
+```
+
+---
+
+## 10.8 Likelihood Ratio Tests
+
+### 10.8.1 From Simple to Composite Hypotheses
+
+The NP lemma handles simple vs. simple. In practice, we usually test composite hypotheses:
+
+$$H_0: \theta \in \Theta_0 \quad \text{vs.} \quad H_1: \theta \in \Theta_0^c.$$
+
+The **generalised likelihood ratio test (GLRT)** extends the NP idea to this setting.
+
+### 10.8.2 The Test Statistic
+
+Define the **likelihood ratio statistic**:
+
+$$\lambda(\mathbf{x}) = \frac{\sup_{\theta \in \Theta_0} L(\theta \mid \mathbf{x})}{\sup_{\theta \in \Theta} L(\theta \mid \mathbf{x})}$$
+
+where $\Theta_0 \subset \Theta$ is the null parameter space and $\Theta$ is the full parameter space.
+
+Equivalently:
+
+$$\lambda(\mathbf{x}) = \frac{L(\hat{\theta}_0 \mid \mathbf{x})}{L(\hat{\theta} \mid \mathbf{x})}$$
+
+where $\hat{\theta}_0$ is the MLE restricted to $\Theta_0$ and $\hat{\theta}$ is the unrestricted MLE.
+
+Key properties:
+
+1. $0 \leq \lambda(\mathbf{x}) \leq 1$ always.
+2. Small values of $\lambda$ indicate that the data are much more likely under the alternative.
+3. We reject $H_0$ when $\lambda \leq c$ for some threshold $c$.
+
+### 10.8.3 Example: Normal Mean, Known Variance (Two-sided)
+
+Test $H_0: \mu = \mu_0$ vs. $H_1: \mu \neq \mu_0$ for $X_1, \ldots, X_n \overset{iid}{\sim} N(\mu, \sigma^2)$ with $\sigma^2$ known.
+
+**Numerator** (MLE under $H_0$): $\hat{\mu}_0 = \mu_0$, so:
+
+$$L(\mu_0 \mid \mathbf{x}) = \prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma} \exp\!\left(-\frac{(x_i - \mu_0)^2}{2\sigma^2}\right).$$
+
+**Denominator** (unrestricted MLE): $\hat{\mu} = \bar{x}$, so:
+
+$$L(\bar{x} \mid \mathbf{x}) = \prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma} \exp\!\left(-\frac{(x_i - \bar{x})^2}{2\sigma^2}\right).$$
+
+The ratio simplifies to:
+
+$$\lambda(\mathbf{x}) = \exp\!\left(-\frac{n(\bar{x} - \mu_0)^2}{2\sigma^2}\right) = \exp\!\left(-\frac{Z^2}{2}\right)$$
+
+where $Z = (\bar{x} - \mu_0)/(\sigma/\sqrt{n})$.
+
+Rejecting when $\lambda \leq c$ is equivalent to rejecting when $Z^2 \geq -2\log c$, which is equivalent to $|Z| \geq z_{\alpha/2}$. This is exactly the two-sided z-test.
+
+### 10.8.4 Implementing a LRT from Scratch
+
+
+``` r
+#' Generalised Likelihood Ratio Test for normal mean (known variance)
+#' @param x numeric vector of observations
+#' @param mu_0 null hypothesis value
+#' @param sigma known standard deviation
+#' @param alpha significance level
+#' @return list with test statistic, p-value, decision
+my_lrt_normal <- function(x, mu_0, sigma, alpha = 0.05) {
+  n <- length(x)
+  x_bar <- mean(x)
+
+  # Log-likelihoods
+  ll_null <- sum(dnorm(x, mean = mu_0, sd = sigma, log = TRUE))
+  ll_full <- sum(dnorm(x, mean = x_bar, sd = sigma, log = TRUE))
+
+  # Likelihood ratio statistic
+  lambda <- exp(ll_null - ll_full)
+
+  # Equivalent z-statistic
+  z_stat <- (x_bar - mu_0) / (sigma / sqrt(n))
+
+  # -2 log lambda ~ chi-squared(1) under H0
+  neg2logL <- -2 * log(lambda)
+  p_value <- 1 - pchisq(neg2logL, df = 1)
+
+  list(
+    x_bar = x_bar,
+    lambda = lambda,
+    neg2logLambda = neg2logL,
+    z_stat = z_stat,
+    z_squared = z_stat^2,
+    p_value = p_value,
+    decision = ifelse(p_value <= alpha, "Reject H0", "Fail to reject H0")
+  )
+}
+
+# Test it
+set.seed(42)
+x_test <- rnorm(30, mean = 5.5, sd = 2)
+result <- my_lrt_normal(x_test, mu_0 = 5, sigma = 2)
+
+data.frame(
+  quantity = names(result),
+  value = sapply(result, function(v) {
+    if (is.numeric(v)) sprintf("%.4f", v) else v
+  })
+)
+```
+
+```
+                   quantity             value
+x_bar                 x_bar            5.6372
+lambda               lambda            0.2182
+neg2logLambda neg2logLambda            3.0449
+z_stat               z_stat            1.7450
+z_squared         z_squared            3.0449
+p_value             p_value            0.0810
+decision           decision Fail to reject H0
+```
+
+Notice that $-2\log\lambda = Z^2$ -- the LRT statistic and the z-statistic carry exactly the same information.
+
+---
+
+## 10.9 Wilks' Theorem
+
+### 10.9.1 Statement
+
+The power of the LRT comes from a remarkable asymptotic result.
+
+**Wilks' Theorem.** Under regularity conditions, if $H_0$ is true and specifies $q$ fewer parameters than the full model (i.e., $\dim(\Theta) - \dim(\Theta_0) = q$), then as $n \to \infty$:
+
+$$-2 \log \lambda(\mathbf{X}) \xrightarrow{d} \chi^2_q.$$
+
+This means we can always compute approximate p-values for LRTs by comparing $-2\log\lambda$ to a $\chi^2$ distribution with $q$ degrees of freedom -- without needing to derive the exact null distribution.
+
+### 10.9.2 Why This Matters
+
+Wilks' theorem is the reason likelihood ratio tests are so widely used:
+
+1. **Generality.** It applies to virtually any parametric model.
+2. **Simplicity.** We need only compute two log-likelihoods -- one restricted, one unrestricted -- and take their difference.
+3. **No case-by-case derivation.** We do not need to find the exact distribution of $\lambda$ under $H_0$.
+
+### 10.9.3 Simulation: Verifying Wilks' Theorem
+
+Let us test $H_0: \mu = 0$ vs. $H_1: \mu \neq 0$ for $N(\mu, 1)$ data and verify that $-2\log\lambda \sim \chi^2_1$ under $H_0$.
+
+
+
+
+``` r
+set.seed(42)
+n <- 30
+sigma <- 1
+mu_0 <- 0
+n_sim <- 10000
+
+neg2logL_vals <- replicate(n_sim, {
+  x <- rnorm(n, mean = mu_0, sd = sigma)
+  x_bar <- mean(x)
+  ll_null <- sum(dnorm(x, mu_0, sigma, log = TRUE))
+  ll_full <- sum(dnorm(x, x_bar, sigma, log = TRUE))
+  -2 * (ll_null - ll_full)
+})
+
+df_wilks <- data.table$data.table(stat = neg2logL_vals)
+
+# Theoretical chi-squared density
+x_chi <- seq(0, 15, length.out = 300)
+df_theory <- data.table$data.table(x = x_chi, y = dchisq(x_chi, df = 1))
+
+ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = df_wilks,
+    ggplot2$aes(x = stat, y = ggplot2::after_stat(density)),
+    bins = 60, fill = "#0072B2", alpha = 0.6, colour = "white"
+  ) +
+  ggplot2$geom_line(
+    data = df_theory,
+    ggplot2$aes(x = x, y = y),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = expression(-2 * log(lambda)),
+    y = "Density",
+    title = "Wilks' theorem: simulated LRT statistic vs. chi-squared(1)"
+  ) +
+  ggplot2$coord_cartesian(xlim = c(0, 12), ylim = c(0, 2)) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/wilks-simulation-1.png" alt="Distribution of -2 log(lambda) from 10,000 simulated LRTs under the null hypothesis, compared to the theoretical chi-squared(1) density. The agreement confirms Wilks&#39; theorem even for moderate sample sizes.">
+	Distribution of -2 log(lambda) from 10,000 simulated LRTs under the null hypothesis, compared to the theoretical chi-squared(1) density. The agreement confirms Wilks' theorem even for moderate sample sizes.
+</Figure>
+
+
+``` r
+# Q-Q plot
+n_qq <- length(neg2logL_vals)
+theoretical_q <- qchisq(ppoints(n_qq), df = 1)
+observed_q <- sort(neg2logL_vals)
+
+qq_df <- data.table$data.table(
+  theoretical = theoretical_q,
+  observed = observed_q
+)
+
+ggplot2$ggplot(qq_df, ggplot2$aes(x = theoretical, y = observed)) +
+  ggplot2$geom_point(alpha = 0.2, colour = "#0072B2", size = 0.8) +
+  ggplot2$geom_abline(slope = 1, intercept = 0, colour = "#D55E00", linewidth = 1) +
+  ggplot2$labs(
+    x = expression("Theoretical " * chi[1]^2 * " quantiles"),
+    y = "Observed quantiles",
+    title = "Q-Q plot: LRT statistic vs. chi-squared(1)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/wilks-qqplot-1.png" alt="Q-Q plot of simulated LRT statistics against chi-squared(1) quantiles. Points falling along the diagonal confirm the asymptotic approximation.">
+	Q-Q plot of simulated LRT statistics against chi-squared(1) quantiles. Points falling along the diagonal confirm the asymptotic approximation.
+</Figure>
+
+The histogram and Q-Q plot both confirm that $-2\log\lambda$ follows a $\chi^2_1$ distribution under $H_0$, even with $n = 30$.
+
+### 10.9.4 Wilks' Theorem with Multiple Parameters
+
+Let us test a more complex hypothesis: for $X_1, \ldots, X_n \overset{iid}{\sim} N(\mu, \sigma^2)$ with **both** parameters unknown, test $H_0: \mu = \mu_0$ (no restriction on $\sigma^2$). Here $\dim(\Theta) = 2$ and $\dim(\Theta_0) = 1$, so $q = 1$.
+
+
+``` r
+set.seed(42)
+mu_0 <- 0
+n <- 50
+n_sim <- 10000
+
+neg2logL_two <- replicate(n_sim, {
+  x <- rnorm(n, mean = mu_0, sd = 2)  # true sigma = 2
+  x_bar <- mean(x)
+  s2_full <- mean((x - x_bar)^2)      # MLE of sigma^2 (unrestricted)
+  s2_null <- mean((x - mu_0)^2)       # MLE of sigma^2 under H0
+
+  ll_null <- sum(dnorm(x, mu_0, sqrt(s2_null), log = TRUE))
+  ll_full <- sum(dnorm(x, x_bar, sqrt(s2_full), log = TRUE))
+  -2 * (ll_null - ll_full)
+})
+
+df_w2 <- data.table$data.table(stat = neg2logL_two)
+
+ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = df_w2,
+    ggplot2$aes(x = stat, y = ggplot2::after_stat(density)),
+    bins = 60, fill = "#009E73", alpha = 0.6, colour = "white"
+  ) +
+  ggplot2$geom_line(
+    data = df_theory,
+    ggplot2$aes(x = x, y = y),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = expression(-2 * log(lambda)),
+    y = "Density",
+    title = "Wilks' theorem with nuisance parameter (q = 1)"
+  ) +
+  ggplot2$coord_cartesian(xlim = c(0, 12), ylim = c(0, 2)) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/wilks-two-param-1.png" alt="Wilks&#39; theorem with nuisance parameters: testing H0: mu = 0 with unknown sigma. The LRT statistic still follows chi-squared(1) asymptotically, even though we must estimate sigma under both hypotheses.">
+	Wilks' theorem with nuisance parameters: testing H0: mu = 0 with unknown sigma. The LRT statistic still follows chi-squared(1) asymptotically, even though we must estimate sigma under both hypotheses.
+</Figure>
+
+---
+
+## 10.10 LRT for Comparing Two Populations
+
+A common application: do two populations have the same mean?
+
+$X_1, \ldots, X_m \overset{iid}{\sim} N(\mu_1, \sigma^2)$ and $Y_1, \ldots, Y_n \overset{iid}{\sim} N(\mu_2, \sigma^2)$ with common (unknown) variance.
+
+$H_0: \mu_1 = \mu_2$ vs. $H_1: \mu_1 \neq \mu_2$.
+
+
+``` r
+#' LRT for two-sample normal means (common unknown variance)
+#' @param x first sample
+#' @param y second sample
+#' @param alpha significance level
+#' @return list with LRT statistic and p-value
+my_lrt_two_sample <- function(x, y, alpha = 0.05) {
+  m <- length(x)
+  n <- length(y)
+  N <- m + n
+
+  # Unrestricted MLEs
+  mu1_hat <- mean(x)
+  mu2_hat <- mean(y)
+  sigma2_full <- (sum((x - mu1_hat)^2) + sum((y - mu2_hat)^2)) / N
+
+  # Restricted MLEs (under H0: mu1 = mu2)
+  mu_hat <- (sum(x) + sum(y)) / N
+  sigma2_null <- (sum((x - mu_hat)^2) + sum((y - mu_hat)^2)) / N
+
+  ll_null <- sum(dnorm(x, mu_hat, sqrt(sigma2_null), log = TRUE)) +
+    sum(dnorm(y, mu_hat, sqrt(sigma2_null), log = TRUE))
+  ll_full <- sum(dnorm(x, mu1_hat, sqrt(sigma2_full), log = TRUE)) +
+    sum(dnorm(y, mu2_hat, sqrt(sigma2_full), log = TRUE))
+
+  neg2logL <- -2 * (ll_null - ll_full)
+  p_value <- 1 - pchisq(neg2logL, df = 1)
+
+  list(
+    mu1_hat = mu1_hat, mu2_hat = mu2_hat,
+    neg2logLambda = neg2logL,
+    p_value = p_value,
+    decision = ifelse(p_value <= alpha, "Reject H0", "Fail to reject H0")
+  )
+}
+
+# Example
+set.seed(42)
+x_grp <- rnorm(25, mean = 10, sd = 3)
+y_grp <- rnorm(25, mean = 12, sd = 3)
+
+lrt_result <- my_lrt_two_sample(x_grp, y_grp)
+
+data.frame(
+  quantity = c("mu1_hat", "mu2_hat", "-2 log lambda", "p-value", "Decision"),
+  value = c(
+    sprintf("%.3f", lrt_result$mu1_hat),
+    sprintf("%.3f", lrt_result$mu2_hat),
+    sprintf("%.3f", lrt_result$neg2logLambda),
+    sprintf("%.4f", lrt_result$p_value),
+    lrt_result$decision
+  )
+)
+```
+
+```
+       quantity             value
+1       mu1_hat            10.563
+2       mu2_hat            11.223
+3 -2 log lambda             0.483
+4       p-value            0.4871
+5      Decision Fail to reject H0
+```
+
+
+``` r
+# Compare with the classical t-test
+t_result <- t.test(x_grp, y_grp, var.equal = TRUE)
+sprintf("Two-sample t-test p-value: %.4f", t_result$p.value)
+sprintf("LRT p-value: %.4f", lrt_result$p_value)
+```
+
+```
+[1] "Two-sample t-test p-value: 0.4982"
+[1] "LRT p-value: 0.4871"
+```
+
+The LRT and t-test p-values are very close. For normal data with equal variances, the two-sample t-test is the exact test; the LRT is asymptotically equivalent.
+
+---
+
+## 10.11 LRT for the Exponential Distribution
+
+To show the generality of the approach, consider $X_1, \ldots, X_n \overset{iid}{\sim} \text{Exp}(\lambda)$. Test $H_0: \lambda = \lambda_0$ vs. $H_1: \lambda \neq \lambda_0$.
+
+
+``` r
+set.seed(42)
+n <- 40
+lambda_true <- 2
+lambda_0 <- 1.5
+
+x_exp <- rexp(n, rate = lambda_true)
+
+# Log-likelihood function
+ll_exp <- function(lam, x) {
+  sum(dexp(x, rate = lam, log = TRUE))
+}
+
+# MLE
+lambda_hat <- 1 / mean(x_exp)
+
+# LRT statistic
+neg2logL_exp <- -2 * (ll_exp(lambda_0, x_exp) - ll_exp(lambda_hat, x_exp))
+pval_exp <- 1 - pchisq(neg2logL_exp, df = 1)
+
+# Log-likelihood curve
+lam_grid <- seq(0.5, 4, length.out = 200)
+ll_vals <- sapply(lam_grid, ll_exp, x = x_exp)
+
+df_ll <- data.table$data.table(lambda = lam_grid, loglik = ll_vals)
+
+p_ll <- ggplot2$ggplot(df_ll, ggplot2$aes(x = lambda, y = loglik)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = lambda_0, colour = "#D55E00", linetype = "dashed") +
+  ggplot2$geom_vline(xintercept = lambda_hat, colour = "#0072B2", linetype = "dashed") +
+  ggplot2$annotate("text", x = lambda_0 - 0.15, y = min(ll_vals) + 5,
+                   label = sprintf("lambda0 = %.1f", lambda_0),
+                   colour = "#D55E00", size = 3.5) +
+  ggplot2$annotate("text", x = lambda_hat + 0.15, y = min(ll_vals) + 5,
+                   label = sprintf("MLE = %.2f", lambda_hat),
+                   colour = "#0072B2", size = 3.5) +
+  ggplot2$labs(x = expression(lambda), y = "Log-likelihood",
+               title = "Log-likelihood for Exp data") +
+  ggplot2$theme_minimal(base_size = 12)
+
+# Simulation
+n_sim <- 10000
+neg2logL_exp_sim <- replicate(n_sim, {
+  xs <- rexp(n, rate = lambda_0)
+  lam_h <- 1 / mean(xs)
+  -2 * (ll_exp(lambda_0, xs) - ll_exp(lam_h, xs))
+})
+
+df_esim <- data.table$data.table(stat = neg2logL_exp_sim)
+x_chi <- seq(0, 15, length.out = 300)
+df_chi <- data.table$data.table(x = x_chi, y = dchisq(x_chi, df = 1))
+
+p_sim <- ggplot2$ggplot() +
+  ggplot2$geom_histogram(
+    data = df_esim,
+    ggplot2$aes(x = stat, y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#009E73", alpha = 0.6, colour = "white"
+  ) +
+  ggplot2$geom_line(data = df_chi, ggplot2$aes(x = x, y = y),
+                    colour = "#D55E00", linewidth = 1.2) +
+  ggplot2$coord_cartesian(xlim = c(0, 12), ylim = c(0, 2)) +
+  ggplot2$labs(x = expression(-2 * log(lambda)), y = "Density",
+               title = "Wilks' theorem for Exp LRT") +
+  ggplot2$theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p_ll, p_sim, ncol = 2)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/lrt-exponential-1.png" alt="LRT for the exponential rate parameter. Left: the log-likelihood as a function of lambda, with the null value (red) and MLE (blue) marked. Right: distribution of -2 log(lambda) from simulation, with chi-squared(1) overlay.">
+	LRT for the exponential rate parameter. Left: the log-likelihood as a function of lambda, with the null value (red) and MLE (blue) marked. Right: distribution of -2 log(lambda) from simulation, with chi-squared(1) overlay.
+</Figure>
+
+
+``` r
+data.frame(
+  quantity = c("lambda_hat (MLE)", "lambda_0 (null)", "-2 log lambda", "p-value"),
+  value = round(c(lambda_hat, lambda_0, neg2logL_exp, pval_exp), 4)
+)
+```
+
+```
+          quantity  value
+1 lambda_hat (MLE) 2.0343
+2  lambda_0 (null) 1.5000
+3    -2 log lambda 3.3630
+4          p-value 0.0667
+```
+
+---
+
+## 10.12 Connections and Hierarchy
+
+The tests we have studied form a natural hierarchy:
+
+1. **Neyman-Pearson:** optimal for simple vs. simple. Rejects when the likelihood ratio exceeds a threshold.
+2. **Generalised LRT:** extends the idea to composite hypotheses by replacing $L(\theta_1)$ with $\sup_\Theta L(\theta)$.
+3. **Wilks' theorem:** provides the asymptotic null distribution ($\chi^2_q$), making LRTs practical without exact distribution theory.
+
+Other asymptotically equivalent tests:
+
+- **Wald test:** Based on the asymptotic normality of the MLE. The test statistic is $(\hat{\theta} - \theta_0)^2 / \widehat{\text{Var}}(\hat{\theta})$.
+- **Score (Rao) test:** Based on the score function evaluated at $\theta_0$. Useful because it only requires fitting the null model.
+
+All three -- LRT, Wald, and Score -- are asymptotically equivalent under $H_0$ and produce $\chi^2_q$ statistics. They may differ in finite samples, but they converge to the same decisions as $n \to \infty$.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting likelihood-based tests:
+
+- Avoid the phrase "likelihood ratio." Instead say: "We compared how well the data fit the model with the restriction versus the model without the restriction. The data fit much better without the restriction, suggesting the restriction (the null hypothesis) is too strong."
+- The $\chi^2$ approximation can be framed as: "We used a standard statistical benchmark to decide whether the improvement in fit is large enough to be convincing, or could have arisen by chance."
+- Emphasise that the LRT framework is automatic: once you write down a model and a null hypothesis, the test falls out of the mathematics. This is its chief practical advantage.
+- Report the test statistic *and* the p-value. Not just "p = 0.02" but "-2 log lambda = 5.41, p = 0.02 (chi-squared test with 1 degree of freedom)."
+
+---
+
+## Quick Reference
+
+| Concept | Definition / Formula |
+|:--------|:---------------------|
+| **Likelihood ratio (NP)** | $\Lambda(\mathbf{x}) = L(\theta_1 \mid \mathbf{x}) / L(\theta_0 \mid \mathbf{x})$ |
+| **NP lemma** | Reject when $\Lambda > k$ gives the most powerful level-$\alpha$ test |
+| **GLRT statistic** | $\lambda = \sup_{\Theta_0} L(\theta) \,/\, \sup_\Theta L(\theta)$ |
+| **Wilks' theorem** | $-2\log\lambda \xrightarrow{d} \chi^2_q$ under $H_0$ |
+| **Degrees of freedom** | $q = \dim(\Theta) - \dim(\Theta_0)$ |
+| **Wald test** | $(\hat\theta - \theta_0)^2 / \widehat{\text{Var}}(\hat\theta) \sim \chi^2_1$ |
+| **Score test** | $U(\theta_0)^2 / I(\theta_0) \sim \chi^2_1$ |
+
+---
+
+## Exercises
+
+1. **NP derivation.** For $X_1, \ldots, X_n \overset{iid}{\sim} \text{Exp}(\lambda)$, derive the most powerful test of $H_0: \lambda = 1$ vs. $H_1: \lambda = 2$ at level $\alpha = 0.05$ with $n = 20$. Show that the rejection region is of the form $\bar{X} < c$ and find $c$.
+
+2. **LRT from scratch.** For a sample of $n = 50$ from a Poisson distribution, implement the LRT of $H_0: \lambda = 3$ vs. $H_1: \lambda \neq 3$. Generate data under $H_0$ and under $H_1: \lambda = 4$. Report the LRT statistic and p-value in each case.
+
+3. **Wilks' verification.** Simulate 10,000 LRT statistics for testing $H_0: p = 0.5$ in a $\text{Binomial}(20, p)$ model. Compare the empirical distribution to $\chi^2_1$. At what sample sizes does the approximation begin to break down?
+
+4. Prove that for the one-sided test $H_0: \mu \leq \mu_0$ vs. $H_1: \mu > \mu_0$ with normal data (known $\sigma$), the NP test does not depend on the specific value of $\mu_1 > \mu_0$. This makes the test **uniformly most powerful** (UMP).
+
+5. Consider testing $H_0: \sigma^2 = \sigma_0^2$ vs. $H_1: \sigma^2 \neq \sigma_0^2$ for normal data with known $\mu$. Derive the LRT and show that $-2\log\lambda$ is a function of $\sum (X_i - \mu)^2 / \sigma_0^2$.
+
+6. Implement the Wald test and the LRT for testing $H_0: p = 0.5$ vs. $H_1: p \neq 0.5$ using a sample of 100 Bernoulli trials. Compare the p-values from both tests when the true $p = 0.6$. Repeat for $p = 0.51$. When do they diverge?
+
+7. Explain why the NP lemma does not directly apply to the two-sided test $H_0: \mu = 0$ vs. $H_1: \mu \neq 0$. What concept replaces "most powerful" in this setting?

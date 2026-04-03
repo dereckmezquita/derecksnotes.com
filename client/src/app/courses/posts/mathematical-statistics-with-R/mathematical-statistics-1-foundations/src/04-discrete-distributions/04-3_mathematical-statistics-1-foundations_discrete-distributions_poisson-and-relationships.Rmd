@@ -1,0 +1,634 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 4: Discrete Distributions"
+part: "Part 3: The Poisson Distribution and Relationships"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 4 -- Discrete Distributions
+
+## Part 3: The Poisson Distribution and Relationships
+
+The Poisson distribution is one of the most important in all of statistics. It arises as the natural model for counting **rare events** in a fixed interval of time, space, or some other continuum. In this part we derive it as a *limit* of the binomial distribution -- a derivation that is both beautiful and illuminating -- and then survey the rich web of relationships connecting all the discrete distributions we have studied.
+
+---
+
+## 4.6 The Poisson Distribution
+
+### 4.6.1 The Setup
+
+Imagine counting events that occur randomly and independently in a fixed interval:
+
+- The number of emails arriving in your inbox in one hour.
+- The number of radioactive decays detected by a Geiger counter in one second.
+- The number of typographical errors on a printed page.
+- The number of car accidents at an intersection in one week.
+
+These situations share a common structure:
+
+1. Events occur **independently** of one another.
+2. The average rate of events, $\lambda$, is constant.
+3. Two events cannot occur at exactly the same instant.
+4. The probability of an event in a tiny interval $\Delta t$ is approximately $\lambda \Delta t$.
+
+Under these conditions, the number of events $X$ in the interval follows a **Poisson distribution** with parameter $\lambda > 0$, written $X \sim \text{Pois}(\lambda)$.
+
+But where does the Poisson PMF come from? We shall derive it from first principles by taking a limit of the binomial.
+
+### 4.6.2 Deriving the Poisson as a Limit of the Binomial
+
+This is a highlight of the chapter. Read slowly and savour each step.
+
+**The idea.** Divide the interval into $n$ tiny sub-intervals. If $n$ is large enough, each sub-interval contains at most one event. The probability of an event in any one sub-interval is $p = \lambda/n$ (so that the expected number of events across all $n$ sub-intervals is $np = \lambda$). Each sub-interval is a Bernoulli trial. The total number of events is therefore $\text{Bin}(n, \lambda/n)$.
+
+Now let $n \to \infty$ (make the sub-intervals infinitesimally small) while keeping $\lambda = np$ fixed.
+
+**The derivation.** Start with the binomial PMF:
+
+$$P(X = k) = \binom{n}{k} \left(\frac{\lambda}{n}\right)^k \left(1 - \frac{\lambda}{n}\right)^{n-k}.$$
+
+We take the limit as $n \to \infty$ term by term.
+
+**Step 1: The binomial coefficient.** Write:
+
+$$\binom{n}{k} = \frac{n!}{k!(n-k)!} = \frac{n(n-1)(n-2)\cdots(n-k+1)}{k!}.$$
+
+This is a product of $k$ terms in the numerator:
+
+$$\frac{n(n-1)(n-2)\cdots(n-k+1)}{n^k} = \frac{n}{n} \cdot \frac{n-1}{n} \cdot \frac{n-2}{n} \cdots \frac{n-k+1}{n}.$$
+
+As $n \to \infty$ with $k$ fixed, each factor $\frac{n-j}{n} = 1 - \frac{j}{n} \to 1$. Therefore:
+
+$$\frac{\binom{n}{k}}{n^k} \to \frac{1}{k!}.$$
+
+Equivalently, $\binom{n}{k} \left(\frac{\lambda}{n}\right)^k = \frac{\binom{n}{k}}{n^k} \cdot \lambda^k \to \frac{\lambda^k}{k!}$.
+
+**Step 2: The main exponential term.** We need:
+
+$$\left(1 - \frac{\lambda}{n}\right)^n \to e^{-\lambda} \quad \text{as } n \to \infty.$$
+
+This is one of the most fundamental limits in mathematics. One way to see it: take the logarithm:
+
+$$n \ln\left(1 - \frac{\lambda}{n}\right) = n \left(-\frac{\lambda}{n} - \frac{\lambda^2}{2n^2} - \cdots\right) = -\lambda - \frac{\lambda^2}{2n} - \cdots \to -\lambda.$$
+
+Exponentiating: $\left(1 - \frac{\lambda}{n}\right)^n \to e^{-\lambda}$.
+
+**Step 3: The remaining factor.** We also have:
+
+$$\left(1 - \frac{\lambda}{n}\right)^{-k} \to 1 \quad \text{as } n \to \infty.$$
+
+This is because $k$ is fixed and $\left(1 - \frac{\lambda}{n}\right) \to 1$.
+
+**Putting it together.** Combining Steps 1--3:
+
+$$P(X = k) = \underbrace{\binom{n}{k}\left(\frac{\lambda}{n}\right)^k}_{\to\;\lambda^k/k!} \cdot \underbrace{\left(1 - \frac{\lambda}{n}\right)^{n}}_{\to\;e^{-\lambda}} \cdot \underbrace{\left(1 - \frac{\lambda}{n}\right)^{-k}}_{\to\;1} \;\;\to\;\; \frac{\lambda^k e^{-\lambda}}{k!}.$$
+
+Therefore:
+
+$$\boxed{P(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}, \quad k = 0, 1, 2, \ldots}$$
+
+This is the **Poisson PMF**. It has a single parameter $\lambda > 0$, which represents the average rate of events.
+
+### 4.6.3 Verifying the PMF Sums to 1
+
+We need $\sum_{k=0}^{\infty} \frac{\lambda^k e^{-\lambda}}{k!} = 1$. Factor out $e^{-\lambda}$:
+
+$$e^{-\lambda} \sum_{k=0}^{\infty} \frac{\lambda^k}{k!} = e^{-\lambda} \cdot e^{\lambda} = 1. \quad \checkmark$$
+
+We used the Taylor expansion $e^{\lambda} = \sum_{k=0}^{\infty} \frac{\lambda^k}{k!}$.
+
+### 4.6.4 Deriving E[X] -- Direct Method
+
+$$E[X] = \sum_{k=0}^{\infty} k \cdot \frac{\lambda^k e^{-\lambda}}{k!}.$$
+
+The $k = 0$ term vanishes. For $k \ge 1$, note that $k/k! = 1/(k-1)!$:
+
+$$E[X] = e^{-\lambda} \sum_{k=1}^{\infty} \frac{\lambda^k}{(k-1)!} = e^{-\lambda} \cdot \lambda \sum_{k=1}^{\infty} \frac{\lambda^{k-1}}{(k-1)!}.$$
+
+Let $j = k - 1$:
+
+$$E[X] = \lambda e^{-\lambda} \sum_{j=0}^{\infty} \frac{\lambda^j}{j!} = \lambda e^{-\lambda} \cdot e^{\lambda} = \lambda.$$
+
+The expected number of events equals the rate parameter. This is intuitive and serves as a useful sanity check.
+
+### 4.6.5 Deriving the MGF
+
+$$M_X(t) = E[e^{tX}] = \sum_{k=0}^{\infty} e^{tk} \cdot \frac{\lambda^k e^{-\lambda}}{k!} = e^{-\lambda} \sum_{k=0}^{\infty} \frac{(\lambda e^t)^k}{k!} = e^{-\lambda} \cdot e^{\lambda e^t} = e^{\lambda(e^t - 1)}.$$
+
+$$\boxed{M_X(t) = e^{\lambda(e^t - 1)}.}$$
+
+### 4.6.6 Deriving Var(X) via the MGF
+
+**First derivative:**
+
+$$M_X'(t) = \lambda e^t \cdot e^{\lambda(e^t - 1)}.$$
+
+At $t = 0$: $E[X] = M_X'(0) = \lambda \cdot 1 = \lambda$. $\checkmark$
+
+**Second derivative** (product rule):
+
+$$M_X''(t) = (\lambda e^t)^2 e^{\lambda(e^t-1)} + \lambda e^t \cdot e^{\lambda(e^t-1)} = e^{\lambda(e^t-1)}\left[\lambda^2 e^{2t} + \lambda e^t\right].$$
+
+At $t = 0$:
+
+$$E[X^2] = M_X''(0) = \lambda^2 + \lambda.$$
+
+Therefore:
+
+$$\text{Var}(X) = E[X^2] - (E[X])^2 = \lambda^2 + \lambda - \lambda^2 = \lambda.$$
+
+This is one of the most distinctive features of the Poisson distribution: **the mean equals the variance.** If you observe count data where the sample mean is approximately equal to the sample variance, a Poisson model is a natural candidate. (When the variance exceeds the mean -- *overdispersion* -- the negative binomial is often a better choice; we return to this in the count models chapter.)
+
+### 4.6.7 Implementation from Scratch
+
+```{r pois-from-scratch}
+#' Poisson PMF -- implemented from scratch
+#' @param k integer vector of non-negative values
+#' @param lambda rate parameter (> 0)
+#' @return vector of probabilities
+my_dpois <- function(k, lambda) {
+  stopifnot(all(k >= 0), lambda > 0)
+  (lambda^k * exp(-lambda)) / factorial(k)
+}
+
+# Verify against R's built-in
+k_vals <- 0:20
+lambda <- 5
+
+ours <- my_dpois(k_vals, lambda)
+theirs <- dpois(k_vals, lambda)
+
+max(abs(ours - theirs))
+```
+
+### 4.6.8 The Binomial-to-Poisson Convergence: Numerical Demonstration
+
+```{r binom-to-pois-convergence}
+box::use(data.table)
+
+lambda <- 3
+k_vals <- 0:10
+
+results <- data.table$rbindlist(lapply(c(10, 30, 100, 500, 2000), function(nn) {
+  pp <- lambda / nn
+  data.table$data.table(
+    k = k_vals,
+    prob = dbinom(k_vals, nn, pp),
+    n = nn,
+    label = sprintf("Bin(%d, %.4f)", nn, pp)
+  )
+}))
+
+# Add the Poisson limit
+pois <- data.table$data.table(
+  k = k_vals,
+  prob = dpois(k_vals, lambda),
+  n = Inf,
+  label = sprintf("Pois(%.0f)", lambda)
+)
+
+results <- rbind(results, pois)
+
+wide <- data.table$dcast(results, k ~ label, value.var = "prob")
+print(wide, digits = 6)
+```
+
+The convergence is clear: as $n$ increases and $p = \lambda/n$ decreases, the binomial probabilities approach the Poisson probabilities.
+
+### 4.6.9 Visualising Poisson PMFs for Various Lambda
+
+```{r pois-pmf-grid, fig.cap="Poisson PMFs for various values of lambda. Small lambda produces a right-skewed distribution; as lambda grows, the distribution becomes more symmetric and bell-shaped."}
+box::use(ggplot2)
+box::use(data.table)
+
+lambda_vals <- c(0.5, 1, 3, 5, 10, 20)
+
+pmf_data <- data.table$rbindlist(lapply(lambda_vals, function(lam) {
+  k_max <- qpois(0.999, lam)
+  k <- 0:k_max
+  data.table$data.table(
+    k = k,
+    pmf = dpois(k, lam),
+    label = sprintf("Pois(%.1f)", lam)
+  )
+}))
+
+# Preserve ordering
+pmf_data[, label := factor(label, levels = sprintf("Pois(%.1f)", lambda_vals))]
+
+ggplot2$ggplot(pmf_data, ggplot2$aes(x = k, y = pmf)) +
+  ggplot2$geom_col(fill = "#CC79A7", width = 0.7, alpha = 0.85) +
+  ggplot2$facet_wrap(~label, scales = "free", ncol = 3) +
+  ggplot2$labs(
+    x = "k (number of events)",
+    y = "P(X = k)",
+    title = "Poisson probability mass functions"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
+  )
+```
+
+Key observations:
+
+- For small $\lambda$ (e.g., 0.5), the distribution is heavily right-skewed, with most mass at $k = 0$.
+- As $\lambda$ increases, the distribution becomes more symmetric and approaches a bell shape (another preview of the CLT, since the Poisson is a sum of many tiny contributions).
+- The mode is approximately $\lfloor \lambda \rfloor$ (the largest integer $\le \lambda$).
+
+### 4.6.10 Real Data: Insurance Claims
+
+Let us examine real count data and assess whether a Poisson model fits.
+
+```{r insurance-data, fig.cap="Observed distribution of insurance claim counts by district-group-age cell, compared to a fitted Poisson model (orange points). The Poisson captures the general shape, though there are hints of overdispersion in some cells."}
+box::use(data.table)
+
+data_dir <- "../../../data"
+claims <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
+
+str(claims)
+
+# Claims per cell -- treat each row as a cell
+claims[, rate := Claims / Holders]
+
+summary(claims$Claims)
+c(mean = mean(claims$Claims), var = var(claims$Claims),
+  "var/mean" = var(claims$Claims) / mean(claims$Claims))
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+```
+
+```{r insurance-fit, fig.cap="Distribution of insurance claims compared to a Poisson model fitted by method of moments (matching the sample mean to lambda). The variance-to-mean ratio is substantially greater than 1, indicating overdispersion -- the Poisson underestimates the spread."}
+box::use(ggplot2)
+
+# Use the raw Claims counts
+lambda_hat <- mean(claims$Claims)
+
+# Observed frequency table
+obs_freq <- claims[, .N, by = Claims][order(Claims)]
+obs_freq[, prop := N / sum(N)]
+
+# Theoretical Poisson probabilities
+k_range <- 0:max(claims$Claims)
+pois_probs <- dpois(k_range, lambda_hat)
+
+theory <- data.table$data.table(Claims = k_range, theoretical = pois_probs)
+comparison <- merge(obs_freq, theory, by = "Claims", all = TRUE)
+comparison[is.na(prop), prop := 0]
+
+# Truncate for visualisation (focus on the most common counts)
+k_show <- min(60, max(claims$Claims))
+comp_show <- comparison[Claims <= k_show]
+
+ggplot2$ggplot(comp_show) +
+  ggplot2$geom_col(ggplot2$aes(x = Claims, y = prop), fill = "#0072B2", alpha = 0.6, width = 0.8) +
+  ggplot2$geom_point(ggplot2$aes(x = Claims, y = theoretical), colour = "#D55E00", size = 2) +
+  ggplot2$labs(
+    x = "Number of claims",
+    y = "Proportion / Probability",
+    title = sprintf("Observed claims (bars) vs. Poisson(%.1f) model (orange)", lambda_hat)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+The variance-to-mean ratio being well above 1 signals **overdispersion** -- a common feature of real count data that we shall address in later chapters with the negative binomial distribution.
+
+### 4.6.11 Epilepsy Seizure Counts
+
+```{r epilepsy-data}
+seizures <- data.table$fread(file.path(data_dir, "count/epilepsy_seizures.csv"))
+
+str(seizures)
+summary(seizures$y)
+c(mean = mean(seizures$y), var = var(seizures$y),
+  "var/mean" = var(seizures$y) / mean(seizures$y))
+```
+
+```{r epilepsy-fit, fig.cap="Distribution of epilepsy seizure counts per patient-period compared to a fitted Poisson model. The heavy right tail and large variance-to-mean ratio indicate substantial overdispersion -- the Poisson is too narrow."}
+box::use(ggplot2)
+
+lambda_hat <- mean(seizures$y)
+
+obs_freq <- seizures[, .N, by = y][order(y)]
+obs_freq[, prop := N / sum(N)]
+
+k_range <- 0:max(seizures$y)
+theory <- data.table$data.table(y = k_range, theoretical = dpois(k_range, lambda_hat))
+
+comp <- merge(obs_freq, theory, by = "y", all = TRUE)
+comp[is.na(prop), prop := 0]
+
+# Truncate
+k_show <- min(40, max(seizures$y))
+comp_show <- comp[y <= k_show]
+
+ggplot2$ggplot(comp_show) +
+  ggplot2$geom_col(ggplot2$aes(x = y, y = prop), fill = "#009E73", alpha = 0.6, width = 0.8) +
+  ggplot2$geom_point(ggplot2$aes(x = y, y = theoretical), colour = "#D55E00", size = 2) +
+  ggplot2$labs(
+    x = "Number of seizures",
+    y = "Proportion / Probability",
+    title = sprintf("Observed seizures (bars) vs. Poisson(%.1f) model (orange)", lambda_hat)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+In both datasets, the Poisson model captures the general shape but fails to account for the excess variability. This motivates more flexible count models (negative binomial, zero-inflated Poisson) that we will study in later chapters.
+
+---
+
+## 4.7 Relationships Between Discrete Distributions
+
+### 4.7.1 The Family Tree
+
+The discrete distributions we have studied are not isolated -- they form an interconnected family. Understanding these connections deepens our understanding of each individual distribution.
+
+**Key relationships:**
+
+1. **Bernoulli $\to$ Binomial.** A Binomial($n, p$) random variable is the sum of $n$ independent Bernoulli($p$) random variables. Equivalently, Bernoulli($p$) = Binomial(1, $p$).
+
+2. **Geometric = Negative Binomial with $r = 1$.** The geometric distribution is a special case of the negative binomial.
+
+3. **Binomial $\to$ Poisson.** As $n \to \infty$ and $p \to 0$ with $np = \lambda$ held constant, Binomial($n, p$) converges to Poisson($\lambda$). The Poisson is the "rare events" limit of the binomial.
+
+4. **Hypergeometric $\approx$ Binomial.** When the population size $N$ is much larger than the sample size $n$, the hypergeometric distribution is well-approximated by the binomial with $p = K/N$.
+
+5. **Sum of Poissons.** If $X \sim \text{Pois}(\lambda_1)$ and $Y \sim \text{Pois}(\lambda_2)$ are independent, then $X + Y \sim \text{Pois}(\lambda_1 + \lambda_2)$. This follows from the MGFs: $e^{\lambda_1(e^t-1)} \cdot e^{\lambda_2(e^t-1)} = e^{(\lambda_1+\lambda_2)(e^t-1)}$.
+
+### 4.7.2 Summary Comparison Table
+
+| Distribution | Support | PMF | $E[X]$ | $\text{Var}(X)$ | MGF |
+|:-------------|:--------|:----|:-------|:----------------|:----|
+| Bernoulli($p$) | $\{0,1\}$ | $p^x(1-p)^{1-x}$ | $p$ | $p(1-p)$ | $(1-p)+pe^t$ |
+| Binomial($n,p$) | $\{0,\ldots,n\}$ | $\binom{n}{k}p^k(1-p)^{n-k}$ | $np$ | $np(1-p)$ | $[(1-p)+pe^t]^n$ |
+| Geometric($p$) | $\{1,2,\ldots\}$ | $(1-p)^{k-1}p$ | $1/p$ | $(1-p)/p^2$ | $\frac{pe^t}{1-(1-p)e^t}$ |
+| NegBin($r,p$) | $\{r,r+1,\ldots\}$ | $\binom{k-1}{r-1}p^r(1-p)^{k-r}$ | $r/p$ | $r(1-p)/p^2$ | $\left(\frac{pe^t}{1-(1-p)e^t}\right)^r$ |
+| Hypergeometric($N,K,n$) | see text | $\frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}}$ | $nK/N$ | $n\frac{K}{N}\frac{N-K}{N}\frac{N-n}{N-1}$ | (no simple form) |
+| Poisson($\lambda$) | $\{0,1,2,\ldots\}$ | $\frac{\lambda^k e^{-\lambda}}{k!}$ | $\lambda$ | $\lambda$ | $e^{\lambda(e^t-1)}$ |
+
+### 4.7.3 Family Comparison Plot
+
+```{r family-comparison, fig.cap="All six discrete distributions plotted together for comparable parameter choices. Each distribution has a distinctive shape reflecting its underlying assumptions."}
+box::use(ggplot2)
+box::use(data.table)
+
+# Comparable parameters
+k_bern <- 0:1
+k_binom <- 0:20
+k_geom <- 1:20
+k_negbin <- 3:25
+k_hyper <- 0:15
+k_pois <- 0:20
+
+family_data <- data.table$rbindlist(list(
+  data.table$data.table(k = k_bern, pmf = dbinom(k_bern, 1, 0.4),
+             dist = "Bernoulli(0.4)"),
+  data.table$data.table(k = k_binom, pmf = dbinom(k_binom, 20, 0.4),
+             dist = "Binomial(20, 0.4)"),
+  data.table$data.table(k = k_geom, pmf = dgeom(k_geom - 1, 0.3),
+             dist = "Geometric(0.3)"),
+  data.table$data.table(k = k_negbin, pmf = dnbinom(k_negbin - 3, size = 3, prob = 0.3),
+             dist = "NegBin(3, 0.3)"),
+  data.table$data.table(k = k_hyper, pmf = dhyper(k_hyper, m = 30, n = 70, k = 15),
+             dist = "Hypergeometric(100,30,15)"),
+  data.table$data.table(k = k_pois, pmf = dpois(k_pois, 8),
+             dist = "Poisson(8)")
+))
+
+dist_colours <- c(
+  "Bernoulli(0.4)" = "#0072B2",
+  "Binomial(20, 0.4)" = "#D55E00",
+  "Geometric(0.3)" = "#009E73",
+  "NegBin(3, 0.3)" = "#CC79A7",
+  "Hypergeometric(100,30,15)" = "#E69F00",
+  "Poisson(8)" = "#56B4E9"
+)
+
+ggplot2$ggplot(family_data, ggplot2$aes(x = k, y = pmf, fill = dist)) +
+  ggplot2$geom_col(alpha = 0.8, width = 0.7) +
+  ggplot2$facet_wrap(~dist, scales = "free", ncol = 3) +
+  ggplot2$scale_fill_manual(values = dist_colours) +
+  ggplot2$labs(
+    x = "k",
+    y = "P(X = k)",
+    title = "The family of discrete distributions"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    legend.position = "none",
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
+  )
+```
+
+### 4.7.4 A Utility Function: Discrete Distribution Calculator
+
+Let us build a utility function that, given a distribution name and parameters, returns a `data.table` with the PMF and CDF values.
+
+```{r dist-utility}
+
+#' Compute PMF and CDF for a named discrete distribution
+#' @param dist character: one of "bernoulli", "binomial", "geometric",
+#'   "negbin", "hypergeometric", "poisson"
+#' @param params named list of parameters
+#' @param k_range optional integer vector of k values (auto-determined if NULL)
+#' @return data.table with columns: k, pmf, cdf
+discrete_dist <- function(dist, params, k_range = NULL) {
+  dist <- tolower(dist)
+
+  if (is.null(k_range)) {
+    k_range <- switch(dist,
+      bernoulli = 0:1,
+      binomial = 0:params$n,
+      geometric = 1:(ceiling(5 / params$p)),
+      negbin = params$r:(params$r + ceiling(5 * params$r / params$p)),
+      hypergeometric = {
+        lo <- max(0, params$n - (params$N - params$K))
+        hi <- min(params$n, params$K)
+        lo:hi
+      },
+      poisson = 0:qpois(0.999, params$lambda),
+      stop("Unknown distribution: ", dist)
+    )
+  }
+
+  pmf <- switch(dist,
+    bernoulli = dbinom(k_range, 1, params$p),
+    binomial = dbinom(k_range, params$n, params$p),
+    geometric = dgeom(k_range - 1, params$p),
+    negbin = dnbinom(k_range - params$r, size = params$r, prob = params$p),
+    hypergeometric = dhyper(k_range, m = params$K, n = params$N - params$K, k = params$n),
+    poisson = dpois(k_range, params$lambda)
+  )
+
+  data.table$data.table(
+    k = k_range,
+    pmf = pmf,
+    cdf = cumsum(pmf)
+  )
+}
+
+discrete_dist("binomial", list(n = 10, p = 0.3))
+discrete_dist("poisson", list(lambda = 4))
+```
+
+---
+
+## 4.8 Exercises
+
+### Derivation Exercises
+
+**Exercise 4.1.** Prove that if $X \sim \text{Pois}(\lambda_1)$ and $Y \sim \text{Pois}(\lambda_2)$ are independent, then $X + Y \sim \text{Pois}(\lambda_1 + \lambda_2)$. *(Hint: use the MGF approach.)*
+
+**Exercise 4.2.** Derive the variance of the geometric distribution directly from the definition $\text{Var}(X) = E[X^2] - (E[X])^2$, without using the derivative-of-geometric-series trick. *(This is intentionally tedious -- the point is to appreciate the elegance of the alternative method.)*
+
+**Exercise 4.3.** Show that the negative binomial PMF sums to 1. *(Hint: use the negative binomial series expansion $(1-x)^{-r} = \sum_{j=0}^{\infty}\binom{r+j-1}{j}x^j$ for $|x| < 1$.)*
+
+**Exercise 4.4.** Derive the MGF of the geometric distribution: $M_X(t) = \frac{pe^t}{1 - (1-p)e^t}$, valid for $t < -\ln(1-p)$. Then use it to recover $E[X] = 1/p$.
+
+### Computation Exercises
+
+**Exercise 4.5.** Let $X \sim \text{Bin}(20, 0.3)$. Compute:
+(a) $P(X = 5)$
+(b) $P(X \le 5)$
+(c) $P(3 \le X \le 8)$
+(d) The smallest $k$ such that $P(X \le k) \ge 0.9$
+
+```{r ex-4-5, eval=FALSE}
+# (a)
+dbinom(5, 20, 0.3)
+# (b)
+pbinom(5, 20, 0.3)
+# (c)
+pbinom(8, 20, 0.3) - pbinom(2, 20, 0.3)
+# (d)
+qbinom(0.9, 20, 0.3)
+```
+
+**Exercise 4.6.** A Poisson random variable $X$ satisfies $P(X = 2) = P(X = 3)$. Find $\lambda$.
+
+*Solution sketch:* Set $\frac{\lambda^2 e^{-\lambda}}{2!} = \frac{\lambda^3 e^{-\lambda}}{3!}$. Simplify to get $\lambda = 3$.
+
+**Exercise 4.7.** In a lottery, 6 numbers are drawn without replacement from $\{1, 2, \ldots, 49\}$. You pick 6 numbers. What is the probability that exactly 3 of your numbers match? *(This is a hypergeometric problem.)*
+
+### Modelling Exercises
+
+**Exercise 4.8.** For each scenario, identify the most appropriate distribution and justify your choice:
+(a) The number of patients arriving at an emergency room in one hour.
+(b) The number of coin flips until the first heads.
+(c) The number of defective items in a sample of 15 drawn from a batch of 100.
+(d) The number of successful free throws in 10 attempts by a basketball player.
+(e) The number of tries until a gambler wins 3 games.
+
+### R Exercises
+
+**Exercise 4.9.** Simulate 50,000 draws from a Poisson(7) distribution. Compute the sample mean and sample variance. Verify that both are approximately 7. Plot a histogram and overlay the theoretical PMF.
+
+```{r ex-4-9, eval=FALSE}
+set.seed(42)
+sims <- rpois(50000, lambda = 7)
+cat("Mean:", mean(sims), "\n")
+cat("Variance:", var(sims), "\n")
+# Plotting code left as exercise
+```
+
+**Exercise 4.10.** Write an R function that simulates the geometric distribution *from scratch* using only `runif()` -- do not use `rgeom()`. Your function should generate $n$ geometric random variables by repeatedly simulating Bernoulli trials. Compare the empirical distribution of 10,000 draws to the theoretical PMF.
+
+```{r ex-4-10, eval=FALSE}
+my_rgeom <- function(n, p) {
+  replicate(n, {
+    k <- 0
+    repeat {
+      k <- k + 1
+      if (runif(1) < p) return(k)
+    }
+  })
+}
+```
+
+**Exercise 4.11.** Using the `insurance_claims.csv` data, fit a Poisson model to the `Claims` column and a negative binomial model (using the variance-to-mean ratio to estimate the dispersion parameter). Plot both fitted distributions against the observed data. Which fits better?
+
+### Spot-the-Error Exercises
+
+**Exercise 4.12.** A colleague says: "I rolled a die 10 times and got no sixes. The probability of this is $(5/6)^{10} \approx 0.16$. Since I have now 'used up' all my bad luck, the probability of getting a six on my next roll is higher than $1/6$."
+
+*What is wrong with this reasoning?* *(Hint: the memoryless property.)*
+
+**Exercise 4.13.** A student writes: "Let $X \sim \text{Bin}(100, 0.5)$. Then $P(X = 50) = 0.5$ because the mean is 50."
+
+*What is the error?* Compute the actual value of $P(X = 50)$.
+
+```{r ex-4-13, eval=FALSE}
+dbinom(50, 100, 0.5)
+# The actual probability is about 0.08, not 0.5!
+```
+
+---
+
+## Communicating to Stakeholders
+
+When presenting Poisson models to a non-technical audience:
+
+- Say "an average of 5 events per hour" rather than "$\lambda = 5$."
+- Use the Poisson's "mean = variance" property as a diagnostic: "If the spread of our data is much larger than the average, the simple Poisson model doesn't capture the full picture, and we should use a more flexible model."
+- For the binomial-to-Poisson approximation, explain: "When we have very many trials but each has a tiny probability, the total count of successes follows a Poisson pattern."
+- Visualisations are essential. A bar chart comparing observed frequencies to the Poisson model immediately reveals whether the model fits or whether there is overdispersion (excess variability).
+
+---
+
+## Quick Reference
+
+| Property | Poisson($\lambda$) |
+|:---------|:-------------------|
+| **Setup** | Count of rare events in a fixed interval |
+| **Support** | $\{0, 1, 2, \ldots\}$ |
+| **PMF** | $\frac{\lambda^k e^{-\lambda}}{k!}$ |
+| **E[X]** | $\lambda$ |
+| **Var(X)** | $\lambda$ (mean = variance) |
+| **MGF** | $e^{\lambda(e^t - 1)}$ |
+| **R functions** | `dpois`, `ppois`, `qpois`, `rpois` |
+| **Key property** | Limit of Bin($n, \lambda/n$) as $n \to \infty$ |
+| **Overdispersion signal** | $\text{Var}(X) > E[X]$ $\Rightarrow$ consider negative binomial |
+
+**Key relationships across all distributions:**
+
+| From | To | Relationship |
+|:-----|:---|:-------------|
+| Bernoulli($p$) | Binomial($n, p$) | Sum of $n$ independent copies |
+| Geometric($p$) | NegBin($r, p$) | Special case $r = 1$ |
+| Binomial($n, \lambda/n$) | Poisson($\lambda$) | Limit as $n \to \infty$ |
+| Hypergeometric($N, K, n$) | Binomial($n, K/N$) | Approximation when $N \gg n$ |
+| Poisson($\lambda_1$) + Poisson($\lambda_2$) | Poisson($\lambda_1 + \lambda_2$) | Sum of independent Poissons |

@@ -65,11 +65,6 @@ router.post(
                 email
             });
 
-            // Auto-elevate admin
-            if (config.adminUsername && username === config.adminUsername) {
-                await authService.ensureAdminUser(user.id);
-            }
-
             const session = await authService.createSession(
                 user.id,
                 req.headers['user-agent'],

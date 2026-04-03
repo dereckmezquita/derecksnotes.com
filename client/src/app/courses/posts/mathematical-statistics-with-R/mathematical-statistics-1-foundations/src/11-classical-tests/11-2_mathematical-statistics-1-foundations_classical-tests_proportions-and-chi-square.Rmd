@@ -1,0 +1,473 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 11: Classical Tests"
+part: "Part 2: Proportions and Chi-Square"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, hypothesis-testing, chi-square, proportions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+```{r data-path, include=FALSE}
+data_dir <- "../../../data"
+```
+
+# Chapter 11 -- Classical Tests
+
+## Part 2: Proportions and Chi-Square
+
+In Part 1 we derived tests for comparing population means. Now we turn to a different class of question: is a **proportion** what we claim it is? Does a set of **counts** follow a hypothesised distribution? Are two **categorical variables** independent?
+
+These tests all grow from the same root: the CLT applied to counts and proportions. The chi-square tests, in particular, are a beautiful application of the multivariate CLT -- the sum of squared standardised quantities converges to a chi-square distribution. Let us derive each test from first principles.
+
+---
+
+## 11.4 The Z-Test for a Single Proportion
+
+### 11.4.1 The Problem
+
+We observe $X$ successes in $n$ independent Bernoulli trials. Let $\hat{p} = X/n$ be the sample proportion. We wish to test:
+
+$$H_0: p = p_0 \quad \text{vs} \quad H_1: p \neq p_0.$$
+
+### 11.4.2 Derivation
+
+**Step 1.** From Chapter 4, $X \sim \text{Bin}(n, p)$. By the CLT (Chapter 7), for large $n$:
+
+$$\hat{p} = \frac{X}{n} \stackrel{\text{approx}}{\sim} N\!\left(p, \frac{p(1-p)}{n}\right).$$
+
+**Step 2.** Under $H_0$, the mean is $p_0$ and the variance is $p_0(1-p_0)/n$. Standardise:
+
+$$Z = \frac{\hat{p} - p_0}{\sqrt{p_0(1 - p_0)/n}} \stackrel{\text{approx}}{\sim} N(0, 1) \quad \text{under } H_0.$$
+
+**Step 3.** We could also square this to get a chi-square statistic with 1 degree of freedom:
+
+$$Z^2 = \frac{(\hat{p} - p_0)^2}{p_0(1-p_0)/n} \sim \chi^2_1.$$
+
+This connection to the chi-square distribution foreshadows the goodness-of-fit test we derive shortly.
+
+**Rule of thumb:** The normal approximation is adequate when $np_0 \ge 5$ and $n(1-p_0) \ge 5$.
+
+### 11.4.3 Implementation from Scratch
+
+```{r z-prop-scratch}
+set.seed(42)
+
+# Scenario: a coin is flipped 200 times and lands heads 115 times.
+# Test H0: p = 0.5
+n <- 200
+x <- 115
+p_hat <- x / n
+p_0 <- 0.5
+
+z_stat <- (p_hat - p_0) / sqrt(p_0 * (1 - p_0) / n)
+p_value_z <- 2 * pnorm(abs(z_stat), lower.tail = FALSE)
+
+data.frame(
+  p_hat = p_hat,
+  z_stat = round(z_stat, 4),
+  p_value = round(p_value_z, 4)
+)
+```
+
+### 11.4.4 Using `prop.test()`
+
+```{r prop-test-builtin}
+# prop.test uses the chi-square form (Z^2) with continuity correction by default
+prop.test(x = 115, n = 200, p = 0.5)
+```
+
+Notice that `prop.test()` applies a **continuity correction** by default (adjusting $|\hat{p} - p_0|$ downward by $1/(2n)$). This correction accounts for the fact that we are approximating a discrete distribution with a continuous one. For large $n$ the correction is negligible; for small $n$ you should consider the exact binomial test instead.
+
+```{r prop-test-no-correction}
+# Without continuity correction -- matches our manual Z^2
+prop.test(x = 115, n = 200, p = 0.5, correct = FALSE)
+```
+
+---
+
+## 11.5 The Exact Binomial Test
+
+### 11.5.1 Why "Exact"?
+
+The z-test for proportions relies on the normal approximation. When $n$ is small or $p_0$ is near 0 or 1, this approximation is poor. The **exact binomial test** uses the binomial distribution directly -- no approximation is needed.
+
+### 11.5.2 Derivation
+
+Under $H_0: p = p_0$, the number of successes $X \sim \text{Bin}(n, p_0)$. The two-sided p-value is:
+
+$$\text{p-value} = \sum_{\{k : P(X=k) \le P(X=x)\}} P(X = k)$$
+
+where $x$ is the observed count. In other words, we sum the probabilities of all outcomes that are as unlikely or more unlikely than the one observed. This is the definition of a p-value applied without any distributional approximation.
+
+### 11.5.3 Small-Sample Example
+
+```{r binom-test-scratch}
+# A treatment is given to 12 patients; 10 recover.
+# Historical recovery rate is 60%. Is the treatment effective?
+n_patients <- 12
+recovered <- 10
+p_0_hist <- 0.60
+
+# Exact two-sided p-value (method: sum probabilities <= P(X=10))
+probs <- dbinom(0:n_patients, size = n_patients, prob = p_0_hist)
+p_observed <- dbinom(recovered, size = n_patients, prob = p_0_hist)
+p_value_exact <- sum(probs[probs <= p_observed])
+
+data.frame(
+  observed = recovered,
+  p_observed = round(p_observed, 6),
+  p_value_exact = round(p_value_exact, 4)
+)
+```
+
+```{r binom-test-builtin}
+binom.test(x = 10, n = 12, p = 0.60)
+```
+
+```{r binom-exact-plot, fig.cap="Binomial distribution under H0 (p = 0.60, n = 12). Bars in red indicate outcomes at least as extreme as the observed count of 10 successes."}
+binom_dt <- data.table::data.table(
+  k = 0:n_patients,
+  prob = dbinom(0:n_patients, size = n_patients, prob = p_0_hist)
+)
+binom_dt[, extreme := prob <= p_observed]
+
+ggplot2$ggplot(binom_dt, ggplot2$aes(x = k, y = prob, fill = extreme)) +
+  ggplot2$geom_col(width = 0.7) +
+  ggplot2$scale_fill_manual(
+    values = c("FALSE" = "#bdc3c7", "TRUE" = "#e74c3c"),
+    labels = c("FALSE" = "Non-extreme", "TRUE" = "Extreme"),
+    name = ""
+  ) +
+  ggplot2$geom_hline(yintercept = p_observed, linetype = "dashed", colour = "#e74c3c") +
+  ggplot2$labs(
+    x = "Number of successes", y = "Probability",
+    title = "Exact Binomial Test: H0: p = 0.60, n = 12",
+    subtitle = paste0("Observed = 10, p-value = ", round(p_value_exact, 4))
+  ) +
+  ggplot2$scale_x_continuous(breaks = 0:n_patients) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+---
+
+## 11.6 Chi-Square Goodness-of-Fit Test
+
+### 11.6.1 The Problem
+
+We observe counts $O_1, O_2, \ldots, O_k$ falling into $k$ categories and wish to test whether they follow a specified distribution with probabilities $p_1, p_2, \ldots, p_k$ (where $\sum p_i = 1$).
+
+$$H_0: P(\text{category } i) = p_i \text{ for all } i \quad \text{vs} \quad H_1: \text{at least one } P(\text{category } i) \neq p_i.$$
+
+### 11.6.2 Derivation from the Multinomial
+
+**Step 1.** Under $H_0$, the expected count for category $i$ is $E_i = n p_i$. By the CLT applied to each Bernoulli indicator, for large $n$:
+
+$$\frac{O_i - E_i}{\sqrt{E_i}} \stackrel{\text{approx}}{\sim} N(0, 1).$$
+
+**Step 2.** We might try summing the squares of these standardised values. However, the $O_i$ are not independent -- they are constrained to sum to $n$. This constraint removes one degree of freedom.
+
+**Step 3.** It can be shown (via the multivariate CLT and a projection argument) that:
+
+$$\boxed{X^2 = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i} \stackrel{\text{approx}}{\sim} \chi^2_{k-1} \quad \text{under } H_0.}$$
+
+The degrees of freedom are $k - 1$ because of the single linear constraint $\sum O_i = n$. If we also estimate $m$ parameters from the data, the degrees of freedom reduce to $k - 1 - m$.
+
+**Intuition:** Each term $(O_i - E_i)^2 / E_i$ measures how far the observed count deviates from expectation, relative to the expected magnitude. Large values of $X^2$ indicate poor fit.
+
+### 11.6.3 Die-Rolling Example
+
+```{r gof-die-scratch}
+set.seed(42)
+
+# Roll a die 120 times -- is it fair?
+# (We secretly make it slightly loaded)
+probs_true <- c(0.12, 0.15, 0.18, 0.20, 0.18, 0.17)
+rolls <- sample(1:6, size = 120, replace = TRUE, prob = probs_true)
+
+observed <- table(rolls)
+expected <- rep(120 / 6, 6)
+
+# Manual chi-square statistic
+chi_sq <- sum((observed - expected)^2 / expected)
+df_gof <- length(observed) - 1
+p_value_gof <- pchisq(chi_sq, df = df_gof, lower.tail = FALSE)
+
+data.frame(
+  chi_sq = round(chi_sq, 4),
+  df = df_gof,
+  p_value = round(p_value_gof, 4)
+)
+```
+
+```{r gof-die-builtin}
+chisq.test(observed)
+```
+
+```{r gof-die-plot, fig.cap="Observed vs expected counts for 120 rolls of a (secretly loaded) die. The visual discrepancy is modest but the chi-square test quantifies whether it exceeds chance variation."}
+die_dt <- data.table::data.table(
+  face = factor(1:6),
+  observed = as.integer(observed),
+  expected = expected
+)
+die_long <- data.table::melt(die_dt, id.vars = "face",
+  variable.name = "type", value.name = "count")
+
+ggplot2$ggplot(die_long, ggplot2$aes(x = face, y = count, fill = type)) +
+  ggplot2$geom_col(position = "dodge", width = 0.6) +
+  ggplot2$scale_fill_manual(
+    values = c("observed" = "#3498db", "expected" = "#e74c3c"),
+    labels = c("observed" = "Observed", "expected" = "Expected"),
+    name = ""
+  ) +
+  ggplot2$labs(
+    x = "Die face", y = "Count",
+    title = "Goodness-of-Fit: Is the Die Fair?",
+    subtitle = paste0(
+      "\u03c7\u00b2 = ", round(chi_sq, 2),
+      ", df = ", df_gof,
+      ", p = ", round(p_value_gof, 3)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+---
+
+## 11.7 Chi-Square Test of Independence
+
+### 11.7.1 The Problem
+
+We observe a **contingency table** -- counts cross-classified by two categorical variables with $r$ rows and $c$ columns. We wish to test:
+
+$$H_0: \text{the two variables are independent} \quad \text{vs} \quad H_1: \text{they are associated.}$$
+
+### 11.7.2 Derivation
+
+**Step 1.** Under independence, $P(\text{row } i \cap \text{col } j) = P(\text{row } i) \cdot P(\text{col } j)$. We estimate these marginal probabilities by:
+
+$$\hat{p}_{i\cdot} = \frac{O_{i\cdot}}{n}, \quad \hat{p}_{\cdot j} = \frac{O_{\cdot j}}{n}$$
+
+where $O_{i\cdot}$ and $O_{\cdot j}$ are the row and column totals respectively.
+
+**Step 2.** The expected count under $H_0$ for cell $(i, j)$ is:
+
+$$E_{ij} = n \cdot \hat{p}_{i\cdot} \cdot \hat{p}_{\cdot j} = \frac{O_{i\cdot} \cdot O_{\cdot j}}{n}.$$
+
+This formula has a satisfying interpretation: we distribute the total count across cells in proportion to the marginal frequencies.
+
+**Step 3.** The test statistic is the same Pearson form:
+
+$$\boxed{X^2 = \sum_{i=1}^{r} \sum_{j=1}^{c} \frac{(O_{ij} - E_{ij})^2}{E_{ij}} \stackrel{\text{approx}}{\sim} \chi^2_{(r-1)(c-1)} \quad \text{under } H_0.}$$
+
+**Step 4.** The degrees of freedom are $(r-1)(c-1)$. This comes from: the table has $rc$ cells, but we impose $r + c - 1$ constraints (the row and column marginals fix the marginal probabilities, minus the redundant constraint that all marginals sum to $n$). So the free parameters are $rc - (r + c - 1) = (r-1)(c-1)$.
+
+### 11.7.3 Streptomycin TB Trial
+
+The 1948 Medical Research Council streptomycin trial was one of the first randomised controlled trials. Patients with pulmonary tuberculosis were randomly assigned to streptomycin or control. We test whether treatment is associated with outcome.
+
+```{r strep-tb-data}
+# Reconstruct the 2x2 table from the trial
+# Rows: Treatment (Streptomycin, Control)
+# Columns: Outcome (Improvement, Deterioration, Death, No change)
+strep_mat <- matrix(
+  c(28, 4, 4, 19,   # Streptomycin row
+    13, 12, 7, 20),  # Control row
+  nrow = 2, byrow = TRUE,
+  dimnames = list(
+    Treatment = c("Streptomycin", "Control"),
+    Outcome = c("Improvement", "Deterioration", "Death", "No change")
+  )
+)
+
+strep_mat
+```
+
+```{r strep-tb-manual}
+# Manual chi-square test of independence
+n_total <- sum(strep_mat)
+row_totals <- rowSums(strep_mat)
+col_totals <- colSums(strep_mat)
+
+# Expected counts under independence
+expected_mat <- outer(row_totals, col_totals) / n_total
+round(expected_mat, 2)
+
+# Test statistic
+chi_sq_ind <- sum((strep_mat - expected_mat)^2 / expected_mat)
+df_ind <- (nrow(strep_mat) - 1) * (ncol(strep_mat) - 1)
+p_value_ind <- pchisq(chi_sq_ind, df = df_ind, lower.tail = FALSE)
+
+data.frame(
+  chi_sq = round(chi_sq_ind, 4),
+  df = df_ind,
+  p_value = round(p_value_ind, 4)
+)
+```
+
+```{r strep-tb-builtin}
+chisq.test(strep_mat)
+```
+
+```{r strep-tb-mosaic, fig.cap="Mosaic-style visualisation of the streptomycin TB trial. Tile areas are proportional to counts. The streptomycin group shows more improvement and fewer deaths."}
+strep_df <- as.data.frame(strep_mat)
+strep_df$Treatment <- rownames(strep_df)
+strep_dt <- data.table::melt(data.table::as.data.table(strep_df),
+  id.vars = "Treatment", variable.name = "Outcome", value.name = "N")
+strep_dt[, Outcome := factor(Outcome,
+  levels = c("Improvement", "No change", "Deterioration", "Death"))]
+
+ggplot2$ggplot(strep_dt, ggplot2$aes(x = Treatment, y = N, fill = Outcome)) +
+  ggplot2$geom_col(position = "fill", width = 0.7) +
+  ggplot2$scale_fill_manual(values = c(
+    "Improvement" = "#27ae60",
+    "No change" = "#bdc3c7",
+    "Deterioration" = "#e67e22",
+    "Death" = "#e74c3c"
+  )) +
+  ggplot2$labs(
+    x = "", y = "Proportion",
+    title = "Streptomycin TB Trial: Outcome by Treatment Group",
+    subtitle = paste0(
+      "\u03c7\u00b2 = ", round(chi_sq_ind, 2),
+      ", df = ", df_ind,
+      ", p = ", round(p_value_ind, 4)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+### 11.7.4 Examining the Residuals
+
+The test statistic tells us *whether* the observed table deviates from independence; the **Pearson residuals** tell us *where*:
+
+$$r_{ij} = \frac{O_{ij} - E_{ij}}{\sqrt{E_{ij}}}.$$
+
+Large positive residuals indicate cells with more observations than expected under independence; large negative residuals indicate fewer.
+
+```{r strep-residuals}
+residuals_mat <- (strep_mat - expected_mat) / sqrt(expected_mat)
+round(residuals_mat, 2)
+```
+
+The residuals confirm what the plot suggests: the streptomycin group has substantially more improvement ($r = 2.07$) and fewer deteriorations ($r = -1.77$) than expected under independence.
+
+---
+
+## 11.8 Two-Proportion Z-Test
+
+### 11.8.1 Derivation
+
+We observe $X_1$ successes in $n_1$ trials and $X_2$ successes in $n_2$ trials. We test $H_0: p_1 = p_2$.
+
+Under $H_0$, the common proportion is estimated by the **pooled proportion** $\hat{p} = (X_1 + X_2)/(n_1 + n_2)$. The test statistic is:
+
+$$Z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})(1/n_1 + 1/n_2)}} \stackrel{\text{approx}}{\sim} N(0, 1) \quad \text{under } H_0.$$
+
+Equivalently, $Z^2 \sim \chi^2_1$, and this is precisely the chi-square test of independence applied to a $2 \times 2$ table. The two-proportion z-test and the $2 \times 2$ chi-square test are the *same test* expressed differently.
+
+```{r two-prop-scratch}
+# From the strep trial: improvement rates
+x1 <- 28  # streptomycin improvements
+n1_s <- 55   # total streptomycin patients
+x2 <- 13  # control improvements
+n2_s <- 52   # total control patients
+
+p1_hat <- x1 / n1_s
+p2_hat <- x2 / n2_s
+p_pooled <- (x1 + x2) / (n1_s + n2_s)
+
+z_2prop <- (p1_hat - p2_hat) /
+  sqrt(p_pooled * (1 - p_pooled) * (1/n1_s + 1/n2_s))
+p_val_2prop <- 2 * pnorm(abs(z_2prop), lower.tail = FALSE)
+
+data.frame(
+  p1 = round(p1_hat, 3),
+  p2 = round(p2_hat, 3),
+  z = round(z_2prop, 4),
+  p_value = round(p_val_2prop, 4)
+)
+```
+
+```{r two-prop-builtin}
+prop.test(x = c(28, 13), n = c(55, 52), correct = FALSE)
+```
+
+Note that `prop.test()` returns a chi-square statistic which is $Z^2$. The p-values agree with our manual calculation.
+
+---
+
+## Communicating to Stakeholders
+
+When reporting chi-square or proportion tests:
+
+1. **Use counts and percentages**, not just test statistics: "51% of streptomycin patients improved, compared with 25% in the control group."
+2. **Give the absolute numbers**: "28 out of 55 vs 13 out of 52." Percentages without denominators can be misleading.
+3. **Explain independence plainly**: "We asked whether the treatment group and the patient outcome are related -- or whether they are independent, meaning the outcome would be the same regardless of which treatment was given."
+4. **Visualise**: a stacked or grouped bar chart communicates more than any p-value.
+5. **Be cautious with small expected counts**: if any $E_{ij} < 5$, mention that the chi-square approximation may be unreliable and consider Fisher's exact test.
+
+---
+
+## Quick Reference
+
+| Test | Null hypothesis | Test statistic | Null distribution | R function |
+|---|---|---|---|---|
+| Z-test for proportion | $p = p_0$ | $Z = \frac{\hat{p} - p_0}{\sqrt{p_0(1-p_0)/n}}$ | $N(0,1)$ | `prop.test()` |
+| Exact binomial | $p = p_0$ | $X$ (count) | $\text{Bin}(n, p_0)$ | `binom.test()` |
+| $\chi^2$ goodness-of-fit | $p_i = p_{i0}$ for all $i$ | $\sum \frac{(O_i-E_i)^2}{E_i}$ | $\chi^2_{k-1}$ | `chisq.test()` |
+| $\chi^2$ independence | Variables independent | $\sum \frac{(O_{ij}-E_{ij})^2}{E_{ij}}$ | $\chi^2_{(r-1)(c-1)}$ | `chisq.test()` |
+| Two-proportion Z | $p_1 = p_2$ | $Z = \frac{\hat{p}_1-\hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})(1/n_1+1/n_2)}}$ | $N(0,1)$ | `prop.test()` |
+
+---
+
+## Exercises
+
+**Exercise 11.7.** A genetics experiment produces offspring in four phenotypic classes. Under a Mendelian model the expected ratios are 9:3:3:1. You observe 315, 108, 101, and 32 offspring. Conduct a chi-square goodness-of-fit test. State the degrees of freedom and interpret.
+
+**Exercise 11.8.** Show algebraically that for a $2 \times 2$ table, the chi-square test of independence is equivalent to the squared two-proportion z-test. Start with the z-statistic and show that $Z^2 = X^2$.
+
+**Exercise 11.9.** A pharmaceutical company tests a new antibiotic on 150 patients (82 cured) versus a placebo on 150 patients (64 cured). Conduct both `prop.test()` and `binom.test()` approaches. Why does the exact test not directly apply to the two-sample problem?
+
+**Exercise 11.10.** Using the penguins data, create a contingency table of `species` by `island`. Test whether species and island are independent. Examine the Pearson residuals and identify which species-island combinations are over- or under-represented.
+
+**Exercise 11.11.** A survey asks 500 people which of three political parties they support. The results are: Party A = 210, Party B = 175, Party C = 115. Test whether support is equally distributed. Then test the alternative hypothesis that the proportions are 0.40, 0.35, 0.25 respectively.
+
+**Exercise 11.12.** Explain why the chi-square test of independence uses $(r-1)(c-1)$ degrees of freedom rather than $rc - 1$. What constraints reduce the degrees of freedom, and where do they come from?

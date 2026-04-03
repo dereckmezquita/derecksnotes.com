@@ -1,0 +1,522 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 8: Point Estimation"
+part: "Part 1: Estimator Properties and Method of Moments"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, estimation, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 8 -- Point Estimation
+
+## Part 1: Estimator Properties and Method of Moments
+
+We have spent the first seven chapters building up the machinery of probability: sample spaces, random variables, named distributions, joint distributions, and limit theorems. All of that work was *forward-looking* -- we started with a known probability model and deduced what data would look like.
+
+Now we reverse direction. In practice we observe data and must *infer* the unknown parameters of the model that generated it. This is the central problem of **statistical inference**, and the present chapter addresses the simplest version: given a sample, produce a single number -- a **point estimate** -- that represents our best guess for a parameter.
+
+---
+
+## 8.1 What Is an Estimator?
+
+### 8.1.1 Plain English First
+
+Suppose you have a large population whose mean height you do not know. You measure 50 people and compute the sample average. That average is your *estimate* of the population mean. The *procedure* -- "measure 50 people, compute the average" -- is the *estimator*.
+
+If you repeated the procedure with a fresh batch of 50 people, you would get a different number. The estimate changes; the estimator stays the same.
+
+### 8.1.2 Formal Definition
+
+Let $X_1, X_2, \ldots, X_n$ be a random sample from a distribution with unknown parameter $\theta$. An **estimator** of $\theta$ is any function of the sample that does not depend on $\theta$:
+
+$$\hat\theta = g(X_1, X_2, \ldots, X_n).$$
+
+Because the $X_i$ are random variables, $\hat\theta$ is itself a random variable with its own distribution -- the **sampling distribution** of the estimator.
+
+Once we plug in observed data $x_1, \ldots, x_n$, we obtain a single number $\hat\theta = g(x_1, \ldots, x_n)$. This number is the **estimate**.
+
+> **The key distinction:** An *estimator* is a random variable (a recipe). An *estimate* is a number (the dish you actually serve). Confusing the two is the single most common conceptual error in introductory statistics.
+
+### 8.1.3 A Quick Illustration
+
+
+``` r
+set.seed(42)
+pop_mean <- 170   # true population mean height (cm)
+pop_sd <- 10
+
+# Three different samples of size 50
+estimates <- sapply(1:3, function(i) {
+  sample_data <- rnorm(50, mean = pop_mean, sd = pop_sd)
+  mean(sample_data)
+})
+
+data.frame(
+  sample = 1:3,
+  estimate = round(estimates, 2)
+)
+```
+
+```
+  sample estimate
+1      1   169.64
+2      2   171.01
+3      3   168.49
+```
+
+The estimator is the same every time -- "take the sample mean." The estimate changes with each sample. This is the estimator/estimate distinction in action.
+
+---
+
+## 8.2 Bias
+
+### 8.2.1 Definition
+
+The **bias** of an estimator $\hat\theta$ is:
+
+$$\text{Bias}(\hat\theta) = E[\hat\theta] - \theta.$$
+
+If $\text{Bias}(\hat\theta) = 0$ for all $\theta$, we say $\hat\theta$ is **unbiased**. An unbiased estimator is correct *on average* -- it does not systematically overshoot or undershoot the true value.
+
+### 8.2.2 Proof: The Sample Mean Is Unbiased for $\mu$
+
+**Theorem.** Let $X_1, \ldots, X_n$ be iid with $E[X_i] = \mu$. Then $\bar X = \frac{1}{n}\sum_{i=1}^n X_i$ is unbiased for $\mu$.
+
+*Proof.*
+
+$$E[\bar X] = E\!\left[\frac{1}{n}\sum_{i=1}^n X_i\right] = \frac{1}{n}\sum_{i=1}^n E[X_i] = \frac{1}{n}\sum_{i=1}^n \mu = \frac{1}{n}\cdot n\mu = \mu.$$
+
+Hence $\text{Bias}(\bar X) = E[\bar X] - \mu = 0$. $\square$
+
+### 8.2.3 Proof: The Sample Variance with $n-1$ Is Unbiased for $\sigma^2$
+
+**Theorem.** Let $X_1, \ldots, X_n$ be iid with $E[X_i] = \mu$ and $\text{Var}(X_i) = \sigma^2$. Define
+
+$$S^2 = \frac{1}{n-1}\sum_{i=1}^n (X_i - \bar X)^2.$$
+
+Then $E[S^2] = \sigma^2$.
+
+*Proof.* We begin by expanding the sum of squared deviations:
+
+$$\sum_{i=1}^n (X_i - \bar X)^2 = \sum_{i=1}^n X_i^2 - n\bar X^2.$$
+
+Taking expectations:
+
+$$E\!\left[\sum_{i=1}^n (X_i - \bar X)^2\right] = \sum_{i=1}^n E[X_i^2] - nE[\bar X^2].$$
+
+Now, $E[X_i^2] = \text{Var}(X_i) + (E[X_i])^2 = \sigma^2 + \mu^2$ for each $i$, so the first term is $n(\sigma^2 + \mu^2)$.
+
+For the second term, note that $\text{Var}(\bar X) = \sigma^2/n$, so $E[\bar X^2] = \text{Var}(\bar X) + (E[\bar X])^2 = \sigma^2/n + \mu^2$.
+
+Therefore:
+
+$$E\!\left[\sum_{i=1}^n (X_i - \bar X)^2\right] = n(\sigma^2 + \mu^2) - n\!\left(\frac{\sigma^2}{n} + \mu^2\right) = n\sigma^2 - \sigma^2 = (n-1)\sigma^2.$$
+
+Dividing both sides by $n-1$:
+
+$$E[S^2] = E\!\left[\frac{1}{n-1}\sum_{i=1}^n(X_i - \bar X)^2\right] = \sigma^2. \quad \square$$
+
+This is the reason for **Bessel's correction** -- the $n-1$ in the denominator. Dividing by $n$ instead would produce a biased estimator that systematically underestimates $\sigma^2$.
+
+### 8.2.4 Simulation: Biased vs. Unbiased Variance Estimators
+
+
+``` r
+set.seed(42)
+n <- 10
+true_var <- 25   # sigma^2
+n_reps <- 10000
+
+biased <- numeric(n_reps)
+unbiased <- numeric(n_reps)
+
+for (i in seq_len(n_reps)) {
+  x <- rnorm(n, mean = 0, sd = sqrt(true_var))
+  biased[i] <- sum((x - mean(x))^2) / n
+  unbiased[i] <- sum((x - mean(x))^2) / (n - 1)
+}
+
+est_dt <- data.table$data.table(
+  value = c(biased, unbiased),
+  type = rep(c("Biased (1/n)", "Unbiased (1/(n-1))"), each = n_reps)
+)
+
+ggplot2$ggplot(est_dt, ggplot2$aes(x = value, fill = type)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 60, alpha = 0.5, position = "identity") +
+  ggplot2$geom_vline(xintercept = true_var, linetype = "dashed",
+    colour = "red", linewidth = 1) +
+  ggplot2$labs(
+    x = expression(hat(sigma)^2),
+    y = "Density",
+    fill = "Estimator",
+    title = sprintf("Biased vs. unbiased variance estimators (n = %d, true var = %d)", n, true_var)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/bias-simulation-1.png" alt="Sampling distributions of the biased (divide by n) and unbiased (divide by n-1) variance estimators. The true variance is shown as a dashed red line. The biased estimator&#39;s distribution is shifted to the left.">
+	Sampling distributions of the biased (divide by n) and unbiased (divide by n-1) variance estimators. The true variance is shown as a dashed red line. The biased estimator's distribution is shifted to the left.
+</Figure>
+
+
+``` r
+data.frame(
+  estimator = c("Biased (1/n)", "Unbiased (1/(n-1))"),
+  mean_estimate = round(c(mean(biased), mean(unbiased)), 3),
+  true_variance = true_var
+)
+```
+
+```
+           estimator mean_estimate true_variance
+1       Biased (1/n)        22.667            25
+2 Unbiased (1/(n-1))        25.186            25
+```
+
+---
+
+## 8.3 Consistency
+
+### 8.3.1 Definition
+
+An estimator $\hat\theta_n$ is **consistent** for $\theta$ if it converges in probability to $\theta$ as $n \to \infty$:
+
+$$\hat\theta_n \xrightarrow{P} \theta \quad \text{as } n \to \infty.$$
+
+In plain terms: as we collect more data, the estimator gets arbitrarily close to the truth.
+
+### 8.3.2 Proof: The Sample Mean Is Consistent for $\mu$
+
+**Theorem.** If $X_1, X_2, \ldots$ are iid with $E[X_i] = \mu$ and $\text{Var}(X_i) = \sigma^2 < \infty$, then $\bar X_n \xrightarrow{P} \mu$.
+
+*Proof.* This follows directly from the **Weak Law of Large Numbers** (proved in Chapter 7). For any $\varepsilon > 0$:
+
+$$P(|\bar X_n - \mu| \ge \varepsilon) \le \frac{\text{Var}(\bar X_n)}{\varepsilon^2} = \frac{\sigma^2}{n\varepsilon^2} \to 0 \quad \text{as } n \to \infty,$$
+
+where the first inequality is Chebyshev's inequality. $\square$
+
+### 8.3.3 A Useful Sufficient Condition
+
+If $\hat\theta_n$ is unbiased and $\text{Var}(\hat\theta_n) \to 0$ as $n \to \infty$, then $\hat\theta_n$ is consistent. (Apply Chebyshev's inequality as above.)
+
+### 8.3.4 Simulation: Consistency in Action
+
+
+``` r
+set.seed(42)
+true_mu <- 50
+true_sd <- 15
+sample_sizes <- c(5, 20, 100, 500)
+n_reps <- 5000
+
+results <- lapply(sample_sizes, function(n) {
+  means <- replicate(n_reps, mean(rnorm(n, true_mu, true_sd)))
+  data.table$data.table(n = paste0("n = ", n), xbar = means)
+})
+
+results_dt <- data.table$rbindlist(results)
+results_dt[, n := factor(n, levels = paste0("n = ", sample_sizes))]
+
+ggplot2$ggplot(results_dt, ggplot2$aes(x = xbar)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.6) +
+  ggplot2$geom_vline(xintercept = true_mu, colour = "red",
+    linetype = "dashed", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ n, scales = "free_y", ncol = 2) +
+  ggplot2$labs(
+    x = expression(bar(X)),
+    y = "Density",
+    title = "Consistency of the sample mean"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/consistency-sim-1.png" alt="As sample size increases, the sampling distribution of the sample mean concentrates around the true mean mu = 50. This is consistency: with enough data, the estimator converges to the truth.">
+	As sample size increases, the sampling distribution of the sample mean concentrates around the true mean mu = 50. This is consistency: with enough data, the estimator converges to the truth.
+</Figure>
+
+---
+
+## 8.4 Efficiency and Relative Efficiency
+
+### 8.4.1 Definition
+
+Among unbiased estimators, we prefer the one with the smallest variance. The **efficiency** of an unbiased estimator $\hat\theta$ is related to how close its variance is to the theoretical minimum (the Cramér--Rao lower bound, which we shall derive in Part 3).
+
+### 8.4.2 Relative Efficiency
+
+Given two unbiased estimators $\hat\theta_1$ and $\hat\theta_2$ for $\theta$, the **relative efficiency** of $\hat\theta_1$ with respect to $\hat\theta_2$ is:
+
+$$\text{RE}(\hat\theta_1, \hat\theta_2) = \frac{\text{Var}(\hat\theta_2)}{\text{Var}(\hat\theta_1)}.$$
+
+If $\text{RE} > 1$, then $\hat\theta_1$ is more efficient (smaller variance). If $\text{RE} < 1$, then $\hat\theta_2$ wins.
+
+### 8.4.3 Mean Squared Error
+
+When comparing a biased estimator to an unbiased one, variance alone does not tell the full story. The **mean squared error (MSE)** combines bias and variance:
+
+$$\text{MSE}(\hat\theta) = E[(\hat\theta - \theta)^2] = \text{Var}(\hat\theta) + [\text{Bias}(\hat\theta)]^2.$$
+
+Sometimes a slightly biased estimator with much smaller variance can have a lower MSE than the unbiased competitor -- a trade-off we call the **bias-variance trade-off**.
+
+### 8.4.4 Simulation: Comparing Two Estimators of the Population Mean
+
+The sample mean and the sample median are both unbiased for $\mu$ when the underlying distribution is Normal. Which is more efficient?
+
+
+``` r
+set.seed(42)
+n <- 30
+true_mu <- 100
+true_sd <- 20
+n_reps <- 10000
+
+means <- replicate(n_reps, mean(rnorm(n, true_mu, true_sd)))
+medians <- replicate(n_reps, median(rnorm(n, true_mu, true_sd)))
+
+eff_dt <- data.table$data.table(
+  value = c(means, medians),
+  estimator = rep(c("Sample Mean", "Sample Median"), each = n_reps)
+)
+
+ggplot2$ggplot(eff_dt, ggplot2$aes(x = value, fill = estimator)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 60, alpha = 0.5, position = "identity") +
+  ggplot2$geom_vline(xintercept = true_mu, linetype = "dashed",
+    colour = "red", linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Estimate",
+    y = "Density",
+    fill = "Estimator",
+    title = sprintf("Mean vs. Median for Normal data (n = %d)", n)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/efficiency-comparison-1.png" alt="Sampling distributions of the sample mean and sample median from a Normal population. Both are centred on the true mean, but the sample mean has noticeably smaller variance -- it is the more efficient estimator.">
+	Sampling distributions of the sample mean and sample median from a Normal population. Both are centred on the true mean, but the sample mean has noticeably smaller variance -- it is the more efficient estimator.
+</Figure>
+
+
+``` r
+data.frame(
+  estimator = c("Sample Mean", "Sample Median"),
+  variance = round(c(var(means), var(medians)), 3),
+  relative_efficiency = round(c(var(medians) / var(means), 1), 3)
+)
+```
+
+```
+      estimator variance relative_efficiency
+1   Sample Mean   13.501               1.471
+2 Sample Median   19.854               1.000
+```
+
+For Normal data, the relative efficiency of the mean to the median is approximately $\pi/2 \approx 1.57$, meaning the mean is about 57% more efficient.
+
+---
+
+## 8.5 Method of Moments
+
+### 8.5.1 The Idea
+
+The **method of moments (MOM)** is the oldest systematic approach to estimation. The logic is disarmingly simple:
+
+1. Express the population moments ($E[X], E[X^2], \ldots$) in terms of the unknown parameters.
+2. Set the population moments equal to the corresponding sample moments ($\bar X, \overline{X^2}, \ldots$).
+3. Solve for the parameters.
+
+If the distribution has $k$ unknown parameters, we equate the first $k$ moments and solve the resulting system of $k$ equations.
+
+### 8.5.2 Formal Procedure
+
+The $r$-th **population moment** is $\mu_r' = E[X^r]$ and the $r$-th **sample moment** is $m_r = \frac{1}{n}\sum_{i=1}^n X_i^r$.
+
+For a distribution with parameters $\theta_1, \ldots, \theta_k$, the MOM estimators $\hat\theta_1, \ldots, \hat\theta_k$ are found by solving:
+
+$$\mu_r'(\theta_1, \ldots, \theta_k) = m_r, \quad r = 1, 2, \ldots, k.$$
+
+### 8.5.3 Derivation: MOM for Normal($\mu$, $\sigma^2$)
+
+The Normal distribution has two parameters, so we need two moment equations.
+
+**First moment:** $E[X] = \mu$, so $\bar X = \hat\mu$. Hence $\hat\mu_{\text{MOM}} = \bar X$.
+
+**Second moment:** $E[X^2] = \sigma^2 + \mu^2$, so:
+
+$$\frac{1}{n}\sum_{i=1}^n X_i^2 = \hat\sigma^2 + \hat\mu^2.$$
+
+Solving: $\hat\sigma^2_{\text{MOM}} = \frac{1}{n}\sum_{i=1}^n X_i^2 - \bar X^2 = \frac{1}{n}\sum_{i=1}^n (X_i - \bar X)^2$.
+
+Note that this is the biased version (dividing by $n$, not $n-1$). MOM estimators are not guaranteed to be unbiased.
+
+### 8.5.4 Derivation: MOM for Exponential($\lambda$)
+
+If $X \sim \text{Exp}(\lambda)$, then $E[X] = 1/\lambda$. Setting the first sample moment equal:
+
+$$\bar X = \frac{1}{\hat\lambda}, \quad \Rightarrow \quad \hat\lambda_{\text{MOM}} = \frac{1}{\bar X}.$$
+
+### 8.5.5 Derivation: MOM for Gamma($\alpha$, $\beta$)
+
+We use the parametrisation where $E[X] = \alpha\beta$ and $\text{Var}(X) = \alpha\beta^2$.
+
+**First moment:** $\bar X = \hat\alpha\hat\beta$.
+
+**Second central moment:** $\frac{1}{n}\sum_{i=1}^n (X_i - \bar X)^2 = \hat\alpha\hat\beta^2$.
+
+From the first equation $\hat\beta = \bar X / \hat\alpha$. Substituting into the second:
+
+$$s_n^2 = \hat\alpha \left(\frac{\bar X}{\hat\alpha}\right)^2 = \frac{\bar X^2}{\hat\alpha}, \quad \Rightarrow \quad \hat\alpha_{\text{MOM}} = \frac{\bar X^2}{s_n^2},$$
+
+where $s_n^2 = \frac{1}{n}\sum(X_i - \bar X)^2$. Then $\hat\beta_{\text{MOM}} = s_n^2 / \bar X$.
+
+### 8.5.6 Simulation: MOM for the Gamma Distribution
+
+
+``` r
+set.seed(42)
+true_alpha <- 3
+true_beta <- 2    # scale parameter
+n <- 50
+n_reps <- 5000
+
+mom_alpha <- numeric(n_reps)
+mom_beta <- numeric(n_reps)
+
+for (i in seq_len(n_reps)) {
+  x <- rgamma(n, shape = true_alpha, scale = true_beta)
+  xbar <- mean(x)
+  s2 <- mean((x - xbar)^2)
+  mom_alpha[i] <- xbar^2 / s2
+  mom_beta[i] <- s2 / xbar
+}
+
+mom_dt <- data.table$data.table(
+  value = c(mom_alpha, mom_beta),
+  parameter = rep(c("alpha (shape)", "beta (scale)"), each = n_reps)
+)
+
+true_vals <- data.table$data.table(
+  parameter = c("alpha (shape)", "beta (scale)"),
+  truth = c(true_alpha, true_beta)
+)
+
+ggplot2$ggplot(mom_dt, ggplot2$aes(x = value)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.6) +
+  ggplot2$geom_vline(
+    data = true_vals, ggplot2$aes(xintercept = truth),
+    colour = "red", linetype = "dashed", linewidth = 0.8
+  ) +
+  ggplot2$facet_wrap(~ parameter, scales = "free", ncol = 2) +
+  ggplot2$labs(
+    x = "MOM Estimate",
+    y = "Density",
+    title = sprintf("MOM estimators for Gamma(%d, %d) with n = %d", true_alpha, true_beta, n)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/mom-gamma-1.png" alt="MOM estimates of the Gamma shape and rate parameters across 5000 replications. The true values are shown as dashed red lines. The MOM estimators are approximately unbiased but have noticeable spread for small samples.">
+	MOM estimates of the Gamma shape and rate parameters across 5000 replications. The true values are shown as dashed red lines. The MOM estimators are approximately unbiased but have noticeable spread for small samples.
+</Figure>
+
+
+``` r
+data.frame(
+  parameter = c("alpha", "beta"),
+  true_value = c(true_alpha, true_beta),
+  mean_estimate = round(c(mean(mom_alpha), mean(mom_beta)), 3),
+  sd_estimate = round(c(sd(mom_alpha), sd(mom_beta)), 3)
+)
+```
+
+```
+  parameter true_value mean_estimate sd_estimate
+1     alpha          3         3.229       0.724
+2      beta          2         1.956       0.473
+```
+
+### 8.5.7 Strengths and Weaknesses of MOM
+
+**Strengths:**
+
+- Conceptually simple and easy to compute.
+- Often yields closed-form estimators.
+- Consistent under mild regularity conditions.
+
+**Weaknesses:**
+
+- Not guaranteed to be unbiased.
+- Not guaranteed to be efficient -- often less efficient than maximum-likelihood estimators (the subject of Part 2).
+- May yield estimates outside the parameter space (e.g., negative variance estimates).
+
+---
+
+## Communicating to Stakeholders
+
+When presenting estimation results to non-technical colleagues:
+
+- Replace "estimator" with "method" and "estimate" with "best guess." For instance: "Our method for estimating average patient wait time gives a best guess of 23 minutes."
+- Explain bias as "systematic error" -- if our method consistently overestimates by 5%, we have a systematic error of 5%.
+- Translate consistency as "the more data we collect, the more accurate our method becomes."
+- Do not quote variance figures directly. Instead say: "Two methods are available; method A gives estimates that scatter about twice as widely as method B, so we prefer method B."
+
+---
+
+## Quick Reference
+
+| Property | Symbol | Meaning |
+|:---------|:-------|:--------|
+| **Estimator** | $\hat\theta = g(X_1, \ldots, X_n)$ | A random variable; the *procedure* |
+| **Estimate** | $\hat\theta = g(x_1, \ldots, x_n)$ | A number; the *result* |
+| **Bias** | $E[\hat\theta] - \theta$ | Systematic error; zero for unbiased estimators |
+| **Consistency** | $\hat\theta_n \xrightarrow{P} \theta$ | Estimator converges to truth as $n \to \infty$ |
+| **Efficiency** | Relative to CRLB | Measures precision among unbiased estimators |
+| **MSE** | $\text{Var} + \text{Bias}^2$ | Total estimation error |
+| **MOM** | Match moments | Set sample moments equal to population moments |
+
+---
+
+## Exercises
+
+**Conceptual**
+
+1. Explain in your own words why an estimator is a random variable but an estimate is a number. Give a non-statistical analogy.
+
+2. An estimator $\hat\theta$ has bias 2 and variance 9. Another estimator $\tilde\theta$ is unbiased with variance 15. Which has the smaller MSE?
+
+3. Suppose $\hat\theta_n$ is biased but consistent. Can a biased estimator be consistent? Explain.
+
+4. Is the sample median a consistent estimator of $\mu$ for a Normal distribution? Why or why not?
+
+**Proofs and Derivations**
+
+5. Show that if $X_1, \ldots, X_n$ are iid Bernoulli($p$), the MOM estimator of $p$ is $\hat p = \bar X$, and prove that it is unbiased.
+
+6. Derive the MOM estimators for the Beta($\alpha, \beta$) distribution. (Hint: $E[X] = \alpha/(\alpha+\beta)$ and $\text{Var}(X) = \alpha\beta/[(\alpha+\beta)^2(\alpha+\beta+1)]$.)
+
+7. Show that $S^2$ with the $n-1$ denominator is consistent for $\sigma^2$.
+
+**Computational**
+
+8. Simulate 10,000 samples of size $n = 15$ from a $\text{Uniform}(0, \theta)$ distribution with $\theta = 10$. Compare the MOM estimator $\hat\theta_{\text{MOM}} = 2\bar X$ with the estimator $\hat\theta_{\max} = \frac{n+1}{n}X_{(n)}$ (where $X_{(n)}$ is the sample maximum). Which has smaller MSE?
+
+9. Using the penguins data set, compute MOM estimates for the Normal parameters of bill length for each species. Plot the fitted Normal densities overlaid on histograms of the data.
+
+10. Generate data from a Gamma(2, 3) distribution with sample sizes $n = 10, 50, 200, 1000$. For each, compute MOM estimates and plot how the estimates converge to the true values (a visual demonstration of consistency).

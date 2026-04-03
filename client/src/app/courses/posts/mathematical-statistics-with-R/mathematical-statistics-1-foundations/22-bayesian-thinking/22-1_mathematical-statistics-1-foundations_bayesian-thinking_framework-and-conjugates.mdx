@@ -1,0 +1,638 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 22: Bayesian Thinking"
+part: "Part 1: Framework and Conjugate Priors"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, bayesian, conjugate-priors, posterior, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+# Chapter 22 -- Bayesian Thinking
+
+## Part 1: Framework and Conjugate Priors
+
+Throughout this book we have treated parameters as fixed but unknown quantities and used data to make inferences about them. This is the **frequentist** perspective. In the **Bayesian** framework we take a fundamentally different view: parameters are random variables with probability distributions that encode our uncertainty. Data update that uncertainty via Bayes' theorem, yielding a **posterior distribution** that combines prior beliefs with observed evidence.
+
+This chapter derives the Bayesian machinery from first principles, develops the most important conjugate families, and shows how posterior updating works in practice.
+
+---
+
+## 22.1 From Bayes' Theorem to Bayesian Inference
+
+### 22.1.1 Review of Bayes' Theorem
+
+In Chapter 2 we proved Bayes' theorem for events:
+
+$$P(A \mid B) = \frac{P(B \mid A) \, P(A)}{P(B)}$$
+
+Now let $\theta$ be a continuous parameter and $\mathbf{y} = (y_1, \dots, y_n)$ the observed data. Replace events with densities:
+
+$$\pi(\theta \mid \mathbf{y}) = \frac{f(\mathbf{y} \mid \theta) \, \pi(\theta)}{m(\mathbf{y})}$$
+
+where:
+
+- $\pi(\theta)$ is the **prior** density -- what we believe about $\theta$ before seeing data,
+- $f(\mathbf{y} \mid \theta) = L(\theta; \mathbf{y})$ is the **likelihood** (Chapter 8),
+- $m(\mathbf{y}) = \int f(\mathbf{y} \mid \theta) \, \pi(\theta) \, d\theta$ is the **marginal likelihood** (a normalising constant),
+- $\pi(\theta \mid \mathbf{y})$ is the **posterior** density -- updated belief after observing data.
+
+### 22.1.2 The Proportionality Shortcut
+
+Since $m(\mathbf{y})$ does not depend on $\theta$, the entire Bayesian programme can be summarised:
+
+$$\boxed{\text{posterior} \propto \text{likelihood} \times \text{prior}}$$
+
+$$\pi(\theta \mid \mathbf{y}) \propto L(\theta; \mathbf{y}) \, \pi(\theta)$$
+
+This proportionality is the engine of Bayesian statistics. We identify the posterior's kernel (the $\theta$-dependent part) and recognise it as a known distribution.
+
+---
+
+## 22.2 A Simple Example: Estimating a Proportion
+
+Suppose we observe $y$ successes in $n$ independent Bernoulli trials. The likelihood is:
+
+$$L(p; y, n) = \binom{n}{y} p^y (1-p)^{n-y} \propto p^y (1-p)^{n-y}$$
+
+If we adopt a $\text{Beta}(\alpha, \beta)$ prior on $p$:
+
+$$\pi(p) \propto p^{\alpha - 1}(1-p)^{\beta - 1}$$
+
+then the posterior is:
+
+$$\pi(p \mid y) \propto p^{y + \alpha - 1}(1-p)^{n - y + \beta - 1}$$
+
+This is the kernel of a $\text{Beta}(y + \alpha, n - y + \beta)$ distribution. The prior "pseudo-counts" $\alpha$ and $\beta$ combine additively with the data counts $y$ and $n - y$.
+
+
+``` r
+set.seed(42)
+
+alpha_prior <- 2
+beta_prior <- 5
+n_obs <- 20
+y_obs <- 12
+
+alpha_post <- alpha_prior + y_obs
+beta_post <- beta_prior + (n_obs - y_obs)
+
+p_grid <- seq(0, 1, length.out = 500)
+prior_dens <- dbeta(p_grid, alpha_prior, beta_prior)
+post_dens <- dbeta(p_grid, alpha_post, beta_post)
+lik_vals <- dbinom(y_obs, n_obs, p_grid)
+lik_scaled <- lik_vals / max(lik_vals) * max(post_dens)
+
+plot_dt <- data.table$data.table(
+  p = rep(p_grid, 3),
+  density = c(prior_dens, lik_scaled, post_dens),
+  Component = rep(c("Prior Beta(2,5)", "Likelihood (scaled)", "Posterior Beta(14,13)"), each = 500)
+)
+
+ggplot2$ggplot(plot_dt, ggplot2$aes(x = p, y = density, colour = Component, linetype = Component)) +
+  ggplot2$geom_line(linewidth = 1.1) +
+  ggplot2$scale_linetype_manual(values = c("dashed", "dotted", "solid")) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(
+    x = "p", y = "Density",
+    title = "Beta-Binomial conjugate updating: 12 successes in 20 trials"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/beta-binomial-example-1.png" alt="Beta-Binomial conjugate updating. Prior (dashed), likelihood (dotted, rescaled), and posterior (solid). Observe how the posterior is a compromise between prior and likelihood.">
+	Beta-Binomial conjugate updating. Prior (dashed), likelihood (dotted, rescaled), and posterior (solid). Observe how the posterior is a compromise between prior and likelihood.
+</Figure>
+
+**Key observation.** The posterior mean is:
+
+$$E[p \mid y] = \frac{\alpha + y}{\alpha + \beta + n} = \frac{2 + 12}{2 + 5 + 20} = \frac{14}{27} \approx 0.519$$
+
+This lies between the prior mean $\alpha / (\alpha + \beta) = 2/7 \approx 0.286$ and the MLE $y/n = 0.6$. The posterior is a **precision-weighted compromise** between prior and data.
+
+---
+
+## 22.3 Conjugate Priors
+
+### 22.3.1 Definition
+
+A family of priors $\mathcal{F}$ is **conjugate** to a likelihood if, whenever $\pi(\theta) \in \mathcal{F}$, the posterior $\pi(\theta \mid \mathbf{y}) \in \mathcal{F}$. Conjugacy keeps the posterior in the same distributional family, making updates analytically tractable.
+
+### 22.3.2 Why Conjugacy Matters
+
+1. **Closed-form posteriors** -- no numerical integration needed.
+2. **Interpretable updates** -- prior hyperparameters have clear meaning (pseudo-observations).
+3. **Sequential updating** -- today's posterior becomes tomorrow's prior.
+
+### 22.3.3 The Beta-Binomial Conjugate Family (Detailed)
+
+We have already seen the result. Let us state it formally.
+
+**Theorem (Beta-Binomial conjugacy).** If $Y \mid p \sim \text{Binomial}(n, p)$ and $p \sim \text{Beta}(\alpha, \beta)$, then:
+
+$$p \mid y \sim \text{Beta}(\alpha + y, \; \beta + n - y)$$
+
+*Proof.* The posterior kernel is:
+
+$$\pi(p \mid y) \propto \underbrace{p^y(1-p)^{n-y}}_{\text{likelihood}} \cdot \underbrace{p^{\alpha-1}(1-p)^{\beta-1}}_{\text{prior}} = p^{\alpha + y - 1}(1-p)^{\beta + n - y - 1}$$
+
+which is the kernel of $\text{Beta}(\alpha + y, \beta + n - y)$. $\square$
+
+---
+
+## 22.4 Normal-Normal Conjugacy
+
+### 22.4.1 Known Variance
+
+Suppose $Y_1, \dots, Y_n \mid \mu \overset{\text{iid}}{\sim} N(\mu, \sigma^2)$ with $\sigma^2$ known, and $\mu \sim N(\mu_0, \tau_0^2)$. The posterior is:
+
+$$\mu \mid \mathbf{y} \sim N(\mu_n, \tau_n^2)$$
+
+where:
+
+$$\tau_n^2 = \left(\frac{1}{\tau_0^2} + \frac{n}{\sigma^2}\right)^{-1}, \qquad \mu_n = \tau_n^2 \left(\frac{\mu_0}{\tau_0^2} + \frac{n \bar{y}}{\sigma^2}\right)$$
+
+*Derivation.* The log-posterior kernel is:
+
+$$\log \pi(\mu \mid \mathbf{y}) = \text{const} - \frac{1}{2\tau_0^2}(\mu - \mu_0)^2 - \frac{n}{2\sigma^2}(\mu - \bar{y})^2$$
+
+Expanding and completing the square in $\mu$ yields the result. The posterior precision (inverse variance) is the sum of the prior precision and the data precision:
+
+$$\frac{1}{\tau_n^2} = \underbrace{\frac{1}{\tau_0^2}}_{\text{prior precision}} + \underbrace{\frac{n}{\sigma^2}}_{\text{data precision}}$$
+
+The posterior mean $\mu_n$ is the **precision-weighted average** of the prior mean and the sample mean.
+
+
+``` r
+set.seed(42)
+true_mu <- 5
+sigma <- 2
+mu_0 <- 3
+tau_0 <- 2
+
+sample_sizes <- c(1, 5, 20, 100)
+y_all <- rnorm(100, true_mu, sigma)
+mu_grid <- seq(-1, 9, length.out = 500)
+
+plot_list <- list()
+for (n in sample_sizes) {
+  y_bar <- mean(y_all[1:n])
+  tau_n2 <- 1 / (1/tau_0^2 + n/sigma^2)
+  mu_n <- tau_n2 * (mu_0/tau_0^2 + n * y_bar / sigma^2)
+  plot_list[[length(plot_list) + 1]] <- data.table$data.table(
+    mu = mu_grid,
+    density = dnorm(mu_grid, mu_n, sqrt(tau_n2)),
+    n = paste0("n = ", n)
+  )
+}
+
+prior_dt <- data.table$data.table(
+  mu = mu_grid,
+  density = dnorm(mu_grid, mu_0, tau_0),
+  n = "Prior"
+)
+
+all_dt <- data.table$rbindlist(c(list(prior_dt), plot_list))
+all_dt[, n := factor(n, levels = c("Prior", paste0("n = ", sample_sizes)))]
+
+ggplot2$ggplot(all_dt, ggplot2$aes(x = mu, y = density, colour = n)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_vline(xintercept = true_mu, linetype = "dashed", alpha = 0.5) +
+  ggplot2$labs(
+    x = expression(mu), y = "Density",
+    title = "Normal-Normal updating: posterior concentrates with more data",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/normal-normal-1.png" alt="Normal-Normal conjugate updating. As sample size increases, the posterior concentrates around the sample mean.">
+	Normal-Normal conjugate updating. As sample size increases, the posterior concentrates around the sample mean.
+</Figure>
+
+---
+
+## 22.5 Gamma-Poisson Conjugacy
+
+### 22.5.1 Derivation
+
+If $Y_1, \dots, Y_n \mid \lambda \overset{\text{iid}}{\sim} \text{Poisson}(\lambda)$ and $\lambda \sim \text{Gamma}(\alpha, \beta)$, then:
+
+$$\lambda \mid \mathbf{y} \sim \text{Gamma}\!\left(\alpha + \sum y_i, \; \beta + n\right)$$
+
+*Proof.* The likelihood is:
+
+$$L(\lambda) \propto \lambda^{\sum y_i} e^{-n\lambda}$$
+
+The prior kernel is $\lambda^{\alpha - 1} e^{-\beta \lambda}$. The posterior kernel is:
+
+$$\lambda^{\alpha + \sum y_i - 1} \, e^{-(\beta + n)\lambda}$$
+
+which is $\text{Gamma}(\alpha + \sum y_i, \beta + n)$. $\square$
+
+**Interpretation.** The prior hyperparameters encode $\alpha - 1$ pseudo-events observed over $\beta$ pseudo-time-units. The data contribute $\sum y_i$ observed events over $n$ units.
+
+
+``` r
+set.seed(42)
+alpha_gp <- 3
+beta_gp <- 1
+true_lambda <- 4
+
+y_pois <- rpois(30, true_lambda)
+sum_y <- sum(y_pois)
+n_pois <- length(y_pois)
+
+lambda_grid <- seq(0, 10, length.out = 500)
+
+gp_dt <- data.table$data.table(
+  lambda = rep(lambda_grid, 3),
+  density = c(
+    dgamma(lambda_grid, alpha_gp, beta_gp),
+    dgamma(lambda_grid, alpha_gp + sum_y, beta_gp + n_pois),
+    dgamma(lambda_grid, sum_y + 1, n_pois)
+  ),
+  Component = rep(c("Prior Gamma(3,1)", "Posterior", "Jeffreys posterior"), each = 500)
+)
+
+ggplot2$ggplot(gp_dt, ggplot2$aes(x = lambda, y = density, colour = Component, linetype = Component)) +
+  ggplot2$geom_line(linewidth = 1.1) +
+  ggplot2$geom_vline(xintercept = true_lambda, linetype = "dashed", alpha = 0.4) +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#009E73", "#0072B2")) +
+  ggplot2$labs(
+    x = expression(lambda), y = "Density",
+    title = "Gamma-Poisson updating: 30 Poisson observations"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/gamma-poisson-1.png" alt="Gamma-Poisson conjugate updating for count data.">
+	Gamma-Poisson conjugate updating for count data.
+</Figure>
+
+---
+
+## 22.6 Summary of Conjugate Families
+
+| Likelihood | Prior | Posterior | Updated hyperparameters |
+|:-----------|:------|:----------|:------------------------|
+| $\text{Binomial}(n, p)$ | $\text{Beta}(\alpha, \beta)$ | $\text{Beta}(\alpha + y, \beta + n - y)$ | Add successes and failures |
+| $N(\mu, \sigma^2)$ (known $\sigma^2$) | $N(\mu_0, \tau_0^2)$ | $N(\mu_n, \tau_n^2)$ | Precision-weighted mean |
+| $\text{Poisson}(\lambda)$ | $\text{Gamma}(\alpha, \beta)$ | $\text{Gamma}(\alpha + \sum y_i, \beta + n)$ | Add events and units |
+| $\text{Exp}(\lambda)$ | $\text{Gamma}(\alpha, \beta)$ | $\text{Gamma}(\alpha + n, \beta + \sum y_i)$ | Add observations and total time |
+| $N(\mu, \sigma^2)$ (known $\mu$) | $\text{Inv-Gamma}(\alpha, \beta)$ | $\text{Inv-Gamma}(\alpha + n/2, \beta + S/2)$ | Add half-counts and half-SS |
+
+---
+
+## 22.7 Sequential Updating
+
+A powerful consequence of Bayes' theorem is that updating is **sequential**. Suppose we observe data in two batches, $\mathbf{y}_1$ then $\mathbf{y}_2$. By Bayes:
+
+$$\pi(\theta \mid \mathbf{y}_1, \mathbf{y}_2) \propto f(\mathbf{y}_2 \mid \theta) \cdot \underbrace{f(\mathbf{y}_1 \mid \theta) \, \pi(\theta)}_{\propto \, \pi(\theta \mid \mathbf{y}_1)}$$
+
+The posterior after $\mathbf{y}_1$ serves as the prior for $\mathbf{y}_2$. The final posterior is the same whether we update sequentially or all at once. This is particularly natural for streaming data.
+
+
+``` r
+set.seed(42)
+n_seq <- 50
+y_seq <- rbinom(n_seq, 1, 0.6)
+
+alpha_seq <- 1
+beta_seq <- 1
+
+snapshots <- c(0, 1, 5, 10, 25, 50)
+p_grid <- seq(0, 1, length.out = 300)
+seq_list <- list()
+
+for (k in snapshots) {
+  a_k <- alpha_seq + sum(y_seq[seq_len(k)])
+  b_k <- beta_seq + k - sum(y_seq[seq_len(k)])
+  seq_list[[length(seq_list) + 1]] <- data.table$data.table(
+    p = p_grid,
+    density = dbeta(p_grid, a_k, b_k),
+    stage = paste0("After ", k, " obs")
+  )
+}
+
+seq_dt <- data.table$rbindlist(seq_list)
+seq_dt[, stage := factor(stage, levels = paste0("After ", snapshots, " obs"))]
+
+ggplot2$ggplot(seq_dt, ggplot2$aes(x = p, y = density, colour = stage)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_vline(xintercept = 0.6, linetype = "dashed", alpha = 0.5) +
+  ggplot2$labs(
+    x = "p", y = "Density",
+    title = "Sequential Bayesian updating: Bernoulli data arriving one at a time",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/sequential-updating-1.png" alt="Sequential Bayesian updating: data arrive one observation at a time and the posterior continuously sharpens.">
+	Sequential Bayesian updating: data arrive one observation at a time and the posterior continuously sharpens.
+</Figure>
+
+---
+
+## 22.8 Interactive: Watch the Posterior Update
+
+<InteractivePlot>
+
+
+``` r
+box::use(shiny)
+box::use(ggplot2)
+
+shiny$shinyApp(
+  ui = shiny$fluidPage(
+    shiny$titlePanel("Bayesian Updating: Data Arrive One at a Time"),
+    shiny$sidebarLayout(
+      shiny$sidebarPanel(
+        shiny$sliderInput("true_p", "True probability:",
+          min = 0.05, max = 0.95, value = 0.6, step = 0.05
+        ),
+        shiny$numericInput("alpha0", "Prior alpha:", value = 1, min = 0.1, step = 0.5),
+        shiny$numericInput("beta0", "Prior beta:", value = 1, min = 0.1, step = 0.5),
+        shiny$sliderInput("n_obs", "Number of observations:",
+          min = 0, max = 200, value = 0, step = 1, animate = TRUE
+        ),
+        shiny$actionButton("new_data", "Generate new data")
+      ),
+      shiny$mainPanel(
+        shiny$plotOutput("posterior_plot", Height = "450px"),
+        shiny$verbatimTextOutput("summary_text")
+      )
+    )
+  ),
+  server = function(input, output, session) {
+    data_store <- shiny$reactiveVal(NULL)
+
+    shiny$observeEvent(input$new_data, {
+      data_store(rbinom(200, 1, input$true_p))
+    }, ignoreNULL = FALSE)
+
+    output$posterior_plot <- shiny$renderPlot({
+      d <- data_store()
+      shiny$req(d)
+      n <- min(input$n_obs, length(d))
+      a_post <- input$alpha0 + sum(d[seq_len(n)])
+      b_post <- input$beta0 + n - sum(d[seq_len(n)])
+
+      p_grid <- seq(0, 1, length.out = 500)
+      df <- data.frame(
+        p = rep(p_grid, 2),
+        density = c(dbeta(p_grid, input$alpha0, input$beta0),
+                    dbeta(p_grid, a_post, b_post)),
+        Component = rep(c("Prior", "Posterior"), each = 500)
+      )
+
+      ggplot2$ggplot(df, ggplot2$aes(x = p, y = density, colour = Component, linetype = Component)) +
+        ggplot2$geom_line(linewidth = 1.2) +
+        ggplot2$geom_vline(xintercept = input$true_p, linetype = "dashed") +
+        ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+        ggplot2$labs(
+          x = "p", y = "Density",
+          title = sprintf("After %d observations (successes: %d)", n, sum(d[seq_len(n)]))
+        ) +
+        ggplot2$theme_minimal(base_size = 14) +
+        ggplot2$theme(legend.position = "top")
+    })
+
+    output$summary_text <- shiny$renderText({
+      d <- data_store()
+      shiny$req(d)
+      n <- min(input$n_obs, length(d))
+      a_post <- input$alpha0 + sum(d[seq_len(n)])
+      b_post <- input$beta0 + n - sum(d[seq_len(n)])
+      sprintf(
+        "Posterior: Beta(%.1f, %.1f)\nPosterior mean: %.4f\nPosterior 95%% CI: [%.4f, %.4f]\nMLE (y/n): %s",
+        a_post, b_post,
+        a_post / (a_post + b_post),
+        qbeta(0.025, a_post, b_post),
+        qbeta(0.975, a_post, b_post),
+        if (n > 0) sprintf("%.4f", sum(d[seq_len(n)]) / n) else "NA"
+      )
+    })
+  }
+)
+```
+
+</InteractivePlot>
+
+---
+
+## 22.9 Posterior Summaries
+
+Once we have the posterior $\pi(\theta \mid \mathbf{y})$, we summarise it:
+
+- **Posterior mean:** $E[\theta \mid \mathbf{y}]$ -- the Bayes estimator under squared-error loss.
+- **Posterior median:** the 50th percentile -- the Bayes estimator under absolute-error loss.
+- **MAP (maximum a posteriori):** $\arg\max_\theta \pi(\theta \mid \mathbf{y})$ -- the mode, analogous to the MLE.
+- **Credible intervals:** discussed in detail in Part 2.
+
+For the Beta-Binomial example above:
+
+
+``` r
+post_mean <- alpha_post / (alpha_post + beta_post)
+post_median <- qbeta(0.5, alpha_post, beta_post)
+post_mode <- (alpha_post - 1) / (alpha_post + beta_post - 2)
+mle <- y_obs / n_obs
+
+summary_df <- data.frame(
+  Estimator = c("Posterior mean", "Posterior median", "MAP", "MLE"),
+  Value = round(c(post_mean, post_median, post_mode, mle), 4)
+)
+knitr::kable(summary_df, caption = "Point estimates for p from the Beta-Binomial model.")
+```
+
+
+
+Table: Point estimates for p from the Beta-Binomial model.
+
+|Estimator        |  Value|
+|:----------------|------:|
+|Posterior mean   | 0.5185|
+|Posterior median | 0.5190|
+|MAP              | 0.5200|
+|MLE              | 0.6000|
+
+---
+
+## 22.10 The Prior as Information
+
+The strength of the prior is controlled by the hyperparameters. For the Beta-Binomial:
+
+- $\alpha + \beta$ controls the **concentration** -- larger values produce a tighter prior, expressing stronger beliefs.
+- An $\alpha + \beta$ of $k$ is equivalent to having already seen $k$ pseudo-observations.
+
+
+``` r
+set.seed(42)
+priors <- list(
+  list(a = 1, b = 1, label = "Flat: Beta(1,1)"),
+  list(a = 2, b = 5, label = "Weak: Beta(2,5)"),
+  list(a = 20, b = 50, label = "Strong: Beta(20,50)")
+)
+
+p_grid <- seq(0, 1, length.out = 500)
+strength_list <- list()
+
+for (pr in priors) {
+  a_post <- pr$a + y_obs
+  b_post <- pr$b + (n_obs - y_obs)
+  strength_list[[length(strength_list) + 1]] <- data.table$data.table(
+    p = rep(p_grid, 2),
+    density = c(dbeta(p_grid, pr$a, pr$b), dbeta(p_grid, a_post, b_post)),
+    type = rep(c("Prior", "Posterior"), each = 500),
+    prior_label = pr$label
+  )
+}
+
+strength_dt <- data.table$rbindlist(strength_list)
+
+ggplot2$ggplot(strength_dt, ggplot2$aes(x = p, y = density, colour = type, linetype = type)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$facet_wrap(~ prior_label, scales = "free_y") +
+  ggplot2$geom_vline(xintercept = y_obs / n_obs, linetype = "dashed", alpha = 0.4) +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "p", y = "Density",
+    title = "Prior strength determines how much the data shift the posterior"
+  ) +
+  ggplot2$theme_minimal(base_size = 12) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/prior-strength-1.png" alt="Effect of prior strength on the posterior. Strong priors resist updating; weak priors yield quickly to the data.">
+	Effect of prior strength on the posterior. Strong priors resist updating; weak priors yield quickly to the data.
+</Figure>
+
+---
+
+## 22.11 Real Data: Scurvy Trial
+
+In 1747, James Lind treated twelve scorbutic sailors with six different remedies, two per group. Let us perform a Bayesian analysis of whether citrus fruit cures scurvy.
+
+
+``` r
+data_dir <- "../../../data"
+scurvy <- data.table$fread(file.path(data_dir, "medical/scurvy.csv"))
+str(scurvy)
+```
+
+```
+Classes 'data.table' and 'data.frame':	12 obs. of  8 variables:
+ $ study_id                 : int  1 2 3 4 5 6 7 8 9 10 ...
+ $ treatment                : chr  "cider" "cider" "dilute_sulfuric_acid" "dilute_sulfuric_acid" ...
+ $ dosing_regimen_for_scurvy: chr  "1 quart per day" "1 quart per day" "25 drops of elixir of vitriol, three times a day" "25 drops of elixir of vitriol, three times a day" ...
+ $ gum_rot_d6               : chr  "2_moderate" "2_moderate" "1_mild" "2_moderate" ...
+ $ skin_sores_d6            : chr  "2_moderate" "1_mild" "3_severe" "3_severe" ...
+ $ weakness_of_the_knees_d6 : chr  "2_moderate" "2_moderate" "3_severe" "3_severe" ...
+ $ lassitude_d6             : chr  "2_moderate" "3_severe" "3_severe" "3_severe" ...
+ $ fit_for_duty_d6          : chr  "0_no" "0_no" "0_no" "0_no" ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+``` r
+scurvy[, improved := as.integer(
+  gum_rot_d6 %in% c("0_no_change", "1_mild") |
+  skin_sores_d6 %in% c("0_no_change", "1_mild") |
+  weakness_of_the_knees_d6 %in% c("0_no_change", "1_mild")
+)]
+
+treat_summary <- scurvy[, .(
+  n = .N,
+  y = sum(improved, na.rm = TRUE)
+), by = treatment]
+
+p_grid <- seq(0, 1, length.out = 500)
+scurvy_list <- list()
+
+for (i in seq_len(nrow(treat_summary))) {
+  row <- treat_summary[i]
+  a_post <- 1 + row$y
+  b_post <- 1 + row$n - row$y
+  scurvy_list[[i]] <- data.table$data.table(
+    p = p_grid,
+    density = dbeta(p_grid, a_post, b_post),
+    treatment = row$treatment
+  )
+}
+
+scurvy_post <- data.table$rbindlist(scurvy_list)
+
+ggplot2$ggplot(scurvy_post, ggplot2$aes(x = p, y = density, colour = treatment)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$labs(
+    x = "P(improvement)", y = "Density",
+    title = "Posterior distributions for treatment efficacy (flat Beta(1,1) prior)",
+    colour = "Treatment"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "right")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/scurvy-analysis-1.png" alt="Posterior distributions for cure probability by treatment group in Lind&#39;s scurvy trial.">
+	Posterior distributions for cure probability by treatment group in Lind's scurvy trial.
+</Figure>
+
+With only two patients per group, the posteriors are wide -- but citrus fruit still emerges as the most promising treatment. The Bayesian approach honestly represents our uncertainty given the tiny sample.
+
+---
+
+## Communicating to Stakeholders
+
+- **Explain "updating beliefs".** "We started with a vague belief about the cure rate, then combined it with the trial data to get a refined estimate. The wider the curve, the more uncertain we are."
+- **Posteriors are intuitive.** "There is a 95% probability that the true cure rate lies in this interval" -- this is what people think a confidence interval means, and in the Bayesian framework it actually does.
+- **Prior disclosure.** Always report the prior used, and show how results change under different priors (sensitivity analysis, discussed in Part 2).
+- **Avoid jargon.** Use "updated estimate" rather than "posterior"; "initial assumption" rather than "prior"; "range of plausible values" rather than "credible interval".
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Bayes' theorem** | $\pi(\theta \mid \mathbf{y}) \propto L(\theta; \mathbf{y}) \, \pi(\theta)$ |
+| **Conjugate prior** | Prior and posterior in the same family |
+| **Beta-Binomial** | $\text{Beta}(\alpha, \beta) \to \text{Beta}(\alpha + y, \beta + n - y)$ |
+| **Normal-Normal** | Precision-weighted mean; $1/\tau_n^2 = 1/\tau_0^2 + n/\sigma^2$ |
+| **Gamma-Poisson** | $\text{Gamma}(\alpha, \beta) \to \text{Gamma}(\alpha + \sum y_i, \beta + n)$ |
+| **Posterior mean** | Precision-weighted average of prior mean and MLE |
+| **Sequential updating** | Posterior from batch 1 is the prior for batch 2 |
+| **Prior strength** | $\alpha + \beta$ pseudo-observations (Beta); $1/\tau_0^2$ precision (Normal) |
+| **MAP** | Mode of posterior; coincides with penalised MLE |
+
+---
+
+## Exercises
+
+1. **Beta-Binomial derivation.** Starting from a $\text{Beta}(3, 3)$ prior and observing $y = 7$ successes in $n = 10$ trials, derive the posterior distribution. Compute the posterior mean, median, mode, and a 95% equal-tailed credible interval.
+
+2. **Normal-Normal updating.** Suppose $\sigma^2 = 4$ is known, the prior is $\mu \sim N(0, 25)$, and you observe $n = 16$ data points with $\bar{y} = 3.2$. Find the posterior distribution of $\mu$ and compute the posterior probability that $\mu > 2$.
+
+3. **Gamma-Poisson.** A hospital records the number of emergency admissions per day. Over 30 days, the total count is 180. Using a $\text{Gamma}(2, 0.5)$ prior, find the posterior distribution of the daily rate $\lambda$. How does the posterior compare with the MLE?
+
+4. **Sequential equivalence.** Show algebraically that for the Beta-Binomial model, updating sequentially with $y_1$ from $n_1$ trials and then $y_2$ from $n_2$ trials gives the same posterior as updating once with $y_1 + y_2$ from $n_1 + n_2$ trials.
+
+5. **Prior sensitivity.** For the scurvy data, refit the citrus treatment model with priors $\text{Beta}(1, 1)$, $\text{Beta}(0.5, 0.5)$ (Jeffreys), and $\text{Beta}(10, 10)$ (sceptical). Plot all three posteriors on the same graph. How much does the prior affect the conclusion?
+
+6. **Conjugate for the exponential.** Derive the conjugate prior for the exponential likelihood $f(y \mid \lambda) = \lambda e^{-\lambda y}$. Show that it is a Gamma distribution and find the updated hyperparameters after observing $\mathbf{y}$.

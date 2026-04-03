@@ -1,0 +1,717 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 6: Joint Distributions and Multivariate Thinking"
+part: "Part 3: The Multivariate Normal"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 6 -- Joint Distributions and Multivariate Thinking
+
+## Part 3: The Multivariate Normal
+
+The multivariate normal (MVN) distribution is the single most important multivariate distribution in statistics. It underlies linear regression, principal component analysis, discriminant analysis, and much of classical multivariate theory. In this part, we first develop the minimal linear algebra needed to *write down* the MVN density, then explore its remarkable properties: marginals are normal, conditionals are normal, and uncorrelated components are independent.
+
+---
+
+## 6.9 Crash Course: Vectors, Matrices, and Key Operations
+
+Before we can state the MVN PDF, we need a small toolkit from linear algebra. We present only what is strictly necessary -- a fuller treatment appears in Chapter 14.
+
+### 6.9.1 Vectors
+
+A **column vector** $\mathbf{x} \in \mathbb{R}^p$ is an ordered list of $p$ real numbers:
+
+$$\mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \\ \vdots \\ x_p \end{pmatrix}.$$
+
+The **transpose** $\mathbf{x}^\top = (x_1, x_2, \ldots, x_p)$ is a row vector.
+
+### 6.9.2 Matrices
+
+A **matrix** $\mathbf{A} \in \mathbb{R}^{m \times n}$ is a rectangular array of numbers with $m$ rows and $n$ columns. The entry in row $i$, column $j$ is $a_{ij}$.
+
+### 6.9.3 Matrix Multiplication
+
+If $\mathbf{A}$ is $m \times n$ and $\mathbf{B}$ is $n \times k$, then the product $\mathbf{C} = \mathbf{A}\mathbf{B}$ is $m \times k$ with entries:
+
+$$c_{ij} = \sum_{\ell=1}^n a_{i\ell} \, b_{\ell j}.$$
+
+The key rule: the number of columns of $\mathbf{A}$ must equal the number of rows of $\mathbf{B}$.
+
+```{r matrix-mult}
+A <- matrix(c(1, 2, 3, 4), nrow = 2, byrow = TRUE)
+B <- matrix(c(5, 6, 7, 8), nrow = 2, byrow = TRUE)
+
+A
+B
+A %*% B
+```
+
+### 6.9.4 The Determinant
+
+For a $2 \times 2$ matrix:
+
+$$\det \begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc.$$
+
+The determinant measures the "volume scaling factor" of the linear transformation defined by the matrix. For the MVN, we need $\det(\boldsymbol{\Sigma}) > 0$, which ensures the covariance matrix defines a proper distribution.
+
+```{r determinant}
+Sigma <- matrix(c(4, 2, 2, 3), nrow = 2)
+Sigma
+det(Sigma)
+```
+
+### 6.9.5 The Inverse
+
+The **inverse** of a square matrix $\mathbf{A}$ is the matrix $\mathbf{A}^{-1}$ such that $\mathbf{A}\mathbf{A}^{-1} = \mathbf{A}^{-1}\mathbf{A} = \mathbf{I}$, where $\mathbf{I}$ is the identity matrix. For a $2 \times 2$ matrix:
+
+$$\begin{pmatrix} a & b \\ c & d \end{pmatrix}^{-1} = \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}.$$
+
+The inverse exists if and only if $\det(\mathbf{A}) \neq 0$.
+
+```{r inverse}
+solve(Sigma)
+
+# Verify: Sigma %*% Sigma^{-1} = I
+round(Sigma %*% solve(Sigma), 10)
+```
+
+### 6.9.6 Positive Definite Matrices
+
+A symmetric matrix $\boldsymbol{\Sigma}$ is **positive definite** if $\mathbf{z}^\top \boldsymbol{\Sigma} \mathbf{z} > 0$ for every non-zero vector $\mathbf{z}$. Equivalently, all its eigenvalues are strictly positive.
+
+Every valid covariance matrix is positive semi-definite (and positive definite when no variable is a linear function of the others).
+
+```{r positive-definite}
+# Check eigenvalues
+eigen(Sigma)$values
+# Both positive => Sigma is positive definite
+```
+
+### 6.9.7 The Cholesky Decomposition
+
+Every positive definite matrix $\boldsymbol{\Sigma}$ can be written as $\boldsymbol{\Sigma} = \mathbf{L}\mathbf{L}^\top$ where $\mathbf{L}$ is a lower-triangular matrix. This is the **Cholesky decomposition** and it is the key to simulating from the MVN.
+
+```{r cholesky}
+L <- chol(Sigma)  # R returns upper-triangular, so L^T
+L
+t(L) %*% L  # recovers Sigma
+```
+
+Note: R's `chol()` returns the upper-triangular factor $\mathbf{R}$ such that $\boldsymbol{\Sigma} = \mathbf{R}^\top\mathbf{R}$. We use $\mathbf{L} = \mathbf{R}^\top$ as the lower-triangular factor.
+
+---
+
+## 6.10 The Multivariate Normal PDF
+
+### 6.10.1 Statement
+
+A random vector $\mathbf{X} = (X_1, X_2, \ldots, X_p)^\top$ follows the **$p$-dimensional multivariate normal distribution** with mean vector $\boldsymbol{\mu}$ and covariance matrix $\boldsymbol{\Sigma}$, written $\mathbf{X} \sim N_p(\boldsymbol{\mu}, \boldsymbol{\Sigma})$, if its joint PDF is:
+
+$$f(\mathbf{x}) = \frac{1}{(2\pi)^{p/2} \, |\boldsymbol{\Sigma}|^{1/2}} \exp\!\left(-\frac{1}{2}(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu})\right)$$
+
+where $|\boldsymbol{\Sigma}| = \det(\boldsymbol{\Sigma})$.
+
+### 6.10.2 Dissecting the PDF
+
+Each piece of the formula has a clear role:
+
+1. **$(2\pi)^{p/2}$**: the normalisation constant from $p$ independent standard normals. When $p = 1$, this is just $\sqrt{2\pi}$.
+
+2. **$|\boldsymbol{\Sigma}|^{1/2}$**: a volume correction. A larger determinant means the distribution is more "spread out" and the density at any point is lower.
+
+3. **$(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu})$**: the **Mahalanobis distance** squared. This is a generalisation of the standardised distance $(x - \mu)^2 / \sigma^2$ to multiple dimensions. It accounts for both the variances of the individual variables and the correlations between them.
+
+### 6.10.3 The Bivariate Case ($p = 2$)
+
+When $p = 2$, $\boldsymbol{\mu} = (\mu_1, \mu_2)^\top$ and:
+
+$$\boldsymbol{\Sigma} = \begin{pmatrix} \sigma_1^2 & \rho\sigma_1\sigma_2 \\ \rho\sigma_1\sigma_2 & \sigma_2^2 \end{pmatrix}$$
+
+The determinant is $|\boldsymbol{\Sigma}| = \sigma_1^2\sigma_2^2(1 - \rho^2)$ and the inverse is:
+
+$$\boldsymbol{\Sigma}^{-1} = \frac{1}{\sigma_1^2\sigma_2^2(1-\rho^2)} \begin{pmatrix} \sigma_2^2 & -\rho\sigma_1\sigma_2 \\ -\rho\sigma_1\sigma_2 & \sigma_1^2 \end{pmatrix}.$$
+
+The Mahalanobis distance becomes:
+
+$$Q = \frac{1}{1-\rho^2}\left[\frac{(x_1-\mu_1)^2}{\sigma_1^2} - \frac{2\rho(x_1-\mu_1)(x_2-\mu_2)}{\sigma_1\sigma_2} + \frac{(x_2-\mu_2)^2}{\sigma_2^2}\right].$$
+
+When $\rho = 0$, this simplifies to the sum of two independent standardised normal terms.
+
+### 6.10.4 Contour Plots of the Bivariate Normal
+
+The contours of constant density are **ellipses** centred at $\boldsymbol{\mu}$. The shape, orientation, and eccentricity of these ellipses are governed by $\boldsymbol{\Sigma}$.
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+```{r bvn-contours, fig.cap="Contour plots of the bivariate normal density for different correlations. When rho = 0 the contours are circles (if equal variances) or axis-aligned ellipses. As |rho| increases, the ellipses tilt and become more elongated. The orientation tells us whether the variables move together (positive rho) or in opposite directions (negative rho)."}
+box::use(ggplot2)
+box::use(data.table)
+
+# Bivariate normal density from scratch
+bvn_pdf <- function(x1, x2, mu1 = 0, mu2 = 0, s1 = 1, s2 = 1, rho = 0) {
+  Q <- (1 / (1 - rho^2)) * (
+    (x1 - mu1)^2 / s1^2 -
+    2 * rho * (x1 - mu1) * (x2 - mu2) / (s1 * s2) +
+    (x2 - mu2)^2 / s2^2
+  )
+  (1 / (2 * pi * s1 * s2 * sqrt(1 - rho^2))) * exp(-0.5 * Q)
+}
+
+# Grid
+grid <- data.table$CJ(x1 = seq(-3, 3, length.out = 200), x2 = seq(-3, 3, length.out = 200))
+
+rho_vals <- c(-0.8, -0.3, 0, 0.3, 0.8)
+contour_data <- data.table$rbindlist(lapply(rho_vals, function(r) {
+  dt <- data.table$copy(grid)
+  dt[, density := bvn_pdf(x1, x2, rho = r)]
+  dt[, rho_label := sprintf("rho == %.1f", r)]
+  dt
+}))
+
+ggplot2$ggplot(contour_data, ggplot2$aes(x = x1, y = x2, z = density)) +
+  ggplot2$geom_contour_filled(bins = 12) +
+  ggplot2$facet_wrap(~rho_label, ncol = 5, labeller = ggplot2$label_parsed) +
+  ggplot2$scale_fill_brewer(palette = "Blues") +
+  ggplot2$coord_equal() +
+  ggplot2$labs(x = expression(X[1]), y = expression(X[2]),
+    title = "Bivariate normal contours for different correlations") +
+  ggplot2$theme_minimal(base_size = 12) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    legend.position = "none"
+  )
+```
+
+---
+
+## 6.11 Marginals of the MVN Are Normal
+
+### 6.11.1 Statement
+
+If $\mathbf{X} \sim N_p(\boldsymbol{\mu}, \boldsymbol{\Sigma})$, then each component $X_i$ is marginally normal:
+
+$$X_i \sim N(\mu_i, \sigma_{ii})$$
+
+where $\mu_i$ is the $i$-th element of $\boldsymbol{\mu}$ and $\sigma_{ii}$ is the $i$-th diagonal element of $\boldsymbol{\Sigma}$.
+
+More generally, any subvector of $\mathbf{X}$ is also multivariate normal with the corresponding sub-mean and sub-covariance matrix.
+
+### 6.11.2 Proof (Bivariate Case)
+
+Let $(X_1, X_2)^\top \sim N_2(\boldsymbol{\mu}, \boldsymbol{\Sigma})$. To find the marginal of $X_1$, we integrate out $X_2$:
+
+$$f_{X_1}(x_1) = \int_{-\infty}^{\infty} f_{X_1, X_2}(x_1, x_2) \, dx_2.$$
+
+Write the exponent in the bivariate normal as:
+
+$$Q = \frac{1}{1-\rho^2}\left[\left(\frac{x_1 - \mu_1}{\sigma_1}\right)^2 - 2\rho\left(\frac{x_1 - \mu_1}{\sigma_1}\right)\left(\frac{x_2 - \mu_2}{\sigma_2}\right) + \left(\frac{x_2 - \mu_2}{\sigma_2}\right)^2\right].$$
+
+Complete the square in $x_2$. Let $z_1 = (x_1 - \mu_1)/\sigma_1$ and $z_2 = (x_2 - \mu_2)/\sigma_2$. Then:
+
+$$Q = \frac{1}{1-\rho^2}\left[(z_2 - \rho z_1)^2 + z_1^2(1 - \rho^2)\right] = \frac{(z_2 - \rho z_1)^2}{1 - \rho^2} + z_1^2.$$
+
+The integral over $x_2$ only involves the first term. Setting $w = (z_2 - \rho z_1)/\sqrt{1 - \rho^2}$:
+
+$$\int_{-\infty}^{\infty} \exp\!\left(-\frac{(z_2 - \rho z_1)^2}{2(1 - \rho^2)}\right) dx_2 = \sigma_2 \sqrt{2\pi(1 - \rho^2)}.$$
+
+Combining with the normalisation constant:
+
+$$f_{X_1}(x_1) = \frac{1}{2\pi\sigma_1\sigma_2\sqrt{1-\rho^2}} \cdot \sigma_2\sqrt{2\pi(1-\rho^2)} \cdot \exp\!\left(-\frac{z_1^2}{2}\right)$$
+
+$$= \frac{1}{\sqrt{2\pi}\,\sigma_1} \exp\!\left(-\frac{(x_1-\mu_1)^2}{2\sigma_1^2}\right).$$
+
+This is precisely the PDF of $N(\mu_1, \sigma_1^2)$. $\square$
+
+### 6.11.3 Simulation Verification
+
+```{r marginal-mvn, fig.cap="Marginal distributions from a bivariate normal with mu = (2, -1), sigma_1 = 1, sigma_2 = 2, and rho = 0.7. Both marginals are normal, matching the theoretical result. The dashed curves show the theoretical marginal densities."}
+set.seed(42)
+n_sim <- 10000
+
+mu <- c(2, -1)
+Sigma_mat <- matrix(c(1, 0.7 * 1 * 2, 0.7 * 1 * 2, 4), nrow = 2)
+
+# Simulate using Cholesky
+R_chol <- chol(Sigma_mat)
+Z <- matrix(rnorm(n_sim * 2), ncol = 2)
+X_sim <- Z %*% R_chol + matrix(mu, n_sim, 2, byrow = TRUE)
+
+sim_dt <- data.table$data.table(X1 = X_sim[, 1], X2 = X_sim[, 2])
+
+# Stack for faceted plotting
+marginals <- data.table$rbindlist(list(
+  data.table$data.table(value = sim_dt$X1, variable = "X1: mu=2, sigma=1"),
+  data.table$data.table(value = sim_dt$X2, variable = "X2: mu=-1, sigma=2")
+))
+
+ggplot2$ggplot(marginals, ggplot2$aes(x = value)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.6
+  ) +
+  ggplot2$facet_wrap(~variable, scales = "free") +
+  ggplot2$labs(x = "Value", y = "Density",
+    title = "Marginal distributions from a bivariate normal") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+```{r marginal-verify}
+data.frame(
+  component = c("X1", "X2"),
+  theoretical_mean = mu,
+  simulated_mean = c(mean(sim_dt$X1), mean(sim_dt$X2)),
+  theoretical_sd = sqrt(diag(Sigma_mat)),
+  simulated_sd = c(sd(sim_dt$X1), sd(sim_dt$X2))
+)
+```
+
+---
+
+## 6.12 Conditionals of the MVN Are Normal
+
+### 6.12.1 Statement
+
+Partition $\mathbf{X} \sim N_p(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ into two subvectors:
+
+$$\mathbf{X} = \begin{pmatrix} \mathbf{X}_1 \\ \mathbf{X}_2 \end{pmatrix}, \quad \boldsymbol{\mu} = \begin{pmatrix} \boldsymbol{\mu}_1 \\ \boldsymbol{\mu}_2 \end{pmatrix}, \quad \boldsymbol{\Sigma} = \begin{pmatrix} \boldsymbol{\Sigma}_{11} & \boldsymbol{\Sigma}_{12} \\ \boldsymbol{\Sigma}_{21} & \boldsymbol{\Sigma}_{22} \end{pmatrix}.$$
+
+Then the conditional distribution of $\mathbf{X}_1$ given $\mathbf{X}_2 = \mathbf{x}_2$ is:
+
+$$\mathbf{X}_1 | \mathbf{X}_2 = \mathbf{x}_2 \sim N\bigl(\boldsymbol{\mu}_{1|2}, \; \boldsymbol{\Sigma}_{1|2}\bigr)$$
+
+where:
+
+$$\boldsymbol{\mu}_{1|2} = \boldsymbol{\mu}_1 + \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}(\mathbf{x}_2 - \boldsymbol{\mu}_2)$$
+
+$$\boldsymbol{\Sigma}_{1|2} = \boldsymbol{\Sigma}_{11} - \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}\boldsymbol{\Sigma}_{21}.$$
+
+### 6.12.2 Interpretation
+
+- **Conditional mean:** $\boldsymbol{\mu}_{1|2}$ is a *linear function* of the observed $\mathbf{x}_2$. The term $\boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}$ acts as a regression coefficient.
+- **Conditional covariance:** $\boldsymbol{\Sigma}_{1|2}$ does *not depend on* $\mathbf{x}_2$ -- the conditional variance is the same no matter what value $\mathbf{X}_2$ takes.
+
+### 6.12.3 Derivation (Bivariate Case)
+
+For the bivariate case with $X_1$ scalar and $X_2$ scalar:
+
+$$\boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1} = \frac{\rho\sigma_1\sigma_2}{\sigma_2^2} = \frac{\rho\sigma_1}{\sigma_2}.$$
+
+The conditional mean is:
+
+$$\mu_{1|2} = \mu_1 + \frac{\rho\sigma_1}{\sigma_2}(x_2 - \mu_2).$$
+
+The conditional variance is:
+
+$$\sigma_{1|2}^2 = \sigma_1^2 - \frac{(\rho\sigma_1\sigma_2)^2}{\sigma_2^2} = \sigma_1^2(1 - \rho^2).$$
+
+So $X_1 | X_2 = x_2 \sim N\!\left(\mu_1 + \frac{\rho\sigma_1}{\sigma_2}(x_2 - \mu_2), \; \sigma_1^2(1 - \rho^2)\right)$.
+
+Note: when $\rho = 0$, the conditional distribution reduces to $N(\mu_1, \sigma_1^2)$ -- the same as the marginal. This confirms that for the MVN, **uncorrelated implies independent** (a special property not shared by general distributions).
+
+### 6.12.4 Simulation Verification
+
+```{r conditional-mvn, fig.cap="Conditional distribution of X1 given X2 = 1 from a bivariate normal with rho = 0.7. The histogram of X1 values filtered to X2 near 1 closely matches the theoretical conditional N(mu_1|2, sigma_1|2^2) density shown in orange."}
+# Parameters from our earlier simulation
+rho <- 0.7
+mu1 <- 2; mu2 <- -1; s1 <- 1; s2 <- 2
+
+# Conditional parameters when X2 = 1
+x2_given <- 1
+cond_mean <- mu1 + rho * s1 / s2 * (x2_given - mu2)
+cond_var <- s1^2 * (1 - rho^2)
+
+# Filter simulated data to X2 near 1
+window <- sim_dt[X2 > 0.8 & X2 < 1.2]
+
+ggplot2$ggplot(window, ggplot2$aes(x = X1)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 30, fill = "#009E73", alpha = 0.6
+  ) +
+  ggplot2$stat_function(
+    fun = dnorm, args = list(mean = cond_mean, sd = sqrt(cond_var)),
+    colour = "#D55E00", linewidth = 1.2
+  ) +
+  ggplot2$labs(
+    x = expression(X[1]),
+    y = "Density",
+    title = sprintf(
+      "Conditional: X1 | X2 ≈ 1 ~ N(%.2f, %.2f)", cond_mean, cond_var)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```{r conditional-verify}
+data.frame(
+  quantity = c("Conditional mean", "Conditional sd"),
+  theoretical = c(cond_mean, sqrt(cond_var)),
+  simulated = c(mean(window$X1), sd(window$X1))
+)
+```
+
+---
+
+## 6.13 Simulating the MVN from Scratch
+
+### 6.13.1 The Cholesky Method
+
+The standard algorithm for simulating from $N_p(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ uses the Cholesky decomposition:
+
+1. Compute $\mathbf{L}$ such that $\boldsymbol{\Sigma} = \mathbf{L}\mathbf{L}^\top$.
+2. Generate $\mathbf{Z} \sim N_p(\mathbf{0}, \mathbf{I})$ (i.e., $p$ independent standard normals).
+3. Set $\mathbf{X} = \boldsymbol{\mu} + \mathbf{L}\mathbf{Z}$.
+
+**Why does this work?** The covariance of $\mathbf{X}$ is:
+
+$$\text{Cov}(\mathbf{X}) = \mathbf{L} \, \text{Cov}(\mathbf{Z}) \, \mathbf{L}^\top = \mathbf{L}\mathbf{I}\mathbf{L}^\top = \mathbf{L}\mathbf{L}^\top = \boldsymbol{\Sigma}. \quad \checkmark$$
+
+### 6.13.2 Implementation
+
+```{r my-rmvnorm}
+#' Simulate from a multivariate normal -- from scratch
+#' @param n number of draws
+#' @param mu mean vector (length p)
+#' @param Sigma covariance matrix (p x p, positive definite)
+#' @return n x p matrix of draws
+my_rmvnorm <- function(n, mu, Sigma) {
+  p <- length(mu)
+  # Cholesky: R returns upper-triangular R such that R^T R = Sigma
+  R <- chol(Sigma)
+  # Generate standard normals
+  Z <- matrix(rnorm(n * p), nrow = n, ncol = p)
+  # Transform: X = Z %*% R + mu (using upper-triangular form)
+  X <- Z %*% R + matrix(mu, n, p, byrow = TRUE)
+  X
+}
+
+# Test: bivariate normal
+set.seed(42)
+mu_test <- c(3, -2)
+Sigma_test <- matrix(c(4, 1.5, 1.5, 1), nrow = 2)
+
+draws <- my_rmvnorm(10000, mu_test, Sigma_test)
+
+data.frame(
+  param = c("mu1", "mu2", "var1", "var2", "cov12"),
+  theoretical = c(mu_test, diag(Sigma_test), Sigma_test[1, 2]),
+  simulated = c(colMeans(draws), var(draws[, 1]), var(draws[, 2]),
+    cov(draws[, 1], draws[, 2]))
+)
+```
+
+### 6.13.3 Comparison with `mvtnorm::rmvnorm()`
+
+```{r mvtnorm-compare}
+box::use(mvtnorm)
+
+set.seed(42)
+draws_pkg <- mvtnorm$rmvnorm(10000, mean = mu_test, sigma = Sigma_test)
+
+data.frame(
+  source = c("my_rmvnorm", "mvtnorm::rmvnorm"),
+  mean1 = c(mean(draws[, 1]), mean(draws_pkg[, 1])),
+  mean2 = c(mean(draws[, 2]), mean(draws_pkg[, 2])),
+  var1 = c(var(draws[, 1]), var(draws_pkg[, 1])),
+  cor12 = c(cor(draws[, 1], draws[, 2]), cor(draws_pkg[, 1], draws_pkg[, 2]))
+)
+```
+
+Both implementations produce essentially the same statistical properties.
+
+---
+
+## 6.14 3D Perspective Plot
+
+```{r bvn-perspective, fig.cap="Three-dimensional perspective plot of the bivariate normal density with rho = 0.6. The bell shape is clearly visible, and the tilt of the peak reflects the positive correlation between X1 and X2."}
+# Bivariate normal density on a grid
+x1_seq <- seq(-3, 3, length.out = 80)
+x2_seq <- seq(-3, 3, length.out = 80)
+z_mat <- outer(x1_seq, x2_seq, function(a, b) {
+  bvn_pdf <- function(x1, x2, rho = 0.6) {
+    Q <- (1 / (1 - rho^2)) * (x1^2 - 2 * rho * x1 * x2 + x2^2)
+    (1 / (2 * pi * sqrt(1 - rho^2))) * exp(-0.5 * Q)
+  }
+  bvn_pdf(a, b)
+})
+
+persp(
+  x1_seq, x2_seq, z_mat,
+  theta = 30, phi = 25,
+  xlab = "X1", ylab = "X2", zlab = "f(x1, x2)",
+  main = "Bivariate normal density (rho = 0.6)",
+  col = "lightblue", shade = 0.4,
+  ticktype = "detailed"
+)
+```
+
+---
+
+## 6.15 Interactive Bivariate Normal
+
+<InteractivePlot>
+const width = 600, Height = 500;
+const margin = { top: 40, right: 20, bottom: 60, left: 60 };
+const pw = width - margin.left - margin.right;
+const ph = height - margin.top - margin.bottom;
+
+// State
+let rho = 0.5;
+
+// Canvas for density
+const canvas = document.createElement('canvas');
+canvas.width = pw;
+canvas.Height = ph;
+canvas.style.position = 'absolute';
+canvas.style.left = margin.left + 'px';
+canvas.style.top = margin.top + 'px';
+container.style.position = 'relative';
+container.style.width = width + 'px';
+container.style.Height = (height + 50) + 'px';
+container.appendChild(canvas);
+
+// SVG overlay for axes and labels
+const svgNS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(svgNS, 'svg');
+svg.setAttribute('width', width);
+svg.setAttribute('height', height);
+svg.style.position = 'absolute';
+svg.style.left = '0';
+svg.style.top = '0';
+svg.style.pointerEvents = 'none';
+container.appendChild(svg);
+
+// Slider
+const sliderDiv = document.createElement('div');
+sliderDiv.style.position = 'absolute';
+sliderDiv.style.top = height + 'px';
+sliderDiv.style.left = margin.left + 'px';
+sliderDiv.style.width = pw + 'px';
+sliderDiv.style.textAlign = 'center';
+sliderDiv.style.fontFamily = 'sans-serif';
+sliderDiv.innerHTML = `
+  <label>Correlation ρ = <span id="rho-val">0.50</span></label><br/>
+  <input type="range" id="rho-slider" min="-95" max="95" value="50"
+    style="width:80%"/>
+`;
+container.appendChild(sliderDiv);
+
+const slider = sliderDiv.querySelector('#rho-slider');
+const rhoLabel = sliderDiv.querySelector('#rho-val');
+
+function bvnPdf(x1, x2, r) {
+  const q = (1 / (1 - r * r)) * (x1 * x1 - 2 * r * x1 * x2 + x2 * x2);
+  return (1 / (2 * Math.PI * Math.sqrt(1 - r * r))) * Math.exp(-0.5 * q);
+}
+
+function drawDensity(r) {
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(pw, ph);
+  const lo = -3.5, hi = 3.5;
+  let maxD = 0;
+
+  // First pass: find max density
+  for (let iy = 0; iy < ph; iy++) {
+    for (let ix = 0; ix < pw; ix++) {
+      const x1 = lo + (hi - lo) * ix / pw;
+      const x2 = hi - (hi - lo) * iy / ph;
+      const d = bvnPdf(x1, x2, r);
+      if (d > maxD) maxD = d;
+    }
+  }
+
+  // Second pass: render
+  for (let iy = 0; iy < ph; iy++) {
+    for (let ix = 0; ix < pw; ix++) {
+      const x1 = lo + (hi - lo) * ix / pw;
+      const x2 = hi - (hi - lo) * iy / ph;
+      const d = bvnPdf(x1, x2, r) / maxD;
+      const idx = (iy * pw + ix) * 4;
+      // Blue colour ramp
+      imgData.data[idx] = Math.round(255 * (1 - d * 0.8));
+      imgData.data[idx + 1] = Math.round(255 * (1 - d * 0.6));
+      imgData.data[idx + 2] = 255;
+      imgData.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function drawAxes() {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const mkText = (x, y, txt, anchor, size) => {
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', x);
+    t.setAttribute('y', y);
+    t.setAttribute('text-anchor', anchor || 'middle');
+    t.setAttribute('font-family', 'sans-serif');
+    t.setAttribute('font-size', size || 12);
+    t.textContent = txt;
+    svg.appendChild(t);
+  };
+  mkText(margin.left + pw / 2, height - 5, 'X₁', 'middle', 14);
+  mkText(15, margin.top + ph / 2, 'X₂', 'middle', 14);
+  mkText(margin.left + pw / 2, 25, 'Bivariate Normal Density', 'middle', 16);
+
+  // Tick marks
+  const lo = -3.5, hi = 3.5;
+  for (let v = -3; v <= 3; v++) {
+    const px = margin.left + (v - lo) / (hi - lo) * pw;
+    mkText(px, height - margin.bottom + 18, v.toString(), 'middle', 10);
+    const py = margin.top + (hi - v) / (hi - lo) * ph;
+    mkText(margin.left - 8, py + 4, v.toString(), 'end', 10);
+  }
+}
+
+function update() {
+  rho = parseInt(slider.value) / 100;
+  rhoLabel.textContent = rho.toFixed(2);
+  drawDensity(rho);
+}
+
+slider.addEventListener('input', update);
+drawAxes();
+update();
+</InteractivePlot>
+
+The interactive plot above shows the bivariate normal density as a heat map. Drag the slider to change the correlation $\rho$ and observe how the density ellipses rotate and stretch. At $\rho = 0$ the contours are circular; as $|\rho|$ increases they elongate along the diagonal.
+
+---
+
+## 6.16 A Special Property: Uncorrelated Implies Independent
+
+For a **general** joint distribution, uncorrelated does not imply independent (as we showed with $Y = X^2$ in Part 2). The MVN is the important exception:
+
+**Theorem.** If $\mathbf{X} \sim N_p(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ and $\text{Cov}(X_i, X_j) = 0$ for $i \neq j$, then $X_i$ and $X_j$ are independent.
+
+*Proof sketch:* When $\boldsymbol{\Sigma}$ is diagonal, the exponent in the MVN PDF separates:
+
+$$(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1}(\mathbf{x} - \boldsymbol{\mu}) = \sum_{i=1}^p \frac{(x_i - \mu_i)^2}{\sigma_i^2}$$
+
+and the determinant factors: $|\boldsymbol{\Sigma}| = \prod_i \sigma_i^2$. The entire density factors into a product of univariate normal densities:
+
+$$f(\mathbf{x}) = \prod_{i=1}^p \frac{1}{\sqrt{2\pi}\,\sigma_i}\exp\!\left(-\frac{(x_i - \mu_i)^2}{2\sigma_i^2}\right) = \prod_{i=1}^p f_{X_i}(x_i).$$
+
+Factorisation of the joint density into marginals is the definition of independence. $\square$
+
+---
+
+## Communicating to Stakeholders
+
+When explaining the multivariate normal to a non-technical audience:
+
+- Say "the measurements follow a bell-shaped cloud" rather than "the data are MVN."
+- The mean vector is simply "the centre of the cloud." The covariance matrix controls "how spread out the cloud is and in which direction it stretches."
+- Correlation determines the "tilt" of the ellipse: positive correlation means the ellipse tilts upward to the right, negative tilts downward.
+- The conditional distribution result is the theoretical backbone of regression: "If we know someone's height, our best prediction of their weight shifts according to the correlation, and our uncertainty is reduced by a factor of $1 - \rho^2$."
+- The Cholesky decomposition is just a recipe for "generating fake data that has the same correlation structure as the real data."
+
+---
+
+## Quick Reference
+
+| Property | Formula |
+|:---------|:--------|
+| **PDF** | $f(\mathbf{x}) = (2\pi)^{-p/2}|\boldsymbol{\Sigma}|^{-1/2}\exp\!\left(-\tfrac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^\top\boldsymbol{\Sigma}^{-1}(\mathbf{x}-\boldsymbol{\mu})\right)$ |
+| **Mean** | $E[\mathbf{X}] = \boldsymbol{\mu}$ |
+| **Covariance** | $\text{Cov}(\mathbf{X}) = \boldsymbol{\Sigma}$ |
+| **Marginal** | $X_i \sim N(\mu_i, \sigma_{ii})$ |
+| **Conditional mean** | $\boldsymbol{\mu}_{1|2} = \boldsymbol{\mu}_1 + \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}(\mathbf{x}_2 - \boldsymbol{\mu}_2)$ |
+| **Conditional cov.** | $\boldsymbol{\Sigma}_{1|2} = \boldsymbol{\Sigma}_{11} - \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}\boldsymbol{\Sigma}_{21}$ |
+| **Cholesky simulation** | $\mathbf{X} = \boldsymbol{\mu} + \mathbf{L}\mathbf{Z}$, $\mathbf{Z} \sim N(\mathbf{0}, \mathbf{I})$ |
+| **Special property** | Uncorrelated $\Rightarrow$ independent (MVN only) |
+| **R functions** | `mvtnorm::rmvnorm()`, `mvtnorm::dmvnorm()` |
+
+---
+
+## Exercises
+
+### Derivation Exercises
+
+**Exercise 6.20.** Verify that the bivariate normal PDF with $\rho = 0$ and $\sigma_1 = \sigma_2 = 1$ reduces to the product of two standard normal PDFs.
+
+**Exercise 6.21.** For the bivariate normal, derive the conditional variance $\sigma_{1|2}^2 = \sigma_1^2(1 - \rho^2)$ starting from the general formula $\boldsymbol{\Sigma}_{1|2} = \boldsymbol{\Sigma}_{11} - \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}\boldsymbol{\Sigma}_{21}$.
+
+**Exercise 6.22.** Prove that if $\mathbf{X} \sim N_p(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ and $\mathbf{Y} = \mathbf{A}\mathbf{X} + \mathbf{b}$ for a matrix $\mathbf{A}$ and vector $\mathbf{b}$, then $\mathbf{Y} \sim N(\mathbf{A}\boldsymbol{\mu} + \mathbf{b}, \; \mathbf{A}\boldsymbol{\Sigma}\mathbf{A}^\top)$. *(This is the affine transformation property of the MVN.)*
+
+### Computation Exercises
+
+**Exercise 6.23.** Let $(X_1, X_2)^\top \sim N_2\bigl((0, 0)^\top, \begin{pmatrix} 1 & 0.5 \\ 0.5 & 1 \end{pmatrix}\bigr)$. Compute:
+(a) $P(X_1 > 1)$
+(b) The conditional distribution of $X_1 | X_2 = 2$
+(c) $P(X_1 > 1 | X_2 = 2)$
+
+```{r ex-6-23, eval=FALSE}
+# (a) Marginal of X1 is N(0, 1)
+1 - pnorm(1)
+# (b) Conditional: X1|X2=2 ~ N(0.5*2, 1-0.25) = N(1, 0.75)
+# (c)
+1 - pnorm(1, mean = 1, sd = sqrt(0.75))
+```
+
+**Exercise 6.24.** Using `my_rmvnorm()`, simulate 50,000 draws from a trivariate normal with $\boldsymbol{\mu} = (1, 2, 3)^\top$ and $\boldsymbol{\Sigma}$ having variances $(1, 4, 9)$ and all pairwise correlations equal to 0.3. Verify that the sample mean vector and sample covariance matrix are close to the population values.
+
+### R Exercises
+
+**Exercise 6.25.** Implement a function `my_dmvnorm(x, mu, Sigma)` that computes the multivariate normal density from scratch using the formula. Verify against `mvtnorm::dmvnorm()`.
+
+```{r ex-6-25, eval=FALSE}
+my_dmvnorm <- function(x, mu, Sigma) {
+  p <- length(mu)
+  x <- matrix(x, ncol = p)
+  diff <- sweep(x, 2, mu)
+  inv_Sigma <- solve(Sigma)
+  Q <- rowSums((diff %*% inv_Sigma) * diff)
+  log_norm <- -0.5 * (p * log(2 * pi) + log(det(Sigma)))
+  exp(log_norm - 0.5 * Q)
+}
+```
+
+**Exercise 6.26.** Using the penguins dataset, fit a bivariate normal to (bill_length_mm, flipper_length_mm) for Gentoo penguins only. Plot the data with density contour ellipses from your fitted model. Do the ellipses align well with the data?
+
+**Exercise 6.27.** Write a function that simulates from a bivariate normal using *only* `runif()` and the Box-Muller transform (to generate standard normals) followed by the Cholesky method. Do not use `rnorm()`.
+
+### Spot-the-Error Exercises
+
+**Exercise 6.28.** A student says: "I have two variables with zero correlation. Therefore, the conditional distribution of one given the other is the same as the marginal." Under what conditions is this statement true? Give a counterexample where it fails.
+
+**Exercise 6.29.** A colleague proposes the covariance matrix $\begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$ for a bivariate normal. What is wrong with this matrix? *(Hint: check the eigenvalues.)*
+
+```{r ex-6-29, eval=FALSE}
+eigen(matrix(c(1, 2, 2, 1), 2))$values
+# One eigenvalue is negative => not positive definite
+# This means |rho| = 2 > 1, which is impossible
+```

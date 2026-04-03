@@ -1,0 +1,446 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 1: Describing Data"
+part: "Part 1: Types of Data and Central Tendency"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, data, R, ggplot2]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+# Chapter 1 -- Describing Data
+
+## Part 1: Types of Data and Central Tendency
+
+Statistics begins with data. Before we can build models, test hypotheses, or make predictions, we must first understand *what kind* of data we have and how to summarise it. This chapter develops the foundational vocabulary and tools for describing datasets -- the building blocks upon which every subsequent chapter rests.
+
+We work with two real datasets throughout this chapter: the **Palmer Penguins** dataset (measurements of three penguin species in Antarctica) and the **NHANES** dataset (a nationally representative health survey from the United States). Both are messy, real-world datasets with missing values, skewed distributions, and interesting structure -- exactly the sort of data a practising statistician encounters daily.
+
+```{r load-data}
+box::use(data.table)
+
+data_dir <- "../../../data"
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+```
+
+```{r dt-symbols, include=FALSE}
+# data.table special symbols must be in the calling environment
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+---
+
+## 1.1 Types of Data
+
+Every variable in a dataset belongs to one of two broad families: **categorical** or **numerical**. Getting this classification right matters enormously, because the type of variable determines which summary statistics are meaningful, which visualisations are appropriate, and which statistical tests are valid.
+
+### 1.1.1 Categorical Variables
+
+A **categorical variable** (also called a *qualitative* variable) records a label or category rather than a quantity. There are two sub-types:
+
+- **Nominal variables** have categories with no natural ordering. Examples: species of penguin, blood type, country of residence. It makes no sense to say that "Adelie" is greater than "Chinstrap."
+
+- **Ordinal variables** have categories with a meaningful order, but the distances between categories are not necessarily equal. Examples: education level (primary < secondary < tertiary), pain severity (mild < moderate < severe), Likert-scale responses (strongly disagree < disagree < neutral < agree < strongly agree).
+
+Let us examine some categorical variables in the penguins dataset:
+
+```{r categorical-examples}
+# Species is nominal -- three categories with no inherent ordering
+unique(penguins$species)
+
+unique(penguins$island)
+
+unique(penguins$sex)
+```
+
+The output shows the distinct values for each categorical variable: three species (Adelie, Gentoo, Chinstrap), three islands (Torgersen, Biscoe, Dream), and two sexes (male, female) plus missing values.
+
+We can count observations within each category using `data.table`:
+
+```{r categorical-counts}
+# Frequency table for species
+penguins[, .N, by = species]
+```
+
+```{r categorical-cross}
+# Cross-tabulation: species by island
+penguins[, .N, by = .(species, island)]
+```
+
+Notice that not all species appear on all islands. Gentoo penguins are found only on Biscoe Island, and Chinstrap penguins are found only on Dream Island. This kind of structure -- where categorical variables are *not* fully crossed -- is common in observational data and has important consequences for analysis.
+
+### 1.1.2 Numerical Variables
+
+A **numerical variable** (also called a *quantitative* variable) records a measurement or count. Again, there are two sub-types:
+
+- **Discrete variables** can take only specific, separated values (usually integers). Examples: number of eggs in a nest, number of hospital visits, count of bacterial colonies on a plate. You can have 3 eggs or 4 eggs, but not 3.7 eggs.
+
+- **Continuous variables** can, in principle, take any value within an interval. Examples: body mass in grams, flipper length in millimetres, blood pressure in mmHg. A penguin's flipper might be 181.0 mm, 181.3 mm, or 181.27 mm -- the precision is limited only by the measuring instrument.
+
+Let us examine numerical variables in the penguins dataset:
+
+```{r numerical-examples}
+# Structure of the dataset
+str(penguins)
+```
+
+```{r numerical-types}
+# R's internal type representations
+typeof(penguins$bill_length_mm)
+class(penguins$bill_length_mm)
+typeof(penguins$body_mass_g)
+class(penguins$body_mass_g)
+```
+
+The `bill_length_mm` column is stored as `double` (double-precision floating point) and has class `numeric`. The `body_mass_g` column is stored as `integer`.
+
+R stores numbers internally as either `integer` or `double` (double-precision floating point). The `class()` function tells you how R treats the variable; the `typeof()` function tells you how it is stored in memory. For statistical purposes, what matters most is whether the variable is conceptually discrete or continuous.
+
+### 1.1.3 Why the Distinction Matters
+
+The type of variable constrains what operations are valid:
+
+| Operation | Nominal | Ordinal | Discrete | Continuous |
+|-----------|---------|---------|----------|------------|
+| Count frequencies | Yes | Yes | Yes | Yes |
+| Compute mean | No | Debatable | Yes | Yes |
+| Compute median | No | Yes | Yes | Yes |
+| Compute variance | No | No | Yes | Yes |
+| Rank-order | No | Yes | Yes | Yes |
+| Arithmetic (+, -, etc.) | No | No | Yes | Yes |
+
+Computing the "mean" of a set of species names is nonsensical. Computing the mean of an ordinal variable (e.g., assigning 1 = mild, 2 = moderate, 3 = severe) is common in practice but controversial -- it assumes the gaps between categories are equal, which may not be true.
+
+---
+
+## 1.2 Measures of Central Tendency
+
+Given a collection of numerical values, the most basic question is: *where is the centre?* A **measure of central tendency** provides a single number that attempts to represent the "typical" value. We shall study three: the mean, the median, and the mode.
+
+### 1.2.1 The Arithmetic Mean
+
+The **arithmetic mean** (or simply "the mean") is the sum of all values divided by the number of values. It is the most commonly used measure of centre and has deep connections to probability theory that we shall explore in later chapters.
+
+**Notation.** Let $x_1, x_2, \ldots, x_n$ denote $n$ observations. The sample mean is:
+
+$$\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i = \frac{x_1 + x_2 + \cdots + x_n}{n}$$
+
+In plain English: add up all the values, then divide by how many there are. The symbol $\bar{x}$ (read "x-bar") is the standard notation for a sample mean. When we refer to the mean of the entire population, we use the Greek letter $\mu$ (mu).
+
+**Physical interpretation.** The mean is the *balance point* of the data. If you placed each observation as an equal weight on a number line, the mean is the point at which the line would balance perfectly. Equivalently, the sum of deviations from the mean is always zero:
+
+$$\sum_{i=1}^{n}(x_i - \bar{x}) = 0$$
+
+This is not merely a nice property -- it is the *defining* property. The mean is the unique value $c$ that minimises the sum of squared deviations $\sum(x_i - c)^2$.
+
+#### Building `my_mean()` from scratch
+
+Let us implement the mean ourselves, first using an explicit loop and then using vectorised operations:
+
+```{r my-mean}
+# Version 1: explicit loop
+my_mean_loop <- function(x) {
+  x <- x[!is.na(x)]  # remove missing values
+  n <- length(x)
+  if (n == 0) return(NA_real_)
+
+  total <- 0
+  for (i in seq_len(n)) {
+    total <- total + x[i]
+  }
+  total / n
+}
+
+# Version 2: vectorised (idiomatic R)
+my_mean <- function(x) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n == 0) return(NA_real_)
+  sum(x) / n
+}
+
+# Test on penguin body mass
+my_mean_loop(penguins$body_mass_g)
+my_mean(penguins$body_mass_g)
+mean(penguins$body_mass_g, na.rm = TRUE)
+```
+
+All three return the same result. The vectorised version is preferred in R because it is both more concise and faster (R's `sum()` is implemented in C).
+
+#### When the mean is misleading
+
+The mean is sensitive to extreme values. A single very large or very small observation can pull the mean substantially away from the "typical" value. Consider income data: in a room of 50 people with average income \$50,000, adding one billionaire raises the mean to approximately \$20 million -- hardly representative of anyone in the room.
+
+Let us see this effect with real data. The NHANES dataset contains household income data, which is notoriously right-skewed:
+
+```{r mean-sensitivity}
+box::use(ggplot2)
+
+# BMI data from NHANES -- right-skewed
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
+
+my_mean(BMI)
+median(BMI)
+my_mean(BMI) - median(BMI)
+```
+
+The mean BMI is slightly larger than the median, which is characteristic of right-skewed data. The long right tail (very high BMI values) pulls the mean upward.
+
+### 1.2.2 The Median
+
+The **median** is the "middle" value when observations are arranged in order. It splits the data into two equal halves: 50% of observations fall below the median and 50% fall above.
+
+**Formal definition.** Let $x_{(1)} \leq x_{(2)} \leq \cdots \leq x_{(n)}$ denote the **order statistics** (the observations sorted from smallest to largest). The median is:
+
+$$\text{median} = \begin{cases} x_{((n+1)/2)} & \text{if } n \text{ is odd} \\ \frac{1}{2}\left(x_{(n/2)} + x_{(n/2+1)}\right) & \text{if } n \text{ is even} \end{cases}$$
+
+In plain English: sort the values, then pick the one in the middle. If there is an even number of values, take the average of the two middle ones.
+
+**Key property.** The median minimises the sum of *absolute* deviations: it is the value $c$ that minimises $\sum|x_i - c|$. Compare this to the mean, which minimises squared deviations. Because the median uses absolute deviations rather than squared ones, extreme values have less influence.
+
+#### Building `my_median()` from scratch
+
+```{r my-median}
+my_median <- function(x) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n == 0) return(NA_real_)
+
+  x_sorted <- sort(x)
+
+  if (n %% 2 == 1) {
+    # Odd n: pick the middle element
+    x_sorted[(n + 1) / 2]
+  } else {
+    # Even n: average the two middle elements
+    mid <- n / 2
+    (x_sorted[mid] + x_sorted[mid + 1]) / 2
+  }
+}
+
+# Test on penguin flipper length
+my_median(penguins$flipper_length_mm)
+median(penguins$flipper_length_mm, na.rm = TRUE)
+```
+
+#### Mean vs. median: a diagnostic
+
+The relationship between the mean and median tells us something about the shape of the distribution:
+
+- If $\bar{x} \approx \text{median}$: the distribution is approximately **symmetric**.
+- If $\bar{x} > \text{median}$: the distribution is **right-skewed** (a long right tail pulls the mean up).
+- If $\bar{x} < \text{median}$: the distribution is **left-skewed** (a long left tail pulls the mean down).
+
+### 1.2.3 The Mode
+
+The **mode** is the most frequently occurring value. It is the only measure of central tendency that is meaningful for nominal data (e.g., the most common penguin species).
+
+For continuous data, the mode is less useful because every value may be unique. In practice, we estimate the mode from a histogram or a kernel density estimate.
+
+#### Building `my_mode()` from scratch
+
+```{r my-mode}
+# For discrete / categorical data
+my_mode <- function(x) {
+  x <- x[!is.na(x)]
+  freq_table <- table(x)
+  max_freq <- max(freq_table)
+
+  # There may be multiple modes (ties)
+  modes <- names(freq_table[freq_table == max_freq])
+
+  # Attempt to convert back to numeric if appropriate
+  result <- suppressWarnings(as.numeric(modes))
+  if (any(is.na(result))) {
+    return(modes)  # return as character for categorical data
+  }
+  result
+}
+
+# Mode of species (categorical)
+my_mode(penguins$species)
+
+# Mode of body mass (discrete-ish, rounded to nearest gram)
+my_mode(penguins$body_mass_g)
+```
+
+Note that R does not provide a built-in function for the statistical mode. The base R function `mode()` returns the *storage mode* of an object (e.g., "numeric", "character") -- a completely different concept. This is a common source of confusion for beginners.
+
+### 1.2.4 Comparing the Three Measures
+
+Let us visualise all three measures of central tendency on two different distributions: one approximately symmetric and one skewed.
+
+```{r compare-central-tendency, fig.cap="Comparing mean, median, and mode on symmetric (penguin flipper length) and right-skewed (NHANES BMI) distributions. On symmetric data, all three measures nearly coincide. On skewed data, they separate, with the mean pulled toward the tail."}
+# Symmetric-ish: penguin flipper length
+fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
+fl_mean <- my_mean(fl)
+fl_median <- my_median(fl)
+
+# Right-skewed: NHANES BMI
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
+bmi_mean <- my_mean(BMI)
+bmi_median <- my_median(BMI)
+
+# Estimate mode from density
+fl_dens <- density(fl)
+fl_mode <- fl_dens$x[which.max(fl_dens$y)]
+
+bmi_dens <- density(BMI)
+bmi_mode <- bmi_dens$x[which.max(bmi_dens$y)]
+
+# Build combined data for faceted plot
+dt_fl <- data.table$data.table(value = fl, dataset = "Penguin Flipper Length (mm)")
+dt_bmi <- data.table$data.table(value = BMI, dataset = "NHANES BMI")
+dt_combined <- data.table$rbindlist(list(dt_fl, dt_bmi))
+
+# Summary lines
+summary_lines <- data.table$data.table(
+  dataset = rep(c("Penguin Flipper Length (mm)", "NHANES BMI"), each = 3),
+  measure = rep(c("Mean", "Median", "Mode"), 2),
+  value = c(fl_mean, fl_median, fl_mode, bmi_mean, bmi_median, bmi_mode)
+)
+
+ggplot2$ggplot(dt_combined, ggplot2$aes(x = value)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)), bins = 35,
+                 fill = "grey80", colour = "grey50") +
+  ggplot2$geom_density(linewidth = 0.8, colour = "black") +
+  ggplot2$geom_vline(data = summary_lines,
+             ggplot2$aes(xintercept = value, colour = measure, linetype = measure),
+             linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(Mean = "#E41A1C", Median = "#377EB8", Mode = "#4DAF4A")) +
+  ggplot2$scale_linetype_manual(values = c(Mean = "solid", Median = "dashed", Mode = "dotted")) +
+  ggplot2$facet_wrap(~dataset, scales = "free", ncol = 1) +
+  ggplot2$labs(x = "Value", y = "Density",
+       colour = "Measure", linetype = "Measure") +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
+```
+
+In the flipper-length panel, the three measures nearly coincide -- the distribution is close to symmetric. In the BMI panel, the mean is pulled to the right of the median, and the mode sits at the peak of the distribution. This visual separation is the hallmark of right skewness.
+
+### 1.2.5 The Weighted Mean
+
+Sometimes observations carry different *weights* -- for instance, when combining group means or when some measurements are more precise than others. The **weighted mean** generalises the arithmetic mean:
+
+$$\bar{x}_w = \frac{\sum_{i=1}^{n} w_i \, x_i}{\sum_{i=1}^{n} w_i}$$
+
+where $w_i > 0$ is the weight for observation $i$. When all weights are equal, the weighted mean reduces to the ordinary mean.
+
+```{r weighted-mean}
+my_weighted_mean <- function(x, w) {
+  keep <- !is.na(x) & !is.na(w)
+  x <- x[keep]
+  w <- w[keep]
+  sum(w * x) / sum(w)
+}
+
+# Example: suppose we know species means and sample sizes
+species_means <- penguins[!is.na(body_mass_g), .(
+  mean_mass = mean(body_mass_g),
+  n = .N
+), by = species]
+
+print(species_means)
+
+# Weighted mean (weighted by sample size) should equal the overall mean
+my_weighted_mean(species_means$mean_mass, species_means$n)
+mean(penguins$body_mass_g, na.rm = TRUE)
+```
+
+The weighted mean of group means, weighted by group sizes, equals the overall mean. This seemingly obvious fact is actually quite important -- it fails when groups have different variances and we use different weighting schemes, a topic we revisit in Chapter 18 (Analysis of Variance).
+
+### 1.2.6 The Trimmed Mean
+
+A **trimmed mean** discards a fraction of the extreme values from each tail before computing the mean. It is a compromise between the mean (which uses all data) and the median (which ignores all data except the middle values).
+
+The $\alpha$-trimmed mean removes the smallest $\lfloor n\alpha \rfloor$ and largest $\lfloor n\alpha \rfloor$ observations, then takes the mean of what remains. The median is the limiting case as $\alpha \to 0.5$.
+
+```{r trimmed-mean}
+my_trimmed_mean <- function(x, trim = 0.1) {
+  x <- sort(x[!is.na(x)])
+  n <- length(x)
+  k <- floor(n * trim)
+
+  if (2 * k >= n) return(my_median(x))
+
+  x_trimmed <- x[(k + 1):(n - k)]
+  my_mean(x_trimmed)
+}
+
+# Compare trimming fractions on BMI
+BMI <- nhanes$BMI[!is.na(nhanes$BMI)]
+
+trims <- c(0.00, 0.05, 0.10, 0.25, 0.50)
+data.table$data.table(
+  trim_fraction = trims,
+  trimmed_mean = vapply(trims, function(t) my_trimmed_mean(BMI, t), numeric(1))
+)
+
+# Verify against built-in
+mean(BMI, trim = 0.10)
+```
+
+As we trim more, the result moves from the mean toward the median. Trimmed means are **robust** -- they are less affected by outliers than the ordinary mean. We shall formalise the concept of robustness in Chapter 13 (Nonparametric Methods).
+
+---
+
+## Communicating to Stakeholders
+
+When explaining central tendency to non-statisticians:
+
+- **Mean**: "The average -- if we shared the total equally among everyone, each person would get this amount." Most people intuitively understand averages. Warn them that averages can be distorted by extreme values.
+
+- **Median**: "The middle value -- half the observations are above it, half below." This is particularly useful for communicating about income, house prices, or wait times, where a few extreme values make the mean misleading.
+
+- **Mode**: "The most common value." Most useful for categorical data ("the most popular choice was...") or to describe the peak of a distribution.
+
+A practical guideline: if the mean and median differ substantially, report *both* and explain why they differ. This builds trust with stakeholders and demonstrates analytical rigour.
+
+---
+
+## Quick Reference
+
+| Measure | Formula | Minimises | Sensitive to Outliers? | Use When |
+|---------|---------|-----------|----------------------|----------|
+| Mean ($\bar{x}$) | $\frac{1}{n}\sum x_i$ | $\sum(x_i - c)^2$ | Yes | Data are symmetric; need for further algebra |
+| Median | Middle of sorted values | $\sum|x_i - c|$ | No | Data are skewed; outliers present |
+| Mode | Most frequent value | -- | No | Categorical data; describing peaks |
+| Weighted Mean | $\frac{\sum w_i x_i}{\sum w_i}$ | $\sum w_i(x_i - c)^2$ | Yes | Observations have different importance |
+| Trimmed Mean | Mean of central $(1-2\alpha)$ fraction | -- | Less so | Compromise between mean and median |
+
+**Key R functions:**
+
+- `mean(x, na.rm = TRUE)` -- arithmetic mean
+- `mean(x, trim = 0.1)` -- 10% trimmed mean
+- `median(x, na.rm = TRUE)` -- median
+- `weighted.mean(x, w)` -- weighted mean
+- No built-in function for statistical mode -- implement your own

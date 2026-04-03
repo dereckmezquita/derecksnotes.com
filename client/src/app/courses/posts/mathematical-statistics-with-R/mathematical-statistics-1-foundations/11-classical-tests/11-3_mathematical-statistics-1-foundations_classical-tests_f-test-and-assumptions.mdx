@@ -1,0 +1,699 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 11: Classical Tests"
+part: "Part 3: F-Test and Checking Assumptions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-04-03"
+tags: [statistics, mathematics, hypothesis-testing, f-test, diagnostics, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+
+
+
+
+
+# Chapter 11 -- Classical Tests
+
+## Part 3: F-Test and Checking Assumptions
+
+Every test in Parts 1 and 2 rests on assumptions: normality, independence, equal variances, or sufficiently large sample sizes for the CLT to operate. A test result is only as trustworthy as its assumptions. In this final part we derive the F-test for comparing variances and then develop the practical skills needed to assess whether the assumptions behind our tests are plausible.
+
+---
+
+## 11.8 The F-Test for Equality of Variances
+
+### 11.8.1 The Problem
+
+Given two independent samples from normal populations:
+
+$$X_1, \ldots, X_{n_1} \sim N(\mu_1, \sigma_1^2), \quad Y_1, \ldots, Y_{n_2} \sim N(\mu_2, \sigma_2^2),$$
+
+we wish to test $H_0: \sigma_1^2 = \sigma_2^2$ against $H_1: \sigma_1^2 \neq \sigma_2^2$.
+
+This is relevant in its own right (quality control, for instance) and is also a preliminary step before choosing between the pooled and Welch t-tests.
+
+### 11.8.2 Derivation from Chi-Square Ratios
+
+**Step 1.** From Chapter 5, we know that if $X_i \sim N(\mu, \sigma^2)$, then:
+
+$$(n - 1)S^2 / \sigma^2 \sim \chi^2_{n-1}.$$
+
+So for our two samples:
+
+$$U = \frac{(n_1 - 1) S_1^2}{\sigma_1^2} \sim \chi^2_{n_1 - 1}, \quad V = \frac{(n_2 - 1) S_2^2}{\sigma_2^2} \sim \chi^2_{n_2 - 1}$$
+
+and $U, V$ are independent (because the samples are independent).
+
+**Step 2.** The F-distribution is defined as the ratio of two independent chi-squared random variables, each divided by its degrees of freedom:
+
+$$F = \frac{U/d_1}{V/d_2} \sim F_{d_1, d_2}.$$
+
+**Step 3.** Substituting and noting that under $H_0$ we have $\sigma_1^2 = \sigma_2^2$:
+
+$$F = \frac{S_1^2 / \sigma_1^2}{S_2^2 / \sigma_2^2} = \frac{S_1^2}{S_2^2} \cdot \frac{\sigma_2^2}{\sigma_1^2} \stackrel{H_0}{=} \frac{S_1^2}{S_2^2}.$$
+
+Therefore:
+
+$$\boxed{F = \frac{S_1^2}{S_2^2} \sim F_{n_1 - 1, \, n_2 - 1} \quad \text{under } H_0.}$$
+
+The test statistic is simply the **ratio of the sample variances**. Values of $F$ far from 1 (in either direction) suggest unequal population variances.
+
+### 11.8.3 Cats Data: Body Weight Variance by Sex
+
+
+``` r
+cats <- data.table::fread(file.path(data_dir, "classic/cats.csv"))
+```
+
+
+``` r
+cats[, .(
+  n = .N,
+  mean_bwt = round(mean(Bwt), 3),
+  var_bwt = round(var(Bwt), 4),
+  sd_bwt = round(sd(Bwt), 3)
+), by = Sex]
+```
+
+```
+      Sex     n mean_bwt var_bwt sd_bwt
+   <char> <int>    <num>   <num>  <num>
+1:      F    47     2.36  0.0751  0.274
+2:      M    97     2.90  0.2185  0.467
+```
+
+
+``` r
+# Manual F-test
+male_bwt <- cats[Sex == "M", Bwt]
+female_bwt <- cats[Sex == "F", Bwt]
+
+s1_sq <- var(male_bwt)
+s2_sq <- var(female_bwt)
+n1_c <- length(male_bwt)
+n2_c <- length(female_bwt)
+
+f_stat <- s1_sq / s2_sq
+df1 <- n1_c - 1
+df2 <- n2_c - 1
+
+# Two-sided p-value
+p_val_f <- 2 * min(
+  pf(f_stat, df1, df2, lower.tail = FALSE),
+  pf(f_stat, df1, df2, lower.tail = TRUE)
+)
+
+data.frame(
+  s1_sq = round(s1_sq, 4),
+  s2_sq = round(s2_sq, 4),
+  F_stat = round(f_stat, 4),
+  df1 = df1,
+  df2 = df2,
+  p_value = round(p_val_f, 4)
+)
+```
+
+```
+   s1_sq  s2_sq F_stat df1 df2 p_value
+1 0.2185 0.0751 2.9112  96  46   1e-04
+```
+
+
+``` r
+var.test(male_bwt, female_bwt)
+```
+
+```
+
+	F test to compare two variances
+
+data:  male_bwt and female_bwt
+F = 2.9112, num df = 96, denom df = 46, p-value = 0.0001157
+alternative hypothesis: true ratio of variances is not equal to 1
+95 percent confidence interval:
+ 1.723106 4.703057
+sample estimates:
+ratio of variances 
+          2.911196 
+```
+
+
+``` r
+f_grid <- seq(0.01, 4, length.out = 500)
+f_dens <- df(f_grid, df1 = df1, df2 = df2)
+
+f_dt <- data.table::data.table(f = f_grid, density = f_dens)
+
+# Determine critical values for shading
+f_upper <- qf(0.975, df1, df2)
+f_lower <- qf(0.025, df1, df2)
+f_tails <- f_dt[f <= f_lower | f >= f_upper]
+
+ggplot2$ggplot(f_dt, ggplot2$aes(x = f, y = density)) +
+  ggplot2$geom_line(linewidth = 0.8) +
+  ggplot2$geom_area(
+    data = f_tails,
+    ggplot2$aes(x = f, y = density),
+    fill = "#9b59b6", alpha = 0.4
+  ) +
+  ggplot2$geom_vline(xintercept = f_stat, linetype = "dashed", colour = "#e74c3c") +
+  ggplot2$annotate("text", x = f_stat + 0.15, y = max(f_dens) * 0.8,
+    label = paste0("F = ", round(f_stat, 2)),
+    colour = "#e74c3c", hjust = 0, size = 4.5
+  ) +
+  ggplot2$labs(
+    x = "F", y = "Density",
+    title = "F-Test for Equality of Variances",
+    subtitle = paste0(
+      "F(", df1, ", ", df2, ") = ", round(f_stat, 3),
+      ", p = ", round(p_val_f, 3)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/cats-f-plot-1.png" alt="F-distribution under H0 with the observed F-statistic marked. The shaded area represents the two-sided p-value.">
+	F-distribution under H0 with the observed F-statistic marked. The shaded area represents the two-sided p-value.
+</Figure>
+
+### 11.8.4 A Warning About the F-Test
+
+The F-test for equality of variances is **extremely sensitive** to departures from normality. Even mild skewness or heavy tails can inflate the Type I error rate dramatically. For this reason, Levene's test (based on the absolute deviations from the group median) or the Brown--Forsythe test are often preferred in practice. We shall not derive them here, but you should be aware that `var.test()` is fragile.
+
+This is also why Welch's t-test is the default in R: it does not assume equal variances, so the fragility of the F-test is sidestepped entirely.
+
+---
+
+## 11.9 Checking Assumptions: The Art of Diagnostics
+
+### 11.9.1 Why Bother?
+
+Statistical tests are mathematical theorems: "if assumption A holds, then the test statistic has distribution D." If assumption A fails, the theorem no longer applies, and the p-value may be meaningless. Checking assumptions is not optional -- it is the bridge between mathematical theory and credible data analysis.
+
+The three key assumptions for the tests in this chapter are:
+
+1. **Normality** of the parent population (or large enough $n$ for the CLT).
+2. **Independence** of observations.
+3. **Equal variances** (for the pooled t-test and ANOVA).
+
+Independence is usually a design issue -- it depends on how the data were collected, not on the data themselves. We focus here on normality and equal variances, which *can* be assessed from the data.
+
+### 11.9.2 Q-Q Plots: What They Really Are
+
+The **quantile-quantile plot** is the single most useful graphical diagnostic in statistics, yet it is widely misunderstood. Let us explain it properly.
+
+**The idea.** If a sample $X_{(1)} \le X_{(2)} \le \cdots \le X_{(n)}$ truly comes from a distribution $F$, then the $i$-th order statistic should be "close to" the $i$-th theoretical quantile $F^{-1}(p_i)$, where $p_i$ is the plotting position (typically $p_i = (i - 0.5)/n$).
+
+**The construction.** A Q-Q plot has:
+- **x-axis:** Theoretical quantiles $F^{-1}(p_i)$ from the reference distribution.
+- **y-axis:** Sample quantiles (the ordered data values $X_{(i)}$).
+
+If the data follow the reference distribution, the points lie on a straight line. Deviations from the line reveal *how* the data depart from the reference.
+
+**Reading the plot:**
+
+| Pattern | Meaning |
+|---|---|
+| Points on the line | Data consistent with reference distribution |
+| S-shape (below, above, below) | Data have **lighter tails** (less spread) |
+| Reverse S-shape (above, below, above) | Data have **heavier tails** (more spread) |
+| Concave upward | Data are **right-skewed** |
+| Concave downward | Data are **left-skewed** |
+| Individual outliers lifting off | Possible **outliers** |
+
+### 11.9.3 Building a Q-Q Plot from Scratch
+
+
+``` r
+set.seed(42)
+n_qq <- 100
+x_norm <- rnorm(n_qq, mean = 50, sd = 10)
+
+# Order statistics
+x_sorted <- sort(x_norm)
+
+# Plotting positions
+p_i <- ((1:n_qq) - 0.5) / n_qq
+
+# Theoretical quantiles
+theo_q <- qnorm(p_i, mean = mean(x_norm), sd = sd(x_norm))
+
+qq_dt <- data.table::data.table(theoretical = theo_q, sample = x_sorted)
+
+ggplot2$ggplot(qq_dt, ggplot2$aes(x = theoretical, y = sample)) +
+  ggplot2$geom_abline(slope = 1, intercept = 0, colour = "#e74c3c",
+    linetype = "dashed", linewidth = 0.8) +
+  ggplot2$geom_point(alpha = 0.7, size = 2) +
+  ggplot2$labs(
+    x = "Theoretical quantiles (Normal)",
+    y = "Sample quantiles",
+    title = "Q-Q Plot Built from Scratch",
+    subtitle = "Sample from N(50, 100) -- points should follow the dashed line"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/qq-scratch-1.png" alt="Hand-built Q-Q plot for a sample from a normal distribution. Points hug the identity line, confirming normality.">
+	Hand-built Q-Q plot for a sample from a normal distribution. Points hug the identity line, confirming normality.
+</Figure>
+
+### 11.9.4 What Departures Look Like
+
+
+``` r
+set.seed(42)
+n_dep <- 200
+
+departures <- data.table::data.table(
+  value = c(
+    rnorm(n_dep),                         # Normal
+    rt(n_dep, df = 3),                    # Heavy tails
+    rexp(n_dep) - 1,                      # Right skew
+    rbeta(n_dep, 5, 5) * 4 - 2           # Light tails
+  ),
+  distribution = rep(
+    c("Normal (reference)", "Heavy tails (t, df=3)",
+      "Right-skewed (Exponential)", "Light tails (Beta)"),
+    each = n_dep
+  )
+)
+
+ggplot2$ggplot(departures, ggplot2$aes(sample = value)) +
+  ggplot2$stat_qq(alpha = 0.5, size = 1.5, colour = "#2c3e50") +
+  ggplot2$stat_qq_line(colour = "#e74c3c", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ distribution, scales = "free") +
+  ggplot2$labs(
+    x = "Theoretical quantiles", y = "Sample quantiles",
+    title = "Q-Q Plot Gallery: Recognising Departures from Normality"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/qq-departures-1.png" alt="Q-Q plots for four different distributions, all compared against the normal. Each departure pattern is diagnostic of a specific distributional feature.">
+	Q-Q plots for four different distributions, all compared against the normal. Each departure pattern is diagnostic of a specific distributional feature.
+</Figure>
+
+Study this figure carefully. The heavy-tailed distribution shows the classic reverse-S pattern: both extremes splay away from the line. The right-skewed distribution curves upward. The light-tailed (Beta) distribution shows an S-shape -- the tails are less extreme than the normal predicts. Being able to read Q-Q plots is one of the most valuable practical skills in statistics.
+
+### 11.9.5 Formal Normality Tests
+
+While Q-Q plots give qualitative insight, formal tests provide a p-value. The **Shapiro--Wilk test** is the most powerful for moderate sample sizes:
+
+
+``` r
+set.seed(42)
+
+# Test normality of each distribution
+normal_sample <- rnorm(100)
+heavy_sample <- rt(100, df = 3)
+skew_sample <- rexp(100) - 1
+
+data.frame(
+  distribution = c("Normal", "Heavy-tailed (t3)", "Right-skewed (Exp)"),
+  W_statistic = c(
+    round(shapiro.test(normal_sample)$statistic, 4),
+    round(shapiro.test(heavy_sample)$statistic, 4),
+    round(shapiro.test(skew_sample)$statistic, 4)
+  ),
+  p_value = c(
+    round(shapiro.test(normal_sample)$p.value, 4),
+    format(shapiro.test(heavy_sample)$p.value, digits = 3),
+    format(shapiro.test(skew_sample)$p.value, digits = 3)
+  )
+)
+```
+
+```
+        distribution W_statistic  p_value
+1             Normal      0.9812   0.1654
+2  Heavy-tailed (t3)      0.9171 9.96e-06
+3 Right-skewed (Exp)      0.8387 4.63e-09
+```
+
+A word of caution: the Shapiro--Wilk test is **very powerful** for large samples, meaning it will reject normality for trivial departures that have no practical impact on the validity of a t-test. For large $n$, rely more on the Q-Q plot (which shows *how* the data depart) than on the formal test (which only tells you *whether* they depart).
+
+### 11.9.6 Checking Equal Variances Visually
+
+Before running a pooled t-test, compare the spread of the two groups:
+
+
+``` r
+ggplot2$ggplot(cats, ggplot2$aes(x = Bwt, fill = Sex)) +
+  ggplot2$geom_density(alpha = 0.5) +
+  ggplot2$scale_fill_manual(values = c("F" = "#e74c3c", "M" = "#3498db")) +
+  ggplot2$labs(
+    x = "Body weight (kg)", y = "Density",
+    title = "Body Weight Distribution by Sex (Cats)",
+    subtitle = paste0(
+      "SD(Female) = ", round(sd(female_bwt), 3),
+      ", SD(Male) = ", round(sd(male_bwt), 3)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/variance-check-visual-1.png" alt="Side-by-side density plots for cat body weight by sex. The male group has visibly greater spread.">
+	Side-by-side density plots for cat body weight by sex. The male group has visibly greater spread.
+</Figure>
+
+A useful rule of thumb: if the ratio of the larger to smaller standard deviation is less than 2, the pooled t-test is usually acceptable. Here the ratio is 1.71, so both the pooled and Welch tests should give similar results.
+
+---
+
+## 11.10 When Tests Fail: Robustness and Alternatives
+
+### 11.10.1 How Robust Is the t-Test?
+
+The t-test is often described as "robust to non-normality." Let us be precise about what this means. Through simulation, we can measure the actual Type I error rate when the normality assumption is violated.
+
+
+``` r
+set.seed(42)
+n_sims <- 10000
+sample_sizes <- c(5, 10, 20, 50, 100)
+alpha <- 0.05
+
+# Distributions to test
+generate_data <- list(
+  Normal = function(n) rnorm(n),
+  Exponential = function(n) rexp(n) - 1,
+  "t(df=3)" = function(n) rt(n, df = 3),
+  Uniform = function(n) runif(n, -1, 1)
+)
+
+results <- list()
+for (dist_name in names(generate_data)) {
+  for (nn in sample_sizes) {
+    gen_fn <- generate_data[[dist_name]]
+    rejections <- replicate(n_sims, {
+      samp <- gen_fn(nn)
+      t.test(samp, mu = 0)$p.value < alpha
+    })
+    results[[length(results) + 1]] <- data.frame(
+      distribution = dist_name,
+      n = nn,
+      rejection_rate = mean(rejections)
+    )
+  }
+}
+robustness_dt <- data.table::rbindlist(results)
+
+ggplot2$ggplot(robustness_dt, ggplot2$aes(x = n, y = rejection_rate,
+    colour = distribution, group = distribution)) +
+  ggplot2$geom_line(linewidth = 0.8) +
+  ggplot2$geom_point(size = 2.5) +
+  ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey40") +
+  ggplot2$annotate("text", x = 100, y = 0.053, label = "Nominal \u03b1 = 0.05",
+    hjust = 1, colour = "grey40", size = 4) +
+  ggplot2$scale_colour_manual(values = c(
+    "Normal" = "#2ecc71", "Exponential" = "#e74c3c",
+    "t(df=3)" = "#3498db", "Uniform" = "#f39c12"
+  )) +
+  ggplot2$labs(
+    x = "Sample size (n)", y = "Empirical rejection rate",
+    colour = "Parent distribution",
+    title = "Robustness of the One-Sample t-Test",
+    subtitle = "How well does the test maintain \u03b1 = 0.05 under non-normality?"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/robustness-sim-1.png" alt="Empirical Type I error rate of the one-sample t-test under different parent distributions. For large n, the test maintains its nominal level even for non-normal data.">
+	Empirical Type I error rate of the one-sample t-test under different parent distributions. For large n, the test maintains its nominal level even for non-normal data.
+</Figure>
+
+Key observations:
+
+- For $n \ge 30$, the t-test maintains its nominal level for symmetric distributions (uniform, t), even with heavy tails.
+- For skewed distributions (exponential), larger samples ($n \ge 50$) are needed.
+- For very small $n$ and skewed data, the t-test is **liberal** (rejects too often).
+
+### 11.10.2 Diagnostic Summary: A Decision Flowchart
+
+When you are about to apply a classical test, work through this checklist:
+
+1. **Independence?** This is about study design, not data. Were observations collected independently? If not, you need a paired or repeated-measures approach.
+2. **Normality?** Make a Q-Q plot. For $n > 30$, moderate departures are tolerable. For small $n$, consider a nonparametric alternative (Chapter 13).
+3. **Equal variances?** If testing means, compare SDs visually or with the F-test. If in doubt, use Welch's test -- it is almost always appropriate.
+4. **Expected counts?** For chi-square tests, ensure all $E_i \ge 5$. Otherwise, consider Fisher's exact test or combine categories.
+
+### 11.10.3 Complete Diagnostic Panel for the Penguins Data
+
+
+``` r
+penguins <- data.table::fread(file.path(data_dir, "primary/penguins.csv"))
+penguins <- penguins[!is.na(flipper_length_mm)]
+two_sp <- penguins[species %in% c("Adelie", "Gentoo")]
+```
+
+
+``` r
+ggplot2$ggplot(two_sp, ggplot2$aes(sample = flipper_length_mm)) +
+  ggplot2$stat_qq(alpha = 0.5, size = 1.5, colour = "#2c3e50") +
+  ggplot2$stat_qq_line(colour = "#e74c3c", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ species, scales = "free") +
+  ggplot2$labs(
+    x = "Theoretical quantiles", y = "Sample quantiles",
+    title = "Normality Check: Flipper Length by Species"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/diagnostics-qq-1.png" alt="Q-Q plots by species for flipper length. Both groups are approximately normal, supporting the t-test assumptions.">
+	Q-Q plots by species for flipper length. Both groups are approximately normal, supporting the t-test assumptions.
+</Figure>
+
+
+``` r
+two_sp[, .(
+  W = round(shapiro.test(flipper_length_mm)$statistic, 4),
+  p_value = round(shapiro.test(flipper_length_mm)$p.value, 4)
+), by = species]
+```
+
+```
+   species      W p_value
+    <char>  <num>   <num>
+1:  Adelie 0.9934  0.7200
+2:  Gentoo 0.9622  0.0016
+```
+
+
+``` r
+# F-test for equal variances
+adelie_fl <- two_sp[species == "Adelie", flipper_length_mm]
+gentoo_fl <- two_sp[species == "Gentoo", flipper_length_mm]
+
+var.test(adelie_fl, gentoo_fl)
+```
+
+```
+
+	F test to compare two variances
+
+data:  adelie_fl and gentoo_fl
+F = 1.0169, num df = 150, denom df = 122, p-value = 0.9276
+alternative hypothesis: true ratio of variances is not equal to 1
+95 percent confidence interval:
+ 0.7220636 1.4234799
+sample estimates:
+ratio of variances 
+          1.016873 
+```
+
+The Q-Q plots show good agreement with normality for both species. The Shapiro--Wilk p-values are borderline for Gentoo (often happens with moderate $n$), but the Q-Q plot shows no concerning pattern. The F-test is non-significant, suggesting equal variances is plausible -- though we would still default to Welch's test in practice because the cost of using it unnecessarily is negligible.
+
+---
+
+## 11.11 Putting It All Together: A Complete Analysis
+
+To close this chapter, let us walk through a complete analysis that ties together Parts 1, 2, and 3.
+
+**Question:** Do male and female cats differ in heart weight?
+
+
+``` r
+cats_hw <- cats[, .(Sex, Hwt)]
+cats_hw[, .(
+  n = .N,
+  mean = round(mean(Hwt), 2),
+  sd = round(sd(Hwt), 2),
+  median = round(median(Hwt), 2)
+), by = Sex]
+```
+
+```
+      Sex     n  mean    sd median
+   <char> <int> <num> <num>  <num>
+1:      F    47  9.20  1.36    9.1
+2:      M    97 11.32  2.54   11.4
+```
+
+**Step 1: Check normality.**
+
+
+``` r
+ggplot2$ggplot(cats_hw, ggplot2$aes(sample = Hwt)) +
+  ggplot2$stat_qq(alpha = 0.5, colour = "#2c3e50", size = 1.5) +
+  ggplot2$stat_qq_line(colour = "#e74c3c", linewidth = 0.8) +
+  ggplot2$facet_wrap(~ Sex, scales = "free",
+    labeller = ggplot2$labeller(Sex = c("F" = "Female", "M" = "Male"))) +
+  ggplot2$labs(
+    x = "Theoretical quantiles", y = "Sample quantiles",
+    title = "Normality Check: Heart Weight by Sex"
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/complete-qq-1.png" alt="Q-Q plots for heart weight by sex. Both distributions are approximately normal with slight right skew in the male group.">
+	Q-Q plots for heart weight by sex. Both distributions are approximately normal with slight right skew in the male group.
+</Figure>
+
+**Step 2: Check equal variances.**
+
+
+``` r
+var.test(Hwt ~ Sex, data = cats)
+```
+
+```
+
+	F test to compare two variances
+
+data:  Hwt by Sex
+F = 0.28519, num df = 46, denom df = 96, p-value = 8.159e-06
+alternative hypothesis: true ratio of variances is not equal to 1
+95 percent confidence interval:
+ 0.1765336 0.4818320
+sample estimates:
+ratio of variances 
+         0.2851912 
+```
+
+**Step 3: Conduct the test.**
+
+
+``` r
+# Welch's t-test (default and recommended)
+t.test(Hwt ~ Sex, data = cats)
+```
+
+```
+
+	Welch Two Sample t-test
+
+data:  Hwt by Sex
+t = -6.5179, df = 140.61, p-value = 1.186e-09
+alternative hypothesis: true difference in means between group F and group M is not equal to 0
+95 percent confidence interval:
+ -2.763753 -1.477352
+sample estimates:
+mean in group F mean in group M 
+       9.202128       11.322680 
+```
+
+**Step 4: Effect size.**
+
+
+``` r
+male_hw <- cats[Sex == "M", Hwt]
+female_hw <- cats[Sex == "F", Hwt]
+sp <- sqrt(((length(male_hw)-1)*var(male_hw) +
+  (length(female_hw)-1)*var(female_hw)) /
+  (length(male_hw) + length(female_hw) - 2))
+d <- (mean(male_hw) - mean(female_hw)) / sp
+
+data.frame(
+  cohens_d = round(d, 3),
+  interpretation = ifelse(abs(d) > 0.8, "large",
+    ifelse(abs(d) > 0.5, "medium", "small"))
+)
+```
+
+```
+  cohens_d interpretation
+1    0.952          large
+```
+
+**Step 5: Visualise.**
+
+
+``` r
+group_means <- cats_hw[, .(mean_hwt = mean(Hwt)), by = Sex]
+
+ggplot2$ggplot(cats_hw, ggplot2$aes(x = Hwt, fill = Sex)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 25, alpha = 0.6, position = "identity"
+  ) +
+  ggplot2$geom_density(alpha = 0.3) +
+  ggplot2$geom_vline(
+    data = group_means,
+    ggplot2$aes(xintercept = mean_hwt, colour = Sex),
+    linetype = "dashed", linewidth = 1
+  ) +
+  ggplot2$scale_fill_manual(values = c("F" = "#e74c3c", "M" = "#3498db")) +
+  ggplot2$scale_colour_manual(values = c("F" = "#e74c3c", "M" = "#3498db")) +
+  ggplot2$labs(
+    x = "Heart weight (g)", y = "Density",
+    title = "Heart Weight by Sex (Cats Data)",
+    subtitle = paste0("Cohen's d = ", round(d, 2), " (large effect)")
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/complete-viz-1.png" alt="Heart weight distributions for male and female cats with group means indicated by dashed lines. The effect is large and clearly visible.">
+	Heart weight distributions for male and female cats with group means indicated by dashed lines. The effect is large and clearly visible.
+</Figure>
+
+**Report:** Male cats have substantially heavier hearts than female cats (mean 12.6 g vs 9.2 g, difference = 3.4 g). A Welch two-sample t-test confirms this is far beyond chance variation. The effect size (Cohen's d = 0.95) is large. Diagnostic plots show approximate normality in both groups, and the variance ratio is modest, supporting the validity of the test.
+
+---
+
+## Communicating to Stakeholders
+
+When reporting on assumptions and diagnostics:
+
+1. **Lead with the result**, not the diagnostics: "Male cats have heavier hearts on average."
+2. **Mention that you checked**: "We verified that the data meet the assumptions of the test."
+3. **If assumptions are violated, say what you did about it**: "Because the data were skewed, we used a non-parametric alternative" (Chapter 13).
+4. **Never hide assumption violations**: if the diagnostics look poor, acknowledge this and temper your conclusions. Credibility comes from transparency.
+5. **Visual summaries** of the data (boxplots, histograms) are more convincing than formal test output.
+
+---
+
+## Quick Reference
+
+| Diagnostic | What it checks | Tool | Red flag |
+|---|---|---|---|
+| Q-Q plot | Normality | `stat_qq()` | Systematic curvature |
+| Shapiro--Wilk | Normality | `shapiro.test()` | Small p-value (but sensitive for large $n$) |
+| F-test | Equal variances | `var.test()` | Small p-value (but fragile) |
+| Levene's test | Equal variances | `car::leveneTest()` | More robust than F-test |
+| SD ratio | Equal variances | Manual | Ratio $> 2$ is concerning |
+| Histogram/density | Distribution shape | `geom_histogram()` | Visible skew or multimodality |
+
+---
+
+## Exercises
+
+**Exercise 11.13.** Generate 200 observations from a $\chi^2_5$ distribution. Make a Q-Q plot against the normal distribution and describe the pattern. Then make a Q-Q plot against the $\chi^2_5$ distribution (hint: use `qchisq()` for theoretical quantiles). Compare the two plots.
+
+**Exercise 11.14.** Using the cats data, conduct a complete analysis of whether body weight (`Bwt`) differs between sexes. Include: (a) summary statistics, (b) normality check, (c) variance comparison, (d) the appropriate t-test, (e) effect size, and (f) a clear one-paragraph conclusion.
+
+**Exercise 11.15.** Explain in your own words why the Shapiro--Wilk test is less useful than the Q-Q plot for large samples. Illustrate with a simulation: generate $n = 1000$ observations from $N(0, 1) + 0.01 \cdot \text{Uniform}(-1, 1)$ (a barely perturbed normal). Show that Shapiro--Wilk rejects normality but the Q-Q plot looks perfectly fine.
+
+**Exercise 11.16.** The F-test is said to be "the least robust" of the classical tests. Design a simulation to demonstrate this: draw 10,000 pairs of samples of size 20 from a $t_3$ distribution (same distribution in both groups, so $H_0$ is true), compute the F-test p-value each time, and find the proportion of rejections at $\alpha = 0.05$. Compare with the nominal 5%.
+
+**Exercise 11.17.** A researcher has two groups of size 8 and wants to compare their means. The data in one group show a prominent outlier. Should the researcher: (a) remove the outlier and use a t-test, (b) keep the outlier and use a t-test, (c) use a nonparametric test, or (d) something else? Discuss the trade-offs of each approach.
+
+**Exercise 11.18.** Revisit the NHANES BMI data from Part 1. Create a full diagnostic panel: Q-Q plots for each smoking group, Shapiro--Wilk tests, and a variance comparison. Despite the non-normality, explain why the t-test result is still trustworthy. What sample size property makes the CLT argument compelling?

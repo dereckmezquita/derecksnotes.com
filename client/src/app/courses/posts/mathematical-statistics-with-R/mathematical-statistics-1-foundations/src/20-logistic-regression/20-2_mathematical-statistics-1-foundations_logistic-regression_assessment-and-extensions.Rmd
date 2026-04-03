@@ -1,0 +1,490 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 20: Logistic Regression"
+part: "Part 2: Assessment and Extensions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, logistic-regression, classification, roc, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r packages, include=FALSE}
+box::use(ggplot2)
+box::use(data.table)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 20 -- Logistic Regression
+
+## Part 2: Assessment and Extensions
+
+In Part 1 we fitted logistic regression models and interpreted coefficients as odds ratios. But how well does the model *predict*? In this part we develop a crash course on classification metrics -- sensitivity, specificity, precision, recall, ROC curves, and AUC -- and then extend logistic regression to multinomial and ordinal outcomes.
+
+---
+
+## 20.6 Classification Metrics
+
+### 20.6.1 The Confusion Matrix
+
+When we use logistic regression for prediction, we convert the estimated probability $\hat{p}_i$ into a class label using a **threshold** $c$ (typically 0.5):
+
+$$\hat{Y}_i = \begin{cases} 1 & \text{if } \hat{p}_i \ge c \\ 0 & \text{if } \hat{p}_i < c \end{cases}$$
+
+The confusion matrix tabulates predictions against actual values:
+
+|  | Predicted Positive | Predicted Negative |
+|:---:|:---:|:---:|
+| **Actual Positive** | True Positive (TP) | False Negative (FN) |
+| **Actual Negative** | False Positive (FP) | True Negative (TN) |
+
+```{r confusion-matrix}
+data_dir <- "../../../data"
+heart <- data.table$fread(file.path(data_dir, "classic/heart_disease.csv"),
+  header = FALSE,
+  col.names = c("age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
+                "thalach", "exang", "oldpeak", "slope", "ca", "thal", "target"))
+heart[, target := as.integer(target > 0)]
+
+set.seed(42)
+n <- nrow(heart)
+train_idx <- sample(seq_len(n), floor(0.7 * n))
+train <- heart[train_idx]
+test <- heart[-train_idx]
+
+fit_heart <- glm(target ~ age + sex + cp + trestbps + chol + thalach + oldpeak,
+                 data = train, family = binomial)
+
+test[, p_hat := predict(fit_heart, newdata = test, type = "response")]
+test[, y_hat := as.integer(p_hat >= 0.5)]
+
+conf_mat <- table(Predicted = test$y_hat, Actual = test$target)
+conf_mat
+```
+
+### 20.6.2 Metrics Derived from the Confusion Matrix
+
+```{r classification-metrics}
+tp <- conf_mat["1", "1"]
+tn <- conf_mat["0", "0"]
+fp <- conf_mat["1", "0"]
+fn <- conf_mat["0", "1"]
+
+metrics <- data.frame(
+  Metric = c("Sensitivity (Recall, TPR)", "Specificity (TNR)",
+             "Precision (PPV)", "Negative Predictive Value (NPV)",
+             "Accuracy", "F1 Score"),
+  Formula = c("TP / (TP + FN)", "TN / (TN + FP)",
+              "TP / (TP + FP)", "TN / (TN + FN)",
+              "(TP + TN) / n", "2 * Prec * Rec / (Prec + Rec)"),
+  Value = round(c(
+    tp / (tp + fn),  # sensitivity
+    tn / (tn + fp),  # specificity
+    tp / (tp + fp),  # precision
+    tn / (tn + fn),  # NPV
+    (tp + tn) / nrow(test),  # accuracy
+    2 * (tp / (tp + fp)) * (tp / (tp + fn)) / ((tp / (tp + fp)) + (tp / (tp + fn)))  # F1
+  ), 3)
+)
+knitr::kable(metrics, caption = "Classification metrics for the heart disease model at threshold 0.5.")
+```
+
+### 20.6.3 The Sensitivity-Specificity Trade-Off
+
+Lowering the threshold increases sensitivity (we catch more true positives) but decreases specificity (we generate more false positives). The optimal threshold depends on the cost of each type of error.
+
+```{r threshold-tradeoff, fig.cap="Sensitivity and specificity as a function of the classification threshold. Lowering the threshold increases sensitivity at the expense of specificity."}
+thresholds <- seq(0.01, 0.99, by = 0.01)
+trade_dt <- data.table$rbindlist(lapply(thresholds, function(c) {
+  y_hat <- as.integer(test$p_hat >= c)
+  tp_c <- sum(y_hat == 1 & test$target == 1)
+  tn_c <- sum(y_hat == 0 & test$target == 0)
+  fp_c <- sum(y_hat == 1 & test$target == 0)
+  fn_c <- sum(y_hat == 0 & test$target == 1)
+  data.table$data.table(
+    threshold = c,
+    Sensitivity = tp_c / max(tp_c + fn_c, 1),
+    Specificity = tn_c / max(tn_c + fp_c, 1)
+  )
+}))
+
+trade_long <- data.table$melt(trade_dt, id.vars = "threshold",
+                               variable.name = "metric", value.name = "value")
+
+ggplot2$ggplot(trade_long, ggplot2$aes(x = threshold, y = value, colour = metric)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$labs(
+    x = "Classification threshold",
+    y = "Value",
+    colour = "Metric",
+    title = "Sensitivity vs specificity trade-off"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 20.7 ROC Curves
+
+### 20.7.1 What Is an ROC Curve?
+
+The **Receiver Operating Characteristic (ROC) curve** plots sensitivity (TPR) against $1 - \text{specificity}$ (FPR) as the threshold varies. It summarises the model's discriminative ability across *all* thresholds simultaneously.
+
+```{r roc-curve-scratch, fig.cap="ROC curve for the heart disease logistic regression, built from scratch. The diagonal represents random guessing; the curve's distance above the diagonal measures discriminative power."}
+roc_dt <- data.table$rbindlist(lapply(thresholds, function(c) {
+  y_hat <- as.integer(test$p_hat >= c)
+  tp_c <- sum(y_hat == 1 & test$target == 1)
+  tn_c <- sum(y_hat == 0 & test$target == 0)
+  fp_c <- sum(y_hat == 1 & test$target == 0)
+  fn_c <- sum(y_hat == 0 & test$target == 1)
+  data.table$data.table(
+    threshold = c,
+    TPR = tp_c / max(tp_c + fn_c, 1),
+    FPR = fp_c / max(fp_c + tn_c, 1)
+  )
+}))
+
+# Sort by FPR for proper curve
+roc_dt <- roc_dt[order(FPR, TPR)]
+
+ggplot2$ggplot(roc_dt, ggplot2$aes(x = FPR, y = TPR)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = "False Positive Rate (1 - Specificity)",
+    y = "True Positive Rate (Sensitivity)",
+    title = "ROC curve for heart disease prediction"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 20.7.2 Area Under the Curve (AUC)
+
+The **AUC** (area under the ROC curve) is a single-number summary of discriminative performance:
+
+- $\text{AUC} = 0.5$: no better than random guessing.
+- $\text{AUC} = 1.0$: perfect discrimination.
+- $0.7 \le \text{AUC} < 0.8$: acceptable.
+- $0.8 \le \text{AUC} < 0.9$: excellent.
+- $\text{AUC} \ge 0.9$: outstanding.
+
+We compute it using the trapezoidal rule:
+
+```{r auc-scratch}
+# Sort by FPR ascending, then TPR ascending
+roc_sorted <- roc_dt[order(FPR, TPR)]
+auc_val <- 0
+for (i in 2:nrow(roc_sorted)) {
+  dx <- roc_sorted$FPR[i] - roc_sorted$FPR[i - 1]
+  avg_y <- (roc_sorted$TPR[i] + roc_sorted$TPR[i - 1]) / 2
+  auc_val <- auc_val + dx * avg_y
+}
+
+data.frame(AUC = round(auc_val, 4))
+```
+
+**Concordance interpretation**: the AUC equals the probability that a randomly chosen positive case has a higher predicted probability than a randomly chosen negative case.
+
+```{r concordance-check}
+# Verify via concordance
+pos_probs <- test$p_hat[test$target == 1]
+neg_probs <- test$p_hat[test$target == 0]
+concordant <- 0
+total <- 0
+for (p in pos_probs) {
+  concordant <- concordant + sum(p > neg_probs) + 0.5 * sum(p == neg_probs)
+  total <- total + length(neg_probs)
+}
+c(AUC_trapezoidal = round(auc_val, 4),
+  AUC_concordance = round(concordant / total, 4))
+```
+
+---
+
+## 20.8 Calibration
+
+A model is **well-calibrated** if, among all observations with predicted probability $\hat{p} \approx 0.3$, roughly 30% are actually positive. We assess calibration with a **calibration plot**.
+
+```{r calibration-plot, fig.cap="Calibration plot for the heart disease model. Perfect calibration lies on the diagonal. Points above the line indicate the model underestimates the probability."}
+test[, prob_bin := cut(p_hat, breaks = seq(0, 1, by = 0.1), include.lowest = TRUE)]
+cal_dt <- test[, .(
+  mean_predicted = mean(p_hat),
+  mean_observed = mean(target),
+  n = .N
+), by = prob_bin]
+
+ggplot2$ggplot(cal_dt, ggplot2$aes(x = mean_predicted, y = mean_observed)) +
+  ggplot2$geom_point(ggplot2$aes(size = n), colour = "#0072B2") +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = "Mean predicted probability",
+    y = "Observed proportion",
+    size = "n in bin",
+    title = "Calibration plot for heart disease model"
+  ) +
+  ggplot2$scale_size_continuous(range = c(2, 8)) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+Good discrimination (high AUC) does not guarantee good calibration. A model can rank patients correctly but assign the wrong absolute probabilities. In medical applications, calibration is often more important than discrimination.
+
+---
+
+## 20.9 Comparing Models
+
+```{r model-comparison}
+fit_simple <- glm(target ~ age + sex + cp, data = train, family = binomial)
+fit_full <- glm(target ~ age + sex + cp + trestbps + chol + thalach + oldpeak,
+                data = train, family = binomial)
+
+test[, p_simple := predict(fit_simple, newdata = test, type = "response")]
+test[, p_full := predict(fit_full, newdata = test, type = "response")]
+
+# AUC for both models (using concordance)
+compute_auc <- function(p_hat, y) {
+  pos <- p_hat[y == 1]
+  neg <- p_hat[y == 0]
+  conc <- 0
+  for (p in pos) conc <- conc + sum(p > neg) + 0.5 * sum(p == neg)
+  conc / (length(pos) * length(neg))
+}
+
+data.frame(
+  Model = c("Simple (age + sex + cp)", "Full (7 predictors)"),
+  AUC = round(c(
+    compute_auc(test$p_simple, test$target),
+    compute_auc(test$p_full, test$target)
+  ), 4),
+  AIC = round(c(AIC(fit_simple), AIC(fit_full)), 1)
+)
+```
+
+```{r roc-comparison, fig.cap="ROC curves for simple and full models. The full model has slightly better discrimination."}
+roc_compare <- function(p_hat, y, label) {
+  thresholds <- seq(0.01, 0.99, by = 0.01)
+  data.table$rbindlist(lapply(thresholds, function(c) {
+    y_hat <- as.integer(p_hat >= c)
+    tp_c <- sum(y_hat == 1 & y == 1)
+    fp_c <- sum(y_hat == 1 & y == 0)
+    fn_c <- sum(y_hat == 0 & y == 1)
+    tn_c <- sum(y_hat == 0 & y == 0)
+    data.table$data.table(
+      FPR = fp_c / max(fp_c + tn_c, 1),
+      TPR = tp_c / max(tp_c + fn_c, 1),
+      model = label
+    )
+  }))
+}
+
+roc_both <- data.table$rbindlist(list(
+  roc_compare(test$p_simple, test$target, "Simple"),
+  roc_compare(test$p_full, test$target, "Full")
+))
+
+ggplot2$ggplot(roc_both, ggplot2$aes(x = FPR, y = TPR, colour = model)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = "False Positive Rate",
+    y = "True Positive Rate",
+    colour = "Model",
+    title = "ROC comparison: simple vs full model"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 20.10 Predicted Probability Distribution
+
+```{r pred-dist, fig.cap="Distribution of predicted probabilities by actual class. Good models separate the two distributions."}
+pred_dist <- data.table$data.table(
+  p_hat = test$p_full,
+  actual = factor(test$target, levels = c(0, 1), labels = c("No disease", "Disease"))
+)
+
+ggplot2$ggplot(pred_dist, ggplot2$aes(x = p_hat, fill = actual)) +
+  ggplot2$geom_histogram(bins = 25, alpha = 0.6, position = "identity") +
+  ggplot2$labs(
+    x = "Predicted probability",
+    y = "Count",
+    fill = "Actual status",
+    title = "Distribution of predicted probabilities by class"
+  ) +
+  ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 20.11 Multinomial Logistic Regression
+
+When the response has $K > 2$ unordered categories, we extend to **multinomial logistic regression**. We pick a reference category (say category 1) and model $K - 1$ log-odds simultaneously:
+
+$$\log\frac{P(Y = k)}{P(Y = 1)} = \mathbf{x}^\top \boldsymbol{\beta}_k, \quad k = 2, \ldots, K$$
+
+The probabilities are:
+
+$$P(Y = k) = \frac{\exp(\mathbf{x}^\top \boldsymbol{\beta}_k)}{1 + \sum_{j=2}^{K} \exp(\mathbf{x}^\top \boldsymbol{\beta}_j)}$$
+
+This is sometimes called the **softmax** function in machine learning.
+
+```{r multinomial-demo}
+# Demonstrate with iris data (3 species)
+iris_dt <- data.table$fread(file.path(data_dir, "classic/iris.csv"))
+
+# Use nnet::multinom for multinomial logistic
+if (requireNamespace("nnet", quietly = TRUE)) {
+  fit_multi_iris <- nnet::multinom(
+    Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+    data = iris_dt, trace = FALSE
+  )
+  summary(fit_multi_iris)
+}
+```
+
+```{r multinomial-pred, fig.cap="Predicted class probabilities for the iris data, plotted against petal length. The three sigmoid-like curves partition the probability space."}
+pred_grid_iris <- data.table$data.table(
+  Sepal.Length = median(iris_dt$Sepal.Length),
+  Sepal.Width = median(iris_dt$Sepal.Width),
+  Petal.Length = seq(1, 7, length.out = 200),
+  Petal.Width = median(iris_dt$Petal.Width)
+)
+
+if (requireNamespace("nnet", quietly = TRUE)) {
+  probs <- predict(fit_multi_iris, newdata = pred_grid_iris, type = "probs")
+  pred_long <- data.table$data.table(
+    Petal.Length = rep(pred_grid_iris$Petal.Length, 3),
+    probability = c(probs[, 1], probs[, 2], probs[, 3]),
+    species = rep(colnames(probs), each = 200)
+  )
+
+  ggplot2$ggplot(pred_long, ggplot2$aes(x = Petal.Length, y = probability, colour = species)) +
+    ggplot2$geom_line(linewidth = 1.1) +
+    ggplot2$labs(
+      x = "Petal length (cm)",
+      y = "Predicted probability",
+      colour = "Species",
+      title = "Multinomial logistic regression: iris species probabilities"
+    ) +
+    ggplot2$theme_minimal(base_size = 13) +
+    ggplot2$theme(legend.position = "bottom")
+}
+```
+
+---
+
+## 20.12 Ordinal Logistic Regression
+
+When the response categories have a natural order (e.g., "mild", "moderate", "severe"), we use the **proportional odds model**:
+
+$$\log\frac{P(Y \le k)}{P(Y > k)} = \alpha_k - \mathbf{x}^\top \boldsymbol{\beta}, \quad k = 1, \ldots, K-1$$
+
+The key assumption is that the $\boldsymbol{\beta}$ coefficients are the same across all cutpoints -- only the intercepts $\alpha_k$ differ. This is the **proportional odds assumption**.
+
+```{r ordinal-demo}
+# Create an ordinal outcome from heart disease data
+heart[, severity := cut(target, breaks = c(-0.5, 0.5, 1.5),
+                         labels = c("healthy", "disease"))]
+
+# For a proper ordinal demo, create severity from continuous variables
+heart[, risk_group := cut(oldpeak, breaks = c(-Inf, 0.5, 2.0, Inf),
+                           labels = c("low", "moderate", "high"), ordered_result = TRUE)]
+
+if (requireNamespace("MASS", quietly = TRUE)) {
+  fit_ord <- MASS::polr(risk_group ~ age + sex + thalach, data = heart, Hess = TRUE)
+  summary(fit_ord)
+}
+```
+
+The proportional odds assumption can be tested using the Brant test. If it fails, a multinomial model may be more appropriate.
+
+---
+
+## 20.13 Practical Workflow Summary
+
+A complete logistic regression analysis follows these steps:
+
+1. **Explore** the data: check class balance, missing values, correlations.
+2. **Fit** the model using `glm(..., family = binomial)`.
+3. **Test** coefficients with Wald and LRT.
+4. **Interpret** via odds ratios and predicted probability curves.
+5. **Assess** discrimination (ROC/AUC) and calibration.
+6. **Compare** models using AIC, LRT, or cross-validated AUC.
+7. **Report** odds ratios with CIs and a predicted probability plot.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting classification model performance:
+
+- **Do not report accuracy alone.** If 95% of patients are healthy, a model that always says "healthy" achieves 95% accuracy but is useless. Report sensitivity and specificity separately.
+- **Explain the ROC curve visually.** "The curve shows how well the model separates patients with and without disease. The closer the curve hugs the top-left corner, the better."
+- **Choose the right metric for the context.** In screening for a serious disease, sensitivity (catching all true cases) matters more than specificity. In a spam filter, precision (not annoying users with false alarms) may matter more.
+- **Calibration matters.** If you tell a patient "your risk is 40%", it had better be roughly 40%. A well-calibrated model is an honest model.
+
+---
+
+## Quick Reference
+
+| Metric | Formula | Interpretation |
+|:-------|:--------|:---------------|
+| **Sensitivity** | TP / (TP + FN) | P(predict + | actually +) |
+| **Specificity** | TN / (TN + FP) | P(predict - | actually -) |
+| **Precision** | TP / (TP + FP) | P(actually + | predict +) |
+| **NPV** | TN / (TN + FN) | P(actually - | predict -) |
+| **Accuracy** | (TP + TN) / n | Overall correct rate |
+| **F1 Score** | Harmonic mean of Prec and Rec | Balanced measure |
+| **AUC** | Area under ROC | P(score+ > score-) |
+| **Multinomial** | `nnet::multinom()` | Unordered K categories |
+| **Ordinal** | `MASS::polr()` | Ordered categories |
+
+---
+
+## Exercises
+
+1. **Threshold selection.** For the heart disease model, find the threshold that maximises Youden's index $J = \text{sensitivity} + \text{specificity} - 1$. How does this threshold differ from 0.5?
+
+2. **Cross-validated AUC.** Implement 5-fold cross-validation for the heart disease logistic regression. Compute the AUC on each held-out fold and report the mean and standard deviation.
+
+3. **Cost-sensitive threshold.** Suppose a false negative (missed disease) costs 10 times as much as a false positive. Find the optimal threshold that minimises the expected cost.
+
+4. **Calibration improvement.** Fit a logistic regression, then recalibrate it using Platt scaling (fit a logistic regression of the outcome on the predicted probabilities). Compare calibration plots before and after.
+
+5. **Multinomial extension.** Using the iris data, fit a multinomial logistic regression with all four predictors. Compute the overall accuracy and per-class sensitivity. Which species is hardest to classify?
+
+6. **Brier score.** The Brier score is $\frac{1}{n}\sum(y_i - \hat{p}_i)^2$. Compute it for both the simple and full heart disease models. Which model has a lower (better) Brier score? How does it relate to AUC?

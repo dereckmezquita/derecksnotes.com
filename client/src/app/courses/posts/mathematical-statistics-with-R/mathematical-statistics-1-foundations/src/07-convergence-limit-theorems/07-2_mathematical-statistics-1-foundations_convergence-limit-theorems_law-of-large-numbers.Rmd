@@ -1,0 +1,545 @@
+---
+title: "Mathematical Statistics with R I: Foundations"
+chapter: "Chapter 7: Convergence and Limit Theorems"
+part: "Part 2: The Law of Large Numbers"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, convergence, LLN, R]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.Height = 7,
+  comment = "",
+  warning = FALSE,
+  collapse = FALSE,
+  results = 'hold'
+)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+
+# Chapter 7 -- Convergence and Limit Theorems
+
+## Part 2: The Law of Large Numbers
+
+The Law of Large Numbers (LLN) is the first of the two great limit theorems. It answers a question that human beings have grasped intuitively for millennia: *if you repeat an experiment many times, the average outcome settles near the expected value*. Jakob Bernoulli spent twenty years proving this for the binomial case; the general result came later. In this part, we give a rigorous proof of the Weak LLN using Chebyshev's inequality, state the Strong LLN, and demonstrate both with extensive simulations -- including real data from the NHANES study.
+
+---
+
+## 7.6 The Weak Law of Large Numbers
+
+### 7.6.1 Setup and Statement
+
+Let $X_1, X_2, \ldots$ be a sequence of **independent and identically distributed** (iid) random variables with finite mean $\mu = E[X_i]$ and finite variance $\sigma^2 = \text{Var}(X_i)$.
+
+Define the sample mean:
+
+$$\bar{X}_n = \frac{1}{n} \sum_{i=1}^{n} X_i.$$
+
+**Theorem (Weak Law of Large Numbers).** For any $\epsilon > 0$:
+
+$$\lim_{n \to \infty} P\!\left(|\bar{X}_n - \mu| \ge \epsilon\right) = 0.$$
+
+That is, $\bar{X}_n \xrightarrow{P} \mu$.
+
+### 7.6.2 Proof via Chebyshev's Inequality
+
+This is one of the most elegant proofs in all of probability. We need only two ingredients: linearity of expectation and Chebyshev's inequality.
+
+**Step 1: Compute $E[\bar{X}_n]$.**
+
+$$E[\bar{X}_n] = E\!\left[\frac{1}{n}\sum_{i=1}^n X_i\right] = \frac{1}{n}\sum_{i=1}^n E[X_i] = \frac{1}{n} \cdot n\mu = \mu.$$
+
+The sample mean is an **unbiased estimator** of the population mean.
+
+**Step 2: Compute $\text{Var}(\bar{X}_n)$.**
+
+Since the $X_i$ are independent, the variance of the sum is the sum of the variances:
+
+$$\text{Var}(\bar{X}_n) = \text{Var}\!\left(\frac{1}{n}\sum_{i=1}^n X_i\right) = \frac{1}{n^2} \sum_{i=1}^n \text{Var}(X_i) = \frac{1}{n^2} \cdot n\sigma^2 = \frac{\sigma^2}{n}.$$
+
+This is crucial: the variance of the sample mean **shrinks** like $1/n$.
+
+**Step 3: Apply Chebyshev's inequality.**
+
+Chebyshev tells us that for any random variable $Y$ with mean $\mu_Y$ and variance $\sigma_Y^2$:
+
+$$P(|Y - \mu_Y| \ge \epsilon) \le \frac{\sigma_Y^2}{\epsilon^2}.$$
+
+Apply this to $Y = \bar{X}_n$, with $\mu_Y = \mu$ and $\sigma_Y^2 = \sigma^2/n$:
+
+$$P(|\bar{X}_n - \mu| \ge \epsilon) \le \frac{\sigma^2/n}{\epsilon^2} = \frac{\sigma^2}{n\epsilon^2}.$$
+
+**Step 4: Take the limit.**
+
+$$\lim_{n \to \infty} P(|\bar{X}_n - \mu| \ge \epsilon) \le \lim_{n \to \infty} \frac{\sigma^2}{n\epsilon^2} = 0.$$
+
+Since probabilities are non-negative, the limit must be exactly 0. $\quad \blacksquare$
+
+The proof is complete in four lines of algebra. It rests on:
+
+1. The unbiasedness of $\bar{X}_n$.
+2. The $1/n$ decay of $\text{Var}(\bar{X}_n)$ -- a consequence of independence.
+3. Chebyshev's inequality.
+
+### 7.6.3 Remarks
+
+- The WLLN requires only **finite variance**. There are sharper versions that relax this to require only finite mean, but they need more sophisticated tools.
+- The bound $\sigma^2/(n\epsilon^2)$ gives a concrete rate: to halve the bound, quadruple the sample size. This is the origin of the "$1/\sqrt{n}$ rate" that pervades statistics.
+- The WLLN says the probability of a large deviation goes to zero but does *not* say that every sample path converges. That stronger statement requires the Strong LLN.
+
+---
+
+## 7.7 The Strong Law of Large Numbers
+
+### 7.7.1 Statement
+
+**Theorem (Strong Law of Large Numbers).** Let $X_1, X_2, \ldots$ be iid with $E[|X_1|] < \infty$ (only finite mean is required -- no variance assumption). Then:
+
+$$P\!\left(\lim_{n \to \infty} \bar{X}_n = \mu\right) = 1.$$
+
+That is, $\bar{X}_n \xrightarrow{a.s.} \mu$.
+
+### 7.7.2 Why We Do Not Prove It Here
+
+The proof of the SLLN requires tools from measure theory (specifically, the Borel--Cantelli lemmas and truncation arguments) that lie outside the scope of this course. Kolmogorov's proof is a masterpiece of real analysis; interested readers should consult Billingsley's *Probability and Measure* or Durrett's *Probability: Theory and Examples*.
+
+What matters for us is the *implication*: with probability 1, every individual sample path of $\bar{X}_n$ converges to $\mu$. This is stronger than the WLLN, which only says that at any fixed $n$, the *probability* of being far from $\mu$ is small.
+
+### 7.7.3 Practical Difference
+
+For most applied purposes, the WLLN suffices. The SLLN becomes important in:
+
+- Sequential analysis, where decisions depend on the entire path.
+- Simulation-based inference (MCMC), where ergodic theorems generalise the SLLN.
+- Theoretical results that require almost sure convergence as a building block.
+
+---
+
+## 7.8 Simulations: The LLN in Action
+
+### 7.8.1 Running Averages for Various Distributions
+
+```{r lln-sim-setup}
+box::use(ggplot2)
+box::use(data.table)
+
+set.seed(42)
+
+n_max <- 5000
+
+# Generate samples from different distributions and compute running means
+generate_running_mean <- function(samples, label) {
+  data.table$data.table(
+    n = seq_along(samples),
+    running_mean = cumsum(samples) / seq_along(samples),
+    distribution = label
+  )
+}
+
+lln_data <- data.table$rbindlist(list(
+  generate_running_mean(rnorm(n_max, mean = 5, sd = 2), "Normal(5, 4)"),
+  generate_running_mean(rexp(n_max, rate = 0.5), "Exp(0.5) [mu=2]"),
+  generate_running_mean(rpois(n_max, lambda = 3), "Poisson(3)"),
+  generate_running_mean(rbinom(n_max, size = 20, prob = 0.3), "Bin(20, 0.3) [mu=6]")
+))
+
+true_means <- data.table$data.table(
+  distribution = c("Normal(5, 4)", "Exp(0.5) [mu=2]", "Poisson(3)", "Bin(20, 0.3) [mu=6]"),
+  mu = c(5, 2, 3, 6)
+)
+```
+
+```{r lln-running-means, fig.cap="Running sample means for four different distributions. Despite wildly different shapes (symmetric, skewed, discrete), all running means converge to their respective population means -- the Law of Large Numbers in action."}
+ggplot2$ggplot(lln_data, ggplot2$aes(x = n, y = running_mean)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.4) +
+  ggplot2$geom_hline(
+    data = true_means,
+    ggplot2$aes(yintercept = mu),
+    linetype = "dashed", colour = "#D55E00", linewidth = 0.8
+  ) +
+  ggplot2$facet_wrap(~ distribution, scales = "free_y", ncol = 2) +
+  ggplot2$labs(
+    x = "Sample size n",
+    y = expression(bar(X)[n]),
+    title = "Law of Large Numbers: running means converge to population means"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+### 7.8.2 Multiple Paths
+
+```{r lln-multiple-paths}
+set.seed(42)
+
+n_max <- 3000
+n_paths <- 20
+
+# Exponential(1): mean = 1
+paths_exp <- do.call(rbind, lapply(1:n_paths, function(pid) {
+  samples <- rexp(n_max, rate = 1)
+  data.table$data.table(
+    n = seq_len(n_max),
+    running_mean = cumsum(samples) / seq_len(n_max),
+    path = as.factor(pid)
+  )
+}))
+```
+
+```{r lln-multiple-paths-plot, fig.cap="Twenty independent sample paths of the running mean of Exp(1) draws. Every single path converges to mu = 1 -- a visual demonstration of the Strong Law of Large Numbers."}
+ggplot2$ggplot(paths_exp, ggplot2$aes(x = n, y = running_mean, colour = path)) +
+  ggplot2$geom_line(alpha = 0.5, linewidth = 0.4) +
+  ggplot2$geom_hline(yintercept = 1, linetype = "dashed", colour = "black", linewidth = 0.8) +
+  ggplot2$scale_x_log10() +
+  ggplot2$labs(
+    x = "n (log scale)",
+    y = expression(bar(X)[n]),
+    title = "Strong LLN: 20 paths, all converging to mu = 1"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+### 7.8.3 Chebyshev's Bound on the Sample Mean
+
+We can visualise how tight the Chebyshev bound is for the sample mean.
+
+```{r lln-chebyshev-bound}
+set.seed(42)
+
+# For Exp(1): mu = 1, sigma^2 = 1
+sigma_sq <- 1
+epsilon <- 0.1
+n_vals <- seq(10, 5000, by = 10)
+
+n_reps <- 5000
+
+empirical_probs <- vapply(n_vals, function(n) {
+  means <- replicate(n_reps, mean(rexp(n, rate = 1)))
+  mean(abs(means - 1) >= epsilon)
+}, numeric(1))
+
+bound_data <- data.table$data.table(
+  n = n_vals,
+  empirical = empirical_probs,
+  chebyshev = pmin(1, sigma_sq / (n_vals * epsilon^2))
+)
+
+bound_long <- data.table$melt(
+  bound_data,
+  id.vars = "n",
+  variable.name = "type",
+  value.name = "probability"
+)
+```
+
+```{r lln-chebyshev-bound-plot, fig.cap="Chebyshev's bound on P(|X_bar - mu| >= 0.1) for Exp(1) samples. The bound (orange) is valid but conservative. The true probability (blue) decays much faster."}
+ggplot2$ggplot(bound_long, ggplot2$aes(x = n, y = probability, colour = type)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(
+    values = c("empirical" = "#0072B2", "chebyshev" = "#D55E00"),
+    labels = c("Simulated probability", "Chebyshev bound")
+  ) +
+  ggplot2$labs(
+    x = "Sample size n",
+    y = expression(P(group("|", bar(X)[n] - mu, "|") >= 0.1)),
+    title = "WLLN rate: Chebyshev bound vs. simulated probability",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+---
+
+## 7.9 Interactive: Watch the LLN Stabilise
+
+<InteractivePlot>
+
+```{r lln-interactive, eval=FALSE}
+box::use(shiny)
+box::use(ggplot2)
+
+shiny$shinyApp(
+  ui = shiny$fluidPage(
+    shiny$titlePanel("Law of Large Numbers: Running Average"),
+    shiny$sidebarLayout(
+      shiny$sidebarPanel(
+        shiny$selectInput("dist", "Source distribution:",
+          choices = c("Normal(5, 4)" = "normal",
+                      "Exponential(1)" = "exp",
+                      "Poisson(3)" = "pois",
+                      "Uniform(0, 10)" = "unif",
+                      "Bernoulli(0.3)" = "bern"),
+          selected = "exp"
+        ),
+        shiny$sliderInput("n_max", "Maximum sample size:",
+          min = 50, max = 10000, value = 2000, step = 50
+        ),
+        shiny$sliderInput("n_paths", "Number of paths:",
+          min = 1, max = 30, value = 10, step = 1
+        ),
+        shiny$actionButton("resample", "Resample")
+      ),
+      shiny$mainPanel(
+        shiny$plotOutput("lln_plot", Height = "500px")
+      )
+    )
+  ),
+  server = function(input, output, session) {
+    sim_data <- shiny$reactive({
+      shiny$req(input$resample >= 0)
+      n <- input$n_max
+      np <- input$n_paths
+
+      gen <- switch(input$dist,
+        "normal" = function(n) rnorm(n, 5, 2),
+        "exp" = function(n) rexp(n, 1),
+        "pois" = function(n) rpois(n, 3),
+        "unif" = function(n) runif(n, 0, 10),
+        "bern" = function(n) rbinom(n, 1, 0.3)
+      )
+
+      true_mu <- switch(input$dist,
+        "normal" = 5, "exp" = 1, "pois" = 3, "unif" = 5, "bern" = 0.3
+      )
+
+      paths <- do.call(rbind, lapply(1:np, function(pid) {
+        samp <- gen(n)
+        data.frame(
+          n = seq_len(n),
+          running_mean = cumsum(samp) / seq_len(n),
+          path = factor(pid)
+        )
+      }))
+
+      list(paths = paths, mu = true_mu)
+    })
+
+    output$lln_plot <- shiny$renderPlot({
+      d <- sim_data()
+      ggplot2$ggplot(d$paths, ggplot2$aes(x = n, y = running_mean, colour = path)) +
+        ggplot2$geom_line(alpha = 0.6, linewidth = 0.5) +
+        ggplot2$geom_hline(yintercept = d$mu, linetype = "dashed", linewidth = 1) +
+        ggplot2$labs(
+          x = "Sample size n", y = expression(bar(X)[n]),
+          title = paste("LLN: Running average converges to mu =", d$mu)
+        ) +
+        ggplot2$theme_minimal(base_size = 14) +
+        ggplot2$theme(legend.position = "none")
+    })
+  }
+)
+```
+
+</InteractivePlot>
+
+---
+
+## 7.10 LLN with Real Data: NHANES
+
+The LLN is not just a theorem about abstract sequences. Let us demonstrate it with a real population.
+
+```{r lln-nhanes-data}
+box::use(data.table)
+box::use(ggplot2)
+
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Use BMI -- drop missing values
+nhanes_bmi <- nhanes[!is.na(BMI), .(BMI)]
+pop_mean <- mean(nhanes_bmi$BMI)
+pop_size <- nrow(nhanes_bmi)
+
+pop_mean
+pop_size
+```
+
+We treat the full NHANES BMI column as our "population" and sample from it to watch the LLN.
+
+```{r lln-nhanes-sim}
+set.seed(42)
+
+n_values <- c(5, 10, 25, 50, 100, 250, 500, 1000, 2000)
+n_reps <- 3000
+
+lln_nhanes <- do.call(rbind, lapply(n_values, function(n) {
+  sample_means <- replicate(n_reps, {
+    idx <- sample.int(pop_size, size = n, replace = TRUE)
+    mean(nhanes_bmi$BMI[idx])
+  })
+  data.table$data.table(
+    n = n,
+    sample_mean = sample_means
+  )
+}))
+
+lln_nhanes[, n_label := factor(
+  paste0("n = ", n),
+  levels = paste0("n = ", n_values)
+)]
+```
+
+```{r lln-nhanes-plot, fig.cap="LLN with real NHANES BMI data. As n increases, the distribution of the sample mean concentrates tightly around the population mean (orange dashed line). The BMI distribution is right-skewed, yet the LLN still holds."}
+ggplot2$ggplot(lln_nhanes, ggplot2$aes(x = sample_mean)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.7
+  ) +
+  ggplot2$geom_vline(
+    xintercept = pop_mean,
+    linetype = "dashed", colour = "#D55E00", linewidth = 0.8
+  ) +
+  ggplot2$facet_wrap(~ n_label, scales = "free_y", ncol = 3) +
+  ggplot2$labs(
+    x = expression(bar(X)[n] ~ "(sample mean BMI)"),
+    y = "Density",
+    title = "LLN with NHANES BMI data: sample means concentrate around population mean"
+  ) +
+  ggplot2$theme_minimal(base_size = 12)
+```
+
+### 7.10.1 Running Average from a Single NHANES Sample
+
+```{r lln-nhanes-running}
+set.seed(42)
+
+# Draw one large sample (with replacement) and compute running average
+large_sample <- nhanes_bmi$BMI[sample.int(pop_size, size = 3000, replace = TRUE)]
+
+running_data <- data.table$data.table(
+  n = seq_along(large_sample),
+  running_mean = cumsum(large_sample) / seq_along(large_sample)
+)
+```
+
+```{r lln-nhanes-running-plot, fig.cap="Running average of BMI from a single NHANES sample. Despite the right-skewed, non-normal source distribution, the running average stabilises near the population mean of approximately 26.7."}
+ggplot2$ggplot(running_data, ggplot2$aes(x = n, y = running_mean)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.5) +
+  ggplot2$geom_hline(
+    yintercept = pop_mean,
+    linetype = "dashed", colour = "#D55E00", linewidth = 0.8
+  ) +
+  ggplot2$annotate(
+    "text", x = 2500, y = pop_mean + 0.3,
+    label = paste0("Population mean = ", round(pop_mean, 2)),
+    colour = "#D55E00", size = 4.5
+  ) +
+  ggplot2$labs(
+    x = "Sample size n",
+    y = expression(bar(X)[n] ~ "(running mean BMI)"),
+    title = "LLN with real data: single running average of NHANES BMI"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+---
+
+## 7.11 When the LLN Fails
+
+The LLN requires finite mean. If $E[|X|] = \infty$, the sample mean need not converge.
+
+### 7.11.1 The Cauchy Distribution
+
+The **Cauchy distribution** (standard form: $\text{Cauchy}(0,1)$, density $f(x) = 1/[\pi(1+x^2)]$) has no finite mean. Its tails are so heavy that the integral $\int_{-\infty}^{\infty} |x| f(x) \, dx$ diverges.
+
+```{r cauchy-no-lln}
+set.seed(42)
+
+n_max <- 5000
+n_paths <- 10
+
+cauchy_paths <- do.call(rbind, lapply(1:n_paths, function(pid) {
+  samp <- rcauchy(n_max)
+  data.table$data.table(
+    n = seq_len(n_max),
+    running_mean = cumsum(samp) / seq_len(n_max),
+    path = as.factor(pid)
+  )
+}))
+```
+
+```{r cauchy-no-lln-plot, fig.cap="Running means of Cauchy draws do NOT converge. Unlike every previous example, the paths wander erratically even at large n -- the LLN does not apply because the Cauchy distribution has no finite mean."}
+ggplot2$ggplot(cauchy_paths, ggplot2$aes(x = n, y = running_mean, colour = path)) +
+  ggplot2$geom_line(alpha = 0.6, linewidth = 0.4) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "black", linewidth = 0.5) +
+  ggplot2$coord_cartesian(ylim = c(-5, 5)) +
+  ggplot2$labs(
+    x = "Sample size n",
+    y = expression(bar(X)[n]),
+    title = "Cauchy distribution: the LLN fails (no finite mean)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+The paths never settle. Occasional extreme values (from the heavy tails) jolt the running mean. This is not a finite-sample fluke -- mathematically, the sample mean of Cauchy random variables has *exactly the same* Cauchy distribution regardless of $n$.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining the LLN to a non-technical audience:
+
+- The simplest version: "Averages become more reliable as you collect more data." This is the entire content of the LLN.
+- A useful metaphor: "Each additional observation is like adding a vote. With enough votes, the average reflects the truth."
+- If someone asks "how much data is enough?", the Chebyshev-based rate gives a rule of thumb: to halve the uncertainty, you need *four times* as much data (because the standard error scales as $1/\sqrt{n}$).
+- The Cauchy counterexample is a powerful cautionary tale for finance: "Not all averages stabilise. If the underlying quantity has extreme outliers (like certain financial returns), the usual averaging intuition breaks down."
+- Never say "the sample mean *equals* the population mean." Say it "gets closer" or "converges to" it.
+
+---
+
+## Quick Reference
+
+| Result | Statement | Conditions |
+|:---|:---|:---|
+| **WLLN** | $\bar{X}_n \xrightarrow{P} \mu$ | iid, $E[X_i^2] < \infty$ |
+| **SLLN** | $\bar{X}_n \xrightarrow{a.s.} \mu$ | iid, $E[\|X_i\|] < \infty$ |
+| **Chebyshev rate** | $P(\|\bar{X}_n - \mu\| \ge \epsilon) \le \sigma^2/(n\epsilon^2)$ | iid, finite variance |
+| **Standard error** | $\text{SE}(\bar{X}_n) = \sigma/\sqrt{n}$ | iid, finite variance |
+| **Failure case** | Cauchy: $\bar{X}_n$ does not converge | $E[\|X\|] = \infty$ |
+
+---
+
+## Exercises
+
+**Exercise 7.8.** Prove the WLLN directly from Chebyshev's inequality (reproduce the proof from memory without looking at Section 7.6.2). Then explain in one sentence why independence is essential.
+
+**Exercise 7.9.** Let $X_1, X_2, \ldots$ be iid with $X_i \sim \text{Uniform}(0, \theta)$ for unknown $\theta > 0$. Show that $2\bar{X}_n \xrightarrow{P} \theta$. (*Hint*: compute $E[X_i]$ and apply the WLLN, then use the continuous mapping theorem.)
+
+**Exercise 7.10.** Simulate 10 sample paths of the running mean for the $\text{Gamma}(2, 1)$ distribution (mean 2, variance 2) with $n = 10{,}000$. Plot them on a log scale for the $x$-axis. At approximately what sample size do all paths appear to have "converged"?
+
+**Exercise 7.11.** Using the NHANES dataset, repeat the LLN demonstration for the `Height` variable instead of BMI. Compute the population mean and show running averages from 5 independent samples of size 2000. Does the convergence appear faster or slower than for BMI? Why might this be?
+
+**Exercise 7.12.** Consider the $t$-distribution with 1 degree of freedom (which is exactly the Cauchy distribution). Simulate the running mean for $n$ up to 100,000. Do the paths *ever* appear to stabilise? Now repeat with $t_2$ (2 degrees of freedom, which has finite mean but infinite variance). Does the WLLN apply? Does the SLLN?
+
+**Exercise 7.13.** (*Harder*) Prove that if $X_1, X_2, \ldots$ are iid Bernoulli($p$), then $\hat{p}_n = \bar{X}_n$ satisfies:
+
+$$P(|\hat{p}_n - p| \ge \epsilon) \le \frac{p(1-p)}{n\epsilon^2} \le \frac{1}{4n\epsilon^2}.$$
+
+Use this to determine the sample size needed to estimate a proportion to within $\pm 0.03$ with probability at least 0.95 -- *without knowing* $p$.
+
+**Exercise 7.14.** Write an R function that takes a vector of data and produces a ggplot2 running-average plot with a horizontal line at the mean, a ribbon for $\pm 2 \cdot \text{SE}$ at each $n$, and labels. Test it on samples from three different distributions.
