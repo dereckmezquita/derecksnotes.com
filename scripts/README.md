@@ -5,23 +5,26 @@ Scripts for deploying and maintaining derecksnotes.com on a Linode VPS.
 ## Architecture
 
 ```
-Push to main/release
+Push to main / Create release
         │
         ▼
-GitHub Actions SSHs into VPS
+GitHub Actions builds Docker image
         │
         ▼
-git pull → docker compose build → write .env → docker compose up
+Push to ghcr.io (free, private)
+        │
+        ▼
+SSH into VPS → docker pull → docker compose up
 ```
 
-No Docker Hub. No registry. The VPS builds images locally from source.
+Images are built in GitHub Actions (7GB RAM, no OOM issues) and stored in GitHub Container Registry (ghcr.io) — free and private. The VPS just pulls and runs.
 
 ## Directory Structure (on VPS)
 
 ```
 /opt/derecksnotes/
-├── prod/                          # git clone (master branch)
-└── dev/                           # git clone (feature branches)
+├── prod/                          # docker-compose.yml + .env
+└── dev/                           # docker-compose.yml + .env
 
 /var/www/derecksnotes.com/
 ├── data/database.sqlite           # SQLite DB (Docker volume)
@@ -42,8 +45,8 @@ SSH into the VPS and run the migration script:
 
 ```bash
 ssh root@your-vps
-# Copy the script or clone the repo first
-bash cleanup-vps.sh
+curl -O https://raw.githubusercontent.com/dereckmezquita/derecksnotes.com/master/scripts/cleanup-vps.sh
+sudo bash cleanup-vps.sh
 ```
 
 This removes old Docker Hub-based deployment artifacts and creates the new directory structure.
@@ -78,7 +81,7 @@ Trigger a manual deploy from **GitHub → Actions → Deploy → Run workflow** 
 | GitHub Release (published) | prod |
 | Manual (workflow_dispatch) | dev or prod (you choose) |
 
-SSHs into VPS, pulls latest code, builds Docker image, writes `.env`, starts containers.
+Builds the Docker image in CI, pushes to ghcr.io, then SSHs into VPS to pull and start containers.
 
 ### `update-secrets.yml` — Update Secrets Only
 
@@ -91,16 +94,15 @@ Manual trigger. Rewrites the `.env` file from current GitHub Secrets and restart
 | Daily cron (3 AM UTC) | prod |
 | Manual (workflow_dispatch) | dev or prod (you choose) |
 
-Runs `scripts/backup-db.sh` on the VPS. Creates timestamped, compressed SQLite backups.
+Creates timestamped, compressed SQLite backups with rotation.
 
 ## Scripts
 
 ### `backup-db.sh`
 
-Safe SQLite hot backup with rotation.
+Safe SQLite hot backup with rotation. Can be run directly on the VPS:
 
 ```bash
-# On VPS directly:
 ./scripts/backup-db.sh /var/www/derecksnotes.com/data/database.sqlite \
                        /var/www/derecksnotes.com/backups \
                        30
@@ -118,7 +120,6 @@ One-time migration script. Removes old deployment setup, preserves public assets
 ## Restoring a Backup
 
 ```bash
-# SSH into VPS
 ssh root@your-vps
 
 # Stop the containers
@@ -145,10 +146,10 @@ docker compose up -d
 
 ## Troubleshooting
 
-**Build fails on VPS:** Check disk space (`df -h`). Docker builds need ~2GB free. Run `docker system prune` to free space.
-
 **Container won't start:** Check logs: `cd /opt/derecksnotes/prod && docker compose logs`
 
-**Health check failing:** The server health endpoint is `GET /api/health` on port 3001. Check: `curl http://localhost:3001/api/health`
+**Health check failing:** `curl http://localhost:3001/api/health`
 
-**Database locked:** SQLite can lock under concurrent writes. The backup script uses `.backup` which is safe. If the app reports locking, restart: `docker compose restart`
+**Disk full:** `docker system prune` to free space from old images/containers.
+
+**Database locked:** Restart: `docker compose restart`

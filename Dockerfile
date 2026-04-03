@@ -24,6 +24,7 @@ ARG COMMIT_SHA=local
 
 ENV BUILD_ENV=${BUILD_ENV}
 ENV NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA}
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 
 WORKDIR /app/client
 RUN bun run build
