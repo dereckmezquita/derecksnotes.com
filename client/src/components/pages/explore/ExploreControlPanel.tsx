@@ -13,10 +13,9 @@ const Panel = styled.div<{ $collapsed: boolean }>`
   left: 12px;
   z-index: 65;
   width: 240px;
-  background: ${(p) =>
-    p.$collapsed ? 'transparent' : 'rgba(255, 255, 255, 0.85)'};
-  backdrop-filter: ${(p) => (p.$collapsed ? 'none' : 'blur(8px)')};
-  border: ${(p) => (p.$collapsed ? 'none' : '1px solid rgba(0, 0, 0, 0.08)')};
+  background: rgba(255, 255, 255, ${(p) => (p.$collapsed ? '0.75' : '0.92')});
+  backdrop-filter: blur(8px);
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
   color: #333;
   font-size: 13px;
@@ -158,6 +157,14 @@ const PHYSICS_SLIDERS = [
     max: 0.5,
     step: 0.01,
     default: 0
+  },
+  {
+    key: 'gridStrength',
+    label: 'Grid distortion',
+    min: 0,
+    max: 5000,
+    step: 100,
+    default: 3000
   }
 ];
 
@@ -314,12 +321,20 @@ export default function ExploreControlPanel({
             <input
               type="checkbox"
               checked={options.showDictInternal ?? false}
-              onChange={() =>
+              onChange={() => {
+                const next = !options.showDictInternal;
+                const nextEdgeTypes = next
+                  ? [
+                      ...edgeTypes.filter((e) => e !== 'dictionary-internal'),
+                      'dictionary-internal'
+                    ]
+                  : edgeTypes.filter((e) => e !== 'dictionary-internal');
                 onChange({
                   ...options,
-                  showDictInternal: !options.showDictInternal
-                })
-              }
+                  showDictInternal: next,
+                  edgeTypes: nextEdgeTypes
+                });
+              }}
             />
             Dictionary internals
           </CheckRow>
@@ -340,12 +355,20 @@ export default function ExploreControlPanel({
             <input
               type="checkbox"
               checked={options.showExternal ?? false}
-              onChange={() =>
+              onChange={() => {
+                const next = !options.showExternal;
+                const nextEdgeTypes = next
+                  ? [
+                      ...edgeTypes.filter((e) => e !== 'external-link'),
+                      'external-link'
+                    ]
+                  : edgeTypes.filter((e) => e !== 'external-link');
                 onChange({
                   ...options,
-                  showExternal: !options.showExternal
-                })
-              }
+                  showExternal: next,
+                  edgeTypes: nextEdgeTypes
+                });
+              }}
             />
             External links
           </CheckRow>

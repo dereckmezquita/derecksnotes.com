@@ -32,6 +32,7 @@ export interface SimNode {
   nodeType: string;
   path: string;
   tags?: string[];
+  snippet?: string;
   metadata?: GraphNode['metadata'];
   degree: number;
 }
@@ -138,6 +139,7 @@ export class GraphSimulation {
         nodeType: apiNode.nodeType,
         path: apiNode.path,
         tags: apiNode.tags,
+        snippet: apiNode.snippet,
         metadata: apiNode.metadata,
         degree
       };

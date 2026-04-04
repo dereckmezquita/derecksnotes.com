@@ -490,9 +490,13 @@ export default function ExplorePage() {
 
   // ── Physics param handler from control panel ───────────────────
   const handlePhysicsChange = useCallback((param: string, value: number) => {
-    const sim = simRef.current;
-    if (!sim) return;
-    sim.setParam(param as any, value);
+    if (param === 'gridStrength' && rendererRef.current) {
+      rendererRef.current.gridStrength = value;
+    } else {
+      const sim = simRef.current;
+      if (!sim) return;
+      sim.setParam(param as any, value);
+    }
   }, []);
 
   const handleOptionsChange = useCallback((next: GraphQueryOptions) => {

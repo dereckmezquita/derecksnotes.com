@@ -442,11 +442,22 @@ export function buildGraphIndex(): void {
       return;
     }
 
+    // Parse display name from <a id="...">Display Name</a> for dictionary definitions
+    let title = frontmatter.title || file.slug;
+    if (file.section.startsWith('dictionary-')) {
+      const anchorMatch = content.match(
+        /<a\s+id=["'][^"']+["'][^>]*>([^<]+)<\/a>/
+      );
+      if (anchorMatch?.[1]) {
+        title = anchorMatch[1].trim();
+      }
+    }
+
     // Create page node (depth 0)
     insertNode.run(
       pageId,
       file.urlPath,
-      frontmatter.title || file.slug,
+      title,
       file.section,
       frontmatter.category || null,
       tags || null,
@@ -1066,9 +1077,22 @@ export function getGraphData(options: GraphQueryOptions = {}): {
 
   // Filter sections
   if (sections && sections.length > 0) {
-    const placeholders = sections.map(() => '?').join(',');
+    // Expand 'dictionaries' shorthand to actual dictionary section names
+    const expandedSections: string[] = [];
+    for (const s of sections) {
+      if (s === 'dictionaries') {
+        expandedSections.push(
+          'dictionary-biology',
+          'dictionary-chemistry',
+          'dictionary-mathematics'
+        );
+      } else {
+        expandedSections.push(s);
+      }
+    }
+    const placeholders = expandedSections.map(() => '?').join(',');
     nodeConditions.push(`section IN (${placeholders})`);
-    nodeParams.push(...sections);
+    nodeParams.push(...expandedSections);
   }
 
   // Toggle comment nodes

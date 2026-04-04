@@ -13,12 +13,12 @@ const SECTION_COLOURS: Record<string, [number, number, number]> = {
 };
 
 const EDGE_COLOURS: Record<string, [number, number, number, number]> = {
-  'explicit-link': [0.3, 0.3, 0.3, 0.7],
-  'tag-similarity': [0.25, 0.35, 0.6, 0.6],
-  'nlp-similarity': [0.45, 0.45, 0.45, 0.5],
-  'dictionary-internal': [0.25, 0.5, 0.35, 0.6],
-  'external-link': [0.5, 0.35, 0.2, 0.6],
-  'comment-thread': [0.4, 0.4, 0.4, 0.5]
+  'explicit-link': [0.4, 0.4, 0.4, 0.5],
+  'tag-similarity': [0.2, 0.4, 0.8, 0.4],
+  'nlp-similarity': [0.6, 0.3, 0.7, 0.3],
+  'dictionary-internal': [0.2, 0.7, 0.3, 0.4],
+  'external-link': [0.9, 0.5, 0.1, 0.5],
+  'comment-thread': [0.5, 0.5, 0.5, 0.3]
 };
 
 const DEFAULT_SECTION_COLOUR: [number, number, number] = [0.5, 0.5, 0.5];
@@ -37,6 +37,7 @@ function edgeColour(edgeType: string): [number, number, number, number] {
 export class GraphRenderer {
   private renderer: WebGLRenderer;
   private textCtx: CanvasRenderingContext2D;
+  public gridStrength: number = 3000;
 
   constructor(gl: WebGLRenderingContext, textCtx: CanvasRenderingContext2D) {
     this.renderer = new WebGLRenderer(gl, textCtx);
@@ -65,7 +66,14 @@ export class GraphRenderer {
 
     // 2. Gravitational grid (warped by particle masses)
     // Higher strength than 404 page because graph nodes have distributed mass
-    this.renderer.drawGravitationalGrid(width, height, particles, qt, 12, 3000);
+    this.renderer.drawGravitationalGrid(
+      width,
+      height,
+      particles,
+      qt,
+      12,
+      this.gridStrength
+    );
 
     // 3. Spatial index visualization (toggle between QuadTree and SpatialHash)
     if (showGrid) {
@@ -246,132 +254,14 @@ export class GraphRenderer {
       );
     }
 
-    // ── Selected node: prominent title ──────────────────────────────
+    // ── Pinned card for selected node ─────────────────────────────
     if (selectedNode) {
-      const sp = selectedNode.particle;
-      const [sr, sg, sb] = sectionColour(selectedNode.section);
-      ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillStyle = `rgba(${(sr * 255) | 0}, ${(sg * 255) | 0}, ${(sb * 255) | 0}, 0.95)`;
-      ctx.fillText(selectedNode.title, sp.pos.x, sp.pos.y - sp.radius - 6);
+      this.drawNodeCard(ctx, selectedNode, edges, width, height, true);
     }
 
-    // ── Hovered node: tooltip ───────────────────────────────────────
-    if (hoveredNode) {
-      const hp = hoveredNode.particle;
-      let tx = hp.pos.x + hp.radius + 14;
-      let ty = hp.pos.y - 30;
-
-      const lines: Array<{ text: string; font: string; colour: string }> = [];
-
-      // Title
-      lines.push({
-        text: hoveredNode.title,
-        font: 'bold 12px system-ui, sans-serif',
-        colour: 'rgba(30, 30, 30, 0.95)'
-      });
-
-      // Section + type
-      const [sr, sg, sb] = sectionColour(hoveredNode.section);
-      lines.push({
-        text: `${hoveredNode.section} · ${hoveredNode.nodeType}`,
-        font: '11px system-ui, sans-serif',
-        colour: `rgba(${(sr * 255) | 0}, ${(sg * 255) | 0}, ${(sb * 255) | 0}, 0.9)`
-      });
-
-      // Tags
-      const tags = hoveredNode.tags as string[] | string | undefined;
-      if (tags) {
-        const tagArr: string[] = Array.isArray(tags)
-          ? tags
-          : typeof tags === 'string'
-            ? tags.split(',').map((t: string) => t.trim())
-            : [];
-        if (tagArr.length > 0) {
-          lines.push({
-            text: tagArr.slice(0, 4).join(', '),
-            font: '10px system-ui, sans-serif',
-            colour: 'rgba(100, 100, 100, 0.7)'
-          });
-        }
-      }
-
-      // Connections count
-      lines.push({
-        text: `${hoveredNode.degree} connections`,
-        font: '10px system-ui, sans-serif',
-        colour: 'rgba(60, 120, 180, 0.8)'
-      });
-
-      // Connected nodes (top 5)
-      const connectedEdges = edges
-        .filter(
-          (e) =>
-            e.source.id === hoveredNode.id || e.target.id === hoveredNode.id
-        )
-        .slice(0, 5);
-      for (const edge of connectedEdges) {
-        const other =
-          edge.source.id === hoveredNode.id ? edge.target : edge.source;
-        lines.push({
-          text: `→ ${other.title.length > 25 ? other.title.slice(0, 23) + '..' : other.title}`,
-          font: '10px system-ui, sans-serif',
-          colour: 'rgba(80, 80, 80, 0.6)'
-        });
-      }
-
-      // Measure max width
-      let maxWidth = 0;
-      for (const line of lines) {
-        ctx.font = line.font;
-        const w = ctx.measureText(line.text).width;
-        if (w > maxWidth) maxWidth = w;
-      }
-
-      const boxWidth = maxWidth + 24;
-      const boxHeight = lines.length * 17 + 16;
-
-      // Clamp tooltip to stay within canvas
-      if (tx + boxWidth > width - 10) tx = hp.pos.x - hp.radius - boxWidth - 10;
-      if (ty + boxHeight > height - 10) ty = height - boxHeight - 10;
-      if (ty < 5) ty = 5;
-
-      // Light semi-transparent background
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 6);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Draw lines
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      let lineY = ty + 9;
-      for (const line of lines) {
-        ctx.font = line.font;
-        ctx.fillStyle = line.colour;
-        ctx.fillText(line.text, tx + 12, lineY);
-        lineY += 17;
-      }
-
-      // Highlight edges connected to hovered node
-      for (const edge of connectedEdges) {
-        const sp = edge.source.particle;
-        const tp = edge.target.particle;
-        this.renderer.addLine(
-          sp.pos.x,
-          sp.pos.y,
-          tp.pos.x,
-          tp.pos.y,
-          sr,
-          sg,
-          sb,
-          0.8
-        );
-      }
-      this.renderer.flushLines(width, height);
+    // ── Hovered node: transient tooltip (only when not already selected) ──
+    if (hoveredNode && hoveredNode !== selectedNode) {
+      this.drawNodeCard(ctx, hoveredNode, edges, width, height, false);
     }
 
     // ── Hovered edge: tooltip ──────────────────────────────────────
@@ -451,6 +341,165 @@ export class GraphRenderer {
         lineY += 17;
       }
     }
+  }
+
+  private drawNodeCard(
+    ctx: CanvasRenderingContext2D,
+    node: SimNode,
+    edges: SimEdge[],
+    width: number,
+    height: number,
+    pinned: boolean
+  ): void {
+    const hp = node.particle;
+    let tx = hp.pos.x + hp.radius + 14;
+    let ty = hp.pos.y - 30;
+
+    const lines: Array<{
+      text: string;
+      font: string;
+      colour: string;
+      underline?: boolean;
+    }> = [];
+
+    // Title
+    lines.push({
+      text: node.title,
+      font: 'bold 12px system-ui, sans-serif',
+      colour: 'rgba(30, 30, 30, 0.95)'
+    });
+
+    // Section + type
+    const [sr, sg, sb] = sectionColour(node.section);
+    lines.push({
+      text: `${node.section} · ${node.nodeType}`,
+      font: '11px system-ui, sans-serif',
+      colour: `rgba(${(sr * 255) | 0}, ${(sg * 255) | 0}, ${(sb * 255) | 0}, 0.9)`
+    });
+
+    // Tags
+    const tags = node.tags as string[] | string | undefined;
+    if (tags) {
+      const tagArr: string[] = Array.isArray(tags)
+        ? tags
+        : typeof tags === 'string'
+          ? tags.split(',').map((t: string) => t.trim())
+          : [];
+      if (tagArr.length > 0) {
+        lines.push({
+          text: tagArr.slice(0, 4).join(', '),
+          font: '10px system-ui, sans-serif',
+          colour: 'rgba(100, 100, 100, 0.7)'
+        });
+      }
+    }
+
+    // Snippet (for pinned cards)
+    if (pinned && node.snippet) {
+      const snippet =
+        node.snippet.length > 100
+          ? node.snippet.slice(0, 97) + '...'
+          : node.snippet;
+      lines.push({
+        text: snippet,
+        font: 'italic 10px system-ui, sans-serif',
+        colour: 'rgba(60, 60, 60, 0.8)'
+      });
+    }
+
+    // Connections count
+    lines.push({
+      text: `${node.degree} connections`,
+      font: '10px system-ui, sans-serif',
+      colour: 'rgba(60, 120, 180, 0.8)'
+    });
+
+    // Connected nodes (top 5)
+    const connectedEdges = edges
+      .filter((e) => e.source.id === node.id || e.target.id === node.id)
+      .slice(0, 5);
+    for (const edge of connectedEdges) {
+      const other = edge.source.id === node.id ? edge.target : edge.source;
+      lines.push({
+        text: `→ ${other.title.length > 25 ? other.title.slice(0, 23) + '..' : other.title}`,
+        font: '10px system-ui, sans-serif',
+        colour: 'rgba(80, 80, 80, 0.6)'
+      });
+    }
+
+    // "Open page" link (pinned only)
+    if (pinned) {
+      lines.push({
+        text: 'Open page →',
+        font: 'bold 11px system-ui, sans-serif',
+        colour: 'rgba(200, 113, 55, 0.95)',
+        underline: true
+      });
+    }
+
+    // Measure max width
+    let maxWidth = 0;
+    for (const line of lines) {
+      ctx.font = line.font;
+      const w = ctx.measureText(line.text).width;
+      if (w > maxWidth) maxWidth = w;
+    }
+
+    const lineHeight = 17;
+    const boxWidth = Math.max(maxWidth + 24, pinned ? 220 : 0);
+    const boxHeight = lines.length * lineHeight + 16;
+
+    // Clamp tooltip to stay within canvas
+    if (tx + boxWidth > width - 10) tx = hp.pos.x - hp.radius - boxWidth - 10;
+    if (ty + boxHeight > height - 10) ty = height - boxHeight - 10;
+    if (ty < 5) ty = 5;
+
+    // Background
+    ctx.fillStyle = pinned
+      ? 'rgba(255, 255, 255, 0.97)'
+      : 'rgba(255, 255, 255, 0.95)';
+    this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 6);
+    ctx.fill();
+    ctx.strokeStyle = pinned ? 'rgba(200, 113, 55, 0.3)' : 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = pinned ? 1.5 : 1;
+    ctx.stroke();
+
+    // Draw lines
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let lineY = ty + 9;
+    for (const line of lines) {
+      ctx.font = line.font;
+      ctx.fillStyle = line.colour;
+      ctx.fillText(line.text, tx + 12, lineY);
+      if (line.underline) {
+        const tw = ctx.measureText(line.text).width;
+        ctx.strokeStyle = line.colour;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tx + 12, lineY + 13);
+        ctx.lineTo(tx + 12 + tw, lineY + 13);
+        ctx.stroke();
+      }
+      lineY += lineHeight;
+    }
+
+    // Highlight edges connected to this node
+    for (const edge of connectedEdges) {
+      const sp = edge.source.particle;
+      const tp = edge.target.particle;
+      this.renderer.addLine(
+        sp.pos.x,
+        sp.pos.y,
+        tp.pos.x,
+        tp.pos.y,
+        sr,
+        sg,
+        sb,
+        0.8
+      );
+    }
+    this.renderer.flushLines(width, height);
   }
 
   private roundRect(
