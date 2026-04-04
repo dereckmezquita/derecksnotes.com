@@ -21,7 +21,7 @@ const Panel = styled.div<{ $collapsed: boolean }>`
   backdrop-filter: blur(12px);
   overflow: hidden;
   transition: max-height 0.3s ease;
-  max-height: ${(p) => (p.$collapsed ? '42px' : '700px')};
+  max-height: ${(p) => (p.$collapsed ? '42px' : '900px')};
 `;
 
 const Header = styled.div`
@@ -41,6 +41,16 @@ const Body = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+  }
 `;
 
 const SectionTitle = styled.div`
@@ -103,17 +113,56 @@ const EDGE_TYPES = [
   { key: 'nlp-similarity', label: 'NLP similarity' }
 ];
 
+// ── physics slider config ────────────────────────────────────────────
+const PHYSICS_SLIDERS = [
+  {
+    key: 'repulsionStrength',
+    label: 'Repulsion',
+    min: 0,
+    max: 5,
+    step: 0.1,
+    default: 1.0
+  },
+  {
+    key: 'attractionStrength',
+    label: 'Attraction',
+    min: 0,
+    max: 5,
+    step: 0.1,
+    default: 1.0
+  },
+  {
+    key: 'damping',
+    label: 'Damping',
+    min: 0.5,
+    max: 1.0,
+    step: 0.01,
+    default: 0.85
+  },
+  { key: 'wind', label: 'Wind', min: 0, max: 0.1, step: 0.005, default: 0.02 },
+  { key: 'gravity', label: 'Gravity', min: 0, max: 0.5, step: 0.01, default: 0 }
+];
+
 // ── component ────────────────────────────────────────────────────────
 interface ExploreControlPanelProps {
   options: GraphQueryOptions;
   onChange: (next: GraphQueryOptions) => void;
+  onPhysicsChange?: (param: string, value: number) => void;
 }
 
 export default function ExploreControlPanel({
   options,
-  onChange
+  onChange,
+  onPhysicsChange
 }: ExploreControlPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [physicsValues, setPhysicsValues] = useState<Record<string, number>>(
+    () => {
+      const init: Record<string, number> = {};
+      for (const s of PHYSICS_SLIDERS) init[s.key] = s.default;
+      return init;
+    }
+  );
 
   const sections = options.sections || [
     'blog',
@@ -139,6 +188,11 @@ export default function ExploreControlPanel({
       ? edgeTypes.filter((e) => e !== key)
       : [...edgeTypes, key];
     onChange({ ...options, edgeTypes: next });
+  }
+
+  function handlePhysicsSlider(key: string, value: number) {
+    setPhysicsValues((prev) => ({ ...prev, [key]: value }));
+    onPhysicsChange?.(key, value);
   }
 
   return (
@@ -265,6 +319,35 @@ export default function ExploreControlPanel({
             }
           />
         </SliderRow>
+
+        {/* physics */}
+        <div>
+          <SectionTitle>Physics</SectionTitle>
+          {PHYSICS_SLIDERS.map((s) => (
+            <SliderRow key={s.key}>
+              <label>
+                <span>{s.label}</span>
+                <span>
+                  {s.step < 0.01
+                    ? physicsValues[s.key].toFixed(3)
+                    : s.step < 1
+                      ? physicsValues[s.key].toFixed(2)
+                      : physicsValues[s.key]}
+                </span>
+              </label>
+              <input
+                type="range"
+                min={s.min}
+                max={s.max}
+                step={s.step}
+                value={physicsValues[s.key]}
+                onChange={(e) =>
+                  handlePhysicsSlider(s.key, Number(e.target.value))
+                }
+              />
+            </SliderRow>
+          ))}
+        </div>
       </Body>
     </Panel>
   );

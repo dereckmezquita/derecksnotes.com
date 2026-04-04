@@ -1,57 +1,40 @@
 'use client';
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
-import dynamic from 'next/dynamic';
 import type {
   GraphNode,
-  GraphEdge,
   GraphData,
   GraphQueryOptions
 } from '@derecksnotes/shared';
 
+import { GraphSimulation, GraphRenderer } from '@/lib/graph';
+import type { SimNode } from '@/lib/graph';
+
 import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
 import ExploreDetailPanel from '@/components/pages/explore/ExploreDetailPanel';
 import ExploreSearchBar from '@/components/pages/explore/ExploreSearchBar';
-import type { ExploreGraphHandle } from '@/components/pages/explore/ExploreGraph';
 
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
 const BUILD_ENV = (process.env.NEXT_PUBLIC_BUILD_ENV as BuildEnv) || 'local';
 const API_URL = ENV_CONFIG[BUILD_ENV].apiUrl;
 
-// dynamic import -- 3d-force-graph requires window / WebGL
-const ExploreGraph = dynamic(
-  () => import('@/components/pages/explore/ExploreGraph'),
-  { ssr: false }
-) as any as React.ForwardRefExoticComponent<
-  {
-    nodes: GraphNode[];
-    edges: GraphEdge[];
-    searchTerm: string;
-    onNodeClick: (node: GraphNode | null) => void;
-  } & React.RefAttributes<ExploreGraphHandle>
->;
-
 // ── styled ───────────────────────────────────────────────────────────
-const PageWrapper = styled.div`
-  position: relative;
-  width: 100%;
-  height: calc(100vh - 200px);
-  min-height: 500px;
-  overflow: hidden;
-`;
-
 const LoadingOverlay = styled.div`
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 200px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 55;
   background: transparent;
   color: #888;
   gap: 16px;
+  pointer-events: none;
 `;
 
 const Spinner = styled.div`
@@ -89,6 +72,7 @@ const StatsBar = styled.div`
   backdrop-filter: blur(8px);
   display: flex;
   gap: 16px;
+  pointer-events: none;
 `;
 
 // ── default query options ────────────────────────────────────────────
@@ -122,9 +106,53 @@ function buildQueryString(opts: GraphQueryOptions): string {
   return params.toString();
 }
 
+// ── canvas top offset (below navbar) ─────────────────────────────────
+const CANVAS_TOP = 200;
+
 // ── page component ───────────────────────────────────────────────────
 export default function ExplorePage() {
-  const graphRef = useRef<ExploreGraphHandle>(null);
+  const glCanvasRef = useRef<HTMLCanvasElement>(null);
+  const textCanvasRef = useRef<HTMLCanvasElement>(null);
+  const simRef = useRef<GraphSimulation | null>(null);
+  const rendererRef = useRef<GraphRenderer | null>(null);
+  const mouseRef = useRef({ x: -1000, y: -1000, active: false });
+  const hoveredNodeRef = useRef<SimNode | null>(null);
+  const selectedNodeRef = useRef<SimNode | null>(null);
+  const draggedNodeRef = useRef<string | null>(null);
+  const panRef = useRef({ ox: 0, oy: 0, startX: 0, startY: 0, panning: false });
+  const searchTermRef = useRef('');
+  const graphDataRef = useRef<GraphData | null>(null);
+
+  const [options, setOptions] = useState<GraphQueryOptions>(DEFAULT_OPTIONS);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [nodeCount, setNodeCount] = useState(0);
+  const [edgeCount, setEdgeCount] = useState(0);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    searchTermRef.current = searchTerm;
+  }, [searchTerm]);
+
+  useEffect(() => {
+    graphDataRef.current = graphData;
+  }, [graphData]);
+
+  // Keep selectedNodeRef in sync with state
+  useEffect(() => {
+    if (selectedNode) {
+      const sim = simRef.current;
+      if (sim) {
+        selectedNodeRef.current =
+          sim.getNodes().find((n) => n.id === selectedNode.id) || null;
+      }
+    } else {
+      selectedNodeRef.current = null;
+    }
+  }, [selectedNode]);
 
   // Prevent scrolling on explore page
   useEffect(() => {
@@ -134,14 +162,15 @@ export default function ExplorePage() {
     };
   }, []);
 
-  const [options, setOptions] = useState<GraphQueryOptions>(DEFAULT_OPTIONS);
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  // Hide background grid
+  useEffect(() => {
+    document.body.style.backgroundImage = 'none';
+    return () => {
+      document.body.style.backgroundImage = '';
+    };
+  }, []);
 
-  // fetch graph data when options change
+  // Fetch graph data when options change
   const fetchGraph = useCallback(async (opts: GraphQueryOptions) => {
     try {
       setLoading(true);
@@ -196,12 +225,243 @@ export default function ExplorePage() {
     return () => es?.close();
   }, []);
 
-  // node / edge data (memoised to avoid unnecessary re-renders)
-  const nodes = useMemo(() => graphData?.nodes ?? [], [graphData]);
-  const edges = useMemo(() => graphData?.edges ?? [], [graphData]);
+  // Feed data into simulation when graphData changes
+  useEffect(() => {
+    if (!graphData || !simRef.current) return;
+    simRef.current.setData(graphData.nodes, graphData.edges);
+    setNodeCount(graphData.nodes.length);
+    setEdgeCount(graphData.edges.length);
+  }, [graphData]);
 
-  const handleNodeClick = useCallback((node: GraphNode | null) => {
-    setSelectedNode(node);
+  // ── Main WebGL + physics setup ─────────────────────────────────────
+  useEffect(() => {
+    console.log(
+      '[Explore] Setup effect running, glCanvas:',
+      !!glCanvasRef.current,
+      'textCanvas:',
+      !!textCanvasRef.current
+    );
+    const glCanvas = glCanvasRef.current;
+    const textCanvas = textCanvasRef.current;
+    if (!glCanvas || !textCanvas) {
+      return;
+    }
+
+    const gl = glCanvas.getContext('webgl', {
+      antialias: true,
+      alpha: true
+    });
+    const textCtx = textCanvas.getContext('2d');
+    if (!gl || !textCtx) {
+      return;
+    }
+
+    let graphRenderer: GraphRenderer;
+    try {
+      graphRenderer = new GraphRenderer(gl, textCtx);
+      rendererRef.current = graphRenderer;
+    } catch (err) {
+      console.error('[Explore] WebGL init failed:', err);
+      return;
+    }
+
+    const canvasH = () => window.innerHeight - CANVAS_TOP;
+    const canvasW = () => window.innerWidth;
+
+    const sim = new GraphSimulation(canvasW(), canvasH());
+    simRef.current = sim;
+
+    // If graphData is already loaded, feed it in
+    if (graphData) {
+      sim.setData(graphData.nodes, graphData.edges);
+      setNodeCount(graphData.nodes.length);
+      setEdgeCount(graphData.edges.length);
+    }
+
+    let animationId: number;
+    const dpr = window.devicePixelRatio || 1;
+
+    function resize() {
+      if (!glCanvas || !textCanvas) return;
+      const w = canvasW();
+      const h = canvasH();
+      glCanvas.width = w * dpr;
+      glCanvas.height = h * dpr;
+      glCanvas.style.width = w + 'px';
+      glCanvas.style.height = h + 'px';
+      textCanvas.width = w * dpr;
+      textCanvas.height = h * dpr;
+      textCanvas.style.width = w + 'px';
+      textCanvas.style.height = h + 'px';
+      textCtx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gl!.viewport(0, 0, glCanvas.width, glCanvas.height);
+      sim.resize(w, h);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Fixed timestep physics at 60Hz
+    const PHYSICS_DT = 1000 / 60;
+    let lastTime = performance.now();
+    let accumulator = 0;
+
+    // ── Mouse interaction ─────────────────────────────────────────
+    let mouseDownPos = { x: 0, y: 0 };
+    let mouseDownTime = 0;
+    let hasDragged = false;
+
+    function onMouseMove(e: MouseEvent) {
+      const x = e.clientX;
+      const y = e.clientY - CANVAS_TOP;
+      mouseRef.current.x = x;
+      mouseRef.current.y = y;
+      mouseRef.current.active = true;
+
+      // If dragging a node
+      if (draggedNodeRef.current) {
+        sim.dragNode(draggedNodeRef.current, x, y);
+        hasDragged = true;
+        return;
+      }
+
+      // If panning
+      if (panRef.current.panning) {
+        // Panning is not yet implemented — would need camera offset
+        hasDragged = true;
+        return;
+      }
+
+      // Hover check
+      const node = sim.nodeAt(x, y);
+      hoveredNodeRef.current = node;
+      if (glCanvas) {
+        glCanvas.style.cursor = node ? 'pointer' : 'default';
+      }
+    }
+
+    function onMouseDown(e: MouseEvent) {
+      const x = e.clientX;
+      const y = e.clientY - CANVAS_TOP;
+      mouseDownPos = { x, y };
+      mouseDownTime = performance.now();
+      hasDragged = false;
+
+      const node = sim.nodeAt(x, y);
+      if (node) {
+        draggedNodeRef.current = node.id;
+        sim.dragNode(node.id, x, y);
+      } else {
+        panRef.current.panning = true;
+        panRef.current.startX = x;
+        panRef.current.startY = y;
+      }
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      const x = e.clientX;
+      const y = e.clientY - CANVAS_TOP;
+      const elapsed = performance.now() - mouseDownTime;
+      const dist = Math.sqrt(
+        (x - mouseDownPos.x) ** 2 + (y - mouseDownPos.y) ** 2
+      );
+
+      // Release dragged node
+      if (draggedNodeRef.current) {
+        sim.releaseNode(draggedNodeRef.current);
+
+        // If it was a click (short + no drag), select the node
+        if (elapsed < 300 && dist < 5) {
+          const node = sim.nodeAt(x, y);
+          if (node) {
+            // Find matching GraphNode from graphData
+            const gn =
+              graphDataRef.current?.nodes.find((n) => n.id === node.id) || null;
+            setSelectedNode(gn);
+          }
+        }
+        draggedNodeRef.current = null;
+      } else if (panRef.current.panning) {
+        panRef.current.panning = false;
+
+        // If it was a click on empty space, deselect
+        if (elapsed < 300 && dist < 5) {
+          setSelectedNode(null);
+        }
+      }
+    }
+
+    function onMouseLeave() {
+      mouseRef.current.active = false;
+      hoveredNodeRef.current = null;
+      if (draggedNodeRef.current) {
+        sim.releaseNode(draggedNodeRef.current);
+        draggedNodeRef.current = null;
+      }
+      panRef.current.panning = false;
+    }
+
+    glCanvas.addEventListener('mousemove', onMouseMove);
+    glCanvas.addEventListener('mousedown', onMouseDown);
+    glCanvas.addEventListener('mouseup', onMouseUp);
+    glCanvas.addEventListener('mouseleave', onMouseLeave);
+
+    // ── Render loop ───────────────────────────────────────────────
+
+    function draw() {
+      const w = canvasW();
+      const h = canvasH();
+
+      // Fixed timestep accumulator
+      const now = performance.now();
+      const elapsed = Math.min(now - lastTime, 100);
+      lastTime = now;
+      accumulator += elapsed;
+
+      try {
+        // Run physics at fixed 60Hz
+        while (accumulator >= PHYSICS_DT) {
+          accumulator -= PHYSICS_DT;
+          sim.step();
+        }
+
+        // Render
+        graphRenderer.render(
+          sim,
+          w,
+          h,
+          hoveredNodeRef.current,
+          selectedNodeRef.current
+        );
+      } catch (err) {
+        console.error('[Explore] draw() error:', err);
+      }
+
+      animationId = requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resize);
+      glCanvas.removeEventListener('mousemove', onMouseMove);
+      glCanvas.removeEventListener('mousedown', onMouseDown);
+      glCanvas.removeEventListener('mouseup', onMouseUp);
+      glCanvas.removeEventListener('mouseleave', onMouseLeave);
+      simRef.current = null;
+      rendererRef.current = null;
+    };
+    // We intentionally omit graphData from deps — it's handled by
+    // a separate useEffect that calls sim.setData().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Physics param handler from control panel ───────────────────
+  const handlePhysicsChange = useCallback((param: string, value: number) => {
+    const sim = simRef.current;
+    if (!sim) return;
+    sim.setParam(param as any, value);
   }, []);
 
   const handleOptionsChange = useCallback((next: GraphQueryOptions) => {
@@ -209,8 +469,36 @@ export default function ExplorePage() {
   }, []);
 
   return (
-    <PageWrapper>
-      {/* loading state */}
+    <>
+      {/* WebGL canvas */}
+      <canvas
+        ref={glCanvasRef}
+        style={{
+          position: 'fixed',
+          top: CANVAS_TOP,
+          left: 0,
+          width: '100vw',
+          height: `calc(100vh - ${CANVAS_TOP}px)`,
+          pointerEvents: 'auto',
+          zIndex: 50
+        }}
+      />
+
+      {/* Text overlay canvas (Canvas2D for labels) */}
+      <canvas
+        ref={textCanvasRef}
+        style={{
+          position: 'fixed',
+          top: CANVAS_TOP,
+          left: 0,
+          width: '100vw',
+          height: `calc(100vh - ${CANVAS_TOP}px)`,
+          pointerEvents: 'none',
+          zIndex: 51
+        }}
+      />
+
+      {/* Loading state */}
       {loading && (
         <LoadingOverlay>
           <Spinner />
@@ -218,7 +506,7 @@ export default function ExplorePage() {
         </LoadingOverlay>
       )}
 
-      {/* error state */}
+      {/* Error state */}
       {!loading && error && (
         <LoadingOverlay>
           <LoadingText style={{ color: '#c44' }}>{error}</LoadingText>
@@ -229,36 +517,29 @@ export default function ExplorePage() {
         </LoadingOverlay>
       )}
 
-      {/* graph */}
-      {!loading && graphData && (
-        <ExploreGraph
-          ref={graphRef}
-          nodes={nodes}
-          edges={edges}
-          searchTerm={searchTerm}
-          onNodeClick={handleNodeClick}
-        />
-      )}
+      {/* Controls */}
+      <ExploreControlPanel
+        options={options}
+        onChange={handleOptionsChange}
+        onPhysicsChange={handlePhysicsChange}
+      />
 
-      {/* controls */}
-      <ExploreControlPanel options={options} onChange={handleOptionsChange} />
-
-      {/* search */}
+      {/* Search */}
       <ExploreSearchBar value={searchTerm} onChange={setSearchTerm} />
 
-      {/* detail panel */}
+      {/* Detail panel */}
       <ExploreDetailPanel
         node={selectedNode}
         onClose={() => setSelectedNode(null)}
       />
 
-      {/* stats bar */}
+      {/* Stats bar */}
       {graphData && !loading && (
         <StatsBar>
-          <span>{nodes.length} nodes</span>
-          <span>{edges.length} edges</span>
+          <span>{nodeCount} nodes</span>
+          <span>{edgeCount} edges</span>
         </StatsBar>
       )}
-    </PageWrapper>
+    </>
   );
 }

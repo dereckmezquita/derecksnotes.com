@@ -120,10 +120,10 @@ export class WebGLRenderer {
     this.triData = new Float32Array(2000000); // for thick lines, rects, arrow tips
   }
 
-  clear(w: number, h: number): void {
+  clear(w: number, h: number, bgR = 1, bgG = 1, bgB = 1, bgA = 1): void {
     const gl = this.gl;
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.clearColor(1, 1, 1, 1);
+    gl.clearColor(bgR, bgG, bgB, bgA);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.lineCount = 0;
     this.circleCount = 0;
@@ -135,7 +135,7 @@ export class WebGLRenderer {
 
   // ---- Line batching ----
 
-  private addLine(
+  public addLine(
     x1: number,
     y1: number,
     x2: number,
@@ -162,7 +162,7 @@ export class WebGLRenderer {
     this.lineCount++;
   }
 
-  private addCircle(
+  public addCircle(
     x: number,
     y: number,
     radius: number,
@@ -188,7 +188,7 @@ export class WebGLRenderer {
    * Computes perpendicular offset from line direction to create width.
    * thickness = line width in pixels
    */
-  private addThickLine(
+  public addThickLine(
     x1: number,
     y1: number,
     x2: number,
@@ -270,7 +270,7 @@ export class WebGLRenderer {
    * Draw a filled triangle (3 vertices).
    * Used for arrowhead tips on velocity vectors.
    */
-  private addFilledTriangle(
+  public addFilledTriangle(
     x1: number,
     y1: number,
     x2: number,
@@ -329,7 +329,7 @@ export class WebGLRenderer {
     this.triCount++;
   }
 
-  private addRect(
+  public addRect(
     x: number,
     y: number,
     rw: number,
