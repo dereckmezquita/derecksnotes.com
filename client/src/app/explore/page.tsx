@@ -77,7 +77,7 @@ const StatsBar = styled.div`
 
 // ── default query options ────────────────────────────────────────────
 const DEFAULT_OPTIONS: GraphQueryOptions = {
-  sections: ['blog', 'courses', 'references', 'dictionaries'],
+  sections: ['blog', 'courses', 'references'],
   depth: 0,
   minEdges: 0,
   edgeTypes: ['explicit-link', 'tag-similarity', 'nlp-similarity'],
@@ -563,6 +563,8 @@ export default function ExplorePage() {
         onSpatialHashToggle={setUseSpatialHash}
         showGrid={showGrid}
         onShowGridToggle={setShowGrid}
+        nodeCount={nodeCount}
+        edgeCount={edgeCount}
       />
 
       {/* Detail panel */}
@@ -571,13 +573,7 @@ export default function ExplorePage() {
         onClose={() => setSelectedNode(null)}
       />
 
-      {/* Stats bar */}
-      {graphData && !loading && (
-        <StatsBar>
-          <span>{nodeCount} nodes</span>
-          <span>{edgeCount} edges</span>
-        </StatsBar>
-      )}
+      {/* Stats bar removed — info is in the Controls header */}
     </>
   );
 }

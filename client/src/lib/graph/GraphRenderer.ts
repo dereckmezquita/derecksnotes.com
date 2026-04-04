@@ -362,11 +362,20 @@ export class GraphRenderer {
       underline?: boolean;
     }> = [];
 
-    // Title
+    // Title (display name)
     lines.push({
       text: node.title,
       font: 'bold 12px system-ui, sans-serif',
       colour: 'rgba(30, 30, 30, 0.95)'
+    });
+
+    // File path (smaller, below title)
+    const shortPath =
+      node.path.length > 40 ? '...' + node.path.slice(-37) : node.path;
+    lines.push({
+      text: shortPath,
+      font: '9px system-ui, sans-serif',
+      colour: 'rgba(120, 120, 120, 0.7)'
     });
 
     // Section + type

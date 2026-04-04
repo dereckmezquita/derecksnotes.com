@@ -106,8 +106,13 @@ const SliderRow = styled.div`
 const SECTIONS = [
   { key: 'blog', label: 'Blog', colour: '#2E8BC0' },
   { key: 'courses', label: 'Courses', colour: '#2D9E5F' },
-  { key: 'references', label: 'References', colour: '#7E3B8F' },
-  { key: 'dictionaries', label: 'Dictionaries', colour: '#4CAF50' }
+  { key: 'references', label: 'References', colour: '#7E3B8F' }
+];
+
+const DICT_SECTIONS = [
+  { key: 'dictionary-biology', label: 'Biology', colour: '#4CAF50' },
+  { key: 'dictionary-chemistry', label: 'Chemistry', colour: '#3B87C5' },
+  { key: 'dictionary-mathematics', label: 'Mathematics', colour: '#E85D75' }
 ];
 
 const EDGE_TYPES = [
@@ -177,6 +182,8 @@ interface ExploreControlPanelProps {
   onSearchChange?: (value: string) => void;
   useSpatialHash?: boolean;
   onSpatialHashToggle?: (useHash: boolean) => void;
+  nodeCount?: number;
+  edgeCount?: number;
   showGrid?: boolean;
   onShowGridToggle?: (show: boolean) => void;
 }
@@ -190,7 +197,9 @@ export default function ExploreControlPanel({
   useSpatialHash = false,
   onSpatialHashToggle,
   showGrid = true,
-  onShowGridToggle
+  onShowGridToggle,
+  nodeCount = 0,
+  edgeCount = 0
 }: ExploreControlPanelProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [physicsValues, setPhysicsValues] = useState<Record<string, number>>(
@@ -235,7 +244,17 @@ export default function ExploreControlPanel({
   return (
     <Panel $collapsed={collapsed}>
       <Header onClick={() => setCollapsed(!collapsed)}>
-        Controls
+        <span>Controls</span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 400,
+            color: '#888',
+            marginLeft: 8
+          }}
+        >
+          {nodeCount} nodes · {edgeCount} edges
+        </span>
         {collapsed ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />}
       </Header>
 
@@ -276,6 +295,60 @@ export default function ExploreControlPanel({
               {s.label}
             </CheckRow>
           ))}
+
+          {/* Dictionary group with sub-sections */}
+          <CheckRow>
+            <input
+              type="checkbox"
+              checked={DICT_SECTIONS.some((d) => sections.includes(d.key))}
+              onChange={() => {
+                const allDictKeys = DICT_SECTIONS.map((d) => d.key);
+                const anyOn = allDictKeys.some((k) => sections.includes(k));
+                const filtered = sections.filter(
+                  (s) => !allDictKeys.includes(s)
+                );
+                onChange({
+                  ...options,
+                  sections: anyOn ? filtered : [...filtered, ...allDictKeys],
+                  showDictInternal: !anyOn
+                });
+              }}
+            />
+            <Dot $colour="#4CAF50" />
+            Dictionaries
+          </CheckRow>
+          <div style={{ paddingLeft: 20 }}>
+            {DICT_SECTIONS.map((d) => (
+              <CheckRow key={d.key} style={{ fontSize: 11 }}>
+                <input
+                  type="checkbox"
+                  checked={sections.includes(d.key)}
+                  onChange={() => {
+                    toggleSection(d.key);
+                    // Also update showDictInternal based on whether any dict is on
+                    const willBeOn = !sections.includes(d.key);
+                    const otherDicts = DICT_SECTIONS.filter(
+                      (dd) => dd.key !== d.key
+                    );
+                    const anyOtherOn = otherDicts.some((dd) =>
+                      sections.includes(dd.key)
+                    );
+                    if (willBeOn || anyOtherOn) {
+                      onChange({
+                        ...options,
+                        sections: willBeOn
+                          ? [...sections, d.key]
+                          : sections.filter((s) => s !== d.key),
+                        showDictInternal: true
+                      });
+                    }
+                  }}
+                />
+                <Dot $colour={d.colour} />
+                {d.label}
+              </CheckRow>
+            ))}
+          </div>
         </div>
 
         {/* depth */}
