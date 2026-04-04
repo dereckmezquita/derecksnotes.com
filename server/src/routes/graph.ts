@@ -115,4 +115,61 @@ router.post(
   }
 );
 
+// ============================================================================
+// SSE: Live updates for the graph
+// ============================================================================
+
+// Store active SSE connections
+const sseClients = new Set<{
+  res: import('express').Response;
+  id: string;
+}>();
+
+export function notifyGraphClients(event: {
+  type: 'comment' | 'reaction' | 'new-post';
+  nodeId?: string;
+  data: Record<string, unknown>;
+}): void {
+  const payload = `data: ${JSON.stringify(event)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.res.write(payload);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// GET /api/v1/graph/live — SSE endpoint for real-time updates
+router.get('/live', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no' // disable nginx buffering for SSE
+  });
+
+  // Send initial keepalive
+  res.write(': connected\n\n');
+
+  const client = { res, id: crypto.randomUUID() };
+  sseClients.add(client);
+
+  // Keepalive every 30 seconds
+  const keepalive = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+    } catch {
+      clearInterval(keepalive);
+      sseClients.delete(client);
+    }
+  }, 30000);
+
+  // Cleanup on close
+  req.on('close', () => {
+    clearInterval(keepalive);
+    sseClients.delete(client);
+  });
+});
+
 export default router;

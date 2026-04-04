@@ -102,6 +102,28 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
       return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Configure d3 forces after graph component mounts
+    useEffect(() => {
+      if (!fgRef.current) return;
+      const fg = fgRef.current;
+      // Strong charge repulsion to spread nodes apart
+      if (fg.d3Force) {
+        fg.d3Force('charge')?.strength(-30);
+        fg.d3Force('link')?.distance(30);
+        console.log('[Explore] D3 forces configured via ref');
+        fg.d3ReheatSimulation?.();
+        // Position camera to see the graph after simulation settles
+        setTimeout(() => {
+          fg.cameraPosition?.({ x: 0, y: 0, z: 500 });
+          console.log('[Explore] Camera positioned');
+        }, 2000);
+        setTimeout(() => {
+          fg.zoomToFit?.(1000, 100);
+          console.log('[Explore] Zoomed to fit');
+        }, 5000);
+      }
+    }, [nodes, edges]);
+
     // degree map for node sizing
     const degreeMap = useMemo(() => {
       const m: Record<string, number> = {};
@@ -129,12 +151,22 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
     }, [nodes, searchTerm]);
 
     // graph data in force-graph format
+    // IMPORTANT: react-force-graph expects { source, target } on links, not { sourceId, targetId }
     const graphData = useMemo(() => {
       const forceNodes: ForceNode[] = nodes.map((n) => ({
         ...n,
         __degree: degreeMap[n.id] || 0
       }));
-      const forceEdges: ForceEdge[] = edges.map((e) => ({ ...e }));
+      const forceEdges = edges.map((e) => ({
+        source: (e as any).sourceId ?? (e as any).source,
+        target: (e as any).targetId ?? (e as any).target,
+        edgeType: e.edgeType,
+        weight: e.weight
+      }));
+      console.log(
+        `[Explore] Graph data: ${forceNodes.length} nodes, ${forceEdges.length} links. Sample link:`,
+        forceEdges[0]
+      );
       return { nodes: forceNodes, links: forceEdges };
     }, [nodes, edges, degreeMap]);
 
@@ -205,7 +237,7 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
             geometry = new THREE.SphereGeometry(size, 16, 16);
         }
 
-        const material = new THREE.MeshLambertMaterial({
+        const material = new THREE.MeshBasicMaterial({
           color: colour,
           transparent: true,
           opacity
@@ -252,18 +284,19 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
         width={dimensions.width}
         height={dimensions.height}
         backgroundColor="#0a0a14"
-        nodeThreeObject={nodeThreeObject}
-        nodeLabel={nodeLabel}
-        linkColor={linkColour}
-        linkWidth={linkWidth}
-        linkOpacity={1}
-        linkDirectionalParticles={0}
+        nodeColor={(node: any) => sectionColour(node.section || 'blog')}
+        nodeRelSize={6}
+        nodeVal={(node: any) => 3 + Math.log2(1 + (node.__degree || 0)) * 2}
+        nodeLabel={(node: any) => node.title || node.id}
+        linkColor={() => 'rgba(255,255,255,0.2)'}
+        linkWidth={0.5}
         onNodeClick={handleNodeClick}
         onBackgroundClick={() => onNodeClick(null)}
         enableNodeDrag={true}
-        cooldownTicks={150}
-        d3AlphaDecay={0.02}
-        d3VelocityDecay={0.3}
+        cooldownTicks={300}
+        warmupTicks={0}
+        d3AlphaDecay={0.01}
+        d3VelocityDecay={0.2}
       />
     );
   }

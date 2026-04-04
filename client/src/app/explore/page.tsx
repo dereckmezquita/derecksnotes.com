@@ -14,13 +14,10 @@ import ExploreDetailPanel from '@/components/pages/explore/ExploreDetailPanel';
 import ExploreSearchBar from '@/components/pages/explore/ExploreSearchBar';
 import type { ExploreGraphHandle } from '@/components/pages/explore/ExploreGraph';
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NEXT_PUBLIC_BUILD_ENV === 'prod'
-    ? 'https://derecksnotes.com/api'
-    : process.env.NEXT_PUBLIC_BUILD_ENV === 'dev'
-      ? 'https://dev.derecksnotes.com/api'
-      : 'http://localhost:3000/api');
+import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
+
+const BUILD_ENV = (process.env.NEXT_PUBLIC_BUILD_ENV as BuildEnv) || 'local';
+const API_URL = ENV_CONFIG[BUILD_ENV].apiUrl;
 
 // dynamic import -- 3d-force-graph requires window / WebGL
 const ExploreGraph = dynamic(
@@ -37,12 +34,10 @@ const ExploreGraph = dynamic(
 
 // ── styled ───────────────────────────────────────────────────────────
 const PageWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: #0a0a14;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 120px);
+  background: #1a1a2e;
   overflow: hidden;
 `;
 
@@ -54,8 +49,8 @@ const LoadingOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 40;
-  background: #0a0a14;
-  color: #555;
+  background: rgba(0, 0, 0, 0.3);
+  color: #888;
   gap: 16px;
 `;
 
@@ -99,12 +94,13 @@ const StatsBar = styled.div`
 // ── default query options ────────────────────────────────────────────
 const DEFAULT_OPTIONS: GraphQueryOptions = {
   sections: ['blog', 'courses', 'references', 'dictionaries'],
-  depth: 1,
+  depth: 0,
   minEdges: 0,
   edgeTypes: ['explicit-link', 'tag-similarity', 'nlp-similarity'],
   showDictInternal: false,
   showComments: false,
-  showExternal: false
+  showExternal: false,
+  limit: 2000
 };
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -143,12 +139,17 @@ export default function ExplorePage() {
       setLoading(true);
       setError(null);
       const qs = buildQueryString(opts);
-      const res = await fetch(`${API_URL}/api/v1/graph?${qs}`);
+      const url = `${API_URL}/api/v1/graph?${qs}`;
+      console.log('[Explore] Fetching graph:', url);
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = (await res.json()) as GraphData;
+      console.log(
+        `[Explore] Loaded ${data.nodes.length} nodes, ${data.edges.length} edges`
+      );
       setGraphData(data);
     } catch (err: any) {
-      console.error('Failed to fetch graph:', err);
+      console.error('[Explore] Failed to fetch graph:', err);
       setError(err.message || 'Failed to load graph data');
     } finally {
       setLoading(false);

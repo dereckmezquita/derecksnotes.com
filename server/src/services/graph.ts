@@ -6,6 +6,7 @@ import { db, schema } from '@db/index';
 import { config } from '@lib/env';
 import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import { mdxToPlainText } from '@services/search';
+import natural from 'natural';
 
 // ============================================================================
 // Types
@@ -65,221 +66,12 @@ const IGNORED_DIRS = [
 const SECTIONS = ['blog', 'courses', 'references'];
 const DICT_SUBJECTS = ['biology', 'chemistry', 'mathematics'];
 
-const STOP_WORDS = new Set([
-  'a',
-  'about',
-  'above',
-  'after',
-  'again',
-  'against',
-  'all',
-  'also',
-  'am',
-  'an',
-  'and',
-  'any',
-  'are',
-  'aren',
-  'arent',
-  'as',
-  'at',
-  'be',
-  'because',
-  'been',
-  'before',
-  'being',
-  'below',
-  'between',
-  'both',
-  'but',
-  'by',
-  'can',
-  'cannot',
-  'could',
-  'couldn',
-  'couldnt',
-  'd',
-  'did',
-  'didn',
-  'didnt',
-  'do',
-  'does',
-  'doesn',
-  'doesnt',
-  'doing',
-  'don',
-  'dont',
-  'down',
-  'during',
-  'each',
-  'even',
-  'few',
-  'first',
-  'for',
-  'from',
-  'further',
-  'get',
-  'gets',
-  'got',
-  'had',
-  'hadn',
-  'hadnt',
-  'has',
-  'hasn',
-  'hasnt',
-  'have',
-  'haven',
-  'havent',
-  'having',
-  'he',
-  'her',
-  'here',
-  'hers',
-  'herself',
-  'him',
-  'himself',
-  'his',
-  'how',
-  'however',
-  'i',
-  'if',
-  'in',
-  'into',
-  'is',
-  'isn',
-  'isnt',
-  'it',
-  'its',
-  'itself',
-  'just',
-  'know',
-  'let',
-  'lets',
-  'll',
-  'm',
-  'made',
-  'make',
-  'makes',
-  'many',
-  'may',
-  'me',
-  'might',
-  'mightn',
-  'more',
-  'most',
-  'much',
-  'must',
-  'mustn',
-  'my',
-  'myself',
-  'need',
-  'needn',
-  'new',
-  'no',
-  'nor',
-  'not',
-  'now',
-  'o',
-  'of',
-  'off',
-  'often',
-  'on',
-  'once',
-  'only',
-  'or',
-  'other',
-  'ought',
-  'our',
-  'ours',
-  'ourselves',
-  'out',
-  'over',
-  'own',
-  'part',
-  'per',
-  're',
-  's',
-  'said',
-  'same',
-  'say',
-  'see',
-  'shall',
-  'shan',
-  'she',
-  'should',
-  'shouldn',
-  'shouldnt',
-  'since',
-  'so',
-  'some',
-  'still',
-  'such',
-  'sure',
-  't',
-  'take',
-  'than',
-  'that',
-  'the',
-  'their',
-  'theirs',
-  'them',
-  'themselves',
-  'then',
-  'there',
-  'therefore',
-  'these',
-  'they',
-  'thing',
-  'this',
-  'those',
-  'through',
-  'to',
-  'too',
-  'under',
-  'until',
-  'up',
-  'upon',
-  'us',
-  'use',
-  'used',
-  'using',
-  've',
-  'very',
-  'via',
-  'want',
-  'was',
-  'wasn',
-  'wasnt',
-  'we',
-  'well',
-  'were',
-  'weren',
-  'werent',
-  'what',
-  'when',
-  'where',
-  'which',
-  'while',
-  'who',
-  'whom',
-  'whose',
-  'why',
-  'will',
-  'with',
-  'within',
-  'without',
-  'won',
-  'wont',
-  'would',
-  'wouldn',
-  'wouldnt',
-  'yet',
-  'you',
-  'your',
-  'yours',
-  'yourself',
-  'yourselves',
-  // common web/code terms to filter
+// NLP tools from natural library
+const tokenizer = new natural.WordTokenizer();
+const stemmer = natural.PorterStemmer;
+const stopwords = new Set(natural.stopwords);
+// Additional code/web stop words not in natural's list
+const CODE_STOP_WORDS = new Set([
   'http',
   'https',
   'www',
@@ -325,24 +117,7 @@ const STOP_WORDS = new Set([
   'span',
   'pre',
   'code',
-  'example',
-  'one',
-  'two',
-  'three',
-  'also',
-  'like',
-  'would',
-  'could',
-  'should',
-  'will',
-  'can',
-  'may',
-  'might',
-  'must',
-  'shall',
-  'need',
-  'get',
-  'set'
+  'example'
 ]);
 
 // ============================================================================
@@ -376,16 +151,17 @@ function now(): string {
 function extractKeyTerms(text: string): Map<string, number> {
   const terms = new Map<string, number>();
 
-  // Tokenise: split on whitespace and punctuation, lowercase
-  const tokens = text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length > 2 && !STOP_WORDS.has(t));
+  // Use natural's tokenizer
+  const tokens = tokenizer.tokenize(text.toLowerCase()) || [];
+
+  // Filter stop words (natural's + our code stop words) and short tokens
+  const filtered = tokens.filter(
+    (t) => t.length > 2 && !stopwords.has(t) && !CODE_STOP_WORDS.has(t)
+  );
 
   // Count single-word frequencies
   const wordFreq = new Map<string, number>();
-  for (const token of tokens) {
+  for (const token of filtered) {
     wordFreq.set(token, (wordFreq.get(token) || 0) + 1);
   }
 
@@ -396,27 +172,26 @@ function extractKeyTerms(text: string): Map<string, number> {
     }
   }
 
-  // Extract bigrams (consecutive non-stop-word pairs)
-  for (let i = 0; i < tokens.length - 1; i++) {
-    const bigram = `${tokens[i]} ${tokens[i + 1]}`;
-    if (bigram.length > 6) {
-      terms.set(bigram, (terms.get(bigram) || 0) + 1);
+  // Use natural's NGrams for bigrams and trigrams
+  const bigrams = natural.NGrams.bigrams(filtered);
+  for (const bg of bigrams) {
+    const key = bg.join(' ');
+    if (key.length > 6) {
+      terms.set(key, (terms.get(key) || 0) + 1);
     }
   }
 
-  // Extract trigrams
-  for (let i = 0; i < tokens.length - 2; i++) {
-    const trigram = `${tokens[i]} ${tokens[i + 1]} ${tokens[i + 2]}`;
-    if (trigram.length > 10) {
-      terms.set(trigram, (terms.get(trigram) || 0) + 1);
+  const trigrams = natural.NGrams.trigrams(filtered);
+  for (const tg of trigrams) {
+    const key = tg.join(' ');
+    if (key.length > 10) {
+      terms.set(key, (terms.get(key) || 0) + 1);
     }
   }
 
   // Filter: only terms appearing 2+ times
   for (const [term, freq] of terms) {
-    if (freq < 2) {
-      terms.delete(term);
-    }
+    if (freq < 2) terms.delete(term);
   }
 
   return terms;
@@ -567,56 +342,26 @@ function scanDirForFiles(
 // TF-IDF Computation
 // ============================================================================
 
-function computeTfIdf(
-  documents: Map<string, Map<string, number>>
-): Map<string, Map<string, number>> {
-  const N = documents.size;
-  if (N === 0) return new Map();
-
-  // Compute document frequency for each term
-  const df = new Map<string, number>();
-  for (const termFreqs of documents.values()) {
-    for (const term of termFreqs.keys()) {
-      df.set(term, (df.get(term) || 0) + 1);
-    }
-  }
-
-  // Compute TF-IDF for each document
-  const tfidfVectors = new Map<string, Map<string, number>>();
+function computeTfIdf(documents: Map<string, Map<string, number>>): {
+  tfidfInstance: natural.TfIdf;
+  nodeIds: string[];
+} {
+  const tfidf = new natural.TfIdf();
+  const nodeIds: string[] = [];
 
   for (const [nodeId, termFreqs] of documents) {
-    const maxFreq = Math.max(...termFreqs.values());
-    if (maxFreq === 0) continue;
-
-    const tfidf = new Map<string, number>();
+    // Reconstruct the document text from term frequencies
+    const docTokens: string[] = [];
     for (const [term, freq] of termFreqs) {
-      const tf = freq / maxFreq;
-      const idf = Math.log(N / (df.get(term) || 1));
-      tfidf.set(term, tf * idf);
+      for (let i = 0; i < freq; i++) {
+        docTokens.push(term);
+      }
     }
-
-    tfidfVectors.set(nodeId, tfidf);
+    tfidf.addDocument(docTokens.join(' '));
+    nodeIds.push(nodeId);
   }
 
-  return tfidfVectors;
-}
-
-function vectorToArray(vec: Map<string, number>, allTerms: string[]): number[] {
-  return allTerms.map((t) => vec.get(t) || 0);
-}
-
-function normaliseVector(v: number[]): number[] {
-  const mag = Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
-  if (mag === 0) return v;
-  return v.map((x) => x / mag);
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += (a[i] ?? 0) * (b[i] ?? 0);
-  }
-  return dot; // vectors are already normalised
+  return { tfidfInstance: tfidf, nodeIds };
 }
 
 // ============================================================================
@@ -630,7 +375,6 @@ export function buildGraphIndex(): void {
   const timestamp = now();
 
   // Clear existing graph tables (full rebuild)
-  sqlite.exec('DELETE FROM graph_vectors');
   sqlite.exec('DELETE FROM graph_key_terms');
   sqlite.exec('DELETE FROM graph_edges');
   sqlite.exec('DELETE FROM graph_nodes');
@@ -641,296 +385,298 @@ export function buildGraphIndex(): void {
   const pageTermDocs = new Map<string, Map<string, number>>();
   // Map path -> nodeId for linking
   const pathToNodeId = new Map<string, string>();
+  // Deferred internal links: resolved after all files processed
+  const pendingInternalLinks: Array<{
+    sourceId: string;
+    targetPath: string;
+    linkText: string;
+  }> = [];
 
   let nodeCount = 0;
   let edgeCount = 0;
 
-  // Prepared statements for batch inserts
+  // Prepared statements for batch inserts (OR IGNORE to handle duplicates gracefully)
   const insertNode = sqlite.prepare(`
-    INSERT INTO graph_nodes (id, path, title, section, category, tags, date, author, snippet, node_type, parent_id, depth, metadata, content_hash, created_at, updated_at)
+    INSERT OR IGNORE INTO graph_nodes (id, path, title, section, category, tags, date, author, snippet, node_type, parent_id, depth, metadata, content_hash, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertEdge = sqlite.prepare(`
-    INSERT INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
+    INSERT OR IGNORE INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertKeyTerm = sqlite.prepare(`
-    INSERT INTO graph_key_terms (id, node_id, term, frequency, tfidf)
+    INSERT OR IGNORE INTO graph_key_terms (id, node_id, term, frequency, tfidf)
     VALUES (?, ?, ?, ?, ?)
   `);
 
-  const insertVector = sqlite.prepare(`
-    INSERT INTO graph_vectors (id, node_id, vector)
-    VALUES (?, ?, ?)
-  `);
+  // Process each file in its own transaction so one failure doesn't roll back all files
+  const processOneFile = sqlite.transaction((file: FileEntry) => {
+    const raw = fs.readFileSync(file.filePath, 'utf-8');
+    const { data: frontmatter, content } = matter(raw);
 
-  // Process all files in a transaction
-  const processFiles = sqlite.transaction(() => {
-    for (const file of files) {
-      try {
-        const raw = fs.readFileSync(file.filePath, 'utf-8');
-        const { data: frontmatter, content } = matter(raw);
+    // Only index published content
+    if (frontmatter.published !== true) return;
 
-        // Only index published content
-        if (frontmatter.published !== true) continue;
+    const plainText = mdxToPlainText(content);
+    const hash = contentHash(raw);
+    const pageId = crypto.randomUUID();
 
-        const plainText = mdxToPlainText(content);
-        const hash = contentHash(raw);
-        const pageId = crypto.randomUUID();
+    const tags = Array.isArray(frontmatter.tags)
+      ? frontmatter.tags.join(',')
+      : '';
+    const snippet = plainText.substring(0, 200);
+    const dateStr = frontmatter.date
+      ? new Date(frontmatter.date).toISOString()
+      : null;
 
-        const tags = Array.isArray(frontmatter.tags)
-          ? frontmatter.tags.join(',')
-          : '';
-        const snippet = plainText.substring(0, 200);
-        const dateStr = frontmatter.date
-          ? new Date(frontmatter.date).toISOString()
-          : null;
+    // Check for duplicate path — skip if already indexed
+    const existingNode = sqlite
+      .prepare('SELECT id FROM graph_nodes WHERE path = ?')
+      .get(file.urlPath) as { id: string } | null;
 
-        // Create page node (depth 0)
-        insertNode.run(
-          pageId,
-          file.urlPath,
-          frontmatter.title || file.slug,
-          file.section,
-          frontmatter.category || null,
-          tags || null,
-          dateStr,
-          frontmatter.author || null,
-          snippet,
-          'page',
-          null,
-          0,
-          null,
-          hash,
-          timestamp,
-          timestamp
-        );
-        nodeCount++;
-        pathToNodeId.set(file.urlPath, pageId);
-
-        // Extract headings -> heading nodes (depth 1)
-        const headings = extractHeadings(content);
-        for (const heading of headings) {
-          const headingId = crypto.randomUUID();
-          const headingPath = `${file.urlPath}#${heading.anchor}`;
-
-          insertNode.run(
-            headingId,
-            headingPath,
-            heading.text,
-            file.section,
-            null,
-            null,
-            null,
-            null,
-            null,
-            'heading',
-            pageId,
-            1,
-            JSON.stringify({ level: heading.level }),
-            null,
-            timestamp,
-            timestamp
-          );
-          nodeCount++;
-
-          // Edge: page -> heading
-          insertEdge.run(
-            crypto.randomUUID(),
-            pageId,
-            headingId,
-            'explicit-link',
-            50,
-            null,
-            timestamp
-          );
-          edgeCount++;
-        }
-
-        // Extract key terms
-        const terms = extractKeyTerms(plainText);
-        pageTermDocs.set(pageId, terms);
-
-        // Create key-term nodes (depth 2) for top terms
-        const sortedTerms = [...terms.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 30); // limit to top 30 terms per page
-
-        for (const [term, freq] of sortedTerms) {
-          const termId = crypto.randomUUID();
-          const termPath = `${file.urlPath}#term:${term.replace(/\s+/g, '-')}`;
-
-          insertNode.run(
-            termId,
-            termPath,
-            term,
-            file.section,
-            null,
-            null,
-            null,
-            null,
-            null,
-            'key-term',
-            pageId,
-            2,
-            JSON.stringify({ frequency: freq }),
-            null,
-            timestamp,
-            timestamp
-          );
-          nodeCount++;
-
-          insertKeyTerm.run(
-            crypto.randomUUID(),
-            termId,
-            term,
-            freq,
-            null // TF-IDF computed later
-          );
-
-          // Edge: page -> key-term
-          insertEdge.run(
-            crypto.randomUUID(),
-            pageId,
-            termId,
-            'explicit-link',
-            Math.min(freq * 10, 100),
-            null,
-            timestamp
-          );
-          edgeCount++;
-        }
-
-        // Extract internal links -> edges
-        const links = extractLinks(content);
-        for (const link of links) {
-          if (link.isInternal) {
-            // Normalise the path
-            const normPath = link.href.split('#')[0]?.split('?')[0] ?? '';
-            // Store for later resolution (target may not exist yet)
-            const edgeId = crypto.randomUUID();
-            // We'll resolve these after all files are processed
-            insertEdge.run(
-              edgeId,
-              pageId,
-              `__unresolved:${normPath}`,
-              'explicit-link',
-              30,
-              JSON.stringify({ linkText: link.text }),
-              timestamp
-            );
-            edgeCount++;
-          } else {
-            // External link -> create external-link node + edge
-            const extId = crypto.randomUUID();
-            const extPath = `__external:${link.href}`;
-
-            // Check if we already have this external link node
-            // Use a simple path-based dedup via pathToNodeId
-            let existingExtId = pathToNodeId.get(extPath);
-            if (!existingExtId) {
-              insertNode.run(
-                extId,
-                extPath,
-                link.text || link.href,
-                'external',
-                null,
-                null,
-                null,
-                null,
-                null,
-                'external-link',
-                null,
-                0,
-                JSON.stringify({ url: link.href }),
-                null,
-                timestamp,
-                timestamp
-              );
-              nodeCount++;
-              pathToNodeId.set(extPath, extId);
-              existingExtId = extId;
-            }
-
-            insertEdge.run(
-              crypto.randomUUID(),
-              pageId,
-              existingExtId,
-              'external-link',
-              10,
-              null,
-              timestamp
-            );
-            edgeCount++;
-          }
-        }
-      } catch (err) {
-        console.warn(`Failed to process ${file.filePath}:`, err);
-      }
+    if (existingNode) {
+      // Already indexed, skip this file
+      pathToNodeId.set(file.urlPath, existingNode.id);
+      return;
     }
 
-    // Resolve unresolved internal link edges
-    const unresolvedEdges = sqlite
-      .prepare(
-        `SELECT id, target_id FROM graph_edges WHERE target_id LIKE '__unresolved:%'`
-      )
-      .all() as Array<{ id: string; target_id: string }>;
+    // Create page node (depth 0)
+    insertNode.run(
+      pageId,
+      file.urlPath,
+      frontmatter.title || file.slug,
+      file.section,
+      frontmatter.category || null,
+      tags || null,
+      dateStr,
+      frontmatter.author || null,
+      snippet,
+      'page',
+      null,
+      0,
+      null,
+      hash,
+      timestamp,
+      timestamp
+    );
+    nodeCount++;
+    pathToNodeId.set(file.urlPath, pageId);
 
-    for (const edge of unresolvedEdges) {
-      const targetPath = edge.target_id.replace('__unresolved:', '');
-      const targetNodeId = pathToNodeId.get(targetPath);
+    // Extract headings -> heading nodes (depth 1)
+    const headings = extractHeadings(content);
+    for (const heading of headings) {
+      const headingId = crypto.randomUUID();
+      const headingPath = `${file.urlPath}#${heading.anchor}`;
 
-      if (targetNodeId) {
-        sqlite
-          .prepare(`UPDATE graph_edges SET target_id = ? WHERE id = ?`)
-          .run(targetNodeId, edge.id);
+      insertNode.run(
+        headingId,
+        headingPath,
+        heading.text,
+        file.section,
+        null,
+        null,
+        null,
+        null,
+        null,
+        'heading',
+        pageId,
+        1,
+        JSON.stringify({ level: heading.level }),
+        null,
+        timestamp,
+        timestamp
+      );
+      nodeCount++;
+
+      // Edge: page -> heading
+      insertEdge.run(
+        crypto.randomUUID(),
+        pageId,
+        headingId,
+        'explicit-link',
+        50,
+        null,
+        timestamp
+      );
+      edgeCount++;
+    }
+
+    // Extract key terms
+    const terms = extractKeyTerms(plainText);
+    pageTermDocs.set(pageId, terms);
+
+    // Create key-term nodes (depth 2) for top terms
+    const sortedTerms = [...terms.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30); // limit to top 30 terms per page
+
+    for (const [term, freq] of sortedTerms) {
+      const termId = crypto.randomUUID();
+      const termPath = `${file.urlPath}#term:${term.replace(/\s+/g, '-')}`;
+
+      insertNode.run(
+        termId,
+        termPath,
+        term,
+        file.section,
+        null,
+        null,
+        null,
+        null,
+        null,
+        'key-term',
+        pageId,
+        2,
+        JSON.stringify({ frequency: freq }),
+        null,
+        timestamp,
+        timestamp
+      );
+      nodeCount++;
+
+      insertKeyTerm.run(
+        crypto.randomUUID(),
+        termId,
+        term,
+        freq,
+        null // TF-IDF computed later
+      );
+
+      // Edge: page -> key-term
+      insertEdge.run(
+        crypto.randomUUID(),
+        pageId,
+        termId,
+        'explicit-link',
+        Math.min(freq * 10, 100),
+        null,
+        timestamp
+      );
+      edgeCount++;
+    }
+
+    // Extract internal links -> edges
+    const links = extractLinks(content);
+    for (const link of links) {
+      if (link.isInternal) {
+        // Defer internal links — target node may not exist yet
+        const normPath = link.href.split('#')[0]?.split('?')[0] ?? '';
+        pendingInternalLinks.push({
+          sourceId: pageId,
+          targetPath: normPath,
+          linkText: link.text
+        });
       } else {
-        // Target doesn't exist — remove the edge
-        sqlite.prepare(`DELETE FROM graph_edges WHERE id = ?`).run(edge.id);
-        edgeCount--;
+        // External link -> create external-link node + edge
+        const extId = crypto.randomUUID();
+        const extPath = `__external:${link.href}`;
+
+        // Check if we already have this external link node
+        // Use a simple path-based dedup via pathToNodeId
+        let existingExtId = pathToNodeId.get(extPath);
+        if (!existingExtId) {
+          insertNode.run(
+            extId,
+            extPath,
+            link.text || link.href,
+            'external',
+            null,
+            null,
+            null,
+            null,
+            null,
+            'external-link',
+            null,
+            0,
+            JSON.stringify({ url: link.href }),
+            null,
+            timestamp,
+            timestamp
+          );
+          nodeCount++;
+          pathToNodeId.set(extPath, extId);
+          existingExtId = extId;
+        }
+
+        insertEdge.run(
+          crypto.randomUUID(),
+          pageId,
+          existingExtId,
+          'external-link',
+          10,
+          null,
+          timestamp
+        );
+        edgeCount++;
       }
     }
   });
 
-  processFiles();
+  for (const file of files) {
+    try {
+      processOneFile(file);
+    } catch (e: any) {
+      console.warn(
+        `Skipped ${path.basename(file.filePath)}: ${e.message?.split('\n')[0]}`
+      );
+    }
+  }
+
+  // Resolve unresolved internal link edges
+  // Resolve deferred internal links now that all nodes exist
+  // First, get the set of existing node IDs to filter out rolled-back sources
+  const existingIds = new Set(
+    (
+      sqlite.prepare('SELECT id FROM graph_nodes').all() as Array<{
+        id: string;
+      }>
+    ).map((r) => r.id)
+  );
+
+  console.log(`Resolving ${pendingInternalLinks.length} internal links...`);
+  let resolvedCount = 0;
+  const resolveLinks = sqlite.transaction(() => {
+    for (const link of pendingInternalLinks) {
+      if (!existingIds.has(link.sourceId)) continue; // source was rolled back
+      const targetNodeId = pathToNodeId.get(link.targetPath);
+      if (
+        targetNodeId &&
+        existingIds.has(targetNodeId) &&
+        link.sourceId !== targetNodeId
+      ) {
+        insertEdge.run(
+          crypto.randomUUID(),
+          link.sourceId,
+          targetNodeId,
+          'explicit-link',
+          30,
+          JSON.stringify({ linkText: link.linkText }),
+          timestamp
+        );
+        edgeCount++;
+        resolvedCount++;
+      }
+    }
+  });
+  resolveLinks();
+  console.log(`  Resolved ${resolvedCount} internal link edges`);
 
   // Compute TF-IDF vectors
   console.log('Computing TF-IDF vectors...');
-  const tfidfVectors = computeTfIdf(pageTermDocs);
-
-  // Collect all unique terms across all documents
-  const allTermsSet = new Set<string>();
-  for (const vec of tfidfVectors.values()) {
-    for (const term of vec.keys()) {
-      allTermsSet.add(term);
+  // Filter out nodeIds that were rolled back (skipped files)
+  for (const nodeId of pageTermDocs.keys()) {
+    if (!existingIds.has(nodeId)) {
+      pageTermDocs.delete(nodeId);
     }
   }
-  const allTerms = [...allTermsSet].sort();
 
-  // Store vectors and compute key-term TF-IDF scores
-  const storeVectors = sqlite.transaction(() => {
-    for (const [nodeId, tfidfMap] of tfidfVectors) {
-      const vecArray = normaliseVector(vectorToArray(tfidfMap, allTerms));
-      // Only store non-zero entries to save space
-      const sparseVec: Record<number, number> = {};
-      for (let i = 0; i < vecArray.length; i++) {
-        const val = vecArray[i] ?? 0;
-        if (val > 0.001) {
-          sparseVec[i] = Math.round(val * 10000) / 10000;
-        }
-      }
-
-      insertVector.run(crypto.randomUUID(), nodeId, JSON.stringify(sparseVec));
-    }
-  });
-
-  storeVectors();
+  const tfidfResult = computeTfIdf(pageTermDocs);
 
   // Compute similarity edges
   console.log('Computing similarity edges...');
-  computeSimilarityEdges(tfidfVectors, allTerms, 0.15, timestamp);
+  computeSimilarityEdges(tfidfResult, 0.15, timestamp);
 
   // Compute tag-similarity edges
   console.log('Computing tag similarity edges...');
@@ -961,53 +707,64 @@ export function buildGraphIndex(): void {
 // ============================================================================
 
 function computeSimilarityEdges(
-  tfidfVectors: Map<string, Map<string, number>>,
-  allTerms: string[],
+  tfidfResult: { tfidfInstance: natural.TfIdf; nodeIds: string[] },
   threshold: number,
   timestamp: string
 ): void {
-  const nodeIds = [...tfidfVectors.keys()];
-  const vectors = nodeIds.map((id) =>
-    normaliseVector(vectorToArray(tfidfVectors.get(id)!, allTerms))
+  const { tfidfInstance, nodeIds } = tfidfResult;
+  const N = nodeIds.length;
+  if (N < 2) return;
+
+  // Build term vectors from natural's TfIdf
+  // Collect all unique terms
+  const allTerms = new Set<string>();
+  for (let i = 0; i < N; i++) {
+    tfidfInstance.listTerms(i).forEach((item: { term: string }) => {
+      allTerms.add(item.term);
+    });
+  }
+  const termList = Array.from(allTerms);
+
+  // Build normalised vectors
+  const vectors: number[][] = [];
+  for (let i = 0; i < N; i++) {
+    const vec = termList.map((term) => tfidfInstance.tfidf(term, i));
+    const mag = Math.sqrt(vec.reduce((sum, x) => sum + x * x, 0));
+    vectors.push(mag > 0 ? vec.map((x) => x / mag) : vec);
+  }
+
+  // Compute cosine similarity for all pairs
+  const insertEdge = sqlite.prepare(
+    `INSERT OR IGNORE INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
+     VALUES (?, ?, ?, 'nlp-similarity', ?, NULL, ?)`
   );
 
-  const insertEdge = sqlite.prepare(`
-    INSERT INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  let similarityEdges = 0;
-
-  const insertSimilarities = sqlite.transaction(() => {
-    for (let i = 0; i < vectors.length; i++) {
-      const vecA = vectors[i];
-      const idA = nodeIds[i];
-      if (!vecA || !idA) continue;
-
-      for (let j = i + 1; j < vectors.length; j++) {
-        const vecB = vectors[j];
-        const idB = nodeIds[j];
-        if (!vecB || !idB) continue;
-
-        const sim = cosineSimilarity(vecA, vecB);
-        if (sim > threshold) {
+  const insertAll = sqlite.transaction(() => {
+    let edgeCount = 0;
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        let dot = 0;
+        for (let k = 0; k < termList.length; k++) {
+          dot += (vectors[i]![k] ?? 0) * (vectors[j]![k] ?? 0);
+        }
+        if (dot > threshold) {
           insertEdge.run(
             crypto.randomUUID(),
-            idA,
-            idB,
-            'nlp-similarity',
-            Math.round(sim * 100),
-            JSON.stringify({ similarity: Math.round(sim * 1000) / 1000 }),
+            nodeIds[i]!,
+            nodeIds[j]!,
+            Math.round(dot * 100),
             timestamp
           );
-          similarityEdges++;
+          edgeCount++;
         }
       }
     }
+    console.log(
+      `  NLP similarity: ${edgeCount} edges (threshold ${threshold})`
+    );
   });
 
-  insertSimilarities();
-  console.log(`  Created ${similarityEdges} NLP similarity edges`);
+  insertAll();
 }
 
 // ============================================================================
@@ -1023,7 +780,7 @@ function computeTagSimilarityEdges(timestamp: string): void {
     .all() as Array<{ id: string; tags: string }>;
 
   const insertEdge = sqlite.prepare(`
-    INSERT INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
+    INSERT OR IGNORE INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
@@ -1083,12 +840,12 @@ function mergeSocialData(timestamp: string): void {
     );
 
     const insertNode = sqlite.prepare(`
-      INSERT INTO graph_nodes (id, path, title, section, category, tags, date, author, snippet, node_type, parent_id, depth, metadata, content_hash, created_at, updated_at)
+      INSERT OR IGNORE INTO graph_nodes (id, path, title, section, category, tags, date, author, snippet, node_type, parent_id, depth, metadata, content_hash, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertEdge = sqlite.prepare(`
-      INSERT INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
+      INSERT OR IGNORE INTO graph_edges (id, source_id, target_id, edge_type, weight, metadata, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -1351,15 +1108,10 @@ export function getGraphStats(): Record<string, any> {
     .prepare('SELECT count(*) as c FROM graph_key_terms')
     .get() as { c: number };
 
-  const totalVectors = sqlite
-    .prepare('SELECT count(*) as c FROM graph_vectors')
-    .get() as { c: number };
-
   return {
     totalNodes: totalNodes.c,
     totalEdges: totalEdges.c,
     totalKeyTerms: totalKeyTerms.c,
-    totalVectors: totalVectors.c,
     nodesByType,
     edgesByType,
     nodesBySection
