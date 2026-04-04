@@ -26,7 +26,8 @@ for stationarity (via the Engle–Granger two-step method or the Johansen test).
 
 ```{r}
 library(data.table)
-library(egcm) # Engle-Granger cointegration method if installed
+library(ggplot2)
+
 set.seed(123)
 
 n <- 300
@@ -35,23 +36,12 @@ y <- 0.5*x + cumsum(rnorm(n, mean=0, sd=0.02))  # partially following x + noise
 
 dt_coin <- data.table(time=1:n, X=x, Y=y)
 
-# We'll use 'egcm' if installed, or just do a quick "lm then test residual" approach
-if(requireNamespace("egcm", quietly=TRUE)){
-  res_egcm <- egcm::egcm(x, y)
-  print(res_egcm)
-} else {
-  cat("Package 'egcm' not installed, skipping direct cointegration test.\n")
-}
-
-# We'll do a quick correlation approach
+# Fit linear model and extract residuals
 fit_lm <- lm(Y ~ X, data=dt_coin)
 summary(fit_lm)
-resid <- fit_lm
-# One might do an ADF test on resid for stationarity, skipping code if package not installed
 
-# Plot
-library(ggplot2)
-dt_coin[, residual := resid]
+# Plot residuals — if stationary, suggests cointegration
+dt_coin[, residual := residuals(fit_lm)]
 ggplot(dt_coin, aes(x=time)) +
   geom_line(aes(y=residual)) +
   labs(title="Residual from linear combination X_t - beta*Y_t", x="time", y="residual") +

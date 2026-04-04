@@ -37,8 +37,8 @@ pca_res <- prcomp(dt_pca[, .(x1, x2)], scale=TRUE)
 summary(pca_res)
 
 # Plot the principal components
-dt_scores <- data.table(pca_res)
-ggplot(dt_scores, aes(PC1, PC2)) + 
+dt_scores <- data.table(pca_res$x)
+ggplot(dt_scores, aes(PC1, PC2)) +
   geom_point() +
   labs(title="PCA of Synthetic 2D Data", x="PC1", y="PC2") +
   theme_minimal()

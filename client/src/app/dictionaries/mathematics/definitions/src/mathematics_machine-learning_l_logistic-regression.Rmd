@@ -44,7 +44,7 @@ summary(fit_logit)
 newx <- seq(-2,2,by=0.1)
 pred_prob <- predict(fit_logit, newdata=data.table(x=newx), type="response")
 
-plot(dt_logit, dt_logit, pch=19, 
+plot(dt_logit$x, dt_logit$y, pch=19,
      main="Logistic Regression Demo", xlab="x", ylab="Observed Class (0/1)")
 lines(newx, pred_prob, col="red", lwd=2)
 ```
