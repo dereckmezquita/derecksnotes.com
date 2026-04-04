@@ -9,10 +9,9 @@ import type {
 
 import { GraphSimulation, GraphRenderer } from '@/lib/graph';
 import type { SimNode, SimEdge } from '@/lib/graph';
-
+import type { SearchMode } from '@/lib/graph/GraphRenderer';
 import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
 import ExploreDetailPanel from '@/components/pages/explore/ExploreDetailPanel';
-import ExploreSearchBar from '@/components/pages/explore/ExploreSearchBar';
 
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
@@ -124,6 +123,7 @@ export default function ExplorePage() {
   const draggedNodeRef = useRef<string | null>(null);
   const panRef = useRef({ ox: 0, oy: 0, startX: 0, startY: 0, panning: false });
   const searchTermRef = useRef('');
+  const searchModeRef = useRef<SearchMode>('highlight');
   const graphDataRef = useRef<GraphData | null>(null);
 
   const [options, setOptions] = useState<GraphQueryOptions>(DEFAULT_OPTIONS);
@@ -132,6 +132,7 @@ export default function ExplorePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('highlight');
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
   const [useSpatialHash, setUseSpatialHash] = useState(true);
@@ -141,6 +142,9 @@ export default function ExplorePage() {
   useEffect(() => {
     searchTermRef.current = searchTerm;
   }, [searchTerm]);
+  useEffect(() => {
+    searchModeRef.current = searchMode;
+  }, [searchMode]);
   useEffect(() => {
     showGridRef.current = showGrid;
   }, [showGrid]);
@@ -462,7 +466,9 @@ export default function ExplorePage() {
           mouseRef.current.x,
           mouseRef.current.y,
           showGridRef.current,
-          useSpatialHashRef.current
+          useSpatialHashRef.current,
+          searchTermRef.current,
+          searchModeRef.current
         );
       } catch (err) {
         console.error('[Explore] draw() error:', err);
@@ -559,6 +565,8 @@ export default function ExplorePage() {
         onPhysicsChange={handlePhysicsChange}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
+        searchMode={searchMode}
+        onSearchModeChange={setSearchMode}
         useSpatialHash={useSpatialHash}
         onSpatialHashToggle={setUseSpatialHash}
         showGrid={showGrid}

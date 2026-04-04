@@ -34,6 +34,8 @@ function edgeColour(edgeType: string): [number, number, number, number] {
   return EDGE_COLOURS[edgeType] || DEFAULT_EDGE_COLOUR;
 }
 
+export type SearchMode = 'highlight' | 'filter';
+
 export class GraphRenderer {
   private renderer: WebGLRenderer;
   private textCtx: CanvasRenderingContext2D;
@@ -54,7 +56,9 @@ export class GraphRenderer {
     mouseX: number = 0,
     mouseY: number = 0,
     showGrid: boolean = true,
-    useSpatialHash: boolean = false
+    useSpatialHash: boolean = false,
+    searchTerm: string = '',
+    searchMode: SearchMode = 'highlight'
   ): void {
     // 1. Clear with solid white (needed for grid contrast, matching 404 page)
     this.renderer.clear(width, height, 1, 1, 1, 1);
@@ -64,8 +68,36 @@ export class GraphRenderer {
     const particles = sim.getParticles();
     const qt = sim.getQuadTree();
 
+    // ── Search matching ─────────────────────────────────────────────
+    const searching = searchTerm.length >= 2;
+    const needle = searchTerm.toLowerCase();
+
+    // Build a set of matching node IDs for fast lookup
+    let matchSet: Set<string> | null = null;
+    if (searching) {
+      matchSet = new Set<string>();
+      for (const node of nodes) {
+        const haystack = (
+          node.title +
+          ' ' +
+          node.section +
+          ' ' +
+          (Array.isArray(node.tags) ? node.tags.join(' ') : '')
+        ).toLowerCase();
+        if (haystack.includes(needle)) {
+          matchSet.add(node.id);
+        }
+      }
+    }
+
+    const isFiltering = searching && searchMode === 'filter';
+    const isHighlighting = searching && searchMode === 'highlight';
+
+    // Pulsating glow for highlight mode (oscillates between 0.4 and 1.0)
+    const pulseT = (Math.sin(performance.now() * 0.004) + 1) * 0.5;
+    const pulseAlpha = 0.4 + pulseT * 0.6;
+
     // 2. Gravitational grid (warped by particle masses)
-    // Higher strength than 404 page because graph nodes have distributed mass
     this.renderer.drawGravitationalGrid(
       width,
       height,
@@ -90,6 +122,14 @@ export class GraphRenderer {
       const edge = edges[i];
       const sp = edge.source.particle;
       const tp = edge.target.particle;
+
+      // In filter mode, hide edges where neither endpoint matches
+      if (isFiltering && matchSet) {
+        if (!matchSet.has(edge.source.id) && !matchSet.has(edge.target.id)) {
+          continue;
+        }
+      }
+
       // Highlight hovered edge
       if (hoveredEdge && edge === hoveredEdge) {
         this.renderer.addLine(
@@ -102,7 +142,6 @@ export class GraphRenderer {
           0.15,
           1.0
         );
-        // Draw a second thicker pass via slight offset lines for visibility
         this.renderer.addLine(
           sp.pos.x + 0.5,
           sp.pos.y + 0.5,
@@ -125,7 +164,19 @@ export class GraphRenderer {
         );
         continue;
       }
+
       const [er, eg, eb, ea] = edgeColour(edge.edgeType);
+
+      // In highlight mode, dim edges not connected to matches
+      let alpha = ea;
+      if (isHighlighting && matchSet) {
+        const srcMatch = matchSet.has(edge.source.id);
+        const tgtMatch = matchSet.has(edge.target.id);
+        if (!srcMatch && !tgtMatch) {
+          alpha = ea * 0.15;
+        }
+      }
+
       this.renderer.addLine(
         sp.pos.x,
         sp.pos.y,
@@ -134,7 +185,7 @@ export class GraphRenderer {
         er,
         eg,
         eb,
-        ea
+        alpha
       );
     }
 
@@ -143,7 +194,61 @@ export class GraphRenderer {
       const node = nodes[i];
       const p = node.particle;
       const [r, g, b] = sectionColour(node.section);
+
+      const isMatch = matchSet ? matchSet.has(node.id) : false;
+
+      if (isFiltering && matchSet && !isMatch) {
+        // Filter mode: hide non-matching nodes (draw very faint)
+        this.renderer.addFilledCircle(
+          p.pos.x,
+          p.pos.y,
+          p.radius,
+          r,
+          g,
+          b,
+          0.06
+        );
+        continue;
+      }
+
+      if (isHighlighting && matchSet && !isMatch) {
+        // Highlight mode: dim non-matching nodes
+        this.renderer.addFilledCircle(
+          p.pos.x,
+          p.pos.y,
+          p.radius,
+          r,
+          g,
+          b,
+          0.15
+        );
+        continue;
+      }
+
+      // Normal or matching node
       this.renderer.addFilledCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
+
+      // Matching node: draw pulsating orange glow ring
+      if (isMatch) {
+        this.renderer.addCircle(
+          p.pos.x,
+          p.pos.y,
+          p.radius + 5,
+          0.85,
+          0.45,
+          0.15,
+          pulseAlpha * 0.7
+        );
+        this.renderer.addCircle(
+          p.pos.x,
+          p.pos.y,
+          p.radius + 2,
+          0.85,
+          0.45,
+          0.15,
+          pulseAlpha
+        );
+      }
     }
 
     // 6. Selected node highlight — white outer ring + section-coloured inner ring
@@ -192,7 +297,8 @@ export class GraphRenderer {
       mouseX,
       mouseY,
       width,
-      height
+      height,
+      matchSet
     );
   }
 
@@ -205,7 +311,8 @@ export class GraphRenderer {
     mouseX: number,
     mouseY: number,
     width: number,
-    height: number
+    height: number,
+    matchSet: Set<string> | null = null
   ): void {
     const ctx = this.textCtx;
 
@@ -236,17 +343,25 @@ export class GraphRenderer {
       ctx.fillText(section.replace('dictionary-', ''), cx, cy);
     }
 
-    // ── Top 15 node labels (highest degree) ─────────────────────────
-    const topNodes = [...nodes]
-      .sort((a, b) => b.degree - a.degree)
-      .slice(0, 15);
-    for (const node of topNodes) {
-      ctx.font = '9px system-ui, sans-serif';
+    // ── Node labels ──────────────────────────────────────────────────
+    // When searching: label all matching nodes
+    // Otherwise: label top 15 by degree
+    const labelNodes = matchSet
+      ? nodes.filter((n) => matchSet.has(n.id))
+      : [...nodes].sort((a, b) => b.degree - a.degree).slice(0, 15);
+
+    for (const node of labelNodes) {
+      const isMatch = matchSet?.has(node.id);
+      ctx.font = isMatch
+        ? 'bold 10px system-ui, sans-serif'
+        : '9px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = 'rgba(80, 80, 80, 0.7)';
+      ctx.fillStyle = isMatch
+        ? 'rgba(180, 90, 30, 0.95)'
+        : 'rgba(80, 80, 80, 0.7)';
       const label =
-        node.title.length > 18 ? node.title.slice(0, 16) + '..' : node.title;
+        node.title.length > 22 ? node.title.slice(0, 20) + '..' : node.title;
       ctx.fillText(
         label,
         node.particle.pos.x,
@@ -295,8 +410,17 @@ export class GraphRenderer {
 
       // Show shared tags for tag-similarity edges
       if (hoveredEdge.edgeType === 'tag-similarity') {
-        const srcTags = new Set(hoveredEdge.source.tags || []);
-        const shared = (hoveredEdge.target.tags || []).filter((t) =>
+        const toArr = (t: string[] | string | undefined): string[] =>
+          Array.isArray(t)
+            ? t
+            : typeof t === 'string'
+              ? t
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [];
+        const srcTags = new Set(toArr(hoveredEdge.source.tags));
+        const shared = toArr(hoveredEdge.target.tags).filter((t) =>
           srcTags.has(t)
         );
         if (shared.length > 0) {

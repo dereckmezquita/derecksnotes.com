@@ -174,12 +174,16 @@ const PHYSICS_SLIDERS = [
 ];
 
 // ── component ────────────────────────────────────────────────────────
+type SearchMode = 'highlight' | 'filter';
+
 interface ExploreControlPanelProps {
   options: GraphQueryOptions;
   onChange: (next: GraphQueryOptions) => void;
   onPhysicsChange?: (param: string, value: number) => void;
   searchTerm?: string;
   onSearchChange?: (value: string) => void;
+  searchMode?: SearchMode;
+  onSearchModeChange?: (mode: SearchMode) => void;
   useSpatialHash?: boolean;
   onSpatialHashToggle?: (useHash: boolean) => void;
   nodeCount?: number;
@@ -194,6 +198,8 @@ export default function ExploreControlPanel({
   onPhysicsChange,
   searchTerm = '',
   onSearchChange,
+  searchMode = 'highlight',
+  onSearchModeChange,
   useSpatialHash = false,
   onSpatialHashToggle,
   showGrid = true,
@@ -278,6 +284,44 @@ export default function ExploreControlPanel({
                 outline: 'none'
               }}
             />
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              <button
+                onClick={() => onSearchModeChange?.('highlight')}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  border: '1px solid rgba(0,0,0,0.15)',
+                  borderRadius: 3,
+                  background:
+                    searchMode === 'highlight'
+                      ? '#c87137'
+                      : 'rgba(255,255,255,0.6)',
+                  color: searchMode === 'highlight' ? '#fff' : '#333',
+                  cursor: 'pointer'
+                }}
+              >
+                Highlight
+              </button>
+              <button
+                onClick={() => onSearchModeChange?.('filter')}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  border: '1px solid rgba(0,0,0,0.15)',
+                  borderRadius: 3,
+                  background:
+                    searchMode === 'filter'
+                      ? '#c87137'
+                      : 'rgba(255,255,255,0.6)',
+                  color: searchMode === 'filter' ? '#fff' : '#333',
+                  cursor: 'pointer'
+                }}
+              >
+                Filter
+              </button>
+            </div>
           </div>
         )}
 
