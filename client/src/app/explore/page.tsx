@@ -8,7 +8,7 @@ import type {
 } from '@derecksnotes/shared';
 
 import { GraphSimulation, GraphRenderer } from '@/lib/graph';
-import type { SimNode } from '@/lib/graph';
+import type { SimNode, SimEdge } from '@/lib/graph';
 
 import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
 import ExploreDetailPanel from '@/components/pages/explore/ExploreDetailPanel';
@@ -40,8 +40,8 @@ const LoadingOverlay = styled.div`
 const Spinner = styled.div`
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.08);
-  border-top-color: #4488ff;
+  border: 3px solid rgba(0, 0, 0, 0.08);
+  border-top-color: #c87137;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 
@@ -63,8 +63,8 @@ const StatsBar = styled.div`
   left: 50%;
   transform: translateX(-50%);
   z-index: 65;
-  background: rgba(10, 10, 20, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 6px;
   padding: 6px 16px;
   color: #666;
@@ -117,6 +117,7 @@ export default function ExplorePage() {
   const rendererRef = useRef<GraphRenderer | null>(null);
   const mouseRef = useRef({ x: -1000, y: -1000, active: false });
   const hoveredNodeRef = useRef<SimNode | null>(null);
+  const hoveredEdgeRef = useRef<SimEdge | null>(null);
   const selectedNodeRef = useRef<SimNode | null>(null);
   const draggedNodeRef = useRef<string | null>(null);
   const panRef = useRef({ ox: 0, oy: 0, startX: 0, startY: 0, panning: false });
@@ -249,7 +250,7 @@ export default function ExplorePage() {
 
     const gl = glCanvas.getContext('webgl', {
       antialias: true,
-      alpha: true
+      alpha: false
     });
     const textCtx = textCanvas.getContext('2d');
     if (!gl || !textCtx) {
@@ -340,8 +341,17 @@ export default function ExplorePage() {
         );
       }
       hoveredNodeRef.current = node;
+
+      // Edge hover check when no node is hovered
+      if (!node) {
+        hoveredEdgeRef.current = sim.edgeAt(x, y);
+      } else {
+        hoveredEdgeRef.current = null;
+      }
+
       if (glCanvas) {
-        glCanvas.style.cursor = node ? 'pointer' : 'default';
+        glCanvas.style.cursor =
+          node || hoveredEdgeRef.current ? 'pointer' : 'default';
       }
     }
 
@@ -436,7 +446,10 @@ export default function ExplorePage() {
           w,
           h,
           hoveredNodeRef.current,
-          selectedNodeRef.current
+          selectedNodeRef.current,
+          hoveredEdgeRef.current,
+          mouseRef.current.x,
+          mouseRef.current.y
         );
       } catch (err) {
         console.error('[Explore] draw() error:', err);
@@ -522,15 +535,14 @@ export default function ExplorePage() {
         </LoadingOverlay>
       )}
 
-      {/* Controls */}
+      {/* Controls (includes search) */}
       <ExploreControlPanel
         options={options}
         onChange={handleOptionsChange}
         onPhysicsChange={handlePhysicsChange}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
       />
-
-      {/* Search */}
-      <ExploreSearchBar value={searchTerm} onChange={setSearchTerm} />
 
       {/* Detail panel */}
       <ExploreDetailPanel

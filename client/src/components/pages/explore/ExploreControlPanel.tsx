@@ -13,12 +13,13 @@ const Panel = styled.div<{ $collapsed: boolean }>`
   left: 12px;
   z-index: 65;
   width: 240px;
-  background: rgba(10, 10, 20, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: ${(p) =>
+    p.$collapsed ? 'transparent' : 'rgba(255, 255, 255, 0.85)'};
+  backdrop-filter: ${(p) => (p.$collapsed ? 'none' : 'blur(8px)')};
+  border: ${(p) => (p.$collapsed ? 'none' : '1px solid rgba(0, 0, 0, 0.08)')};
   border-radius: 8px;
-  color: #ddd;
+  color: #333;
   font-size: 13px;
-  backdrop-filter: blur(12px);
   overflow: hidden;
   transition: max-height 0.3s ease;
   max-height: ${(p) => (p.$collapsed ? '42px' : '900px')};
@@ -33,7 +34,8 @@ const Header = styled.div`
   user-select: none;
   font-weight: 600;
   font-size: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #333;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 `;
 
 const Body = styled.div`
@@ -48,7 +50,7 @@ const Body = styled.div`
     width: 4px;
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.15);
     border-radius: 2px;
   }
 `;
@@ -68,9 +70,10 @@ const CheckRow = styled.label`
   gap: 8px;
   cursor: pointer;
   font-size: 12px;
+  color: #444;
 
   input {
-    accent-color: #4488ff;
+    accent-color: #c87137;
   }
 `;
 
@@ -91,11 +94,12 @@ const SliderRow = styled.div`
     display: flex;
     justify-content: space-between;
     font-size: 12px;
+    color: #555;
   }
 
   input[type='range'] {
     width: 100%;
-    accent-color: #4488ff;
+    accent-color: #c87137;
   }
 `;
 
@@ -124,12 +128,12 @@ const PHYSICS_SLIDERS = [
     default: 1.0
   },
   {
-    key: 'attractionStrength',
-    label: 'Attraction',
+    key: 'bondStrength',
+    label: 'Bond strength',
     min: 0,
-    max: 5,
-    step: 0.1,
-    default: 1.0
+    max: 0.5,
+    step: 0.01,
+    default: 0.08
   },
   {
     key: 'damping',
@@ -137,10 +141,24 @@ const PHYSICS_SLIDERS = [
     min: 0.5,
     max: 1.0,
     step: 0.01,
-    default: 0.85
+    default: 0.92
   },
-  { key: 'wind', label: 'Wind', min: 0, max: 0.1, step: 0.005, default: 0.02 },
-  { key: 'gravity', label: 'Gravity', min: 0, max: 0.5, step: 0.01, default: 0 }
+  {
+    key: 'wind',
+    label: 'Wind',
+    min: 0,
+    max: 0.1,
+    step: 0.005,
+    default: 0.015
+  },
+  {
+    key: 'gravity',
+    label: 'Gravity',
+    min: 0,
+    max: 0.5,
+    step: 0.01,
+    default: 0
+  }
 ];
 
 // ── component ────────────────────────────────────────────────────────
@@ -148,14 +166,18 @@ interface ExploreControlPanelProps {
   options: GraphQueryOptions;
   onChange: (next: GraphQueryOptions) => void;
   onPhysicsChange?: (param: string, value: number) => void;
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
 }
 
 export default function ExploreControlPanel({
   options,
   onChange,
-  onPhysicsChange
+  onPhysicsChange,
+  searchTerm = '',
+  onSearchChange
 }: ExploreControlPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [physicsValues, setPhysicsValues] = useState<Record<string, number>>(
     () => {
       const init: Record<string, number> = {};
@@ -203,6 +225,28 @@ export default function ExploreControlPanel({
       </Header>
 
       <Body>
+        {/* search */}
+        {onSearchChange && (
+          <div style={{ marginBottom: 8 }}>
+            <input
+              type="text"
+              placeholder="Search nodes..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid rgba(0,0,0,0.15)',
+                borderRadius: 4,
+                fontSize: 12,
+                background: 'rgba(255,255,255,0.8)',
+                color: '#333',
+                outline: 'none'
+              }}
+            />
+          </div>
+        )}
+
         {/* sections */}
         <div>
           <SectionTitle>Sections</SectionTitle>

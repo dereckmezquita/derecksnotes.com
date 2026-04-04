@@ -11,10 +11,11 @@ const Overlay = styled.div<{ $open: boolean }>`
   z-index: 65;
   width: 340px;
   height: 100vh;
-  background: rgba(10, 10, 20, 0.92);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(16px);
-  color: #ddd;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+  color: #333;
   transform: translateX(${(p) => (p.$open ? '0' : '100%')});
   transition: transform 0.3s ease;
   display: flex;
@@ -28,13 +29,13 @@ const CloseBtn = styled.button`
   right: 12px;
   background: none;
   border: none;
-  color: #888;
+  color: #999;
   cursor: pointer;
   padding: 4px;
   font-size: 16px;
 
   &:hover {
-    color: #fff;
+    color: #333;
   }
 `;
 
@@ -48,7 +49,7 @@ const Content = styled.div`
 const Title = styled.h2`
   font-size: 18px;
   font-weight: 700;
-  color: #fff;
+  color: #222;
   margin: 0;
   line-height: 1.3;
   padding-right: 32px;
@@ -79,8 +80,8 @@ const TagList = styled.div`
 `;
 
 const Tag = styled.span`
-  background: rgba(255, 255, 255, 0.08);
-  color: #aaa;
+  background: rgba(0, 0, 0, 0.06);
+  color: #666;
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 3px;
@@ -89,7 +90,7 @@ const Tag = styled.span`
 const Snippet = styled.p`
   font-size: 13px;
   line-height: 1.5;
-  color: #aaa;
+  color: #555;
   margin: 0;
 `;
 
@@ -98,7 +99,7 @@ const MetaRow = styled.div`
   align-items: center;
   gap: 16px;
   font-size: 12px;
-  color: #777;
+  color: #888;
 `;
 
 const MetaItem = styled.span`
@@ -111,9 +112,9 @@ const GoLink = styled.a`
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(46, 139, 192, 0.2);
-  border: 1px solid rgba(46, 139, 192, 0.4);
-  color: #4aa8e0;
+  background: rgba(200, 113, 55, 0.1);
+  border: 1px solid rgba(200, 113, 55, 0.3);
+  color: #c87137;
   padding: 10px 16px;
   border-radius: 6px;
   text-decoration: none;
@@ -122,7 +123,7 @@ const GoLink = styled.a`
   transition: background 0.2s;
 
   &:hover {
-    background: rgba(46, 139, 192, 0.35);
+    background: rgba(200, 113, 55, 0.2);
   }
 `;
 
@@ -163,9 +164,9 @@ export default function ExploreDetailPanel({
           <BadgeRow>
             <Badge $colour={sectionColour}>{node.section}</Badge>
             {node.category && (
-              <Badge $colour="rgba(255,255,255,0.15)">{node.category}</Badge>
+              <Badge $colour="rgba(0,0,0,0.12)">{node.category}</Badge>
             )}
-            <Badge $colour="rgba(255,255,255,0.08)">{node.nodeType}</Badge>
+            <Badge $colour="rgba(0,0,0,0.06)">{node.nodeType}</Badge>
           </BadgeRow>
 
           {node.tags && node.tags.length > 0 && (

@@ -13,22 +13,27 @@ const Wrapper = styled.div`
   z-index: 65;
   display: flex;
   align-items: center;
-  background: rgba(10, 10, 20, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 8px;
   padding: 0 12px;
-  backdrop-filter: blur(12px);
   width: 220px;
-  transition: width 0.2s ease;
+  transition:
+    width 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    backdrop-filter 0.2s ease;
 
   &:focus-within {
     width: 280px;
-    border-color: rgba(68, 136, 255, 0.4);
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(200, 113, 55, 0.4);
+    backdrop-filter: blur(8px);
   }
 `;
 
 const Icon = styled(FaSearch)`
-  color: #666;
+  color: #999;
   flex-shrink: 0;
   font-size: 13px;
 `;
@@ -37,13 +42,13 @@ const Input = styled.input`
   background: none;
   border: none;
   outline: none;
-  color: #ddd;
+  color: #333;
   font-size: 13px;
   padding: 10px 8px;
   width: 100%;
 
   &::placeholder {
-    color: #555;
+    color: #999;
   }
 `;
 

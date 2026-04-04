@@ -49,25 +49,70 @@ export class GraphRenderer {
     height: number,
     hoveredNode: SimNode | null,
     selectedNode: SimNode | null,
-    showGrid: boolean = false
+    hoveredEdge: SimEdge | null = null,
+    mouseX: number = 0,
+    mouseY: number = 0,
+    showGrid: boolean = true
   ): void {
-    // 1. Clear with transparent background (let site grid show through)
-    this.renderer.clear(width, height, 0, 0, 0, 0);
+    // 1. Clear with solid white (needed for grid contrast, matching 404 page)
+    this.renderer.clear(width, height, 1, 1, 1, 1);
 
     const nodes = sim.getNodes();
     const edges = sim.getEdges();
+    const particles = sim.getParticles();
+    const qt = sim.getQuadTree();
 
-    // 2. Optionally draw spatial grid (very subtle, toggleable)
+    // 2. Gravitational grid (warped by particle masses)
+    // Higher strength than 404 page because graph nodes have distributed mass
+    this.renderer.drawGravitationalGrid(width, height, particles, qt, 12, 3000);
+
+    // 3. QuadTree + SpatialHash grid
     if (showGrid) {
-      const qt = sim.getQuadTree();
+      const sh = sim.getSpatialHash();
+      if (sh) this.renderer.drawSpatialHash(sh);
       if (qt) this.renderer.drawQuadTree(qt);
     }
 
-    // 3. Draw edges
+    // 4. Draw edges
     for (let i = 0; i < edges.length; i++) {
       const edge = edges[i];
       const sp = edge.source.particle;
       const tp = edge.target.particle;
+      // Highlight hovered edge
+      if (hoveredEdge && edge === hoveredEdge) {
+        this.renderer.addLine(
+          sp.pos.x,
+          sp.pos.y,
+          tp.pos.x,
+          tp.pos.y,
+          0.85,
+          0.45,
+          0.15,
+          1.0
+        );
+        // Draw a second thicker pass via slight offset lines for visibility
+        this.renderer.addLine(
+          sp.pos.x + 0.5,
+          sp.pos.y + 0.5,
+          tp.pos.x + 0.5,
+          tp.pos.y + 0.5,
+          0.85,
+          0.45,
+          0.15,
+          0.7
+        );
+        this.renderer.addLine(
+          sp.pos.x - 0.5,
+          sp.pos.y - 0.5,
+          tp.pos.x - 0.5,
+          tp.pos.y - 0.5,
+          0.85,
+          0.45,
+          0.15,
+          0.7
+        );
+        continue;
+      }
       const [er, eg, eb, ea] = edgeColour(edge.edgeType);
       this.renderer.addLine(
         sp.pos.x,
@@ -81,15 +126,15 @@ export class GraphRenderer {
       );
     }
 
-    // 4. Draw nodes — filled circles at full opacity
+    // 5. Draw nodes — filled circles
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
       const p = node.particle;
       const [r, g, b] = sectionColour(node.section);
-      this.renderer.addCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
+      this.renderer.addFilledCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
     }
 
-    // 5. Selected node highlight — white outer ring + section-coloured inner ring
+    // 6. Selected node highlight — white outer ring + section-coloured inner ring
     if (selectedNode) {
       const sp = selectedNode.particle;
       this.renderer.addCircle(
@@ -105,7 +150,7 @@ export class GraphRenderer {
       this.renderer.addCircle(sp.pos.x, sp.pos.y, sp.radius + 1, r, g, b, 1.0);
     }
 
-    // 6. Hovered node highlight — subtle white glow ring
+    // Hovered node highlight — subtle white glow ring
     if (hoveredNode && hoveredNode !== selectedNode) {
       const hp = hoveredNode.particle;
       this.renderer.addCircle(
@@ -119,13 +164,24 @@ export class GraphRenderer {
       );
     }
 
-    // 7. Flush all WebGL batches
+    // 7. Flush: triangles, lines, filled circles, then circles (for highlights)
     this.renderer.flushTriangles(width, height);
     this.renderer.flushLines(width, height);
+    this.renderer.flushFilledCircles(width, height);
     this.renderer.flushCircles(width, height);
 
-    // 8. Text labels on the overlay canvas (hover tooltip only)
-    this.drawTextLabels(nodes, edges, hoveredNode, selectedNode, width, height);
+    // 8. Text labels on the overlay canvas
+    this.drawTextLabels(
+      nodes,
+      edges,
+      hoveredNode,
+      selectedNode,
+      hoveredEdge,
+      mouseX,
+      mouseY,
+      width,
+      height
+    );
   }
 
   private drawTextLabels(
@@ -133,12 +189,60 @@ export class GraphRenderer {
     edges: SimEdge[],
     hoveredNode: SimNode | null,
     selectedNode: SimNode | null,
+    hoveredEdge: SimEdge | null,
+    mouseX: number,
+    mouseY: number,
     width: number,
     height: number
   ): void {
     const ctx = this.textCtx;
 
-    // Selected node: prominent title
+    // ── Section centroid labels ──────────────────────────────────────
+    const sectionCentroids: Map<
+      string,
+      { x: number; y: number; count: number }
+    > = new Map();
+    for (const node of nodes) {
+      const entry = sectionCentroids.get(node.section) || {
+        x: 0,
+        y: 0,
+        count: 0
+      };
+      entry.x += node.particle.pos.x;
+      entry.y += node.particle.pos.y;
+      entry.count++;
+      sectionCentroids.set(node.section, entry);
+    }
+    for (const [section, { x, y, count }] of sectionCentroids) {
+      const cx = x / count;
+      const cy = y / count;
+      ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const [r, g, b] = sectionColour(section);
+      ctx.fillStyle = `rgba(${(r * 255) | 0}, ${(g * 255) | 0}, ${(b * 255) | 0}, 0.5)`;
+      ctx.fillText(section.replace('dictionary-', ''), cx, cy);
+    }
+
+    // ── Top 15 node labels (highest degree) ─────────────────────────
+    const topNodes = [...nodes]
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 15);
+    for (const node of topNodes) {
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(80, 80, 80, 0.7)';
+      const label =
+        node.title.length > 18 ? node.title.slice(0, 16) + '..' : node.title;
+      ctx.fillText(
+        label,
+        node.particle.pos.x,
+        node.particle.pos.y + node.particle.radius + 10
+      );
+    }
+
+    // ── Selected node: prominent title ──────────────────────────────
     if (selectedNode) {
       const sp = selectedNode.particle;
       const [sr, sg, sb] = sectionColour(selectedNode.section);
@@ -149,20 +253,19 @@ export class GraphRenderer {
       ctx.fillText(selectedNode.title, sp.pos.x, sp.pos.y - sp.radius - 6);
     }
 
-    // Hovered node: tooltip with node info + connected edges
+    // ── Hovered node: tooltip ───────────────────────────────────────
     if (hoveredNode) {
       const hp = hoveredNode.particle;
       let tx = hp.pos.x + hp.radius + 14;
       let ty = hp.pos.y - 30;
 
-      // Gather info lines
       const lines: Array<{ text: string; font: string; colour: string }> = [];
 
       // Title
       lines.push({
         text: hoveredNode.title,
         font: 'bold 12px system-ui, sans-serif',
-        colour: 'rgba(255, 255, 255, 0.95)'
+        colour: 'rgba(30, 30, 30, 0.95)'
       });
 
       // Section + type
@@ -173,21 +276,19 @@ export class GraphRenderer {
         colour: `rgba(${(sr * 255) | 0}, ${(sg * 255) | 0}, ${(sb * 255) | 0}, 0.9)`
       });
 
-      // Tags (may be string[] or comma-separated string from API)
-      const tags = hoveredNode.tags;
-      if (
-        tags &&
-        (typeof tags === 'string' ? tags.length > 0 : tags.length > 0)
-      ) {
-        const tagArr =
-          typeof tags === 'string'
+      // Tags
+      const tags = hoveredNode.tags as string[] | string | undefined;
+      if (tags) {
+        const tagArr: string[] = Array.isArray(tags)
+          ? tags
+          : typeof tags === 'string'
             ? tags.split(',').map((t: string) => t.trim())
-            : tags;
+            : [];
         if (tagArr.length > 0) {
           lines.push({
             text: tagArr.slice(0, 4).join(', '),
             font: '10px system-ui, sans-serif',
-            colour: 'rgba(160, 160, 160, 0.7)'
+            colour: 'rgba(100, 100, 100, 0.7)'
           });
         }
       }
@@ -196,7 +297,7 @@ export class GraphRenderer {
       lines.push({
         text: `${hoveredNode.degree} connections`,
         font: '10px system-ui, sans-serif',
-        colour: 'rgba(140, 180, 220, 0.8)'
+        colour: 'rgba(60, 120, 180, 0.8)'
       });
 
       // Connected nodes (top 5)
@@ -212,7 +313,7 @@ export class GraphRenderer {
         lines.push({
           text: `→ ${other.title.length > 25 ? other.title.slice(0, 23) + '..' : other.title}`,
           font: '10px system-ui, sans-serif',
-          colour: 'rgba(180, 180, 180, 0.6)'
+          colour: 'rgba(80, 80, 80, 0.6)'
         });
       }
 
@@ -232,10 +333,13 @@ export class GraphRenderer {
       if (ty + boxHeight > height - 10) ty = height - boxHeight - 10;
       if (ty < 5) ty = 5;
 
-      // Dark semi-transparent background
-      ctx.fillStyle = 'rgba(15, 15, 15, 0.92)';
+      // Light semi-transparent background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
       this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 6);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       // Draw lines
       ctx.textAlign = 'left';
@@ -248,7 +352,7 @@ export class GraphRenderer {
         lineY += 17;
       }
 
-      // Also highlight edges connected to this node
+      // Highlight edges connected to hovered node
       for (const edge of connectedEdges) {
         const sp = edge.source.particle;
         const tp = edge.target.particle;
@@ -264,6 +368,84 @@ export class GraphRenderer {
         );
       }
       this.renderer.flushLines(width, height);
+    }
+
+    // ── Hovered edge: tooltip ──────────────────────────────────────
+    if (!hoveredNode && hoveredEdge) {
+      const lines: Array<{ text: string; font: string; colour: string }> = [];
+
+      const srcTitle =
+        hoveredEdge.source.title.length > 22
+          ? hoveredEdge.source.title.slice(0, 20) + '..'
+          : hoveredEdge.source.title;
+      const tgtTitle =
+        hoveredEdge.target.title.length > 22
+          ? hoveredEdge.target.title.slice(0, 20) + '..'
+          : hoveredEdge.target.title;
+
+      lines.push({
+        text: `${srcTitle} \u2194 ${tgtTitle}`,
+        font: 'bold 11px system-ui, sans-serif',
+        colour: 'rgba(30,30,30,0.95)'
+      });
+      lines.push({
+        text: `Type: ${hoveredEdge.edgeType}`,
+        font: '10px system-ui, sans-serif',
+        colour: 'rgba(80,80,80,0.8)'
+      });
+      lines.push({
+        text: `Weight: ${hoveredEdge.weight.toFixed(2)}`,
+        font: '10px system-ui, sans-serif',
+        colour: 'rgba(80,80,80,0.7)'
+      });
+
+      // Show shared tags for tag-similarity edges
+      if (hoveredEdge.edgeType === 'tag-similarity') {
+        const srcTags = new Set(hoveredEdge.source.tags || []);
+        const shared = (hoveredEdge.target.tags || []).filter((t) =>
+          srcTags.has(t)
+        );
+        if (shared.length > 0) {
+          lines.push({
+            text: `Tags: ${shared.slice(0, 4).join(', ')}`,
+            font: '10px system-ui, sans-serif',
+            colour: 'rgba(100,100,100,0.7)'
+          });
+        }
+      }
+
+      let maxWidth = 0;
+      for (const line of lines) {
+        ctx.font = line.font;
+        const w = ctx.measureText(line.text).width;
+        if (w > maxWidth) maxWidth = w;
+      }
+
+      const boxWidth = maxWidth + 24;
+      const boxHeight = lines.length * 17 + 16;
+      let tx = mouseX + 12;
+      let ty = mouseY - 20;
+
+      if (tx + boxWidth > width - 10) tx = mouseX - boxWidth - 10;
+      if (ty + boxHeight > height - 10) ty = height - boxHeight - 10;
+      if (ty < 5) ty = 5;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 6);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      let lineY = ty + 9;
+      for (const line of lines) {
+        ctx.font = line.font;
+        ctx.fillStyle = line.colour;
+        ctx.fillText(line.text, tx + 12, lineY);
+        lineY += 17;
+      }
     }
   }
 

@@ -686,6 +686,9 @@ export function buildGraphIndex(): void {
   console.log('Merging social data...');
   mergeSocialData(timestamp);
 
+  // Compute connected components (community detection)
+  computeCommunities(timestamp);
+
   const duration = Date.now() - start;
   graphBuilt = true;
 
@@ -952,6 +955,84 @@ function mergeSocialData(timestamp: string): void {
 }
 
 // ============================================================================
+// Community Detection (Union-Find)
+// ============================================================================
+
+function computeCommunities(timestamp: string): void {
+  console.log('Computing communities...');
+
+  // Get all page nodes
+  const nodes = sqlite
+    .prepare(`SELECT id FROM graph_nodes WHERE node_type = 'page'`)
+    .all() as Array<{ id: string }>;
+
+  // Get all edges between page nodes
+  const edges = sqlite
+    .prepare(
+      `SELECT source_id, target_id FROM graph_edges
+     WHERE source_id IN (SELECT id FROM graph_nodes WHERE node_type = 'page')
+     AND target_id IN (SELECT id FROM graph_nodes WHERE node_type = 'page')`
+    )
+    .all() as Array<{ source_id: string; target_id: string }>;
+
+  // Union-Find
+  const parent = new Map<string, string>();
+  const rank = new Map<string, number>();
+
+  function find(x: string): string {
+    if (!parent.has(x)) {
+      parent.set(x, x);
+      rank.set(x, 0);
+    }
+    if (parent.get(x) !== x) parent.set(x, find(parent.get(x)!));
+    return parent.get(x)!;
+  }
+
+  function union(a: string, b: string): void {
+    const ra = find(a),
+      rb = find(b);
+    if (ra === rb) return;
+    const rankA = rank.get(ra) || 0;
+    const rankB = rank.get(rb) || 0;
+    if (rankA < rankB) parent.set(ra, rb);
+    else if (rankA > rankB) parent.set(rb, ra);
+    else {
+      parent.set(rb, ra);
+      rank.set(ra, rankA + 1);
+    }
+  }
+
+  // Initialize
+  for (const node of nodes) find(node.id);
+
+  // Union connected nodes
+  for (const edge of edges) {
+    union(edge.source_id, edge.target_id);
+  }
+
+  // Assign community IDs
+  const communityMap = new Map<string, number>();
+  let nextCommunity = 0;
+
+  const updateStmt = sqlite.prepare(
+    `UPDATE graph_nodes SET metadata = json_set(COALESCE(metadata, '{}'), '$.community', ?) WHERE id = ?`
+  );
+
+  const tx = sqlite.transaction(() => {
+    for (const node of nodes) {
+      const root = find(node.id);
+      if (!communityMap.has(root)) {
+        communityMap.set(root, nextCommunity++);
+      }
+      updateStmt.run(communityMap.get(root)!, node.id);
+    }
+  });
+  tx();
+
+  console.log(`  Found ${communityMap.size} communities`);
+}
+
+// ============================================================================
 // Query Functions
 // ============================================================================
 
@@ -1108,12 +1189,25 @@ export function getGraphStats(): Record<string, any> {
     .prepare('SELECT count(*) as c FROM graph_key_terms')
     .get() as { c: number };
 
+  const communities = sqlite
+    .prepare(
+      `
+    SELECT json_extract(metadata, '$.community') as community, COUNT(*) as count
+    FROM graph_nodes
+    WHERE node_type = 'page' AND json_extract(metadata, '$.community') IS NOT NULL
+    GROUP BY community
+    ORDER BY count DESC
+  `
+    )
+    .all() as Array<{ community: number; count: number }>;
+
   return {
     totalNodes: totalNodes.c,
     totalEdges: totalEdges.c,
     totalKeyTerms: totalKeyTerms.c,
     nodesByType,
     edgesByType,
-    nodesBySection
+    nodesBySection,
+    communities
   };
 }
