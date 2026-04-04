@@ -33,7 +33,7 @@ interface PhysicsParams {
   temperature: number;
 }
 
-const BASE_RADIUS = 8;
+const BASE_RADIUS = 7;
 const WALL_BOUNCE = 0.7;
 const COOLING_FACTOR = 0.95;
 const MIN_TEMPERATURE = 0.5;
@@ -113,7 +113,7 @@ export class GraphSimulation {
     for (let i = 0; i < apiNodes.length; i++) {
       const apiNode = apiNodes[i];
       const degree = degreeMap.get(apiNode.id) || 0;
-      const radius = BASE_RADIUS + Math.sqrt(degree) * 2.5;
+      const radius = BASE_RADIUS + Math.sqrt(degree) * 2;
 
       // Initial position: circle layout
       const angle = (2 * Math.PI * i) / n;
@@ -167,6 +167,10 @@ export class GraphSimulation {
         restLength: 0 // not used in FR; kept for interface compat
       });
     }
+
+    console.log(
+      `[GraphSim] setData: ${this.nodes.length} nodes, ${this.edges.length} edges created from ${apiEdges.length} API edges`
+    );
   }
 
   step(): void {
@@ -234,7 +238,9 @@ export class GraphSimulation {
       const dy = sp.pos.y - tp.pos.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
 
-      const force = (dist * dist * attractionStrength * edge.weight) / k;
+      const normalizedWeight = Math.min(edge.weight, 100) / 100;
+      const force =
+        (dist * dist * attractionStrength * (0.5 + normalizedWeight * 0.5)) / k;
       const fx = (dx / dist) * force;
       const fy = (dy / dist) * force;
 
@@ -304,7 +310,7 @@ export class GraphSimulation {
       this.nodes[i].particle.bounceWalls(this.width, this.height, WALL_BOUNCE);
     }
 
-    // ── Phase 9: Prevent merging (graph nodes must not merge) ───────
+    // ── Phase 9: Prevent particle merging ────────────────────────────
     for (let i = 0; i < nodeCount; i++) {
       this.nodes[i].particle.age = 0;
     }
@@ -368,7 +374,7 @@ export class GraphSimulation {
       const dx = p.pos.x - x;
       const dy = p.pos.y - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= p.radius + 4 && dist < closestDist) {
+      if (dist <= p.radius + 8 && dist < closestDist) {
         closestDist = dist;
         const node = this.nodes.find((n) => n.particle.id === p.id);
         if (node) closest = node;

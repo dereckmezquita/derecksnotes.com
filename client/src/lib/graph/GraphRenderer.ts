@@ -2,23 +2,23 @@ import { WebGLRenderer } from '@/lib/physics/WebGLRenderer';
 import { GraphSimulation, SimNode, SimEdge } from './GraphSimulation';
 
 const SECTION_COLOURS: Record<string, [number, number, number]> = {
-  blog: [0.1, 0.45, 0.7],
-  courses: [0.1, 0.55, 0.3],
-  references: [0.45, 0.15, 0.5],
-  'dictionary-biology': [0.2, 0.6, 0.2],
-  'dictionary-chemistry': [0.15, 0.45, 0.7],
-  'dictionary-mathematics': [0.85, 0.25, 0.35],
-  comments: [0.4, 0.4, 0.4],
-  external: [0.9, 0.55, 0.0]
+  blog: [0.18, 0.55, 0.75],
+  courses: [0.22, 0.65, 0.35],
+  references: [0.55, 0.25, 0.6],
+  'dictionary-biology': [0.35, 0.7, 0.35],
+  'dictionary-chemistry': [0.25, 0.5, 0.75],
+  'dictionary-mathematics': [0.85, 0.3, 0.4],
+  comments: [0.5, 0.5, 0.5],
+  external: [0.85, 0.6, 0.15]
 };
 
 const EDGE_COLOURS: Record<string, [number, number, number, number]> = {
-  'explicit-link': [0.3, 0.3, 0.3, 0.5],
-  'tag-similarity': [0.15, 0.3, 0.65, 0.35],
-  'nlp-similarity': [0.45, 0.45, 0.45, 0.25],
-  'dictionary-internal': [0.15, 0.55, 0.3, 0.4],
-  'external-link': [0.65, 0.35, 0.1, 0.4],
-  'comment-thread': [0.45, 0.45, 0.45, 0.3]
+  'explicit-link': [0.3, 0.3, 0.3, 0.7],
+  'tag-similarity': [0.25, 0.35, 0.6, 0.6],
+  'nlp-similarity': [0.45, 0.45, 0.45, 0.5],
+  'dictionary-internal': [0.25, 0.5, 0.35, 0.6],
+  'external-link': [0.5, 0.35, 0.2, 0.6],
+  'comment-thread': [0.4, 0.4, 0.4, 0.5]
 };
 
 const DEFAULT_SECTION_COLOUR: [number, number, number] = [0.5, 0.5, 0.5];
@@ -48,7 +48,8 @@ export class GraphRenderer {
     width: number,
     height: number,
     hoveredNode: SimNode | null,
-    selectedNode: SimNode | null
+    selectedNode: SimNode | null,
+    showGrid: boolean = false
   ): void {
     // 1. Clear with transparent background (let site grid show through)
     this.renderer.clear(width, height, 0, 0, 0, 0);
@@ -56,40 +57,56 @@ export class GraphRenderer {
     const nodes = sim.getNodes();
     const edges = sim.getEdges();
 
-    // 2. Draw spatial grid (QuadTree visualisation)
-    const qt = sim.getQuadTree();
-    if (qt) this.renderer.drawQuadTree(qt);
+    // 2. Optionally draw spatial grid (very subtle, toggleable)
+    if (showGrid) {
+      const qt = sim.getQuadTree();
+      if (qt) this.renderer.drawQuadTree(qt);
+    }
 
-    // 3. Draw edges as thick lines
+    // 3. Draw edges
     for (let i = 0; i < edges.length; i++) {
       const edge = edges[i];
       const sp = edge.source.particle;
       const tp = edge.target.particle;
-      const [r, g, b, a] = edgeColour(edge.edgeType);
-      this.renderer.addThickLine(
+      const [er, eg, eb, ea] = edgeColour(edge.edgeType);
+      this.renderer.addLine(
         sp.pos.x,
         sp.pos.y,
         tp.pos.x,
         tp.pos.y,
-        1.5,
-        r,
-        g,
-        b,
-        a
+        er,
+        eg,
+        eb,
+        ea
       );
     }
 
-    // 4. Draw nodes — fully opaque rings
+    // 4. Draw nodes — filled circles at full opacity
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
       const p = node.particle;
       const [r, g, b] = sectionColour(node.section);
-      const alpha = 1.0;
-      this.renderer.addCircle(p.pos.x, p.pos.y, p.radius, r, g, b, alpha);
+      this.renderer.addCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
     }
 
-    // 5. Hovered node highlight
-    if (hoveredNode) {
+    // 5. Selected node highlight — white outer ring + section-coloured inner ring
+    if (selectedNode) {
+      const sp = selectedNode.particle;
+      this.renderer.addCircle(
+        sp.pos.x,
+        sp.pos.y,
+        sp.radius + 4,
+        1.0,
+        1.0,
+        1.0,
+        0.8
+      );
+      const [r, g, b] = sectionColour(selectedNode.section);
+      this.renderer.addCircle(sp.pos.x, sp.pos.y, sp.radius + 1, r, g, b, 1.0);
+    }
+
+    // 6. Hovered node highlight — subtle white glow ring
+    if (hoveredNode && hoveredNode !== selectedNode) {
       const hp = hoveredNode.particle;
       this.renderer.addCircle(
         hp.pos.x,
@@ -98,25 +115,8 @@ export class GraphRenderer {
         1.0,
         1.0,
         1.0,
-        0.6
+        0.5
       );
-    }
-
-    // 6. Selected node highlight
-    if (selectedNode) {
-      const sp = selectedNode.particle;
-      this.renderer.addCircle(
-        sp.pos.x,
-        sp.pos.y,
-        sp.radius + 5,
-        1.0,
-        1.0,
-        1.0,
-        0.8
-      );
-      // Inner ring in section colour
-      const [r, g, b] = sectionColour(selectedNode.section);
-      this.renderer.addCircle(sp.pos.x, sp.pos.y, sp.radius + 2, r, g, b, 1.0);
     }
 
     // 7. Flush all WebGL batches
@@ -124,88 +124,146 @@ export class GraphRenderer {
     this.renderer.flushLines(width, height);
     this.renderer.flushCircles(width, height);
 
-    // 8. Text labels on the overlay canvas
-    this.drawTextLabels(nodes, hoveredNode, selectedNode);
+    // 8. Text labels on the overlay canvas (hover tooltip only)
+    this.drawTextLabels(nodes, edges, hoveredNode, selectedNode, width, height);
   }
 
   private drawTextLabels(
     nodes: SimNode[],
+    edges: SimEdge[],
     hoveredNode: SimNode | null,
-    selectedNode: SimNode | null
+    selectedNode: SimNode | null,
+    width: number,
+    height: number
   ): void {
     const ctx = this.textCtx;
-
-    // Large nodes (high degree): show abbreviated title
-    ctx.font = '10px "IBM Plex Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i];
-      if (node.degree <= 5) continue;
-      if (node === hoveredNode || node === selectedNode) continue;
-
-      const p = node.particle;
-      const label =
-        node.title.length > 16 ? node.title.slice(0, 14) + '..' : node.title;
-
-      const [r, g, b] = sectionColour(node.section);
-      ctx.fillStyle = `rgba(${(r * 255) | 0}, ${(g * 255) | 0}, ${(b * 255) | 0}, 0.7)`;
-      ctx.fillText(label, p.pos.x, p.pos.y + p.radius + 4);
-    }
 
     // Selected node: prominent title
     if (selectedNode) {
       const sp = selectedNode.particle;
-      ctx.font = 'bold 13px "IBM Plex Mono", monospace';
+      const [sr, sg, sb] = sectionColour(selectedNode.section);
+      ctx.font = 'bold 12px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      ctx.fillText(selectedNode.title, sp.pos.x, sp.pos.y - sp.radius - 8);
+      ctx.fillStyle = `rgba(${(sr * 255) | 0}, ${(sg * 255) | 0}, ${(sb * 255) | 0}, 0.95)`;
+      ctx.fillText(selectedNode.title, sp.pos.x, sp.pos.y - sp.radius - 6);
     }
 
-    // Hovered node: tooltip
+    // Hovered node: tooltip with node info + connected edges
     if (hoveredNode) {
       const hp = hoveredNode.particle;
-      const tx = hp.pos.x + hp.radius + 12;
-      const ty = hp.pos.y - 20;
+      let tx = hp.pos.x + hp.radius + 14;
+      let ty = hp.pos.y - 30;
 
-      // Background
-      ctx.font = '11px "IBM Plex Mono", monospace';
-      const titleWidth = ctx.measureText(hoveredNode.title).width;
-      const sectionText = `${hoveredNode.section} | ${hoveredNode.nodeType}`;
-      const sectionWidth = ctx.measureText(sectionText).width;
-      const boxWidth = Math.max(titleWidth, sectionWidth) + 16;
-      const tagsText =
-        hoveredNode.tags && hoveredNode.tags.length > 0
-          ? hoveredNode.tags.slice(0, 4).join(', ')
-          : '';
-      const lineCount = tagsText ? 3 : 2;
-      const boxHeight = lineCount * 16 + 12;
-
-      ctx.fillStyle = 'rgba(20, 20, 20, 0.88)';
-      this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 4);
-      ctx.fill();
+      // Gather info lines
+      const lines: Array<{ text: string; font: string; colour: string }> = [];
 
       // Title
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      ctx.font = 'bold 11px "IBM Plex Mono", monospace';
-      ctx.fillText(hoveredNode.title, tx + 8, ty + 6);
+      lines.push({
+        text: hoveredNode.title,
+        font: 'bold 12px system-ui, sans-serif',
+        colour: 'rgba(255, 255, 255, 0.95)'
+      });
 
       // Section + type
-      ctx.font = '10px "IBM Plex Mono", monospace';
-      const [r, g, b] = sectionColour(hoveredNode.section);
-      ctx.fillStyle = `rgba(${(r * 255) | 0}, ${(g * 255) | 0}, ${(b * 255) | 0}, 0.9)`;
-      ctx.fillText(sectionText, tx + 8, ty + 22);
+      const [sr, sg, sb] = sectionColour(hoveredNode.section);
+      lines.push({
+        text: `${hoveredNode.section} · ${hoveredNode.nodeType}`,
+        font: '11px system-ui, sans-serif',
+        colour: `rgba(${(sr * 255) | 0}, ${(sg * 255) | 0}, ${(sb * 255) | 0}, 0.9)`
+      });
 
-      // Tags
-      if (tagsText) {
-        ctx.fillStyle = 'rgba(180, 180, 180, 0.7)';
-        ctx.font = '9px "IBM Plex Mono", monospace';
-        ctx.fillText(tagsText, tx + 8, ty + 38);
+      // Tags (may be string[] or comma-separated string from API)
+      const tags = hoveredNode.tags;
+      if (
+        tags &&
+        (typeof tags === 'string' ? tags.length > 0 : tags.length > 0)
+      ) {
+        const tagArr =
+          typeof tags === 'string'
+            ? tags.split(',').map((t: string) => t.trim())
+            : tags;
+        if (tagArr.length > 0) {
+          lines.push({
+            text: tagArr.slice(0, 4).join(', '),
+            font: '10px system-ui, sans-serif',
+            colour: 'rgba(160, 160, 160, 0.7)'
+          });
+        }
       }
+
+      // Connections count
+      lines.push({
+        text: `${hoveredNode.degree} connections`,
+        font: '10px system-ui, sans-serif',
+        colour: 'rgba(140, 180, 220, 0.8)'
+      });
+
+      // Connected nodes (top 5)
+      const connectedEdges = edges
+        .filter(
+          (e) =>
+            e.source.id === hoveredNode.id || e.target.id === hoveredNode.id
+        )
+        .slice(0, 5);
+      for (const edge of connectedEdges) {
+        const other =
+          edge.source.id === hoveredNode.id ? edge.target : edge.source;
+        lines.push({
+          text: `→ ${other.title.length > 25 ? other.title.slice(0, 23) + '..' : other.title}`,
+          font: '10px system-ui, sans-serif',
+          colour: 'rgba(180, 180, 180, 0.6)'
+        });
+      }
+
+      // Measure max width
+      let maxWidth = 0;
+      for (const line of lines) {
+        ctx.font = line.font;
+        const w = ctx.measureText(line.text).width;
+        if (w > maxWidth) maxWidth = w;
+      }
+
+      const boxWidth = maxWidth + 24;
+      const boxHeight = lines.length * 17 + 16;
+
+      // Clamp tooltip to stay within canvas
+      if (tx + boxWidth > width - 10) tx = hp.pos.x - hp.radius - boxWidth - 10;
+      if (ty + boxHeight > height - 10) ty = height - boxHeight - 10;
+      if (ty < 5) ty = 5;
+
+      // Dark semi-transparent background
+      ctx.fillStyle = 'rgba(15, 15, 15, 0.92)';
+      this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 6);
+      ctx.fill();
+
+      // Draw lines
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      let lineY = ty + 9;
+      for (const line of lines) {
+        ctx.font = line.font;
+        ctx.fillStyle = line.colour;
+        ctx.fillText(line.text, tx + 12, lineY);
+        lineY += 17;
+      }
+
+      // Also highlight edges connected to this node
+      for (const edge of connectedEdges) {
+        const sp = edge.source.particle;
+        const tp = edge.target.particle;
+        this.renderer.addLine(
+          sp.pos.x,
+          sp.pos.y,
+          tp.pos.x,
+          tp.pos.y,
+          sr,
+          sg,
+          sb,
+          0.8
+        );
+      }
+      this.renderer.flushLines(width, height);
     }
   }
 

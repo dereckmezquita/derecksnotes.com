@@ -334,6 +334,11 @@ export default function ExplorePage() {
 
       // Hover check
       const node = sim.nodeAt(x, y);
+      if (node && !hoveredNodeRef.current) {
+        console.log(
+          `[Explore] Hover: ${node.title} at (${x.toFixed(0)}, ${y.toFixed(0)})`
+        );
+      }
       hoveredNodeRef.current = node;
       if (glCanvas) {
         glCanvas.style.cursor = node ? 'pointer' : 'default';
