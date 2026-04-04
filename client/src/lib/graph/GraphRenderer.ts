@@ -57,7 +57,8 @@ export class GraphRenderer {
     mouseY: number = 0,
     showGrid: boolean = true,
     useSpatialHash: boolean = false,
-    searchTerm: string = '',
+    titleMatches: Set<string> | null = null,
+    contentMatches: Set<string> | null = null,
     searchMode: SearchMode = 'highlight'
   ): void {
     // 1. Clear with solid white (needed for grid contrast, matching 404 page)
@@ -69,23 +70,23 @@ export class GraphRenderer {
     const qt = sim.getQuadTree();
 
     // ── Search matching ─────────────────────────────────────────────
-    const searching = searchTerm.length >= 2;
-    const needle = searchTerm.toLowerCase();
+    // matchSet = all matches (title OR content). contentOnlySet = content but not title.
+    const searching =
+      (titleMatches && titleMatches.size > 0) ||
+      (contentMatches && contentMatches.size > 0);
 
-    // Build a set of matching node IDs for fast lookup
     let matchSet: Set<string> | null = null;
+    let contentOnlySet: Set<string> | null = null;
     if (searching) {
       matchSet = new Set<string>();
-      for (const node of nodes) {
-        const haystack = (
-          node.title +
-          ' ' +
-          node.section +
-          ' ' +
-          (Array.isArray(node.tags) ? node.tags.join(' ') : '')
-        ).toLowerCase();
-        if (haystack.includes(needle)) {
-          matchSet.add(node.id);
+      contentOnlySet = new Set<string>();
+      if (titleMatches) {
+        for (const id of titleMatches) matchSet.add(id);
+      }
+      if (contentMatches) {
+        for (const id of contentMatches) {
+          matchSet.add(id);
+          if (!titleMatches?.has(id)) contentOnlySet.add(id);
         }
       }
     }
@@ -228,8 +229,28 @@ export class GraphRenderer {
       // Normal or matching node
       this.renderer.addFilledCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
 
-      // Matching node: draw pulsating orange glow ring
-      if (isMatch) {
+      // Title match: pulsating orange glow ring
+      // Content-only match: subtler teal glow ring
+      if (isMatch && contentOnlySet?.has(node.id)) {
+        this.renderer.addCircle(
+          p.pos.x,
+          p.pos.y,
+          p.radius + 4,
+          0.2,
+          0.6,
+          0.7,
+          pulseAlpha * 0.6
+        );
+        this.renderer.addCircle(
+          p.pos.x,
+          p.pos.y,
+          p.radius + 2,
+          0.2,
+          0.6,
+          0.7,
+          pulseAlpha * 0.8
+        );
+      } else if (isMatch) {
         this.renderer.addCircle(
           p.pos.x,
           p.pos.y,
@@ -298,7 +319,8 @@ export class GraphRenderer {
       mouseY,
       width,
       height,
-      matchSet
+      matchSet,
+      contentOnlySet
     );
   }
 
@@ -312,7 +334,8 @@ export class GraphRenderer {
     mouseY: number,
     width: number,
     height: number,
-    matchSet: Set<string> | null = null
+    matchSet: Set<string> | null = null,
+    contentOnlySet: Set<string> | null = null
   ): void {
     const ctx = this.textCtx;
 
@@ -351,15 +374,20 @@ export class GraphRenderer {
       : [...nodes].sort((a, b) => b.degree - a.degree).slice(0, 15);
 
     for (const node of labelNodes) {
-      const isMatch = matchSet?.has(node.id);
+      const isTitleMatch =
+        matchSet?.has(node.id) && !contentOnlySet?.has(node.id);
+      const isContentOnly = contentOnlySet?.has(node.id);
+      const isMatch = isTitleMatch || isContentOnly;
       ctx.font = isMatch
         ? 'bold 10px system-ui, sans-serif'
         : '9px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isMatch
+      ctx.fillStyle = isTitleMatch
         ? 'rgba(180, 90, 30, 0.95)'
-        : 'rgba(80, 80, 80, 0.7)';
+        : isContentOnly
+          ? 'rgba(40, 130, 150, 0.9)'
+          : 'rgba(80, 80, 80, 0.7)';
       const label =
         node.title.length > 22 ? node.title.slice(0, 20) + '..' : node.title;
       ctx.fillText(

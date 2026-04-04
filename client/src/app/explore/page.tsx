@@ -12,6 +12,7 @@ import type { SimNode, SimEdge } from '@/lib/graph';
 import type { SearchMode } from '@/lib/graph/GraphRenderer';
 import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
 import ExploreDetailPanel from '@/components/pages/explore/ExploreDetailPanel';
+import { useSearch } from '@/hooks/useSearch';
 
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
@@ -122,7 +123,8 @@ export default function ExplorePage() {
   const selectedNodeRef = useRef<SimNode | null>(null);
   const draggedNodeRef = useRef<string | null>(null);
   const panRef = useRef({ ox: 0, oy: 0, startX: 0, startY: 0, panning: false });
-  const searchTermRef = useRef('');
+  const titleMatchRef = useRef<Set<string> | null>(null);
+  const contentMatchRef = useRef<Set<string> | null>(null);
   const searchModeRef = useRef<SearchMode>('highlight');
   const graphDataRef = useRef<GraphData | null>(null);
 
@@ -138,10 +140,60 @@ export default function ExplorePage() {
   const [useSpatialHash, setUseSpatialHash] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
 
-  // Keep refs in sync with state
+  // Content search via server API (debounced)
+  const { search: searchContent, results: contentResults } = useSearch();
+
+  // Handle search term changes: client-side title match + trigger server content search
+  const handleSearchChange = useCallback(
+    (term: string) => {
+      setSearchTerm(term);
+
+      // Client-side: instant title/section/tag matching
+      if (term.length >= 2 && simRef.current) {
+        const needle = term.toLowerCase();
+        const titleSet = new Set<string>();
+        for (const node of simRef.current.getNodes()) {
+          const haystack = (
+            node.title +
+            ' ' +
+            node.section +
+            ' ' +
+            (Array.isArray(node.tags) ? node.tags.join(' ') : '')
+          ).toLowerCase();
+          if (haystack.includes(needle)) {
+            titleSet.add(node.id);
+          }
+        }
+        titleMatchRef.current = titleSet;
+      } else {
+        titleMatchRef.current = null;
+        contentMatchRef.current = null;
+      }
+
+      // Server-side: debounced full-text content search
+      searchContent(term);
+    },
+    [searchContent]
+  );
+
+  // When content search results arrive, cross-reference with graph nodes by path
   useEffect(() => {
-    searchTermRef.current = searchTerm;
-  }, [searchTerm]);
+    if (contentResults.length === 0 || !simRef.current) {
+      contentMatchRef.current = null;
+      return;
+    }
+    const resultPaths = new Set(contentResults.map((r) => r.path));
+    const contentSet = new Set<string>();
+    for (const node of simRef.current.getNodes()) {
+      // Graph paths may have hash fragments (#section), search paths don't
+      const basePath = node.path.split('#')[0];
+      if (resultPaths.has(basePath) || resultPaths.has(node.path)) {
+        contentSet.add(node.id);
+      }
+    }
+    contentMatchRef.current = contentSet.size > 0 ? contentSet : null;
+  }, [contentResults]);
+
   useEffect(() => {
     searchModeRef.current = searchMode;
   }, [searchMode]);
@@ -467,7 +519,8 @@ export default function ExplorePage() {
           mouseRef.current.y,
           showGridRef.current,
           useSpatialHashRef.current,
-          searchTermRef.current,
+          titleMatchRef.current,
+          contentMatchRef.current,
           searchModeRef.current
         );
       } catch (err) {
@@ -564,7 +617,7 @@ export default function ExplorePage() {
         onChange={handleOptionsChange}
         onPhysicsChange={handlePhysicsChange}
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={handleSearchChange}
         searchMode={searchMode}
         onSearchModeChange={setSearchMode}
         useSpatialHash={useSpatialHash}
