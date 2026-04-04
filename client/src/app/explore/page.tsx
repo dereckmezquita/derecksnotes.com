@@ -460,7 +460,8 @@ export default function ExplorePage() {
           hoveredEdgeRef.current,
           mouseRef.current.x,
           mouseRef.current.y,
-          showGridRef.current
+          showGridRef.current,
+          useSpatialHashRef.current
         );
       } catch (err) {
         console.error('[Explore] draw() error:', err);

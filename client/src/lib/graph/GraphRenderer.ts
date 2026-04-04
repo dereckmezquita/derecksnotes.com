@@ -67,11 +67,14 @@ export class GraphRenderer {
     // Higher strength than 404 page because graph nodes have distributed mass
     this.renderer.drawGravitationalGrid(width, height, particles, qt, 12, 3000);
 
-    // 3. QuadTree + SpatialHash grid
+    // 3. Spatial index visualization (toggle between QuadTree and SpatialHash)
     if (showGrid) {
-      const sh = sim.getSpatialHash();
-      if (sh) this.renderer.drawSpatialHash(sh);
-      if (qt) this.renderer.drawQuadTree(qt);
+      if (useSpatialHash) {
+        const sh = sim.getSpatialHash();
+        if (sh) this.renderer.drawSpatialHash(sh);
+      } else {
+        if (qt) this.renderer.drawQuadTree(qt);
+      }
     }
 
     // 4. Draw edges
