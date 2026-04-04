@@ -41,7 +41,16 @@ dt_algo[, signal := shift(signal,1,0)]
 dt_algo[, pnl := pnls]
 dt_algo[, cumPNL := cumulative_pnl]
 tail(dt_algo)
+
+# Quick plot
+plot(dt_algo$day, dt_algo$cumPNL, type="l",
+     main="Toy Algo Trading Strategy (Sign of Return)",
+     xlab="Day", ylab="Cumulative PnL")
 ```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_a_algorithmic-trading-algorithmic-trading-demo-1.png" alt="Simulated moving average crossover trading strategy on random walk price data">
+	Simulated moving average crossover trading strategy on random walk price data
+</Figure>
 
 ```
 ##      day          ret signal          pnl      cumPNL
@@ -53,15 +62,4 @@ tail(dt_algo)
 ## 5:   199 -0.005611659     -1  0.005611659 -0.04866103
 ## 6:   200 -0.011354801     -1  0.011354801 -0.03730623
 ```
-
-``` r
-# Quick plot
-plot(dt_algo$day, dt_algo$cumPNL, type="l",
-     main="Toy Algo Trading Strategy (Sign of Return)",
-     xlab="Day", ylab="Cumulative PnL")
-```
-
-<Figure src="/dictionaries/mathematics/mathematics_finance_a_algorithmic-trading-unnamed-chunk-1-1.png">
-	
-</Figure>
 

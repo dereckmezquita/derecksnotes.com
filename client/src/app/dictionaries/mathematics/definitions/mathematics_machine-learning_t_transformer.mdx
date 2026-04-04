@@ -38,13 +38,7 @@ K <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
 V <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
 
 cat("Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.\n")
-```
 
-```
-## Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.
-```
-
-``` r
 attention_naive <- function(Q,K,V) {
   # We'll flatten batch dimension in naive approach
   out <- array(0, dim=dim(Q))
@@ -70,6 +64,7 @@ dim(res)
 ```
 
 ```
+## Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.
 ## [1]  2 10 64
 ```
 

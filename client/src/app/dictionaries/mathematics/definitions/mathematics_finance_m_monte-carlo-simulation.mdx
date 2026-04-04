@@ -49,13 +49,7 @@ payoffs <- pmax(ST - K, 0)
 # Discount payoffs back:
 call_value <- exp(-r*T)*mean(payoffs)
 call_value
-```
 
-```
-## [1] 6.668314
-```
-
-``` r
 # Visual quick distribution:
 dt_call <- data.table(ST=ST, payoffs=payoffs)
 ggplot(dt_call, aes(x=ST)) +
@@ -64,7 +58,11 @@ ggplot(dt_call, aes(x=ST)) +
   theme_minimal()
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_finance_m_monte-carlo-simulation-unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_finance_m_monte-carlo-simulation-monte-carlo-simulation-demo-1.png" alt="Monte Carlo simulated stock price paths using geometric Brownian motion">
+	Monte Carlo simulated stock price paths using geometric Brownian motion
 </Figure>
+
+```
+## [1] 6.668314
+```
 

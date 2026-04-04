@@ -40,7 +40,19 @@ y <- rbinom(n, size=1, prob=p)
 dt_logit <- data.table(x=x, y=y)
 fit_logit <- glm(y ~ x, data=dt_logit, family="binomial")
 summary(fit_logit)
+
+# Predict
+newx <- seq(-2,2,by=0.1)
+pred_prob <- predict(fit_logit, newdata=data.table(x=newx), type="response")
+
+plot(dt_logit$x, dt_logit$y, pch=19,
+     main="Logistic Regression Demo", xlab="x", ylab="Observed Class (0/1)")
+lines(newx, pred_prob, col="red", lwd=2)
 ```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_l_logistic-regression-logistic-regression-demo-1.png" alt="Logistic regression predicted probability curve on binary outcome data">
+	Logistic regression predicted probability curve on binary outcome data
+</Figure>
 
 ```
 ## 
@@ -62,17 +74,3 @@ summary(fit_logit)
 ## 
 ## Number of Fisher Scoring iterations: 7
 ```
-
-``` r
-# Predict
-newx <- seq(-2,2,by=0.1)
-pred_prob <- predict(fit_logit, newdata=data.table(x=newx), type="response")
-
-plot(dt_logit$x, dt_logit$y, pch=19,
-     main="Logistic Regression Demo", xlab="x", ylab="Observed Class (0/1)")
-lines(newx, pred_prob, col="red", lwd=2)
-```
-
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_l_logistic-regression-unnamed-chunk-1-1.png">
-	
-</Figure>

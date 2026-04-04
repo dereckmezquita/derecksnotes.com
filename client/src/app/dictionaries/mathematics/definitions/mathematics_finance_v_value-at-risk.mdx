@@ -37,14 +37,7 @@ losses <- -daily_returns
 alpha <- 0.95
 var_level <- quantile(losses, alpha)
 var_level
-```
 
-```
-##        95% 
-## 0.01617498
-```
-
-``` r
 # Distribution plot
 dt_var <- data.table(loss=losses)
 ggplot(dt_var, aes(x=loss)) +
@@ -56,7 +49,12 @@ ggplot(dt_var, aes(x=loss)) +
   theme_minimal()
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_finance_v_value-at-risk-unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_finance_v_value-at-risk-value-at-risk-demo-1.png" alt="Distribution of simulated portfolio returns with Value at Risk threshold">
+	Distribution of simulated portfolio returns with Value at Risk threshold
 </Figure>
+
+```
+##        95% 
+## 0.01617498
+```
 

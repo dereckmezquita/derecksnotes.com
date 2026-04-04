@@ -48,7 +48,7 @@
 # Configuration
 # -----------------------------------------------------------------------------
 
-FIGURE_DPI <- 300
+FIGURE_DPI <- 250
 FIGURE_WIDTH <- 10
 FIGURE_HEIGHT <- 7
 
@@ -338,6 +338,7 @@ build_rmd <- function(rmd_path, content_dir, content_type, fig_config, opts) {
             dpi = FIGURE_DPI,
             dev = "png",
             echo = TRUE,
+            results = "hold",
             warning = TRUE,
             message = TRUE,
             error = FALSE

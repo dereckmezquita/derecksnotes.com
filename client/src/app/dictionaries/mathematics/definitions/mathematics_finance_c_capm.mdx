@@ -45,19 +45,29 @@ dt_capm <- data.table(market=market_returns, asset=asset_returns)
 # Estimate beta = Cov(R_i, R_m)/Var(R_m)
 est_beta <- cov(dt_capm$asset, dt_capm$market)/var(dt_capm$market)
 est_beta
-```
 
-```
-## [1] 1.185373
-```
-
-``` r
 # We'll also do a quick regression
 fit <- lm(asset ~ market, data=dt_capm)
 summary(fit)
+
+# Plot
+ggplot(dt_capm, aes(x=market, y=asset)) +
+  geom_point(alpha=0.4) +
+  geom_smooth(method="lm", se=FALSE, color="red") +
+  labs(title="CAPM example: Estimating Beta via Regression", x="Market Return", y="Asset Return") +
+  theme_minimal()
 ```
 
 ```
+## `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_c_capm-capm-demo-1.png" alt="CAPM security market line with simulated asset returns">
+	CAPM security market line with simulated asset returns
+</Figure>
+
+```
+## [1] 1.185373
 ## 
 ## Call:
 ## lm(formula = asset ~ market, data = dt_capm)
@@ -77,20 +87,3 @@ summary(fit)
 ## Multiple R-squared:  0.8346,	Adjusted R-squared:  0.8337 
 ## F-statistic: 998.8 on 1 and 198 DF,  p-value: < 2.2e-16
 ```
-
-``` r
-# Plot
-ggplot(dt_capm, aes(x=market, y=asset)) +
-  geom_point(alpha=0.4) +
-  geom_smooth(method="lm", se=FALSE, color="red") +
-  labs(title="CAPM example: Estimating Beta via Regression", x="Market Return", y="Asset Return") +
-  theme_minimal()
-```
-
-```
-## `geom_smooth()` using formula = 'y ~ x'
-```
-
-<Figure src="/dictionaries/mathematics/mathematics_finance_c_capm-unnamed-chunk-1-1.png">
-	
-</Figure>

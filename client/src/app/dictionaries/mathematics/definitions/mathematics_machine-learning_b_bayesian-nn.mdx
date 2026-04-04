@@ -76,6 +76,11 @@ fit_bayes <- brm(y ~ x, data=dt_bnn, family=gaussian(),
 
 ``` r
 summary(fit_bayes)
+
+# Posterior samples and predictions
+pred_data <- data.table(x=seq(0,5,0.1))
+pred_res  <- posterior_predict(fit_bayes, newdata=pred_data)
+cat("We can plot predictive intervals, akin to uncertain neural net weights.\n")
 ```
 
 ```
@@ -98,15 +103,5 @@ summary(fit_bayes)
 ## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 ## and Tail_ESS are effective sample size measures, and Rhat is the potential
 ## scale reduction factor on split chains (at convergence, Rhat = 1).
-```
-
-``` r
-# Posterior samples and predictions
-pred_data <- data.table(x=seq(0,5,0.1))
-pred_res  <- posterior_predict(fit_bayes, newdata=pred_data)
-cat("We can plot predictive intervals, akin to uncertain neural net weights.\n")
-```
-
-```
 ## We can plot predictive intervals, akin to uncertain neural net weights.
 ```

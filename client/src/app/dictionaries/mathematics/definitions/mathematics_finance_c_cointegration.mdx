@@ -40,7 +40,18 @@ dt_coin <- data.table(time=1:n, X=x, Y=y)
 # Fit linear model and extract residuals
 fit_lm <- lm(Y ~ X, data=dt_coin)
 summary(fit_lm)
+
+# Plot residuals — if stationary, suggests cointegration
+dt_coin[, residual := residuals(fit_lm)]
+ggplot(dt_coin, aes(x=time)) +
+  geom_line(aes(y=residual)) +
+  labs(title="Residual from linear combination X_t - beta*Y_t", x="time", y="residual") +
+  theme_minimal()
 ```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_c_cointegration-cointegration-demo-1.png" alt="Residuals from a linear combination of two cointegrated time series">
+	Residuals from a linear combination of two cointegrated time series
+</Figure>
 
 ```
 ## 
@@ -62,17 +73,4 @@ summary(fit_lm)
 ## Multiple R-squared:  0.9766,	Adjusted R-squared:  0.9766 
 ## F-statistic: 1.246e+04 on 1 and 298 DF,  p-value: < 2.2e-16
 ```
-
-``` r
-# Plot residuals — if stationary, suggests cointegration
-dt_coin[, residual := residuals(fit_lm)]
-ggplot(dt_coin, aes(x=time)) +
-  geom_line(aes(y=residual)) +
-  labs(title="Residual from linear combination X_t - beta*Y_t", x="time", y="residual") +
-  theme_minimal()
-```
-
-<Figure src="/dictionaries/mathematics/mathematics_finance_c_cointegration-unnamed-chunk-1-1.png">
-	
-</Figure>
 

@@ -64,24 +64,7 @@ dt_rf <- data.table(x1=x1, x2=x2, y=as.factor(y_class))
 # Fit random forest
 fit_rf <- randomForest(y ~ x1 + x2, data=dt_rf, ntree=100, mtry=1)
 fit_rf
-```
 
-```
-## 
-## Call:
-##  randomForest(formula = y ~ x1 + x2, data = dt_rf, ntree = 100,      mtry = 1) 
-##                Type of random forest: classification
-##                      Number of trees: 100
-## No. of variables tried at each split: 1
-## 
-##         OOB estimate of  error rate: 19.5%
-## Confusion matrix:
-##    A  B class.error
-## A 78 22        0.22
-## B 17 83        0.17
-```
-
-``` r
 # Create a grid for predictions
 grid_x1 <- seq(0,5, by=0.1)
 grid_x2 <- seq(0,5, by=0.1)
@@ -99,6 +82,21 @@ ggplot() +
   theme_minimal()
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_r_random-forest-unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_r_random-forest-random-forest-demo-1.png" alt="Random forest classification boundary on two-class synthetic data">
+	Random forest classification boundary on two-class synthetic data
 </Figure>
+
+```
+## 
+## Call:
+##  randomForest(formula = y ~ x1 + x2, data = dt_rf, ntree = 100,      mtry = 1) 
+##                Type of random forest: classification
+##                      Number of trees: 100
+## No. of variables tried at each split: 1
+## 
+##         OOB estimate of  error rate: 19.5%
+## Confusion matrix:
+##    A  B class.error
+## A 78 22        0.22
+## B 17 83        0.17
+```

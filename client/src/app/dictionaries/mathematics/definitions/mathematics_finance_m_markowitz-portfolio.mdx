@@ -48,31 +48,19 @@ bvec <- 1
 res <- solve.QP(Dmat, dvec, Amat, bvec, meq=1)
 w <- res$solution
 w
-```
-
-```
-## [1] 0.5867508 0.2469171 0.1663321
-```
-
-``` r
 # w is the minimum variance portfolio weights
 
 # Let's see the variance and return
 var_port <- t(w) %*% Sigma %*% w
 ret_port <- sum(w*mu)
 var_port
-```
-
-```
-##            [,1]
-## [1,] 0.00661084
-```
-
-``` r
 ret_port
 ```
 
 ```
+## [1] 0.5867508 0.2469171 0.1663321
+##            [,1]
+## [1,] 0.00661084
 ## [1] 0.1015199
 ```
 

@@ -41,19 +41,14 @@ dt_genfun <- data.table(
 dt_genfun[, term := x_val^n]
 partial_sum <- dt_genfun[, sum(term)]
 partial_sum
-```
 
-```
-## [1] 1.25
-```
-
-``` r
 # Compare to closed-form 1/(1 - x_val)
 closed_form <- 1 / (1 - x_val)
 closed_form
 ```
 
 ```
+## [1] 1.25
 ## [1] 1.25
 ```
 

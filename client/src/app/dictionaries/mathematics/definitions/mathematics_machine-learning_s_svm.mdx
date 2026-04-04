@@ -37,7 +37,21 @@ y_class <- ifelse(x2 > x1 + rnorm(n,0,1), "A","B")
 dt_svm <- data.table(x1=x1, x2=x2, y=as.factor(y_class))
 fit_svm <- svm(y ~ x1 + x2, data=dt_svm, kernel="linear", scale=TRUE)
 summary(fit_svm)
+
+# Grid for plotting
+grid_x1 <- seq(-3,3,length.out=50)
+grid_x2 <- seq(-3,3,length.out=50)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+pred_grid <- predict(fit_svm, newdata=grid_data)
+
+plot(x2 ~ x1, data=dt_svm, col=y, pch=19,
+     main="SVM Demo (linear kernel)")
+contour(grid_x1, grid_x2, matrix(as.numeric(pred_grid),50), add=TRUE, levels=c(1.5))
 ```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_s_svm-svm-demo-1.png" alt="Support vector machine decision boundary with radial basis function kernel">
+	Support vector machine decision boundary with radial basis function kernel
+</Figure>
 
 ```
 ## 
@@ -60,19 +74,3 @@ summary(fit_svm)
 ## Levels: 
 ##  A B
 ```
-
-``` r
-# Grid for plotting
-grid_x1 <- seq(-3,3,length.out=50)
-grid_x2 <- seq(-3,3,length.out=50)
-grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
-pred_grid <- predict(fit_svm, newdata=grid_data)
-
-plot(x2 ~ x1, data=dt_svm, col=y, pch=19,
-     main="SVM Demo (linear kernel)")
-contour(grid_x1, grid_x2, matrix(as.numeric(pred_grid),50), add=TRUE, levels=c(1.5))
-```
-
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_s_svm-unnamed-chunk-1-1.png">
-	
-</Figure>

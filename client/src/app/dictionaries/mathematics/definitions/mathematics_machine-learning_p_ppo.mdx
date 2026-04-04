@@ -30,13 +30,7 @@ where:
 library(data.table)
 set.seed(123)
 cat("Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:")
-```
 
-```
-## Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:
-```
-
-``` r
 ppo_update_step <- function(log_prob_old, log_prob_new, advantage, epsilon=0.2) {
   ratio <- exp(log_prob_new - log_prob_old)
   unclipped <- ratio * advantage
@@ -53,5 +47,5 @@ ppo_update_step(log_prob_old, log_prob_new, advantage, 0.2)
 ```
 
 ```
-## [1] 0.7827393
+## Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:[1] 0.7827393
 ```

@@ -31,21 +31,19 @@ E(g)$weight <- c(2, 4, 5, 1, 3)  # just some weights
 # Use built-in MST function that uses Kruskal internally
 mst_g <- mst(g)
 mst_g
-```
 
-```
-## IGRAPH 7286401 UNW- 4 3 -- 
-## + attr: name (v/c), weight (e/n)
-## + edges from 7286401 (vertex names):
-## [1] A--B C--D B--D
-```
-
-``` r
 # Let's plot
 plot(mst_g, vertex.color="lightblue", vertex.size=30,
      edge.label=E(mst_g)$weight)
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_graph-theory_k_kruskal-algorithm-unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_graph-theory_k_kruskal-algorithm-kruskal-algorithm-demo-1.png" alt="Minimum spanning tree found by Kruskal algorithm on a weighted graph">
+	Minimum spanning tree found by Kruskal algorithm on a weighted graph
 </Figure>
+
+```
+## IGRAPH 26ca650 UNW- 4 3 -- 
+## + attr: name (v/c), weight (e/n)
+## + edges from 26ca650 (vertex names):
+## [1] A--B C--D B--D
+```

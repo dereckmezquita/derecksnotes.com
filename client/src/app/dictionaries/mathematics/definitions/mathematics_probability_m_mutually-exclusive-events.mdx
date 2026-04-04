@@ -35,20 +35,11 @@ since $A$ and $B$ never overlap.
 set.seed(123)
 flips <- sample(c("H","T"), size=100, replace=TRUE)
 mean(flips == "H")  # approximate P(A)
+mean(flips == "T")  # approximate P(B)
+# Overlap: none, because a single flip can't be both H and T
 ```
 
 ```
 ## [1] 0.57
-```
-
-``` r
-mean(flips == "T")  # approximate P(B)
-```
-
-```
 ## [1] 0.43
-```
-
-``` r
-# Overlap: none, because a single flip can't be both H and T
 ```

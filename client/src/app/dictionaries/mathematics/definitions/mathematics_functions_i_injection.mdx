@@ -29,6 +29,8 @@ f_injective <- function(x) x^2  # for integers, watch out for collisions at +/-x
 x_vals <- c(-2,-1,0,1,2)
 f_vals <- f_injective(x_vals)
 data.table(x=x_vals, f=f_vals)
+# Notice that x^2 is not injective over all integers (f(-2)=f(2)). 
+# But restricted to nonnegative x, it can be injective.
 ```
 
 ```
@@ -39,9 +41,4 @@ data.table(x=x_vals, f=f_vals)
 ## 3:     0     0
 ## 4:     1     1
 ## 5:     2     4
-```
-
-``` r
-# Notice that x^2 is not injective over all integers (f(-2)=f(2)). 
-# But restricted to nonnegative x, it can be injective.
 ```
