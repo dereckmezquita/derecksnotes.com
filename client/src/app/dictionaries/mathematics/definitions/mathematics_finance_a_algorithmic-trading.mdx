@@ -1,0 +1,67 @@
+---
+letter: a
+dictionary: mathematics
+category: finance
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="algorithmic-trading">Algorithmic Trading</a> - **Algorithmic trading** uses computer-driven strategies to execute orders based on predefined rules (e.g. technical indicators, [machine-learning](#machine-learning) models, or risk constraints). Key components include:
+
+- Strategy design (signal generation, risk mgmt).
+- Implementation (order routing, execution algorithms).
+- Monitoring & backtesting.
+
+**Mathematical aspects**:
+- Strategies often rely on time-series analysis, probability models (e.g. [Markov-chain](#markov-chain)), or advanced ML.
+- Execution can aim to minimize market impact and transaction costs.
+
+**R demonstration** (A minimal example of a “toy” daily returns strategy):
+
+
+``` r
+library(data.table)
+set.seed(123)
+
+# Suppose we have daily returns from a random walk
+n <- 200
+returns <- rnorm(n, mean=0.0005, sd=0.01)
+
+dt_algo <- data.table(day=1:n, ret=returns)
+# A naive “signal”: if ret>0 => “go long next day”, else “stay out”
+signal <- sign(dt_algo$ret)  # +1 or -1 or 0
+# We'll track PnL by day (with a 1-day lag in signal if we want)
+pnls <- shift(signal, fill=0, type="lag")* dt_algo$ret
+cumulative_pnl <- cumsum(pnls)
+
+dt_algo[, signal := shift(signal,1,0)]
+dt_algo[, pnl := pnls]
+dt_algo[, cumPNL := cumulative_pnl]
+tail(dt_algo)
+```
+
+```
+##      day          ret signal          pnl      cumPNL
+##    <int>        <num>  <num>        <num>       <num>
+## 1:   195 -0.012608015     -1  0.012608015 -0.02829493
+## 2:   196  0.020472134     -1 -0.020472134 -0.04876707
+## 3:   197  0.006507088      1  0.006507088 -0.04225998
+## 4:   198 -0.012012714      1 -0.012012714 -0.05427269
+## 5:   199 -0.005611659     -1  0.005611659 -0.04866103
+## 6:   200 -0.011354801     -1  0.011354801 -0.03730623
+```
+
+``` r
+# Quick plot
+plot(dt_algo$day, dt_algo$cumPNL, type="l",
+     main="Toy Algo Trading Strategy (Sign of Return)",
+     xlab="Day", ylab="Cumulative PnL")
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_a_algorithmic-trading-unnamed-chunk-1-1.png">
+	
+</Figure>
+

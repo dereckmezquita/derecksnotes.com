@@ -9,7 +9,6 @@ links: []
 ---
 
 
-
 <a id="group">Group</a> - In **abstract algebra**, a **group** is a set $G$ together with a binary operation $\cdot$ satisfying:
 
 1. **Closure**: For all $a,b \in G$, $a \cdot b \in G$.
@@ -27,7 +26,13 @@ While direct R demonstration is less obvious, one could illustrate a finite grou
 
 ``` r
 library(data.table)
+```
 
+```
+## Warning: package 'data.table' was built under R version 4.5.2
+```
+
+``` r
 # Let's define a small group table: Z2 x Z2 (Klein group), with elements { (0,0), (0,1), (1,0), (1,1) } under addition mod 2
 # We'll store all results in a data.table
 dt_group <- data.table(

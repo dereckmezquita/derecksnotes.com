@@ -1,0 +1,104 @@
+---
+letter: r
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="random-forest">Random Forest</a> - A **random forest** is an **ensemble** of [decision-tree](#decision-tree) classifiers (or regressors) where each tree is built on a bootstrapped sample of the data and uses random subsets of features for splitting. It leverages **bagging** (bootstrap aggregating) plus feature randomness to reduce variance.
+
+**Mathematical idea**:
+- Suppose you have $N$ training examples $ (x_i, y_i) $.
+- Each tree is trained on a bootstrap sample (i.e., sampling $N$ times with replacement).
+- At each split, you choose among a random subset of features rather than all features.
+
+Prediction for classification:
+$$
+\hat{y}_{\text{forest}}(x) = \text{majority-vote}\bigl( \hat{y}_1(x),\dots,\hat{y}_T(x) \bigr).
+$$
+where $T$ is the number of trees.
+
+**R demonstration** (using `randomForest` package):
+
+
+``` r
+library(data.table)
+library(randomForest)
+```
+
+```
+## randomForest 4.7-1.2
+```
+
+```
+## Type rfNews() to see new features/changes/bug fixes.
+```
+
+```
+## 
+## Attaching package: 'randomForest'
+```
+
+```
+## The following object is masked from 'package:ggplot2':
+## 
+##     margin
+```
+
+``` r
+library(ggplot2)
+
+set.seed(123)
+# Synthetic classification data
+n <- 200
+x1 <- runif(n, min=0, max=5)
+x2 <- runif(n, min=0, max=5)
+y_class <- ifelse(x1 + x2 + rnorm(n, sd=1) > 5, "A","B")
+
+dt_rf <- data.table(x1=x1, x2=x2, y=as.factor(y_class))
+
+# Fit random forest
+fit_rf <- randomForest(y ~ x1 + x2, data=dt_rf, ntree=100, mtry=1)
+fit_rf
+```
+
+```
+## 
+## Call:
+##  randomForest(formula = y ~ x1 + x2, data = dt_rf, ntree = 100,      mtry = 1) 
+##                Type of random forest: classification
+##                      Number of trees: 100
+## No. of variables tried at each split: 1
+## 
+##         OOB estimate of  error rate: 19.5%
+## Confusion matrix:
+##    A  B class.error
+## A 78 22        0.22
+## B 17 83        0.17
+```
+
+``` r
+# Create a grid for predictions
+grid_x1 <- seq(0,5, by=0.1)
+grid_x2 <- seq(0,5, by=0.1)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+
+grid_data[, pred := predict(fit_rf, newdata=.SD)]
+
+# Plot results
+ggplot() +
+  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
+  geom_point(data=dt_rf, aes(x=x1, y=x2, color=y), size=2) +
+  scale_fill_manual(values=c("A"="lightblue","B"="salmon")) +
+  scale_color_manual(values=c("A"="blue","B"="red")) +
+  labs(title="Random Forest Classification", x="x1", y="x2") +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_r_random-forest-unnamed-chunk-1-1.png">
+	
+</Figure>

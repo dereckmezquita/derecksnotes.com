@@ -9,7 +9,6 @@ links: []
 ---
 
 
-
 <a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point $x_{new}$ by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
 
 **Mathematical form** (for classification):
@@ -23,6 +22,20 @@ where $ \mathcal{N}_k(x_{new}) $ is the set of k nearest neighbors under a chose
 
 ``` r
 library(class)
+```
+
+```
+## 
+## Attaching package: 'class'
+```
+
+```
+## The following object is masked from 'package:igraph':
+## 
+##     knn
+```
+
+``` r
 library(data.table)
 library(ggplot2)
 
@@ -71,6 +84,6 @@ ggplot() +
   theme_minimal()
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_k_knn_files/unnamed-chunk-1-1.png">
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_k_knn-unnamed-chunk-1-1.png">
 	
 </Figure>

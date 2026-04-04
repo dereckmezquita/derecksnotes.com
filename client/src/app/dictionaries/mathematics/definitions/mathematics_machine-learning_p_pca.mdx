@@ -1,0 +1,60 @@
+---
+letter: p
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="pca">PCA (Principal Component Analysis)</a> - In **machine learning** and statistics, **PCA** is a dimensionality reduction technique. It finds orthogonal directions of maximum [variance](#variance) in the data. Mathematically, if $X$ is an $m\times n$ data [matrix](#matrix) (assuming columns are features), we compute the covariance matrix:
+
+$$
+\Sigma = \frac{1}{m-1} X^T X,
+$$
+and find its [eigenvalue](#eigenvalue)-eigenvector decomposition. The principal components are eigenvectors of $\Sigma$, ordered by descending eigenvalues.
+
+**Key points**:
+- The first principal component captures the direction of greatest variance.
+- Often used to reduce noise, visualise data in 2 or 3 principal components.
+
+**R demonstration** (using `prcomp` on synthetic data):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+# We'll produce correlated data
+x1 <- rnorm(n)
+x2 <- 2*x1 + rnorm(n, sd=0.5)
+dt_pca <- data.table(x1, x2)
+
+pca_res <- prcomp(dt_pca[, .(x1, x2)], scale=TRUE)
+summary(pca_res)
+```
+
+```
+## Importance of components:
+##                          PC1     PC2
+## Standard deviation     1.402 0.18464
+## Proportion of Variance 0.983 0.01705
+## Cumulative Proportion  0.983 1.00000
+```
+
+``` r
+# Plot the principal components
+dt_scores <- data.table(pca_res$x)
+ggplot(dt_scores, aes(PC1, PC2)) +
+  geom_point() +
+  labs(title="PCA of Synthetic 2D Data", x="PC1", y="PC2") +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_p_pca-unnamed-chunk-1-1.png">
+	
+</Figure>

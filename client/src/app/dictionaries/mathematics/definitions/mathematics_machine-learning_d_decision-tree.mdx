@@ -9,7 +9,6 @@ links: []
 ---
 
 
-
 <a id="decision-tree">Decision Tree</a> - A **decision tree** is a model that splits data by features to produce a tree of decisions for classification or regression. Nodes perform tests (e.g., $x_j < c$), and leaves provide outcomes or values.
 
 **Key points**:
@@ -22,6 +21,13 @@ links: []
 ``` r
 library(rpart)
 library(rpart.plot)
+```
+
+```
+## Warning: package 'rpart.plot' was built under R version 4.5.2
+```
+
+``` r
 library(data.table)
 
 set.seed(123)
@@ -35,6 +41,6 @@ fit_tree <- rpart(y ~ x1 + x2, data=dt_tree, method="class")
 rpart.plot(fit_tree)
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_d_decision-tree_files/unnamed-chunk-1-1.png">
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_d_decision-tree-unnamed-chunk-1-1.png">
 	
 </Figure>

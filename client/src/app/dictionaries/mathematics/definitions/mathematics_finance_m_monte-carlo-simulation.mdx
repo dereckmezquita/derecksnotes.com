@@ -1,0 +1,70 @@
+---
+letter: m
+dictionary: mathematics
+category: finance
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="monte-carlo-simulation">Monte Carlo Simulation</a> - A **Monte Carlo simulation** uses repeated random sampling to estimate numerical results. In **finance**, it’s often used for pricing derivatives, calculating risk metrics, or projecting potential outcomes of uncertain processes.
+
+**Mathematical principle**:
+If we want to estimate
+$$
+\mathbb{E}[f(X)] = \int f(x) p(x) \,dx,
+$$
+we can approximate by sampling $X_1,\dots,X_N$ from $p$ and computing:
+$$
+\frac{1}{N}\sum_{i=1}^N f(X_i).
+$$
+
+**R demonstration** (estimating the price of a European call option via a simple GBM model):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+
+# Suppose we have a stock with current price S0, volatility sigma, risk-free rate r,
+# time to maturity T, strike K.
+S0 <- 100
+K  <- 105
+r  <- 0.02
+sigma <- 0.20
+T <- 1
+num_sims <- 10000
+
+# Generate terminal stock prices under Geometric Brownian Motion:
+# S_T = S0 * exp((r - 0.5*sigma^2)*T + sigma*sqrt(T)*Z)
+Z <- rnorm(num_sims)
+ST <- S0 * exp((r - 0.5*sigma^2)*T + sigma*sqrt(T)*Z)
+
+# Payoff for European call:
+payoffs <- pmax(ST - K, 0)
+# Discount payoffs back:
+call_value <- exp(-r*T)*mean(payoffs)
+call_value
+```
+
+```
+## [1] 6.668314
+```
+
+``` r
+# Visual quick distribution:
+dt_call <- data.table(ST=ST, payoffs=payoffs)
+ggplot(dt_call, aes(x=ST)) +
+  geom_histogram(bins=40, fill="lightblue", color="black") +
+  labs(title="Monte Carlo Sim for Terminal Stock Price", x="S(T)", y="Frequency") +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_m_monte-carlo-simulation-unnamed-chunk-1-1.png">
+	
+</Figure>
+

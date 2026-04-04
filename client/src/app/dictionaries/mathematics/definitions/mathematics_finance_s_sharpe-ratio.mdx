@@ -1,0 +1,46 @@
+---
+letter: s
+dictionary: mathematics
+category: finance
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="sharpe-ratio">Sharpe Ratio</a> - In **finance**, the **Sharpe ratio** measures the performance of an investment (or strategy) compared to a risk-free asset, accounting for volatility. 
+
+**Formula**:
+$$
+\text{Sharpe Ratio} = \frac{\mathbb{E}[R - R_f]}{\sigma_{(R-R_f)}},
+$$
+where
+- $R$ is the asset/portfolio return,
+- $R_f$ is the risk-free rate,
+- $\sigma$ is the standard deviation of $R - R_f$.
+
+**Key points**:
+- Higher is better, but it can be gamed by different return distributions.
+- Assumes returns are normally distributed for best interpretability.
+
+**R demonstration** (compute Sharpe for a random returns series):
+
+
+``` r
+library(data.table)
+set.seed(123)
+Rf <- 0.0005  # risk-free daily, e.g. ~0.12% annual
+n <- 200
+ret <- rnorm(n, mean=0.001, sd=0.01)
+
+dt_sharpe <- data.table(ret=ret)
+excess <- dt_sharpe$ret - Rf
+sr <- mean(excess)/sd(excess)
+sr
+```
+
+```
+## [1] 0.04392633
+```
+
