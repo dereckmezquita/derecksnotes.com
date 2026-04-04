@@ -10,7 +10,7 @@ export const ENV_CONFIG: Record<BuildEnv, EnvConfig> = {
   local: {
     domain: 'localhost',
     baseUrl: 'http://localhost:3000',
-    apiUrl: 'http://localhost:3001'
+    apiUrl: 'http://localhost:3001/api'
   },
   dev: {
     domain: 'dev.derecksnotes.com',

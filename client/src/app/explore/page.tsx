@@ -187,7 +187,7 @@ export default function ExplorePage() {
       setLoading(true);
       setError(null);
       const qs = buildQueryString(opts);
-      const url = `${API_URL}/api/v1/graph?${qs}`;
+      const url = `${API_URL}/v1/graph?${qs}`;
       console.log('[Explore] Fetching graph:', url);
       const res = await fetch(url);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -212,7 +212,7 @@ export default function ExplorePage() {
   useEffect(() => {
     let es: EventSource | null = null;
     try {
-      es = new EventSource(`${API_URL}/api/v1/graph/live`);
+      es = new EventSource(`${API_URL}/v1/graph/live`);
       es.onmessage = (event) => {
         try {
           const update = JSON.parse(event.data) as Partial<GraphData>;
