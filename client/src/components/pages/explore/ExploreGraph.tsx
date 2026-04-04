@@ -106,21 +106,15 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
     useEffect(() => {
       if (!fgRef.current) return;
       const fg = fgRef.current;
-      // Strong charge repulsion to spread nodes apart
       if (fg.d3Force) {
-        fg.d3Force('charge')?.strength(-30);
-        fg.d3Force('link')?.distance(30);
-        console.log('[Explore] D3 forces configured via ref');
+        // Moderate repulsion so nodes spread but stay visible
+        fg.d3Force('charge')?.strength(-50).distanceMax(300);
+        // Link distance — keep connected nodes close
+        fg.d3Force('link')?.distance(25).strength(0.3);
+        // Strong center force pulls disconnected nodes toward the center
+        fg.d3Force('center')?.strength(0.15);
+        console.log('[Explore] D3 forces configured');
         fg.d3ReheatSimulation?.();
-        // Position camera to see the graph after simulation settles
-        setTimeout(() => {
-          fg.cameraPosition?.({ x: 0, y: 0, z: 500 });
-          console.log('[Explore] Camera positioned');
-        }, 2000);
-        setTimeout(() => {
-          fg.zoomToFit?.(1000, 100);
-          console.log('[Explore] Zoomed to fit');
-        }, 5000);
       }
     }, [nodes, edges]);
 
@@ -283,20 +277,21 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
         graphData={graphData}
         width={dimensions.width}
         height={dimensions.height}
-        backgroundColor="#0a0a14"
+        backgroundColor="rgba(0,0,0,0)"
         nodeColor={(node: any) => sectionColour(node.section || 'blog')}
-        nodeRelSize={6}
-        nodeVal={(node: any) => 3 + Math.log2(1 + (node.__degree || 0)) * 2}
+        nodeRelSize={4}
+        nodeVal={(node: any) => 2 + Math.sqrt(node.__degree || 0) * 0.8}
         nodeLabel={(node: any) => node.title || node.id}
-        linkColor={() => 'rgba(255,255,255,0.2)'}
-        linkWidth={0.5}
+        linkColor={linkColour}
+        linkWidth={(link: any) => Math.max(0.3, (link.weight || 30) / 80)}
+        linkOpacity={0.4}
         onNodeClick={handleNodeClick}
         onBackgroundClick={() => onNodeClick(null)}
         enableNodeDrag={true}
-        cooldownTicks={300}
+        cooldownTicks={200}
         warmupTicks={0}
-        d3AlphaDecay={0.01}
-        d3VelocityDecay={0.2}
+        d3AlphaDecay={0.015}
+        d3VelocityDecay={0.25}
       />
     );
   }

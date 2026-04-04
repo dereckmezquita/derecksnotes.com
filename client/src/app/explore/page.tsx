@@ -34,22 +34,26 @@ const ExploreGraph = dynamic(
 
 // ── styled ───────────────────────────────────────────────────────────
 const PageWrapper = styled.div`
-  position: relative;
-  width: 100%;
-  height: calc(100vh - 120px);
-  background: #1a1a2e;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
+  z-index: 55;
+  pointer-events: auto;
+  background: #0d1117;
 `;
 
 const LoadingOverlay = styled.div`
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 40;
-  background: rgba(0, 0, 0, 0.3);
+  z-index: 60;
+  background: transparent;
   color: #888;
   gap: 16px;
 `;
@@ -125,6 +129,16 @@ function buildQueryString(opts: GraphQueryOptions): string {
 // ── page component ───────────────────────────────────────────────────
 export default function ExplorePage() {
   const graphRef = useRef<ExploreGraphHandle>(null);
+
+  // Hide body background so the graph canvas shows through
+  useEffect(() => {
+    document.body.style.backgroundImage = 'none';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.backgroundImage = '';
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   const [options, setOptions] = useState<GraphQueryOptions>(DEFAULT_OPTIONS);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
