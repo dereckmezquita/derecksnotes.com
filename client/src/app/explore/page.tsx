@@ -34,25 +34,21 @@ const ExploreGraph = dynamic(
 
 // ── styled ───────────────────────────────────────────────────────────
 const PageWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 200px);
+  min-height: 500px;
   overflow: hidden;
-  z-index: 55;
-  pointer-events: auto;
-  background: #0d1117;
 `;
 
 const LoadingOverlay = styled.div`
-  position: fixed;
+  position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 60;
+  z-index: 10;
   background: transparent;
   color: #888;
   gap: 16px;
@@ -83,7 +79,7 @@ const StatsBar = styled.div`
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 50;
+  z-index: 65;
   background: rgba(10, 10, 20, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
@@ -130,12 +126,10 @@ function buildQueryString(opts: GraphQueryOptions): string {
 export default function ExplorePage() {
   const graphRef = useRef<ExploreGraphHandle>(null);
 
-  // Hide body background so the graph canvas shows through
+  // Prevent scrolling on explore page
   useEffect(() => {
-    document.body.style.backgroundImage = 'none';
     document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.backgroundImage = '';
       document.body.style.overflow = '';
     };
   }, []);

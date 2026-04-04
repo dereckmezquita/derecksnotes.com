@@ -8,9 +8,9 @@ import { FaSearch } from 'react-icons/fa';
 // ── styled ───────────────────────────────────────────────────────────
 const Wrapper = styled.div`
   position: fixed;
-  top: 160px;
-  right: 16px;
-  z-index: 50;
+  top: 200px;
+  right: 12px;
+  z-index: 65;
   display: flex;
   align-items: center;
   background: rgba(10, 10, 20, 0.88);

@@ -89,12 +89,15 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
       height: 600
     });
 
-    // responsive sizing
+    // responsive sizing — match parent container
     useEffect(() => {
       function handleResize() {
+        const parent =
+          fgRef.current?.renderer?.()?.domElement?.parentElement?.parentElement;
         setDimensions({
-          width: window.innerWidth,
-          height: window.innerHeight
+          width: parent?.clientWidth || window.innerWidth,
+          height:
+            parent?.clientHeight || Math.max(window.innerHeight - 200, 500)
         });
       }
       handleResize();
@@ -105,18 +108,45 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
     // Configure d3 forces after graph component mounts
     useEffect(() => {
       if (!fgRef.current) return;
-      const fg = fgRef.current;
+      const fg = fgRef.current as any;
+
       if (fg.d3Force) {
-        // Moderate repulsion so nodes spread but stay visible
         fg.d3Force('charge')?.strength(-50).distanceMax(300);
-        // Link distance — keep connected nodes close
         fg.d3Force('link')?.distance(25).strength(0.3);
-        // Strong center force pulls disconnected nodes toward the center
         fg.d3Force('center')?.strength(0.15);
         console.log('[Explore] D3 forces configured');
         fg.d3ReheatSimulation?.();
       }
     }, [nodes, edges]);
+
+    // Smooth wind effect — continuous gentle perturbation instead of jarring reheat
+    const windRef = useRef<number>(0);
+    useEffect(() => {
+      let animId: number;
+      function windTick() {
+        windRef.current += 0.002;
+        const fg = fgRef.current as any;
+        if (fg?.graphData) {
+          const nodes = fg.graphData().nodes;
+          for (const node of nodes) {
+            if (node.x != null) {
+              node.vx =
+                (node.vx || 0) +
+                Math.sin(windRef.current + node.x * 0.01) * 0.03;
+              node.vy =
+                (node.vy || 0) +
+                Math.cos(windRef.current * 0.7 + node.y * 0.01) * 0.02;
+              node.vz =
+                (node.vz || 0) +
+                Math.sin(windRef.current * 0.5 + node.z * 0.01) * 0.02;
+            }
+          }
+        }
+        animId = requestAnimationFrame(windTick);
+      }
+      animId = requestAnimationFrame(windTick);
+      return () => cancelAnimationFrame(animId);
+    }, []);
 
     // degree map for node sizing
     const degreeMap = useMemo(() => {
@@ -147,19 +177,21 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
     // graph data in force-graph format
     // IMPORTANT: react-force-graph expects { source, target } on links, not { sourceId, targetId }
     const graphData = useMemo(() => {
+      const nodeIds = new Set(nodes.map((n) => n.id));
       const forceNodes: ForceNode[] = nodes.map((n) => ({
         ...n,
         __degree: degreeMap[n.id] || 0
       }));
-      const forceEdges = edges.map((e) => ({
-        source: (e as any).sourceId ?? (e as any).source,
-        target: (e as any).targetId ?? (e as any).target,
-        edgeType: e.edgeType,
-        weight: e.weight
-      }));
+      const forceEdges = edges
+        .map((e) => ({
+          source: (e as any).sourceId ?? (e as any).source,
+          target: (e as any).targetId ?? (e as any).target,
+          edgeType: e.edgeType,
+          weight: e.weight
+        }))
+        .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
       console.log(
-        `[Explore] Graph data: ${forceNodes.length} nodes, ${forceEdges.length} links. Sample link:`,
-        forceEdges[0]
+        `[Explore] Graph data: ${forceNodes.length} nodes, ${forceEdges.length} valid links`
       );
       return { nodes: forceNodes, links: forceEdges };
     }, [nodes, edges, degreeMap]);
@@ -277,6 +309,7 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
         graphData={graphData}
         width={dimensions.width}
         height={dimensions.height}
+        rendererConfig={{ alpha: true }}
         backgroundColor="rgba(0,0,0,0)"
         nodeColor={(node: any) => sectionColour(node.section || 'blog')}
         nodeRelSize={4}
@@ -290,8 +323,9 @@ const ExploreGraph = forwardRef<ExploreGraphHandle, ExploreGraphProps>(
         enableNodeDrag={true}
         cooldownTicks={200}
         warmupTicks={0}
-        d3AlphaDecay={0.015}
-        d3VelocityDecay={0.25}
+        d3AlphaDecay={0.03}
+        d3AlphaMin={0.001}
+        d3VelocityDecay={0.4}
       />
     );
   }

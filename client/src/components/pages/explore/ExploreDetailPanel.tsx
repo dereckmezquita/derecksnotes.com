@@ -8,7 +8,7 @@ const Overlay = styled.div<{ $open: boolean }>`
   position: fixed;
   top: 0;
   right: 0;
-  z-index: 55;
+  z-index: 65;
   width: 340px;
   height: 100vh;
   background: rgba(10, 10, 20, 0.92);

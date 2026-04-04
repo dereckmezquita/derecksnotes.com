@@ -9,9 +9,9 @@ import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
 // ── styled ───────────────────────────────────────────────────────────
 const Panel = styled.div<{ $collapsed: boolean }>`
   position: fixed;
-  top: 160px;
-  left: 16px;
-  z-index: 50;
+  top: 200px;
+  left: 12px;
+  z-index: 65;
   width: 240px;
   background: rgba(10, 10, 20, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.1);
