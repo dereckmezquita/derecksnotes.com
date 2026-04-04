@@ -1,32 +1,13 @@
 ---
-letter: 'b'
-word: 'backtesting'
-dictionary: 'mathematics'
-category: 'finance'
-dataSource: 'assistant'
+letter: b
+dictionary: mathematics
+category: finance
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: ['algorithmic-trading','markov-chain','monte-carlo-simulation']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(plot=function(x,options){
-    cap<-options$fig.cap
-    as.character(htmltools::tag("Figure",
-      list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
-    ))
-  })
-}
-knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
-```
 
 <a id="backtesting">Backtesting</a> - In **algorithmic trading**, **backtesting** is the process of applying a trading strategy (or model) to historical data to see how it would have performed. This helps gauge performance, risk, and feasibility before live deployment.
 

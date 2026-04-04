@@ -1,36 +1,13 @@
 ---
-letter: 'd'
-word: distribution
-dictionary: 'mathematics'
-category: 'statistics'
-dataSource: 'assistant'
+letter: d
+dictionary: mathematics
+category: statistics
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['discrete-random-variable','covariance']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-  plot = function(x, options) {
-    cap <- options$fig.cap
-    as.character(htmltools::tag("Figure",
-      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-    ))
-  }
-)
-
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(
-  dpi       = 300,
-  fig.width = 10,
-  fig.height= 7
-)
-```
 
 <a id="distribution">Distribution</a> - In probability and statistics, a **distribution** describes how values of a random variable are spread out. It can be specified by a **probability density function (pdf)** for continuous variables or a **probability mass function (pmf)** for discrete variables.
 

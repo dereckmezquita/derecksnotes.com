@@ -1,34 +1,13 @@
 ---
-letter: 'r'
-word: 'range'
-dictionary: 'mathematics'
-category: 'statistics'
-dataSource: 'assistant'
+letter: r
+dictionary: mathematics
+category: statistics
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: ['distribution']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) {
-  knitr::knit_hooks$set(
-    plot = function(x, options) {
-      cap  <- options$fig.cap
-      as.character(
-        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
-```
 
 <a id="range">Range</a> - In **statistics**, the **range** of a set of data is the difference between the maximum and minimum values. It gives a rough measure of the spread of a [distribution](#distribution). Formally, if $X_{(1)}$ and $X_{(n)}$ are the smallest and largest observations,
 
