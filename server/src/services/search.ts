@@ -24,7 +24,7 @@ let indexed = false;
 // MDX Text Extraction
 // ============================================================================
 
-function mdxToPlainText(content: string): string {
+export function mdxToPlainText(content: string): string {
   return content
     .replace(/^import\s+.*$/gm, '') // import statements
     .replace(/^export\s+.*$/gm, '') // export statements

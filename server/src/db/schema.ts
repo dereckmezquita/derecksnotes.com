@@ -314,3 +314,99 @@ export const userBansRelations = relations(userBans, ({ one }) => ({
   user: one(users, { fields: [userBans.userId], references: [users.id] }),
   banner: one(users, { fields: [userBans.bannedBy], references: [users.id] })
 }));
+
+// ============================================================================
+// GRAPH ANALYSIS
+// ============================================================================
+
+export const graphNodes = sqliteTable('graph_nodes', {
+  id: text('id').primaryKey(),
+  path: text('path').notNull().unique(),
+  title: text('title').notNull(),
+  section: text('section').notNull(),
+  category: text('category'),
+  tags: text('tags'),
+  date: text('date'),
+  author: text('author'),
+  snippet: text('snippet'),
+  nodeType: text('node_type').notNull(),
+  parentId: text('parent_id'),
+  depth: integer('depth').notNull().default(0),
+  metadata: text('metadata'),
+  contentHash: text('content_hash'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull()
+});
+
+export const graphEdges = sqliteTable('graph_edges', {
+  id: text('id').primaryKey(),
+  sourceId: text('source_id')
+    .notNull()
+    .references(() => graphNodes.id),
+  targetId: text('target_id')
+    .notNull()
+    .references(() => graphNodes.id),
+  edgeType: text('edge_type').notNull(),
+  weight: integer('weight').notNull().default(1),
+  metadata: text('metadata'),
+  createdAt: text('created_at').notNull()
+});
+
+export const graphKeyTerms = sqliteTable('graph_key_terms', {
+  id: text('id').primaryKey(),
+  nodeId: text('node_id')
+    .notNull()
+    .references(() => graphNodes.id),
+  term: text('term').notNull(),
+  frequency: integer('frequency').notNull().default(1),
+  tfidf: integer('tfidf')
+});
+
+export const graphVectors = sqliteTable('graph_vectors', {
+  id: text('id').primaryKey(),
+  nodeId: text('node_id')
+    .notNull()
+    .references(() => graphNodes.id)
+    .unique(),
+  vector: text('vector').notNull()
+});
+
+// Graph relations
+
+export const graphNodesRelations = relations(graphNodes, ({ one, many }) => ({
+  parent: one(graphNodes, {
+    fields: [graphNodes.parentId],
+    references: [graphNodes.id]
+  }),
+  outgoingEdges: many(graphEdges, { relationName: 'sourceEdges' }),
+  incomingEdges: many(graphEdges, { relationName: 'targetEdges' }),
+  keyTerms: many(graphKeyTerms),
+  vector: one(graphVectors)
+}));
+
+export const graphEdgesRelations = relations(graphEdges, ({ one }) => ({
+  source: one(graphNodes, {
+    fields: [graphEdges.sourceId],
+    references: [graphNodes.id],
+    relationName: 'sourceEdges'
+  }),
+  target: one(graphNodes, {
+    fields: [graphEdges.targetId],
+    references: [graphNodes.id],
+    relationName: 'targetEdges'
+  })
+}));
+
+export const graphKeyTermsRelations = relations(graphKeyTerms, ({ one }) => ({
+  node: one(graphNodes, {
+    fields: [graphKeyTerms.nodeId],
+    references: [graphNodes.id]
+  })
+}));
+
+export const graphVectorsRelations = relations(graphVectors, ({ one }) => ({
+  node: one(graphNodes, {
+    fields: [graphVectors.nodeId],
+    references: [graphNodes.id]
+  })
+}));

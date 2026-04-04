@@ -239,6 +239,9 @@ function Navbar() {
         <NavLeftItem onClick={closeMenu} href="/references">
           References
         </NavLeftItem>
+        <NavLeftItem onClick={closeMenu} href="/explore">
+          Explore
+        </NavLeftItem>
         <DropDownContainer>
           <DropDownLabel>Dictionaries</DropDownLabel>
           <DropDownContent>
