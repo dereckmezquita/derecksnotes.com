@@ -134,7 +134,7 @@ export default function ExplorePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
-  const [useSpatialHash, setUseSpatialHash] = useState(false);
+  const [useSpatialHash, setUseSpatialHash] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
 
   // Keep refs in sync with state
@@ -276,10 +276,11 @@ export default function ExplorePage() {
       return;
     }
 
-    const canvasH = () => window.innerHeight - CANVAS_TOP;
+    const canvasH = () => window.innerHeight;
     const canvasW = () => window.innerWidth;
 
     const sim = new GraphSimulation(canvasW(), canvasH());
+    sim.topBoundary = CANVAS_TOP;
     simRef.current = sim;
 
     // If graphData is already loaded, feed it in
@@ -324,7 +325,7 @@ export default function ExplorePage() {
 
     function onMouseMove(e: MouseEvent) {
       const x = e.clientX;
-      const y = e.clientY - CANVAS_TOP;
+      const y = e.clientY;
       mouseRef.current.x = x;
       mouseRef.current.y = y;
       mouseRef.current.active = true;
@@ -367,7 +368,7 @@ export default function ExplorePage() {
 
     function onMouseDown(e: MouseEvent) {
       const x = e.clientX;
-      const y = e.clientY - CANVAS_TOP;
+      const y = e.clientY;
       mouseDownPos = { x, y };
       mouseDownTime = performance.now();
       hasDragged = false;
@@ -385,7 +386,7 @@ export default function ExplorePage() {
 
     function onMouseUp(e: MouseEvent) {
       const x = e.clientX;
-      const y = e.clientY - CANVAS_TOP;
+      const y = e.clientY;
       const elapsed = performance.now() - mouseDownTime;
       const dist = Math.sqrt(
         (x - mouseDownPos.x) ** 2 + (y - mouseDownPos.y) ** 2
@@ -505,10 +506,10 @@ export default function ExplorePage() {
         ref={glCanvasRef}
         style={{
           position: 'fixed',
-          top: CANVAS_TOP,
+          top: 0,
           left: 0,
           width: '100vw',
-          height: `calc(100vh - ${CANVAS_TOP}px)`,
+          height: '100vh',
           pointerEvents: 'auto',
           zIndex: 50
         }}
@@ -519,10 +520,10 @@ export default function ExplorePage() {
         ref={textCanvasRef}
         style={{
           position: 'fixed',
-          top: CANVAS_TOP,
+          top: 0,
           left: 0,
           width: '100vw',
-          height: `calc(100vh - ${CANVAS_TOP}px)`,
+          height: '100vh',
           pointerEvents: 'none',
           zIndex: 51
         }}

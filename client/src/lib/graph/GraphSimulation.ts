@@ -65,14 +65,15 @@ export class GraphSimulation {
   private spatialHash: SpatialHash;
   private width: number;
   private height: number;
+  public topBoundary: number = 0;
   private frame: number = 0;
   private nextParticleId: number = 0;
   private draggedNodeId: string | null = null;
   private lastDragPos: { x: number; y: number } | null = null;
 
   private params: PhysicsParams = {
-    repulsionStrength: 1.0,
-    bondStrength: 0.08,
+    repulsionStrength: 1.2,
+    bondStrength: 0.22,
     damping: 0.92,
     wind: 0.015,
     gravity: 0
@@ -103,10 +104,11 @@ export class GraphSimulation {
 
     const n = apiNodes.length;
 
-    // Create SimNodes arranged in a circle centered on canvas
+    // Create SimNodes arranged in a circle centered in the usable area (below topBoundary)
     const cx = this.width / 2;
-    const cy = this.height / 2;
-    const circleRadius = Math.min(this.width, this.height) * 0.35;
+    const usableHeight = this.height - this.topBoundary;
+    const cy = this.topBoundary + usableHeight / 2;
+    const circleRadius = Math.min(this.width, usableHeight) * 0.35;
 
     for (let i = 0; i < apiNodes.length; i++) {
       const apiNode = apiNodes[i];
@@ -294,7 +296,13 @@ export class GraphSimulation {
 
     // ── Phase 8: Wall bouncing ──────────────────────────────────────
     for (let i = 0; i < nodeCount; i++) {
-      this.nodes[i].particle.bounceWalls(this.width, this.height, WALL_BOUNCE);
+      const p = this.nodes[i].particle;
+      p.bounceWalls(this.width, this.height, WALL_BOUNCE);
+      // Enforce top boundary (nodes stay below navbar area)
+      if (this.topBoundary > 0 && p.pos.y - p.radius < this.topBoundary) {
+        p.pos.y = this.topBoundary + p.radius;
+        p.vel.y *= -WALL_BOUNCE;
+      }
     }
 
     // ── Phase 9: Prevent merging (reset age each frame) ─────────────
