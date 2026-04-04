@@ -397,14 +397,11 @@ export class GraphRenderer {
       );
     }
 
-    // ── Pinned card for selected node ─────────────────────────────
-    if (selectedNode) {
-      this.drawNodeCard(ctx, selectedNode, edges, width, height, true);
-    }
-
-    // ── Hovered node: transient tooltip (only when not already selected) ──
-    if (hoveredNode && hoveredNode !== selectedNode) {
-      this.drawNodeCard(ctx, hoveredNode, edges, width, height, false);
+    // ── Node card: pinned (selected) or transient (hovered) ──────
+    // Show selected node card, or hovered node card if different
+    const cardNode = selectedNode || hoveredNode;
+    if (cardNode) {
+      this.drawNodeCard(ctx, cardNode, edges, width, height);
     }
 
     // ── Hovered edge: tooltip ──────────────────────────────────────
@@ -500,8 +497,7 @@ export class GraphRenderer {
     node: SimNode,
     edges: SimEdge[],
     width: number,
-    height: number,
-    pinned: boolean
+    height: number
   ): void {
     const hp = node.particle;
     let tx = hp.pos.x + hp.radius + 14;
@@ -555,8 +551,8 @@ export class GraphRenderer {
       }
     }
 
-    // Snippet (for pinned cards)
-    if (pinned && node.snippet) {
+    // Snippet
+    if (node.snippet) {
       const snippet =
         node.snippet.length > 100
           ? node.snippet.slice(0, 97) + '...'
@@ -588,15 +584,13 @@ export class GraphRenderer {
       });
     }
 
-    // "Open page" link (pinned only)
-    if (pinned) {
-      lines.push({
-        text: 'Open page →',
-        font: 'bold 11px system-ui, sans-serif',
-        colour: 'rgba(200, 113, 55, 0.95)',
-        underline: true
-      });
-    }
+    // "Open page" link
+    lines.push({
+      text: 'Open page →',
+      font: 'bold 11px system-ui, sans-serif',
+      colour: 'rgba(200, 113, 55, 0.95)',
+      underline: true
+    });
 
     // Measure max width
     let maxWidth = 0;
@@ -607,7 +601,7 @@ export class GraphRenderer {
     }
 
     const lineHeight = 17;
-    const boxWidth = Math.max(maxWidth + 24, pinned ? 220 : 0);
+    const boxWidth = Math.max(maxWidth + 24, 220);
     const boxHeight = lines.length * lineHeight + 16;
 
     // Clamp tooltip to stay within canvas
@@ -616,13 +610,11 @@ export class GraphRenderer {
     if (ty < 5) ty = 5;
 
     // Background
-    ctx.fillStyle = pinned
-      ? 'rgba(255, 255, 255, 0.97)'
-      : 'rgba(255, 255, 255, 0.95)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
     this.roundRect(ctx, tx, ty, boxWidth, boxHeight, 6);
     ctx.fill();
-    ctx.strokeStyle = pinned ? 'rgba(200, 113, 55, 0.3)' : 'rgba(0,0,0,0.1)';
-    ctx.lineWidth = pinned ? 1.5 : 1;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.lineWidth = 1;
     ctx.stroke();
 
     // Draw lines

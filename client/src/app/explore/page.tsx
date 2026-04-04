@@ -1,17 +1,12 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
-import type {
-  GraphNode,
-  GraphData,
-  GraphQueryOptions
-} from '@derecksnotes/shared';
+import type { GraphData, GraphQueryOptions } from '@derecksnotes/shared';
 
 import { GraphSimulation, GraphRenderer } from '@/lib/graph';
 import type { SimNode, SimEdge } from '@/lib/graph';
 import type { SearchMode } from '@/lib/graph/GraphRenderer';
 import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
-import ExploreDetailPanel from '@/components/pages/explore/ExploreDetailPanel';
 import { useSearch } from '@/hooks/useSearch';
 
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
@@ -132,7 +127,6 @@ export default function ExplorePage() {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMode, setSearchMode] = useState<SearchMode>('highlight');
   const [nodeCount, setNodeCount] = useState(0);
@@ -207,19 +201,6 @@ export default function ExplorePage() {
   useEffect(() => {
     graphDataRef.current = graphData;
   }, [graphData]);
-
-  // Keep selectedNodeRef in sync with state
-  useEffect(() => {
-    if (selectedNode) {
-      const sim = simRef.current;
-      if (sim) {
-        selectedNodeRef.current =
-          sim.getNodes().find((n) => n.id === selectedNode.id) || null;
-      }
-    } else {
-      selectedNodeRef.current = null;
-    }
-  }, [selectedNode]);
 
   // Prevent scrolling on explore page
   useEffect(() => {
@@ -452,14 +433,13 @@ export default function ExplorePage() {
       if (draggedNodeRef.current) {
         sim.releaseNode(draggedNodeRef.current);
 
-        // If it was a click (short + no drag), select the node
+        // If it was a click (short + no drag), toggle pin on the node
         if (elapsed < 300 && dist < 5) {
           const node = sim.nodeAt(x, y);
           if (node) {
-            // Find matching GraphNode from graphData
-            const gn =
-              graphDataRef.current?.nodes.find((n) => n.id === node.id) || null;
-            setSelectedNode(gn);
+            // Toggle: click same node again to deselect
+            selectedNodeRef.current =
+              selectedNodeRef.current?.id === node.id ? null : node;
           }
         }
         draggedNodeRef.current = null;
@@ -468,7 +448,7 @@ export default function ExplorePage() {
 
         // If it was a click on empty space, deselect
         if (elapsed < 300 && dist < 5) {
-          setSelectedNode(null);
+          selectedNodeRef.current = null;
         }
       }
     }
@@ -626,12 +606,6 @@ export default function ExplorePage() {
         onShowGridToggle={setShowGrid}
         nodeCount={nodeCount}
         edgeCount={edgeCount}
-      />
-
-      {/* Detail panel */}
-      <ExploreDetailPanel
-        node={selectedNode}
-        onClose={() => setSelectedNode(null)}
       />
 
       {/* Stats bar removed — info is in the Controls header */}

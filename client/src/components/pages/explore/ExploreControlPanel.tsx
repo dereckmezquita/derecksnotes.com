@@ -34,7 +34,7 @@ const Header = styled.div`
   font-weight: 600;
   font-size: 14px;
   color: #333;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: none;
 `;
 
 const Body = styled.div`

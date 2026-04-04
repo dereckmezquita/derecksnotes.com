@@ -139,6 +139,17 @@ const SECTION_COLOURS: Record<string, string> = {
   external: '#FFA500'
 };
 
+function toTagArray(tags: string[] | string | undefined): string[] {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === 'string')
+    return tags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+  return [];
+}
+
 // ── component ────────────────────────────────────────────────────────
 interface ExploreDetailPanelProps {
   node: GraphNode | null;
@@ -150,6 +161,7 @@ export default function ExploreDetailPanel({
   onClose
 }: ExploreDetailPanelProps) {
   const sectionColour = SECTION_COLOURS[node?.section || ''] || '#888';
+  const tags = toTagArray(node?.tags);
 
   return (
     <Overlay $open={node !== null}>
@@ -169,9 +181,9 @@ export default function ExploreDetailPanel({
             <Badge $colour="rgba(0,0,0,0.06)">{node.nodeType}</Badge>
           </BadgeRow>
 
-          {node.tags && node.tags.length > 0 && (
+          {tags.length > 0 && (
             <TagList>
-              {node.tags.map((tag) => (
+              {tags.map((tag) => (
                 <Tag key={tag}>{tag}</Tag>
               ))}
             </TagList>
