@@ -52,7 +52,8 @@ export class GraphRenderer {
     hoveredEdge: SimEdge | null = null,
     mouseX: number = 0,
     mouseY: number = 0,
-    showGrid: boolean = true
+    showGrid: boolean = true,
+    useSpatialHash: boolean = false
   ): void {
     // 1. Clear with solid white (needed for grid contrast, matching 404 page)
     this.renderer.clear(width, height, 1, 1, 1, 1);

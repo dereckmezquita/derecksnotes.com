@@ -168,6 +168,10 @@ interface ExploreControlPanelProps {
   onPhysicsChange?: (param: string, value: number) => void;
   searchTerm?: string;
   onSearchChange?: (value: string) => void;
+  useSpatialHash?: boolean;
+  onSpatialHashToggle?: (useHash: boolean) => void;
+  showGrid?: boolean;
+  onShowGridToggle?: (show: boolean) => void;
 }
 
 export default function ExploreControlPanel({
@@ -175,7 +179,11 @@ export default function ExploreControlPanel({
   onChange,
   onPhysicsChange,
   searchTerm = '',
-  onSearchChange
+  onSearchChange,
+  useSpatialHash = false,
+  onSpatialHashToggle,
+  showGrid = true,
+  onShowGridToggle
 }: ExploreControlPanelProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [physicsValues, setPhysicsValues] = useState<Record<string, number>>(
@@ -391,6 +399,55 @@ export default function ExploreControlPanel({
               />
             </SliderRow>
           ))}
+        </div>
+
+        {/* Visualization toggles */}
+        <div>
+          <SectionTitle>Visualization</SectionTitle>
+          <CheckRow>
+            <input
+              type="checkbox"
+              checked={showGrid}
+              onChange={() => onShowGridToggle?.(!showGrid)}
+            />
+            Show Grid
+          </CheckRow>
+          <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+            <button
+              onClick={() => onSpatialHashToggle?.(false)}
+              style={{
+                flex: 1,
+                padding: '4px 8px',
+                fontSize: 11,
+                border: '1px solid rgba(0,0,0,0.15)',
+                borderRadius: 3,
+                background: !useSpatialHash
+                  ? '#c87137'
+                  : 'rgba(255,255,255,0.6)',
+                color: !useSpatialHash ? '#fff' : '#333',
+                cursor: 'pointer'
+              }}
+            >
+              QuadTree
+            </button>
+            <button
+              onClick={() => onSpatialHashToggle?.(true)}
+              style={{
+                flex: 1,
+                padding: '4px 8px',
+                fontSize: 11,
+                border: '1px solid rgba(0,0,0,0.15)',
+                borderRadius: 3,
+                background: useSpatialHash
+                  ? '#c87137'
+                  : 'rgba(255,255,255,0.6)',
+                color: useSpatialHash ? '#fff' : '#333',
+                cursor: 'pointer'
+              }}
+            >
+              Hash Grid
+            </button>
+          </div>
         </div>
       </Body>
     </Panel>

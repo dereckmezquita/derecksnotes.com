@@ -117,6 +117,8 @@ export default function ExplorePage() {
   const rendererRef = useRef<GraphRenderer | null>(null);
   const mouseRef = useRef({ x: -1000, y: -1000, active: false });
   const hoveredNodeRef = useRef<SimNode | null>(null);
+  const showGridRef = useRef(true);
+  const useSpatialHashRef = useRef(false);
   const hoveredEdgeRef = useRef<SimEdge | null>(null);
   const selectedNodeRef = useRef<SimNode | null>(null);
   const draggedNodeRef = useRef<string | null>(null);
@@ -132,11 +134,19 @@ export default function ExplorePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
+  const [useSpatialHash, setUseSpatialHash] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
 
   // Keep refs in sync with state
   useEffect(() => {
     searchTermRef.current = searchTerm;
   }, [searchTerm]);
+  useEffect(() => {
+    showGridRef.current = showGrid;
+  }, [showGrid]);
+  useEffect(() => {
+    useSpatialHashRef.current = useSpatialHash;
+  }, [useSpatialHash]);
 
   useEffect(() => {
     graphDataRef.current = graphData;
@@ -449,7 +459,8 @@ export default function ExplorePage() {
           selectedNodeRef.current,
           hoveredEdgeRef.current,
           mouseRef.current.x,
-          mouseRef.current.y
+          mouseRef.current.y,
+          showGridRef.current
         );
       } catch (err) {
         console.error('[Explore] draw() error:', err);
@@ -542,6 +553,10 @@ export default function ExplorePage() {
         onPhysicsChange={handlePhysicsChange}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
+        useSpatialHash={useSpatialHash}
+        onSpatialHashToggle={setUseSpatialHash}
+        showGrid={showGrid}
+        onShowGridToggle={setShowGrid}
       />
 
       {/* Detail panel */}
