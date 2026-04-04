@@ -210,12 +210,17 @@ function scanDictionaryDefinitions(
       if (frontmatter.published !== true) continue;
 
       const plainText = mdxToPlainText(content);
-      const word = frontmatter.word || file.replace('.mdx', '');
       const slug = file.replace('.mdx', '');
+
+      // Parse display name from <a id="...">Display Name</a> in body
+      const anchorMatch = content.match(
+        /<a\s+id=["']([^"']+)["'][^>]*>([^<]+)<\/a>/
+      );
+      const displayName = anchorMatch?.[2]?.trim() || frontmatter.word || slug;
 
       entries.push({
         slug,
-        title: word.charAt(0).toUpperCase() + word.slice(1),
+        title: displayName,
         section: `dictionary-${subject}`,
         tags: [subject, frontmatter.category || ''].filter(Boolean).join(','),
         date: '',
