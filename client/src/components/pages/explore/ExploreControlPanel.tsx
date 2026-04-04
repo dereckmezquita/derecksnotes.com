@@ -324,24 +324,18 @@ export default function ExploreControlPanel({
                   type="checkbox"
                   checked={sections.includes(d.key)}
                   onChange={() => {
-                    toggleSection(d.key);
-                    // Also update showDictInternal based on whether any dict is on
-                    const willBeOn = !sections.includes(d.key);
-                    const otherDicts = DICT_SECTIONS.filter(
-                      (dd) => dd.key !== d.key
+                    const isOn = sections.includes(d.key);
+                    const nextSections = isOn
+                      ? sections.filter((s) => s !== d.key)
+                      : [...sections, d.key];
+                    const anyDictOn = DICT_SECTIONS.some((dd) =>
+                      nextSections.includes(dd.key)
                     );
-                    const anyOtherOn = otherDicts.some((dd) =>
-                      sections.includes(dd.key)
-                    );
-                    if (willBeOn || anyOtherOn) {
-                      onChange({
-                        ...options,
-                        sections: willBeOn
-                          ? [...sections, d.key]
-                          : sections.filter((s) => s !== d.key),
-                        showDictInternal: true
-                      });
-                    }
+                    onChange({
+                      ...options,
+                      sections: nextSections,
+                      showDictInternal: anyDictOn
+                    });
                   }}
                 />
                 <Dot $colour={d.colour} />
