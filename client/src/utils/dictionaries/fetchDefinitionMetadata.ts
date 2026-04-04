@@ -65,7 +65,7 @@ function slugify(name: string): string {
 export function extractSingleDefinitionMetadata(
   filepath: string
 ): DefinitionMetadata | null {
-  if (!config.isProduction && !fs.existsSync(filepath)) {
+  if (!fs.existsSync(filepath)) {
     console.warn(`Definition file not found: ${filepath}`);
     return null;
   }

@@ -3,7 +3,6 @@ import path from 'path';
 import { DictionaryPost } from '@/components/dictionaries/DictionaryPost';
 import { APPLICATION_DEFAULT_METADATA } from '@/lib/constants';
 import { ROOT_DIR_APP } from '@/lib/constants.server';
-import { config } from '@/lib/env';
 import {
   DefinitionMetadata,
   extractSingleDefinitionMetadata,
@@ -19,15 +18,12 @@ const dictionary: string = 'mathematics';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
+export const dynamicParams = false;
+
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  let filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
+  const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
     return filename.endsWith('.mdx');
   });
-
-  // In production, limit to 3 files; in dev/local, return all
-  if (config.isProduction) {
-    filenames = filenames.slice(0, 3);
-  }
 
   return filenames.map((filename) => {
     const slug = path.basename(filename, '.mdx');
