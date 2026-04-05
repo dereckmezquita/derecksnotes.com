@@ -1,0 +1,107 @@
+---
+letter: b
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="bayesian-nn">Bayesian Neural Network</a> - A **Bayesian Neural Network** places a **probabilistic prior** over neural network weights, updating to a posterior distribution given data. Rather than point estimates for weights $W$, we approximate $p(W \mid D)$.
+
+**Math**:
+We want:
+$$
+p(W \mid D) \propto p(D \mid W) p(W),
+$$
+where $p(D\mid W)$ is the likelihood of data given weights, and $p(W)$ is a prior. Exact posteriors are intractable, so we approximate (e.g., via **variational inference** or MCMC).
+
+**R demonstration** (One might use `brms` or `rstan` for a small Bayesian approach. We'll do a conceptual snippet with `brms` for regression):
+
+
+``` r
+library(brms)
+```
+
+```
+## Loading required package: Rcpp
+```
+
+```
+## Warning: package 'Rcpp' was built under R version 4.5.2
+```
+
+```
+## Loading 'brms' package (version 2.23.0). Useful instructions
+## can be found by typing help('brms'). A more detailed introduction
+## to the package is available through vignette('brms_overview').
+```
+
+```
+## 
+## Attaching package: 'brms'
+```
+
+```
+## The following object is masked from 'package:stats':
+## 
+##     ar
+```
+
+``` r
+library(data.table)
+
+set.seed(123)
+n <- 50
+x <- runif(n,0,5)
+y <- 2*x + 1 + rnorm(n, sd=0.5)
+
+dt_bnn <- data.table(x=x, y=y)
+
+# We'll do a small Bayesian regression as a stand-in for Bayesian NN
+fit_bayes <- brm(y ~ x, data=dt_bnn, family=gaussian(), 
+                 prior=set_prior("normal(0,10)", class="b"), 
+                 chains=2, iter=1000, refresh=0)
+```
+
+```
+## Compiling Stan program...
+```
+
+```
+## Start sampling
+```
+
+``` r
+summary(fit_bayes)
+
+# Posterior samples and predictions
+pred_data <- data.table(x=seq(0,5,0.1))
+pred_res  <- posterior_predict(fit_bayes, newdata=pred_data)
+cat("We can plot predictive intervals, akin to uncertain neural net weights.\n")
+```
+
+```
+##  Family: gaussian 
+##   Links: mu = identity 
+## Formula: y ~ x 
+##    Data: dt_bnn (Number of observations: 50) 
+##   Draws: 2 chains, each with iter = 1000; warmup = 500; thin = 1;
+##          total post-warmup draws = 1000
+## 
+## Regression Coefficients:
+##           Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept     0.93      0.14     0.66     1.20 1.00     1006      823
+## x             2.04      0.05     1.94     2.13 1.00     1054      817
+## 
+## Further Distributional Parameters:
+##       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sigma     0.48      0.05     0.39     0.59 1.00      885      737
+## 
+## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).
+## We can plot predictive intervals, akin to uncertain neural net weights.
+```

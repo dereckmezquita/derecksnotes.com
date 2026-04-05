@@ -1,20 +1,12 @@
 ---
-letter: 'p'
-word: 'partial-derivative'
-dictionary: 'mathematics'
-category: 'calculus'
-dataSource: 'assistant'
+letter: p
+dictionary: mathematics
+category: calculus
+dataSource: assistant
 published: true
 comments: true
-
-# We reference 'derivative' or 'gradient' from previous definitions if desired:
-linksTo: ['derivative','gradient']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="partial-derivative">Partial Derivative</a> - In **multivariable calculus**, a **partial derivative** of a function
@@ -46,13 +38,10 @@ partial_x <- function(f, x, y, h=1e-6) {
 
 val <- partial_x(f_xy, 2, 3)
 val
+# Compare to analytic partial derivative wrt x: 2x + 2y. 
+# At (2,3) => 2*2 + 2*3=4+6=10
 ```
 
 ```
 ## [1] 10
-```
-
-``` r
-# Compare to analytic partial derivative wrt x: 2x + 2y. 
-# At (2,3) => 2*2 + 2*3=4+6=10
 ```

@@ -1,32 +1,13 @@
 ---
-letter: 'b'
-word: 'bayesian-nn'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: b
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: ['neural-network','bayes-theorem','gradient']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(plot=function(x,options){
-    cap<-options$fig.cap
-    as.character(
-      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
-    )
-  })
-}
-knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
-```
 
 <a id="bayesian-nn">Bayesian Neural Network</a> - A **Bayesian Neural Network** places a **probabilistic prior** over neural network weights, updating to a posterior distribution given data. Rather than point estimates for weights $W$, we approximate $p(W \mid D)$.
 
@@ -39,7 +20,7 @@ where $p(D\mid W)$ is the likelihood of data given weights, and $p(W)$ is a prio
 
 **R demonstration** (One might use `brms` or `rstan` for a small Bayesian approach. We'll do a conceptual snippet with `brms` for regression):
 
-```{r}
+```{r bayesian-nn-demo}
 library(brms)
 library(data.table)
 

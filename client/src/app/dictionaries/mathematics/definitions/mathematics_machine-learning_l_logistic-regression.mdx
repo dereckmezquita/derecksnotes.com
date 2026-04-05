@@ -1,0 +1,76 @@
+---
+letter: l
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="logistic-regression">Logistic Regression</a> - In **machine learning**, **logistic regression** models the probability of a binary outcome (0 or 1) given input features $ x_1, x_2,\dots,x_n $. The model is:
+
+$$
+\mathrm{logit}(p) = \log\Bigl(\frac{p}{1-p}\Bigr) = \beta_0 + \beta_1 x_1 + \cdots + \beta_n x_n
+$$
+
+or equivalently,
+
+$$
+p = \frac{1}{1 + e^{- (\beta_0 + \beta_1 x_1 + \cdots + \beta_n x_n)} }.
+$$
+
+**Key points**:
+- Useful for **binary classification**.
+- Predictions yield probabilities in $(0,1)$ and can be thresholded at 0.5 for a class label.
+
+**R demonstration** (fitting logistic regression with `glm`):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+n <- 50
+x <- runif(n, min=-2, max=2)
+p <- 1/(1+exp(-(-1 + 2*x)))  # true logistic with intercept=-1, slope=2
+y <- rbinom(n, size=1, prob=p)
+
+dt_logit <- data.table(x=x, y=y)
+fit_logit <- glm(y ~ x, data=dt_logit, family="binomial")
+summary(fit_logit)
+
+# Predict
+newx <- seq(-2,2,by=0.1)
+pred_prob <- predict(fit_logit, newdata=data.table(x=newx), type="response")
+
+plot(dt_logit$x, dt_logit$y, pch=19,
+     main="Logistic Regression Demo", xlab="x", ylab="Observed Class (0/1)")
+lines(newx, pred_prob, col="red", lwd=2)
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_l_logistic-regression-logistic-regression-demo-1.png" alt="Logistic regression predicted probability curve on binary outcome data">
+	Logistic regression predicted probability curve on binary outcome data
+</Figure>
+
+```
+## 
+## Call:
+## glm(formula = y ~ x, family = "binomial", data = dt_logit)
+## 
+## Coefficients:
+##             Estimate Std. Error z value Pr(>|z|)   
+## (Intercept)  -2.0746     0.9216  -2.251  0.02437 * 
+## x             4.5132     1.5225   2.964  0.00303 **
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 67.301  on 49  degrees of freedom
+## Residual deviance: 17.080  on 48  degrees of freedom
+## AIC: 21.08
+## 
+## Number of Fisher Scoring iterations: 7
+```

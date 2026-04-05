@@ -1,0 +1,68 @@
+---
+letter: g
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="gradient-boosting">Gradient Boosting</a> - In **machine learning**, **gradient boosting** constructs an **ensemble** of weak learners (often small decision trees) in a **stagewise** fashion, fitting each new learner to the current residuals (the negative gradient of the [loss-function](#loss-function)).
+
+**Algorithm**:
+- Initial model $F_0(x)$ is often a constant prediction.
+- For stage $m=1..M$:
+  1. Compute pseudo-residuals:  
+     '60830'
+     r_{im} = - \biggl[ \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \biggr]_{F=F_{m-1}}
+     '60830'
+  2. Fit a weak learner (e.g. small tree) to $r_{im}$.
+  3. Update:  
+     '60830'
+     F_m(x) = F_{m-1}(x) + \nu \times h_m(x),
+     '60830'
+     where $\nu$ is a learning rate, and $h_m$ is the new weak learner.
+
+**R demonstration** (using `xgboost` for a simple regression example):
+
+
+``` r
+library(xgboost)
+```
+
+```
+## Warning: package 'xgboost' was built under R version 4.5.2
+```
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+x <- runif(n, 0, 5)
+y <- sin(x) + rnorm(n, sd=0.2)
+
+dt_gb <- data.table(x=x, y=y)
+train_mat <- as.matrix(dt_gb[, .(x)])
+dtrain <- xgb.DMatrix(data=train_mat, label=y)
+
+# Fit xgboost with a few rounds
+params <- list(objective="reg:squarederror", eta=0.1, max_depth=2)
+fit_gb <- xgb.train(params=params, data=dtrain, nrounds=50, verbose=0)
+
+# Predict
+x_new <- seq(0,5, by=0.1)
+pred_gb <- predict(fit_gb, as.matrix(x_new))
+
+# Plot
+plot(dt_gb, dt_gb, pch=19, main="Gradient Boosting Demo")
+lines(x_new, sin(x_new), col="blue", lwd=2, lty=2)  # true function
+lines(x_new, pred_gb, col="red", lwd=2)             # GB predictions
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_g_gradient-boosting-gradient-boosting-demo-1.png" alt="Gradient boosting classification boundary compared with true decision regions">
+	Gradient boosting classification boundary compared with true decision regions
+</Figure>

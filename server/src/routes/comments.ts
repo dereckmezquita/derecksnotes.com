@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, optionalAuth } from '@middleware/auth';
+import { notifyGraphClients } from '@routes/graph';
 import {
   commentLimiter,
   reactionLimiter,
@@ -111,6 +112,12 @@ router.post(
       });
 
       res.status(201).json({ id: commentId, approved: autoApprove });
+
+      // Notify graph SSE clients
+      notifyGraphClients({
+        type: 'comment',
+        data: { commentId, postId, approved: autoApprove }
+      });
     } catch (error: any) {
       if (error.message && !error.stack?.includes('at')) {
         res.status(400).json({ error: error.message });

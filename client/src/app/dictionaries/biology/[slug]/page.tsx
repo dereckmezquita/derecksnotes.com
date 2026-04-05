@@ -3,7 +3,6 @@ import path from 'path';
 import { DictionaryPost } from '@/components/dictionaries/DictionaryPost';
 import { APPLICATION_DEFAULT_METADATA } from '@/lib/constants';
 import { ROOT_DIR_APP } from '@/lib/constants.server';
-import { config } from '@/lib/env';
 import {
   DefinitionMetadata,
   extractSingleDefinitionMetadata,
@@ -19,15 +18,12 @@ const dictionary: string = 'biology';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
+export const dynamicParams = false;
+
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  let filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
+  const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
     return filename.endsWith('.mdx');
   });
-
-  // In production, limit to 3 files; in dev/local, return all
-  if (config.isProduction) {
-    filenames = filenames.slice(0, 3);
-  }
 
   return filenames.map((filename) => {
     const slug = path.basename(filename, '.mdx');
@@ -48,7 +44,7 @@ async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { source, frontmatter } =
     await processMdx<DefinitionMetadata>(markdown);
 
-  const sideBarDefintiions = fetchDefintionsMetadata(absDir, frontmatter.word);
+  const sideBarDefintiions = fetchDefintionsMetadata(absDir, decodedSlug);
 
   if (!frontmatter.published) {
     notFound();
@@ -90,9 +86,9 @@ export async function generateMetadata({
     };
   }
 
-  const title: string = `Dn | dictionary - ${definition.word}`;
+  const title: string = `Dn | dictionary - ${definition.displayName}`;
   const summary: string =
-    definition.summary || `Dn | definition of ${definition.word}`;
+    definition.summary || `Dn | definition of ${definition.displayName}`;
   const coverImage: string = '/site-images/card-covers/512-logo.png';
   return {
     metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),

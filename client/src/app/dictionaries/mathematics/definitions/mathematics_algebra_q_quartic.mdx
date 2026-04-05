@@ -1,19 +1,12 @@
 ---
-letter: 'q'
-word: 'quartic'
-dictionary: 'mathematics'
-category: 'algebra'
-dataSource: 'assistant'
+letter: q
+dictionary: mathematics
+category: algebra
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: []
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="quartic">Quartic</a> - A **quartic** function (or bi-quadratic) is a polynomial of degree 4:
@@ -30,7 +23,13 @@ where $a \neq 0$. Solving general quartic equations analytically is more complex
 ``` r
 library(data.table)
 library(ggplot2)
+```
 
+```
+## Warning: package 'ggplot2' was built under R version 4.5.2
+```
+
+``` r
 f_quartic <- function(x) x^4 - 2*x^3 + 3*x + 1
 x_vals <- seq(-3,3, by=0.1)
 dt_qr <- data.table(
@@ -48,6 +47,6 @@ ggplot(dt_qr, aes(x=x, y=y)) +
   theme_minimal()
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_algebra_q_quartic_files/unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_algebra_q_quartic-quartic-demo-1.png" alt="Roots of a quartic polynomial plotted alongside its curve">
+	Roots of a quartic polynomial plotted alongside its curve
 </Figure>

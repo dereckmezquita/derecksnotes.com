@@ -6,6 +6,7 @@ import { generalLimiter } from '@middleware/rateLimit';
 import v1Routes from '@routes/index';
 import { db, schema } from '@db/index';
 import { buildSearchIndex } from '@services/search';
+import { buildGraphIndex } from '@services/graph';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -68,6 +69,13 @@ try {
   buildSearchIndex();
 } catch (err) {
   console.error('Failed to build search index:', err);
+}
+
+// Build graph index after search index
+try {
+  buildGraphIndex();
+} catch (err) {
+  console.error('Failed to build graph index:', err);
 }
 
 app.listen(config.port, () => {

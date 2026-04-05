@@ -1,33 +1,13 @@
 ---
-letter: 'p'
-word: 'ppo'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: p
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['reinforcement-learning','markov-chain','policy-gradient']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(
-    plot=function(x, options){
-      cap<-options$fig.cap
-      as.character(
-        htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
-```
 
 <a id="ppo">PPO (Proximal Policy Optimization)</a> - An advanced **reinforcement learning** algorithm by OpenAI, improving **policy gradient** methods by controlling how far the new policy can deviate from the old policy. The objective uses a **clipped** surrogate function:
 
@@ -45,7 +25,7 @@ where:
 
 **R demonstration** (No standard PPO in base R, but let's conceptually illustrate partial code with `rlang`? We'll do a simplified snippet):
 
-```{r}
+```{r ppo-demo}
 library(data.table)
 set.seed(123)
 cat("Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:")

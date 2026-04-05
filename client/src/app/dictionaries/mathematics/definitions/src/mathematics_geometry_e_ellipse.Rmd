@@ -1,36 +1,13 @@
 ---
-letter: 'e'
-word: ellipse
-dictionary: 'mathematics'
-category: 'geometry'
-dataSource: 'assistant'
+letter: e
+dictionary: mathematics
+category: geometry
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['expectation','entropy']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-  plot = function(x, options) {
-    cap <- options$fig.cap
-    as.character(htmltools::tag("Figure",
-      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-    ))
-  }
-)
-
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(
-  dpi = 300,
-  fig.width = 10,
-  fig.height = 7
-)
-```
 
 <a id="ellipse">Ellipse</a> - An **ellipse** is a curve on a plane, defined as the locus of points where the sum of the distances to two fixed points (foci) is constant.
 
@@ -44,7 +21,7 @@ where $a$ and $b$ are the semi-major and semi-minor axes, respectively.
 
 **R demonstration** (plotting an ellipse with ggplot2):
 
-```{r}
+```{r ellipse-demo, fig.cap="Parametric plot of an ellipse with semi-major axis 3 and semi-minor axis 2"}
 library(data.table)
 library(ggplot2)
 
@@ -59,7 +36,7 @@ dt_ellipse <- data.table(
 )
 
 ggplot(dt_ellipse, aes(x=x, y=y)) +
-  geom_path(color="blue", size=1) +
+  geom_path(color = "blue", linewidth = 1) +
   coord_fixed() +
   labs(
     title="Ellipse with a=3, b=2",

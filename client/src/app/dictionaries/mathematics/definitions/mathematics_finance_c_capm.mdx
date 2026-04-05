@@ -1,0 +1,89 @@
+---
+letter: c
+dictionary: mathematics
+category: finance
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="capm">CAPM (Capital Asset Pricing Model)</a> - The **CAPM** states that the expected return of an asset i is given by:
+
+$$
+\mathbb{E}[R_i] = R_f + \beta_i \bigl( \mathbb{E}[R_m] - R_f \bigr),
+$$
+
+where:
+- $R_f$ is the risk-free rate,
+- $\mathbb{E}[R_m]$ is the expected return of the market,
+- $\beta_i$ measures the asset’s sensitivity to market movements:
+  '68859'
+  \beta_i = \frac{\mathrm{Cov}(R_i, R_m)}{\mathrm{Var}(R_m)}.
+  '68859'
+
+**Key points**:
+- Relies on assumptions from Markowitz portfolio theory.
+- Suggests a linear relationship between an asset’s risk ($\beta$) and its expected return.
+
+**R demonstration** (estimating beta from synthetic returns data):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 200
+Rf <- 0.01  # risk-free rate
+market_returns <- rnorm(n, mean=0.08, sd=0.04)
+asset_returns  <- 0.02 + 1.2*market_returns + rnorm(n, mean=0, sd=0.02) # true beta=1.2
+
+dt_capm <- data.table(market=market_returns, asset=asset_returns)
+
+# Estimate beta = Cov(R_i, R_m)/Var(R_m)
+est_beta <- cov(dt_capm$asset, dt_capm$market)/var(dt_capm$market)
+est_beta
+
+# We'll also do a quick regression
+fit <- lm(asset ~ market, data=dt_capm)
+summary(fit)
+
+# Plot
+ggplot(dt_capm, aes(x=market, y=asset)) +
+  geom_point(alpha=0.4) +
+  geom_smooth(method="lm", se=FALSE, color="red") +
+  labs(title="CAPM example: Estimating Beta via Regression", x="Market Return", y="Asset Return") +
+  theme_minimal()
+```
+
+```
+## `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_c_capm-capm-demo-1.png" alt="CAPM security market line with simulated asset returns">
+	CAPM security market line with simulated asset returns
+</Figure>
+
+```
+## [1] 1.185373
+## 
+## Call:
+## lm(formula = asset ~ market, data = dt_capm)
+## 
+## Residuals:
+##       Min        1Q    Median        3Q       Max 
+## -0.049584 -0.013124 -0.000681  0.013607  0.050373 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(>|t|)    
+## (Intercept) 0.022008   0.003304    6.66 2.64e-10 ***
+## market      1.185373   0.037507   31.60  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.01996 on 198 degrees of freedom
+## Multiple R-squared:  0.8346,	Adjusted R-squared:  0.8337 
+## F-statistic: 998.8 on 1 and 198 DF,  p-value: < 2.2e-16
+```

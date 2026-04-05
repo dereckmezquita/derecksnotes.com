@@ -41,7 +41,7 @@ export function DictionarySideBar({ definitions }: DictionarySideBarProps) {
                 href={path.join('/dictionaries', def.dictionary, def.slug)}
                 passHref
               >
-                {def.word}
+                {def.displayName}
               </SideEntryLink>
             </SideBarEntriesContainer>
           ))}

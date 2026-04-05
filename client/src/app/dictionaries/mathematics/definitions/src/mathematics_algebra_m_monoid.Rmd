@@ -1,33 +1,13 @@
 ---
-letter: 'm'
-word: 'monoid'
-dictionary: 'mathematics'
-category: 'algebra'
-dataSource: 'assistant'
+letter: m
+dictionary: mathematics
+category: algebra
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['semigroup','group']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(
-    plot=function(x,options){
-      cap <- options$fig.cap
-      as.character(
-        htmltools::tag("Figure", list(src=x,alt=cap,paste("\n\t",cap,"\n",sep="")))
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
-```
 
 <a id="monoid">Monoid</a> - In **abstract algebra**, a **monoid** is a [semigroup](#semigroup) with an identity element. Specifically, a set $M$ with an associative binary operation $*$ and an identity element $e$ so:
 
@@ -40,7 +20,7 @@ knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
 
 No direct R demonstration typical, but we can show a small "string monoid":
 
-```{r}
+```{r monoid-demo}
 library(data.table)
 
 str_monoid_op <- function(a,b) paste0(a,b)  # concatenation

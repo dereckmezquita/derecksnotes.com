@@ -1,18 +1,12 @@
 ---
-letter: 'g'
-word: generating-function
-dictionary: 'mathematics'
-category: 'combinatorics'
-dataSource: 'assistant'
+letter: g
+dictionary: mathematics
+category: combinatorics
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['gamma-function','graph']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="generating-function">Generating Function</a> - A **generating function** is a formal power series whose coefficients encode information about a sequence $(a_n)$. For instance:
@@ -47,19 +41,14 @@ dt_genfun <- data.table(
 dt_genfun[, term := x_val^n]
 partial_sum <- dt_genfun[, sum(term)]
 partial_sum
-```
 
-```
-## [1] 1.25
-```
-
-``` r
 # Compare to closed-form 1/(1 - x_val)
 closed_form <- 1 / (1 - x_val)
 closed_form
 ```
 
 ```
+## [1] 1.25
 ## [1] 1.25
 ```
 

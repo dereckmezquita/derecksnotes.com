@@ -1,31 +1,13 @@
 ---
-letter: 'b'
-word: 'black-scholes'
-dictionary: 'mathematics'
-category: 'finance'
-dataSource: 'assistant'
+letter: b
+dictionary: mathematics
+category: finance
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['monte-carlo-simulation','distribution']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(plot=function(x,options){
-    cap<-options$fig.cap
-    as.character(
-      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
-    )
-  })
-}
-knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
-```
 
 <a id="black-scholes">Black-Scholes Formula</a> - In **finance**, the **Black-Scholes** (or **Black-Scholes-Merton**) formula provides a closed-form solution for pricing a European call/put option under certain assumptions (continuous compounding, constant volatility, no dividends, etc.).
 
@@ -43,7 +25,7 @@ $\Phi$ is the cumulative distribution function of the standard normal distributi
 
 **R demonstration** (computing call price):
 
-```{r}
+```{r black-scholes-demo, fig.cap="Black-Scholes European call option price computation"}
 library(data.table)
 library(ggplot2)
 
