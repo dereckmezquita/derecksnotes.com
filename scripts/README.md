@@ -39,19 +39,7 @@ Images are built in GitHub Actions (7GB RAM, no OOM issues) and stored in GitHub
 
 ## Initial Setup
 
-### 1. Run cleanup on VPS
-
-SSH into the VPS and run the migration script:
-
-```bash
-ssh root@your-vps
-curl -O https://raw.githubusercontent.com/dereckmezquita/derecksnotes.com/master/scripts/cleanup-vps.sh
-sudo bash cleanup-vps.sh
-```
-
-This removes old Docker Hub-based deployment artifacts and creates the new directory structure.
-
-### 2. Update GitHub Secrets
+### 1. Update GitHub Secrets
 
 Go to **GitHub repo → Settings → Secrets and variables → Actions** and ensure these secrets exist:
 
@@ -64,11 +52,7 @@ Go to **GitHub repo → Settings → Secrets and variables → Actions** and ens
 | `SESSION_SECRET` | Cookie signing key. Generate: `openssl rand -base64 32` |
 | `ADMIN_USERNAME` | Username that gets auto-elevated to admin on registration |
 
-Remove these old secrets if they exist:
-- `DOCKER_USERNAME`
-- `DOCKER_PASSWORD`
-
-### 3. First deploy
+### 2. First deploy
 
 Trigger a manual deploy from **GitHub → Actions → Deploy → Run workflow** and select the `dev` environment to test.
 
@@ -112,10 +96,6 @@ Arguments:
 1. Path to SQLite database file
 2. Directory to store backups
 3. Number of backups to keep (default: 30)
-
-### `cleanup-vps.sh`
-
-One-time migration script. Removes old deployment setup, preserves public assets, creates new directory structure.
 
 ## Restoring a Backup
 

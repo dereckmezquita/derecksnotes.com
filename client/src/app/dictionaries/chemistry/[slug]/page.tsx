@@ -13,22 +13,25 @@ import { notFound } from 'next/navigation';
 import { processMdx } from '@/utils/mdx/processMdx';
 import { Metadata } from 'next';
 import { decodeSlug } from '@/utils/helpers';
+import { config } from '@/lib/env';
 
 const dictionary: string = 'chemistry';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
-export const dynamicParams = false;
+export const dynamicParams = !config.isProduction;
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
     return filename.endsWith('.mdx');
   });
 
-  return filenames.map((filename) => {
+  const slugs = filenames.map((filename) => {
     const slug = path.basename(filename, '.mdx');
     return { slug };
   });
+
+  return config.isProduction ? slugs : slugs.slice(0, 3);
 }
 
 async function Page({ params }: { params: Promise<{ slug: string }> }) {

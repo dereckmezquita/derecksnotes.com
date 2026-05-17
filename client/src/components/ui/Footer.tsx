@@ -1,6 +1,5 @@
 import styled from 'styled-components';
 import { config } from '@/lib/env';
-import Link from 'next/link';
 import { ReactElement } from 'react';
 
 const minWidthSnapUp = (props: any) =>
@@ -42,7 +41,7 @@ function Footer(): ReactElement {
       </FooterText>
       <FooterText>
         v{config.version} ({config.commitSha.slice(0, 7)}) &bull;{' '}
-        {config.buildEnv} &bull; <Link href="/demo/api">demo</Link>
+        {config.buildEnv}
       </FooterText>
       <FooterText>
         <a href="mailto:contact@derecksnotes.com">contact@derecksnotes.com</a>

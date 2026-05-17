@@ -81,6 +81,15 @@ interface TagFilterProps {
   styleContainer?: React.CSSProperties;
 }
 
+function stripInlineMarkdown(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/`([^`]+)`/g, '$1');
+}
+
 export const TagFilter: React.FC<TagFilterProps> = ({
   tags,
   selectedTags,
@@ -135,7 +144,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({
           onMouseDown={(ev) => handleMouseDown(ev, tag)}
           onMouseEnter={(ev) => handleMouseEnter(ev, tag)}
         >
-          {tag}
+          {stripInlineMarkdown(tag)}
         </FilterTag>
       ))}
     </FilterContainer>
