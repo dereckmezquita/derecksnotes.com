@@ -19,7 +19,7 @@ const dictionary: string = 'chemistry';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
-export const dynamicParams = !config.isProduction;
+export const dynamicParams = true;
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
