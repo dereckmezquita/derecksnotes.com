@@ -6,6 +6,7 @@ import Carousel from './FigureCarrousel';
 import LearningObjectives from './LearningObjectives';
 import CanvasWithJs from './CanvasWithJs';
 import InteractivePlot from './InteractivePlot';
+import KnowledgeGraphEmbed from './KnowledgeGraphEmbed';
 
 const mdxComponents = {
   Figure,
@@ -15,7 +16,8 @@ const mdxComponents = {
   Carousel,
   LearningObjectives,
   CanvasWithJs,
-  InteractivePlot
+  InteractivePlot,
+  KnowledgeGraphEmbed
 };
 
 export default mdxComponents;
