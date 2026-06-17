@@ -604,10 +604,17 @@ export class GraphRenderer {
     const boxWidth = Math.max(maxWidth + 24, 220);
     const boxHeight = lines.length * lineHeight + 16;
 
-    // Clamp tooltip to stay within canvas
-    if (tx + boxWidth > width - 10) tx = hp.pos.x - hp.radius - boxWidth - 10;
-    if (ty + boxHeight > height - 10) ty = height - boxHeight - 10;
-    if (ty < 5) ty = 5;
+    // Keep the tooltip inside the canvas. Prefer the right side of the node;
+    // flip to the left if that overflows; final clamp guarantees it never
+    // runs off either edge on small canvases (e.g. the blog-post embed).
+    const PADDING = 10;
+    if (tx + boxWidth > width - PADDING) {
+      tx = hp.pos.x - hp.radius - boxWidth - 14;
+    }
+    if (tx < PADDING) tx = PADDING;
+    if (tx + boxWidth > width - PADDING) tx = width - boxWidth - PADDING;
+    if (ty + boxHeight > height - PADDING) ty = height - boxHeight - PADDING;
+    if (ty < PADDING) ty = PADDING;
 
     // Background
     ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
