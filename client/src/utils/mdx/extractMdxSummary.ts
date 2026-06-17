@@ -8,6 +8,19 @@ import strip from 'remark-mdx-to-plain-text';
 import { visit } from 'unist-util-visit';
 
 /**
+ * Recursively walk an MDX AST node and concatenate every text-bearing leaf.
+ * Without this, link/emphasis/strong nodes (which have undefined .value) would
+ * be silently dropped, eating the linked text from the summary.
+ */
+function extractInlineText(node: any): string {
+  if (typeof node?.value === 'string') return node.value;
+  if (Array.isArray(node?.children)) {
+    return node.children.map(extractInlineText).join('');
+  }
+  return '';
+}
+
+/**
  * Extract a plain text summary from MDX content.
  * Parses the MDX, extracts paragraph text, and returns a cleaned summary.
  *
@@ -29,9 +42,7 @@ export function extractSummaryFromMdx(
 
     const paragraphs: string[] = [];
     visit(parsedContent, 'paragraph', (node: any) => {
-      const textContent = node.children
-        .map((child: any) => child.value?.trim() || '')
-        .join('');
+      const textContent = extractInlineText(node);
 
       if (textContent.trim() !== '') {
         paragraphs.push(textContent);
