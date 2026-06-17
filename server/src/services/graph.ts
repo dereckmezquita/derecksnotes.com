@@ -242,17 +242,34 @@ interface ExtractedHeading {
 }
 
 function extractHeadings(content: string): ExtractedHeading[] {
+  // Strip fenced code blocks first — R uses `##` as a comment prefix, which
+  // the heading regex would otherwise pick up as a level-2 heading.
+  const stripped = content.replace(/```[\s\S]*?```/g, '');
+
   const headings: ExtractedHeading[] = [];
   const headingRegex = /^(#{2,3})\s+(.+)$/gm;
+  const seenAnchors = new Set<string>();
   let match: RegExpExecArray | null;
 
-  while ((match = headingRegex.exec(content)) !== null) {
+  while ((match = headingRegex.exec(stripped)) !== null) {
     const level = match[1]?.length ?? 2;
     const text = (match[2] ?? '').replace(/[*_`]/g, '').trim();
-    const anchor = text
+    if (!text) continue;
+    const baseAnchor = text
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-');
+    if (!baseAnchor) continue;
+
+    // Dedupe within-file collisions (e.g., two `## Examples` sections):
+    // append -2, -3, … so heading paths stay unique.
+    let anchor = baseAnchor;
+    let suffix = 2;
+    while (seenAnchors.has(anchor)) {
+      anchor = `${baseAnchor}-${suffix++}`;
+    }
+    seenAnchors.add(anchor);
+
     headings.push({ level, text, anchor });
   }
 

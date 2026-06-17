@@ -1,0 +1,149 @@
+---
+title: "A Corpus as a Constellation"
+blurb: Twelve thousand nodes, one shared word.
+coverImage: 142
+author: Dereck Mezquita
+date: 2026-06-17T00:00:00.000Z
+tags:
+  - nlp
+  - graph
+  - visualisation
+  - webgl
+  - tf-idf
+  - knowledge-graph
+published: true
+comments: true
+category: programming
+---
+
+<a id="a-corpus-as-a-constellation">A Corpus as a Constellation</a> — for years I have written into this site as if I were writing into a drawer; the [/explore](/explore) page is what happened when I finally opened the drawer and tipped it out onto the floor.
+
+I had not realised, until I built the graph, how much of my own thinking I had forgotten. There are dictionary entries I wrote in 2019 and have not touched since, course notes I drafted for students who never read them, blog posts that I had filed away as "done" and ceased to think about. Taken individually, each is a thin artefact. Taken together — laid out as a network of nodes and edges, sized by connection count, coloured by section, pulled into shape by springs and Coulomb repulsion — they begin to look like a mind. Not in any mystical sense; I am not claiming the graph thinks. I mean that the shape of what one writes, over years, has a topology, and that topology is worth seeing.
+
+This essay is about how that graph is built, what the underlying algorithms actually do, and what the data revealed when I finally drew it. It is also, I should be honest, an invitation. Reading about a knowledge graph is the wrong way to experience one. The right way is to go to [/explore](/explore) and drag a node around until you find something you did not expect.
+
+## What is a Node, Really
+
+The corpus is unglamorous. It is a directory of MDX files — blog posts, references, course chapters, and dictionary entries split across biology, chemistry, and mathematics. The graph builder walks the content tree, skips drafts and deprecated folders and dotfiles, parses each file's frontmatter with grey-matter, converts its MDX body to plain text, and produces a hierarchy of nodes at three depths.
+
+At depth zero is the page itself — one node per file. At depth one are the headings extracted from each page, picked up by a regex looking for `##` and `###`, attached to the parent page by an explicit-link edge with weight fifty. At depth two are the key terms: the words the NLP pipeline thinks the page is "about", linked back to the parent with a weight proportional to their frequency. Then, separately, external URLs become their own deduplicated nodes (weight ten), internal `[text](/some/path)` links become resolved edges between pages (weight thirty), and tags become a quiet secondary structure that the algorithm uses to cluster pages topically.
+
+So a node is not a single thing; it is whatever a piece of writing turns out to be made of when you look at it carefully. A page is its own atom, but it is also a constellation of headings, terms, and outbound references. The graph is the result of taking that decomposition seriously across every file in the corpus.
+
+> I do not arrive at ideas in isolation; I arrive at them across a table, in argument. The graph is what that table looks like when the friction has cooled.
+
+## NLP from First Principles
+
+Here is where the post becomes useful for the reader who has never written a tokeniser. The key-term extraction stage — the thing that decides which words "belong" to a page — is the pipeline's most consequential decision. Get it wrong and every downstream similarity edge inherits the error. So it is worth slowing down.
+
+The first step is **tokenisation**. The plain text of the page is passed to `natural.WordTokenizer`, which splits on whitespace and punctuation and returns an array of lowercased word-shaped strings. Nothing clever; the cleverness comes later. Tokenisation is the act of saying: from now on we will treat the text not as a stream of characters but as a sequence of discrete units, and those units are words.
+
+The second step is **stopword filtering**. English has a small set of words that appear so frequently they carry almost no signal: *the*, *of*, *and*, *to*, *a*, *in*. The pipeline strips these using two stopword sets — the standard natural.js list plus a custom list of programming-flavoured noise (*function*, *const*, *return*, and so on, because much of my writing involves code). Without this step, every page in the corpus would be "about" the word *the*, which is a fact about English and not about the page.
+
+The third step — and here I should confess a gap between the pipeline I intended and the pipeline I shipped — was supposed to be **stemming**. The Porter stemmer reduces inflected forms to a common root: *running*, *runs*, *ran* would all collapse to a shared stem, so that a page using *photosynthesis* once and *photosynthetic* twice is recognised as having mentioned the concept three times rather than two unrelated tokens once each. The stemmer is imported at the top of the file. It is never called. The current pipeline treats *photosynthesis* and *photosynthetic* as entirely separate terms, which is one of several reasons the similarity edges are noisier than they need to be. I am leaving the import there as a standing reminder to wire it in; the section that follows on false neighbourhoods would be shorter if I had.
+
+The fourth step is **frequency counting and filtering**. The pipeline counts how often each token appears, throws away anything that appears only once (a single mention is more often noise than signal), and keeps the rest. To these unigrams it adds **n-grams**: bigrams (two-word phrases) longer than six characters, and trigrams (three-word phrases) longer than ten. *Partial pressure* is a bigram; *gibbs free energy* is a trigram. N-grams matter because the meaning of *free* alone is wildly different from the meaning of *gibbs free energy*. A unigram-only model would not be able to tell that two pages were both about thermodynamics; it would only know they both mentioned *free*. (Foreshadowing: this turns out to matter.)
+
+The top thirty terms per page, by frequency, become depth-two key-term nodes.
+
+## TF-IDF: The Trick That Makes Similarity Possible
+
+So far we have a per-page bag of tokens. The question is: given two such bags, how related are the pages?
+
+The naïve answer is to count shared words. The problem is that common words dominate. If two pages both mention *cell* a hundred times and one obscure technical term once, the overlap will look enormous even if the obscure term is the only one that matters. We want the opposite — we want shared rare words to count for more than shared common ones.
+
+This is what **TF-IDF** does. *Term Frequency* is what it sounds like: how often does a term appear in this document. *Inverse Document Frequency* is the trick: how rare is the term across the whole corpus? A term that appears in every document has an IDF near zero; a term that appears in only one document has a very high IDF. The product, TF × IDF, weighs each term by both its local importance (frequency on this page) and its global distinctiveness (rarity in the corpus as a whole).
+
+The pipeline uses `natural.TfIdf` to build a vector for every page. Each page is a high-dimensional point whose coordinates are TF-IDF scores along every term in the corpus's vocabulary. Two pages that share many rare terms point in nearly the same direction in this space; two pages that share only common words point in unrelated directions. The geometry is doing the work that mere overlap cannot.
+
+To compare two such vectors we use **cosine similarity**: normalise each vector by its L2 norm so it has unit length, then take the dot product. The result is a number between zero and one. One means the two vectors point in exactly the same direction (the pages are saying the same thing in the same proportions). Zero means the vectors are orthogonal (the pages share no important terms at all).
+
+In pseudocode, the part that matters looks roughly like this:
+
+```
+for each page i:
+    for each page j > i:
+        sim = dot(normalised_tfidf[i], normalised_tfidf[j])
+        if sim >= 0.15:
+            edge(i, j, type='nlp-similarity', weight=round(sim * 100))
+```
+
+The threshold is `0.15`. I want to dwell on that number, because it is the single most consequential parameter in the whole pipeline and there is no principled way to choose it. Set it too high and the graph fragments into disconnected islands — only the most obviously related pages get linked, and you lose the whole point of building a network. Set it too low and every page is connected to every other page through some accidental word overlap, and the graph becomes a hairball that tells you nothing. I tuned `0.15` empirically: I drew the graph at several thresholds and picked the one where the resulting communities looked, on inspection, *like* communities — clusters that a human would recognise as topical, with enough cross-cluster edges to invite exploration but not so many that the structure dissolved.
+
+This is the honest answer to the question "why 0.15?". Not because of a closed-form derivation. Because at 0.15 the graph looks right.
+
+## From Terms to Edges
+
+TF-IDF cosine similarity is only one of the ways the pipeline creates edges. The full picture is richer.
+
+Explicit links are the most trustworthy signal, though not always the heaviest. When I write a markdown link from one post to another — `[the Balmer series](/dictionary/chemistry/balmer-series)` — the pipeline registers that as an internal page-to-page edge with weight thirty. The heading edges that attach a page to its own `##` and `###` subsections carry a higher weight of fifty, simply because the structural tie between a page and its headings is mechanical and unambiguous; it is not really a semantic claim about relatedness, more a scaffolding edge that pins the page's substructure to its parent. The cross-page links are the ones I have authored deliberately, and they carry the highest semantic confidence per unit weight. There is no inference involved; I literally said one page references another.
+
+External links — links to anything outside the site — become their own nodes, deduplicated by URL, attached to their citing page with weight ten. This is how the graph captures the bibliographic structure of my writing: who I cite, how often, which papers and posts and Wikipedia articles cluster around which topics.
+
+Tag-similarity edges connect pages that share at least two tags. Tags are coarse, human-curated topic labels; if a page is tagged *biology, evolution, phylogenetics* and another is tagged *biology, evolution, mutation*, that overlap is significant. The pipeline creates an edge with weight `shared_tags × 20`.
+
+And then there is the NLP-similarity edge described above — the one that uses TF-IDF and cosine and finds the things I did not realise I had connected.
+
+Each edge type gets its own colour at render time. Explicit links are dark grey, the conservative signal. Tag-similarity is blue. NLP-similarity is purple. External links are orange. The colour-coding is not decorative; it lets you see at a glance whether a cluster is held together by authorial intent or by accidental vocabulary.
+
+## Communities Without Modularity
+
+Most people, when they hear "community detection on a graph", reach for Louvain or Leiden — modularity-maximising algorithms that find densely-connected subgraphs. I do not. The pipeline uses a much simpler approach: a **union-find** over the edge list, which collapses the graph into its connected components and assigns each component a community ID.
+
+This is a deliberate choice. Modularity-based methods assume you want to *partition* a connected graph into clusters of varying internal density. My graph is already not fully connected — the corpus has genuine islands, sections of writing that never reference each other and share no significant vocabulary — and what I want to see is precisely where those islands are, not to force the algorithm to invent boundaries within them.
+
+Union-find works as follows. Start with every node in its own set. For each edge `(u, v)` in the graph, merge the set containing `u` with the set containing `v`. After processing all edges, every node is in a set with exactly the other nodes it is transitively connected to, by any path through any edge type. Each set becomes a community. The IDs are arbitrary integers; the structure is what matters.
+
+What this reveals is striking. The graph has one huge component — the *main island* — containing most of the blog and almost all of the cross-disciplinary writing. Around it float smaller components: a tight cluster of mathematics entries that reference only each other, a few biology pages that I have not yet linked to anything else, a quiet archipelago of references I have cited once and forgotten. The fact that there is an archipelago at all is itself useful information. It tells me where my writing has become inbred.
+
+## Drawing Twelve Thousand Nodes
+
+A graph builder that produces a JSON blob is useful but lifeless. The other half of the project is the renderer at [/explore](/explore), which has to put twelve thousand nodes on screen and let you drag them around at sixty frames per second.
+
+The rendering stack is hybrid. WebGL 1.0 handles the primitives — lines for edges, point sprites with a custom fragment shader for filled circles and ring outlines — batched into pre-allocated Float32Arrays and flushed to the GPU through dynamic buffers each frame. On top of that, Canvas 2D handles the text: node labels for the top fifteen highest-degree nodes, section centroids in semi-transparent section colours, tooltips, the detail card that slides in from the right when you click a node. Text in WebGL is a nightmare; text in 2D context is trivial. So the renderer uses each layer for what it is good at.
+
+The layout is force-directed, with explicit Euler integration — each step adds the velocity directly to the position rather than deriving velocity implicitly from successive positions, as a Verlet integrator would. Euler is cheaper, less stable at large timesteps, and with the damping factor described below it is more than well-behaved enough for this scale. Each node carries position, velocity, mass, and radius. Each edge is a spring obeying Hooke's law: the spring force on a connected pair is `-bondStrength × (distance - restLength)`, where `restLength = source.radius + target.radius + 15px` — just far enough apart that the circles do not overlap. Every node also exerts a Coulomb repulsion on every other node: force magnitude is `(repulsionStrength × m1 × m2) / r²`, capped at `MAX_FORCE = 50` to prevent numerical explosions when two nodes drift too close.
+
+The naïve repulsion calculation is O(n²) per frame — twelve thousand squared is a hundred and forty-four million pairwise force calculations every sixteen milliseconds, which is not feasible on any consumer hardware. The pipeline accelerates it with a **quadtree**, the two-dimensional cousin of the Barnes-Hut octree used in N-body astrophysics. Each frame, the renderer rebuilds a quadtree partitioning the canvas, then queries the tree for each node with a maximum repulsion distance of three hundred pixels. Nodes far enough away to be approximated as a single centre of mass are; nodes near enough to need individual treatment are computed pairwise. The complexity drops to O(n log n), and the frame budget is recovered.
+
+There are touches I am quietly proud of. The integrator uses a fixed timestep of `1/60 s` with an accumulator, so the physics is frame-rate-independent and reproducible. Damping is `0.92` per frame, which prevents the system from oscillating forever without quenching it so hard that the layout never settles. There is a faint gravitational grid in the background — a density field distorted by node masses — which is purely visual but does a remarkable amount of work to communicate that the layout is *physical*, not arbitrary.
+
+When you search, matching nodes pulse with orange or teal halos depending on whether your query matched a title or only the page body. When you select a node, it gains a white outer ring. When you hover an edge, it lights orange. Non-matching nodes dim to fifteen percent opacity in highlight mode and six percent in filter mode. The visual language is consistent: colour for category, ring for selection state, halo for search, alpha for relevance.
+
+It is, in the truest sense, *what the graph looks like* — not a metaphor of one.
+
+## What the Data Surprised Me With
+
+I built the pipeline expecting it to confirm what I already knew about my own writing. Instead it embarrassed me. Repeatedly. And the embarrassment was instructive, because it taught me, viscerally, what TF-IDF cannot do.
+
+The most egregious example is the edge between the biology entry **Marsupial** and the mathematics entry **Young Tableau**, with weight fifty-seven. A marsupial is a mammal that carries its young in a pouch. A Young tableau is a combinatorial object named after the British mathematician Alfred Young, used in representation theory. The two have nothing whatsoever to do with each other. The shared term that drove the edge is *young* — the offspring sense and the surname sense, collapsed into the same token by a tokeniser that has no concept of either. This is a homonym; it is a textbook case of what lexical similarity cannot distinguish. The graph cannot tell that *young* in one document refers to a noun and in the other to a proper noun, because tokenisation discarded the casing and nothing downstream — least of all the stemmer I never wired in — was going to recover the lost distinction.
+
+The same problem appears between **Anagenesis** in biology — gradual evolutionary change along a single lineage — and the **Chain Rule** in calculus, weight fifty-six. The shared term is *change*. Both pages talk about change, of course. They are talking about completely different changes. But TF-IDF sees a token, not a concept.
+
+Then there is the spectacular cluster around the word *partial*. **Dalton's Law**, a chemistry entry about partial pressures of gases, ended up tightly connected to **Gradient**, **Laplacian**, **Divergence**, **Jacobian**, and **Curl** — every vector calculus operator in the mathematics dictionary, with edge weights of forty-seven to fifty. The reason is comically simple: chemistry says *partial pressure*; calculus says *partial derivative*. One shared token dragged an entire false neighbourhood into existence. (Note that this is exactly the case where my bigram extraction *should* have helped — *partial pressure* and *partial derivative* are both bigrams — but because Dalton's Law also uses the bare word *partial* in surrounding prose, the unigram signal still leaked through.)
+
+The pattern repeats. **Line Spectrum** (atomic emission lines in chemistry) connects to the **Number Line** (a basic mathematical object) at weight sixty-three, because both pages spend a great deal of text on the word *line*. **Balmer Series** connects to **Taylor Series** at weight forty-three: hydrogen spectral lines and the polynomial expansion of analytic functions, joined by the single word *series*. **Gibbs Free Energy** connects to the **Sharpe Ratio** at weight eighteen: thermodynamics and quantitative finance, joined by *free* — Gibbs free energy versus risk-free rate. A blog post I wrote called *Useful Online Resources* connects to **Topological Space** because that post uses the word *open* to mean open-source and topology uses *open* to define the very fabric of its space.
+
+These are not bugs in the strict sense. The algorithm is doing exactly what it was designed to do. They are the cost of treating language as a bag of tokens. They are also the most interesting failures in the graph, because they reveal something genuine about how meaning is *not* reducible to vocabulary. Two writers can use the same words and mean entirely different things; the only way to tell is to read.
+
+There is a separate, more pleasing observation buried in the same data. The pipeline produces a *Phylogenetics* cluster (the blog post **Interesting phylogenetic tree** linked to the dictionary entry **Decision Tree** by the shared word *tree*, weight thirty-seven) which is wrong for the obvious reason — a phylogeny and a decision tree are very different rooted graphs — but which is *almost* right, because they are both branching structures with a recursive partition logic. The accident is not entirely accidental. There is a real abstract structure that *tree* points at, and the algorithm caught a shadow of it even if it did not catch the substance.
+
+I have come to think of these false edges as a kind of imperfect microscope. They distort what they magnify, but they magnify something real about how my own writing recycles words across domains. I had not noticed how often I used *line*, *series*, *partial*, *open*, *free*, until the graph put them in front of me as edges.
+
+## What the Graph is For
+
+There is a quieter use of the graph that I want to name before closing. When I write a new post now, I run it through the pipeline and look at what it connects to. If the new post connects to nothing, I know I am writing into a void — either I have chosen a topic the corpus has nothing to say about (which is fine; sometimes that is the point) or I have failed to use the vocabulary that would let the new piece find its neighbours. If the new post connects to too much, I know I have been generic; I have used words like *system* and *function* and *process* without earning them, and the graph is telling me so by linking the post to everything.
+
+The graph is, in this sense, an editor of last resort. Not a content editor — it cannot tell me whether my argument is good — but a *positional* editor: it tells me where in the topology of my own work a new piece falls. That position matters. Writing is partly a matter of finding the right neighbours, and the neighbours one finds reveal what one is really doing.
+
+> Craft matters. Precision matters. The most boring thing one can do with a corpus is leave it as a flat list; the most interesting is to take its shape seriously.
+
+I built this graph from first principles — tokeniser, n-gram extractor, TF-IDF, cosine similarity, union-find (and a half-wired stemmer waiting to be turned on) — because I wanted to understand what every stage of an NLP pipeline actually does, not in the abstract but on my own writing. There are easier paths. I could have plugged in a transformer-based sentence-embedding model and gotten better semantic similarity without writing any of this. I may eventually do that; an embedding model would not confuse *young marsupial* with *Alfred Young*, and the graph would be the better for it. But the discipline of having built the lexical version first means I will understand exactly what the embedding model is improving on, and exactly which kinds of error it is replacing with new ones.
+
+That, ultimately, is the point of building from scratch. Not to refuse better tools, but to earn them.
+
+## An Invitation
+
+Go to [/explore](/explore). Turn off the NLP-similarity edges and look at the graph held together only by explicit links — the structure I authored. Turn them back on and watch the false neighbourhoods bloom. Drag a node. Click one. Search for *partial* and see Dalton's Law light up next to the gradient. Tighten the minimum-connections slider until only the hubs remain — the highest-degree nodes, the things I have written about most. Loosen it again and watch the archipelago appear.
+
+The graph is not a finished thing. It is a process — a pipeline I keep tuning, a renderer I keep optimising, a corpus I keep writing into. What you see when you visit is a snapshot, and the snapshot will be different next month. That is the point. A mind in motion looks like a graph in motion. The site, finally, has caught up with that.
