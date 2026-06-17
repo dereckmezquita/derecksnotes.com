@@ -1,47 +1,58 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import Link from 'next/link';
 import styled from 'styled-components';
 
 import KnowledgeGraphCanvas from '@/components/graph/KnowledgeGraphCanvas';
+import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
 import type { GraphQueryOptions } from '@derecksnotes/shared';
 
-const Wrapper = styled.div`
+const Outer = styled.div`
   margin: 24px auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
+  border: 1px solid ${(props) => props.theme.container.border.colour.primary()};
+  border-radius: 6px;
+  box-shadow: ${(props) => props.theme.container.shadow.primary};
+  background-color: ${(props) =>
+    props.theme.container.background.colour.content()};
+  overflow: hidden;
+`;
+
+const Chin = styled.div`
+  padding: 8px 14px;
+  background-color: ${(props) =>
+    props.theme.container.background.colour.primary()};
+  font-size: 0.85rem;
+  color: ${(props) => props.theme.text.colour.light_grey()};
+`;
+
+const TopChin = styled(Chin)`
+  border-bottom: 1px solid
+    ${(props) => props.theme.container.border.colour.primary()};
+  text-align: center;
+`;
+
+const BottomChin = styled(Chin)`
+  border-top: 1px solid
+    ${(props) => props.theme.container.border.colour.primary()};
+  padding: 0;
+`;
+
+const FullScreenLink = styled(Link)`
+  font-style: italic;
+  color: ${(props) => props.theme.text.colour.anchor};
+  text-decoration: none;
+
+  &:hover {
+    color: ${(props) => props.theme.text.colour.anchor_hover};
+    text-decoration: underline;
+  }
 `;
 
 const Frame = styled.div`
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
-  margin: 0 auto;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid ${(props) => props.theme.container.border.colour.primary()};
-  border-radius: 6px;
-  box-shadow: ${(props) => props.theme.container.shadow.primary};
-  background-color: ${(props) =>
-    props.theme.container.background.colour.content()};
-`;
-
-const FullScreenLink = styled(Link)`
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 0.85rem;
-  font-style: italic;
-  color: ${(props) => props.theme.text.colour.anchor};
-  text-decoration: none;
-  text-align: center;
-
-  &:hover {
-    color: ${(props) => props.theme.text.colour.anchor_hover};
-    text-decoration: underline;
-  }
 `;
 
 const EMBED_OPTIONS: GraphQueryOptions = {
@@ -62,27 +73,59 @@ const EMBED_OPTIONS: GraphQueryOptions = {
   limit: 300
 };
 
-const EMBED_CONTAINER_STYLE: React.CSSProperties = {
+const CANVAS_CONTAINER_STYLE: React.CSSProperties = {
   position: 'absolute',
   inset: 0
 };
 
 const KnowledgeGraphEmbed: React.FC = () => {
+  const [options, setOptions] = useState<GraphQueryOptions>(EMBED_OPTIONS);
+  const [showGrid, setShowGrid] = useState(true);
+  const [useSpatialHash, setUseSpatialHash] = useState(false);
+  const [nodeCount, setNodeCount] = useState(0);
+  const [edgeCount, setEdgeCount] = useState(0);
+
+  const handleLoaded = useCallback(
+    (stats: { nodes: number; edges: number }) => {
+      setNodeCount(stats.nodes);
+      setEdgeCount(stats.edges);
+    },
+    []
+  );
+
   return (
-    <Wrapper>
+    <Outer>
+      <TopChin>
+        <FullScreenLink href="/explore" scroll={false}>
+          View full screen &rarr;
+        </FullScreenLink>
+      </TopChin>
       <Frame>
         <KnowledgeGraphCanvas
-          options={EMBED_OPTIONS}
+          options={options}
           topBoundary={0}
           pauseWhenOffscreen={true}
           enableLiveUpdates={false}
-          containerStyle={EMBED_CONTAINER_STYLE}
+          containerStyle={CANVAS_CONTAINER_STYLE}
+          showGrid={showGrid}
+          useSpatialHash={useSpatialHash}
+          onLoaded={handleLoaded}
         />
       </Frame>
-      <FullScreenLink href="/explore" scroll={false}>
-        View full screen &rarr;
-      </FullScreenLink>
-    </Wrapper>
+      <BottomChin>
+        <ExploreControlPanel
+          inline
+          options={options}
+          onChange={setOptions}
+          useSpatialHash={useSpatialHash}
+          onSpatialHashToggle={setUseSpatialHash}
+          showGrid={showGrid}
+          onShowGridToggle={setShowGrid}
+          nodeCount={nodeCount}
+          edgeCount={edgeCount}
+        />
+      </BottomChin>
+    </Outer>
   );
 };
 

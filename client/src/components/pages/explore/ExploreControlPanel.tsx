@@ -7,16 +7,18 @@ import type { GraphQueryOptions } from '@derecksnotes/shared';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
 // ── styled ───────────────────────────────────────────────────────────
-const Panel = styled.div<{ $collapsed: boolean }>`
-  position: fixed;
-  top: 200px;
-  left: 12px;
-  z-index: 65;
-  width: 240px;
-  background: rgba(255, 255, 255, ${(p) => (p.$collapsed ? '0.75' : '0.92')});
-  backdrop-filter: blur(8px);
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+const Panel = styled.div<{ $collapsed: boolean; $inline?: boolean }>`
+  position: ${(p) => (p.$inline ? 'static' : 'fixed')};
+  ${(p) => (p.$inline ? '' : 'top: 200px; left: 12px;')}
+  z-index: ${(p) => (p.$inline ? 'auto' : 65)};
+  width: ${(p) => (p.$inline ? '100%' : '240px')};
+  background: ${(p) =>
+    p.$inline
+      ? 'transparent'
+      : `rgba(255, 255, 255, ${p.$collapsed ? 0.75 : 0.92})`};
+  ${(p) => (p.$inline ? '' : 'backdrop-filter: blur(8px);')}
+  border: ${(p) => (p.$inline ? 'none' : '1px solid #e0e0e0')};
+  border-radius: ${(p) => (p.$inline ? '0' : '8px')};
   color: #333;
   font-size: 13px;
   overflow: hidden;
@@ -190,6 +192,8 @@ interface ExploreControlPanelProps {
   edgeCount?: number;
   showGrid?: boolean;
   onShowGridToggle?: (show: boolean) => void;
+  /** Render inline (no fixed positioning) for embedding inside other components. */
+  inline?: boolean;
 }
 
 export default function ExploreControlPanel({
@@ -205,7 +209,8 @@ export default function ExploreControlPanel({
   showGrid = true,
   onShowGridToggle,
   nodeCount = 0,
-  edgeCount = 0
+  edgeCount = 0,
+  inline = false
 }: ExploreControlPanelProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [physicsValues, setPhysicsValues] = useState<Record<string, number>>(
@@ -248,7 +253,7 @@ export default function ExploreControlPanel({
   }
 
   return (
-    <Panel $collapsed={collapsed}>
+    <Panel $collapsed={collapsed} $inline={inline}>
       <Header onClick={() => setCollapsed(!collapsed)}>
         <span>Controls</span>
         <span
