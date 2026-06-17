@@ -15,14 +15,14 @@ links: []
 - Initial model $F_0(x)$ is often a constant prediction.
 - For stage $m=1..M$:
   1. Compute pseudo-residuals:  
-     '60830'
+     $$
      r_{im} = - \biggl[ \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \biggr]_{F=F_{m-1}}
-     '60830'
+     $$
   2. Fit a weak learner (e.g. small tree) to $r_{im}$.
   3. Update:  
-     '60830'
+     $$
      F_m(x) = F_{m-1}(x) + \nu \times h_m(x),
-     '60830'
+     $$
      where $\nu$ is a learning rate, and $h_m$ is the new weak learner.
 
 **R demonstration** (using `xgboost` for a simple regression example):
