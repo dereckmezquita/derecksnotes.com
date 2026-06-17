@@ -4,8 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import {
   SideBarContainer,
   SideBarSiteName,
-  SideBarAbout,
-  KnowledgeGraphLink
+  SideBarAbout
 } from '@/components/pages/posts-dictionaries';
 import { ALPHABET } from '@/lib/constants';
 import { TagFilter } from '@/components/ui/TagFilter';
@@ -81,7 +80,6 @@ export function DictionarySidebar() {
   return (
     <SideBarContainer>
       <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
-      <KnowledgeGraphLink />
       <TagFilter
         tags={all_tags}
         selectedTags={selectedTags}

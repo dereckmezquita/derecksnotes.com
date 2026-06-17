@@ -15,8 +15,7 @@ import {
   SideBarSiteName,
   SideBarEntriesContainer,
   SideEntryLink,
-  SideBarAbout,
-  KnowledgeGraphLink
+  SideBarAbout
 } from '@/components/pages/posts-dictionaries';
 
 // ============================================================================
@@ -198,7 +197,6 @@ export function ContentSideBar({
     return (
       <SideBarContainer>
         <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
-        <KnowledgeGraphLink />
         <SideBarEntriesContainer>
           <SideBarSectionTitle>{series.title}</SideBarSectionTitle>
           <SideEntryLink href={seriesBaseUrl}>

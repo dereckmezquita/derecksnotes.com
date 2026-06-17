@@ -8,8 +8,7 @@ import {
   SideBarSiteName,
   SideBarEntriesContainer,
   SideEntryLink,
-  SideBarAbout,
-  KnowledgeGraphLink
+  SideBarAbout
 } from '@/components/pages/posts-dictionaries';
 import { DefinitionMetadata } from '@/utils/dictionaries/fetchDefinitionMetadata';
 
@@ -33,7 +32,6 @@ export function DictionarySideBar({ definitions }: DictionarySideBarProps) {
   return (
     <SideBarContainer>
       <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
-      <KnowledgeGraphLink />
       {definitions.length > 0 && (
         <>
           <SideBarSectionTitle>Related Definitions</SideBarSectionTitle>
