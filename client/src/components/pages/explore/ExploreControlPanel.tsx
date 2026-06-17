@@ -23,7 +23,8 @@ const Panel = styled.div<{ $collapsed: boolean; $inline?: boolean }>`
   font-size: 13px;
   overflow: hidden;
   transition: max-height 0.3s ease;
-  max-height: ${(p) => (p.$collapsed ? '42px' : '900px')};
+  max-height: ${(p) =>
+    p.$collapsed ? '42px' : p.$inline ? '4000px' : '900px'};
 `;
 
 const Header = styled.div`
@@ -39,21 +40,26 @@ const Header = styled.div`
   border-bottom: none;
 `;
 
-const Body = styled.div`
+const Body = styled.div<{ $inline?: boolean }>`
   padding: 10px 14px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 70vh;
-  overflow-y: auto;
+  ${(p) =>
+    p.$inline
+      ? ''
+      : `
+    max-height: 70vh;
+    overflow-y: auto;
 
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 2px;
-  }
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 2px;
+    }
+  `}
 `;
 
 const SectionTitle = styled.div`
@@ -269,7 +275,7 @@ export default function ExploreControlPanel({
         {collapsed ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />}
       </Header>
 
-      <Body>
+      <Body $inline={inline}>
         {/* search */}
         {onSearchChange && (
           <div style={{ marginBottom: 8 }}>
