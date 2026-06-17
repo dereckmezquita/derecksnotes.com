@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { APPLICATION_DESCRIPTION } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: 'Dn | Explore',
+  title: 'Dn | Knowledge Graph',
   description: `${APPLICATION_DESCRIPTION} Wander the knowledge graph of every note, post, and definition on the site.`
 };
 

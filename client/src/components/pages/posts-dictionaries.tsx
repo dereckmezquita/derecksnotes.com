@@ -44,6 +44,30 @@ export const SideBarSiteName = styled(SiteName)<{ fontSize: string }>`
   margin-bottom: 30px;
 `;
 
+const KnowledgeGraphLinkStyled = styled(Link)`
+  display: block;
+  text-align: center;
+  padding: 8px 0;
+  margin-bottom: 20px;
+  font-size: 15px;
+  text-decoration: none;
+  color: ${(props) => props.theme.text.colour.anchor()};
+  border-bottom: 1px dashed
+    ${(props) => props.theme.container.border.colour.primary()};
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+export function KnowledgeGraphLink(): ReactElement {
+  return (
+    <KnowledgeGraphLinkStyled href="/explore" scroll={false}>
+      Knowledge Graph
+    </KnowledgeGraphLinkStyled>
+  );
+}
+
 export const SideBarEntriesContainer = styled.div`
   text-align: left;
 `;
@@ -104,6 +128,13 @@ export function SideBarAbout(): ReactElement {
         <Link href="https://github.com/dereckmezquita/derecksnotes.com">
           github.com/dereckmezquita/derecksnotes.com
         </Link>
+      </p>
+      <p>
+        Want to see the whole site as a network of ideas? Visit the{' '}
+        <Link href="/explore" scroll={false}>
+          Knowledge Graph
+        </Link>
+        .
       </p>
     </SideBarAboutContainer>
   );

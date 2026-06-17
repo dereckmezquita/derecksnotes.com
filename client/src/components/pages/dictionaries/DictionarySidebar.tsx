@@ -1,33 +1,16 @@
 'use client';
 import React, { useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import styled from 'styled-components';
 
 import {
   SideBarContainer,
   SideBarSiteName,
-  SideBarAbout
+  SideBarAbout,
+  KnowledgeGraphLink
 } from '@/components/pages/posts-dictionaries';
 import { ALPHABET } from '@/lib/constants';
 import { TagFilter } from '@/components/ui/TagFilter';
 import { useDictionary } from './DictionaryContext';
 import { Definition } from '@/utils/dictionaries/fetchDefinitionMetadata';
-
-const ExploreLink = styled(Link)`
-  display: block;
-  text-align: center;
-  padding: 10px 0;
-  margin-bottom: 15px;
-  font-size: 16px;
-  text-decoration: none;
-  color: ${(props) => props.theme.text.colour.anchor()};
-  border-bottom: 1px dashed
-    ${(props) => props.theme.container.border.colour.primary()};
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
 
 function definitionsTagsToArr(definitions: Definition[]): string[] {
   const allSlugs = new Map(
@@ -97,8 +80,8 @@ export function DictionarySidebar() {
 
   return (
     <SideBarContainer>
-      <ExploreLink href="/explore">Explore</ExploreLink>
       <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
+      <KnowledgeGraphLink />
       <TagFilter
         tags={all_tags}
         selectedTags={selectedTags}

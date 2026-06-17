@@ -16,11 +16,11 @@ comments: true
 category: programming
 ---
 
-<a id="a-corpus-as-a-constellation">A Corpus as a Constellation</a> — for years I have written into this site as if I were writing into a drawer; the [/explore](/explore) page is what happened when I finally opened the drawer and tipped it out onto the floor.
+<a id="a-corpus-as-a-constellation">A Corpus as a Constellation</a> — for years I have written into this site as if I were writing into a drawer; the [Knowledge Graph](/explore) page is what happened when I finally opened the drawer and tipped it out onto the floor.
 
 I had not realised, until I built the graph, how much of my own thinking I had forgotten. There are dictionary entries I wrote in 2019 and have not touched since, course notes I drafted for students who never read them, blog posts that I had filed away as "done" and ceased to think about. Taken individually, each is a thin artefact. Taken together — laid out as a network of nodes and edges, sized by connection count, coloured by section, pulled into shape by springs and Coulomb repulsion — they begin to look like a mind. Not in any mystical sense; I am not claiming the graph thinks. I mean that the shape of what one writes, over years, has a topology, and that topology is worth seeing.
 
-This essay is about how that graph is built, what the underlying algorithms actually do, and what the data revealed when I finally drew it. It is also, I should be honest, an invitation. Reading about a knowledge graph is the wrong way to experience one. The right way is to go to [/explore](/explore) and drag a node around until you find something you did not expect.
+This essay is about how that graph is built, what the underlying algorithms actually do, and what the data revealed when I finally drew it. It is also, I should be honest, an invitation. Reading about a knowledge graph is the wrong way to experience one. The right way is to go to the [Knowledge Graph](/explore) and drag a node around until you find something you did not expect.
 
 ## What is a Node, Really
 
@@ -98,7 +98,7 @@ What this reveals is striking. The graph has one huge component — the *main is
 
 ## Drawing Twelve Thousand Nodes
 
-A graph builder that produces a JSON blob is useful but lifeless. The other half of the project is the renderer at [/explore](/explore), which has to put twelve thousand nodes on screen and let you drag them around at sixty frames per second.
+A graph builder that produces a JSON blob is useful but lifeless. The other half of the project is the renderer behind the [Knowledge Graph](/explore), which has to put twelve thousand nodes on screen and let you drag them around at sixty frames per second.
 
 The rendering stack is hybrid. WebGL 1.0 handles the primitives — lines for edges, point sprites with a custom fragment shader for filled circles and ring outlines — batched into pre-allocated Float32Arrays and flushed to the GPU through dynamic buffers each frame. On top of that, Canvas 2D handles the text: node labels for the top fifteen highest-degree nodes, section centroids in semi-transparent section colours, tooltips, the detail card that slides in from the right when you click a node. Text in WebGL is a nightmare; text in 2D context is trivial. So the renderer uses each layer for what it is good at.
 
@@ -144,6 +144,6 @@ That, ultimately, is the point of building from scratch. Not to refuse better to
 
 ## An Invitation
 
-Go to [/explore](/explore). Turn off the NLP-similarity edges and look at the graph held together only by explicit links — the structure I authored. Turn them back on and watch the false neighbourhoods bloom. Drag a node. Click one. Search for *partial* and see Dalton's Law light up next to the gradient. Tighten the minimum-connections slider until only the hubs remain — the highest-degree nodes, the things I have written about most. Loosen it again and watch the archipelago appear.
+Go to the [Knowledge Graph](/explore). Turn off the NLP-similarity edges and look at the graph held together only by explicit links — the structure I authored. Turn them back on and watch the false neighbourhoods bloom. Drag a node. Click one. Search for *partial* and see Dalton's Law light up next to the gradient. Tighten the minimum-connections slider until only the hubs remain — the highest-degree nodes, the things I have written about most. Loosen it again and watch the archipelago appear.
 
 The graph is not a finished thing. It is a process — a pipeline I keep tuning, a renderer I keep optimising, a corpus I keep writing into. What you see when you visit is a snapshot, and the snapshot will be different next month. That is the point. A mind in motion looks like a graph in motion. The site, finally, has caught up with that.
