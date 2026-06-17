@@ -18,7 +18,6 @@ const Wrapper = styled.div`
 const Frame = styled.div`
   position: relative;
   width: 100%;
-  max-width: 480px;
   aspect-ratio: 3 / 4;
   margin: 0 auto;
   padding: 0;
