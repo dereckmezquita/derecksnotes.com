@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import Link from 'next/link';
 import { config } from '@/lib/env';
 import { ReactElement } from 'react';
 
@@ -38,6 +39,13 @@ function Footer(): ReactElement {
         Mezquita. You are not allowed to copy nor modify any content found on
         this website without written permission from the owner; Copyright © 2017
         - {getCurrentYear()}
+      </FooterText>
+      <FooterText>
+        Explore the entire site as a network of connected ideas:{' '}
+        <Link href="/explore" scroll={false}>
+          Knowledge Graph
+        </Link>
+        .
       </FooterText>
       <FooterText>
         v{config.version} ({config.commitSha.slice(0, 7)}) &bull;{' '}
