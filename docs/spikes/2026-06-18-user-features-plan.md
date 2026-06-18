@@ -52,6 +52,19 @@ Scope and sequencing for the post-hardening user-features PR. List was curated 2
 - New table `readProgress(userId, postId, percent, updatedAt)` with `(userId, postId)` unique index — replaces and extends the existing auto-tracking.
 - "Continue reading" rail on `/profile/me` showing posts with 5% < progress < 95%, sorted by `updatedAt` desc.
 
+## Admin counterparts
+
+Each user-facing feature ships with the admin tooling needed to manage it from `/admin`. Same shared `DataTable` / `useRangeSelect` / `BulkActionBar` primitives so the moderation UX is consistent.
+
+- **Notifications (#1)** → "Notifications" tab: send a notification to a specific user or broadcast to all users (system announcement). Volume metrics (total / unread / per-type / last 7 days).
+- **Mentions (#2)** → "Mention abuse" flag on the Users tab: per-user mentions-sent count + a `mention_muted` toggle that suppresses fan-out from a problem account.
+- **Bookmarks (#3)** → most-bookmarked posts column in Analytics; per-user bookmark count on the Users tab.
+- **Follow (#4)** → Users tab shows follower / following counts + a "view follow graph" drill-down (who follows X, who X follows). Bulk "force-unfollow" if needed for abuse cases.
+- **Reports (#5)** → this IS the admin feature: new Reports tab with rich table (reporter, target, reason, age, status), filter by status / target type, bulk resolve / dismiss, links to the offending content.
+- **Profile customisation (#6)** → moderator action: clear a user's `location` or `socialLinks` if abused. Per-field audit-log entry on edit.
+- **Activity feed (#7)** → unified "User activity" drill-down from the Users tab (recent comments + reactions + bookmarks + follows in one chronological view).
+- **Reading progress (#10)** → per-post completion-rate stat on Analytics; the queue itself is user-private.
+
 ## Deferred
 
 - OAuth login with GitHub — wanted but not this round.
