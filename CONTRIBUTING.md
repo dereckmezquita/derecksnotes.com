@@ -1,6 +1,6 @@
 # Contributing to Dereck's Notes
 
-Thank you for considering contributing to Dereck's Notes! Your assistance and insights are valued in making the website a fantastic resource for all users.
+Thank you for considering contributing. Below is what you need to get set up locally and the conventions this repo uses.
 
 ## Getting Started
 
@@ -9,78 +9,76 @@ Thank you for considering contributing to Dereck's Notes! Your assistance and in
 - [Bun](https://bun.sh/) (JavaScript runtime)
 - Git
 
-### Setup the Project Locally
+### Setup
 
-1. **Fork the Repository:** Click on the 'Fork' button and clone to your local machine
-2. **Navigate to Project Directory:** `cd derecksnotes.com`
-3. **Install Dependencies:**
+1. **Fork** the repo and clone your fork.
+2. **Install dependencies** (workspaces handle `client`, `server`, `shared` in one go):
    ```bash
    bun install
-   cd client && bun install && cd ..
-   cd server && bun install && cd ..
    ```
-4. **Start Development:**
+   This also wires the native git hooks under `.githooks/` via the `prepare` script. If your commits later land without auto-formatting or branch-prefixing, re-run `bun install`.
+3. **Start development**:
    ```bash
    bun run dev
    ```
-   This starts both the client (port 3000) and server (port 3001) concurrently.
-
-5. **Make Changes:** Implement your changes, fix a bug, or work on a feature
-6. **Format Code:** Run `bun run format` before committing
-7. **Test Your Changes:** Ensure they work as expected
+   Runs the client on `:3000` and the server on `:3001` concurrently.
 
 ### Available Commands
 
 | Command | Description |
 |---------|-------------|
-| `bun run dev` | Start client and server in development mode |
-| `bun run build` | Build the client for production |
-| `bun run format` | Format all code with Prettier |
-| `bun run test` | Run tests |
-| `bun run db:generate` | Generate migration from schema changes |
+| `bun run dev` | Client + server in development mode |
+| `bun run build` | Production-style build of the client |
+| `bun run start` | Run the built client + server |
+| `bun run format` | Prettier across the whole repo |
+| `bun run lint` | ESLint on the client |
+| `bun run typecheck` | TypeScript `--noEmit` on the client |
+| `bun run test` | `bun test` |
+| `bun run db:generate` | Generate a Drizzle migration from schema changes |
 | `bun run db:migrate` | Apply pending migrations |
-| `bun run db:seed` | Seed database with default data |
-| `bun run db:reset` | Reset the database (development) |
-| `bun run db:studio` | Open database browser |
+| `bun run db:seed` | Seed the database with default data |
+| `bun run db:reset` | Reset the database (development only) |
+| `bun run db:studio` | Open Drizzle Studio (DB browser) |
 
 ## Code Style
 
-- **TypeScript**: Strict mode, ESNext modules
-- **Formatting**: 4-space indent, 80 char width, single quotes, no trailing comma
-- **React**: Functional components with explicit types
-- **Imports**: Use `@/*` path aliases in client code
+- **TypeScript**: strict mode, ESNext modules.
+- **Formatting**: 2-space indent, 80-char width, single quotes, no trailing comma (defined in root `package.json` under `"prettier"`).
+- **React**: functional components, explicit prop types.
+- **Imports**: use `@/*` path aliases in client code.
 
-Run `bun run format` before committing changes.
+The `pre-commit` hook runs `bun run format` on every commit so formatting is automatic — you shouldn't need to run it by hand.
 
 ## Pull Requests
 
-1. **Create a Branch:** `git checkout -b feature/my-feature`
-2. **Commit Changes:** Write clear commit messages
-3. **Push:** `git push origin feature/my-feature`
-4. **Open PR:** Describe your changes and link related issues
+1. **Branch**: pick a descriptive name. If you prefix the name with `LETTERS-NUMBER` (e.g. `DN-42`, `FEAT-7`), the `commit-msg` hook will auto-prefix every commit subject with it. Without that pattern, commits go through as-is.
+2. **Commit messages**: short subjects; the hook strips newlines so write the meaning in the subject. (For longer rationale, put it in the PR description.)
+3. **Push** to your fork and open a PR; the [pull request template](.github/pull_request_template.md) walks you through the checklist.
 
 ## Issue Creation
 
-- Use a descriptive title
-- Provide detailed information and steps to reproduce
-- Include screenshots if applicable
-- Add relevant labels
+- Use a descriptive title.
+- Provide reproduction steps and screenshots where useful.
+- Add relevant labels.
 
 ## Project Structure
 
 ```
 derecksnotes.com/
-├── client/          # Next.js 15 frontend
+├── client/          # Next.js 15 frontend (workspace)
 │   └── src/
 │       ├── app/         # App Router pages
-│       ├── components/  # React components
-│       └── styles/      # Theme and styles
-├── server/          # Express 5 backend
+│       ├── components/  # React components (mdx/, graph/, ui/, ...)
+│       └── lib/         # graph simulation + WebGL renderer
+├── server/          # Express 5 + Bun backend (workspace)
 │   └── src/
 │       ├── db/          # SQLite + Drizzle
 │       ├── routes/      # API routes
-│       └── middleware/  # Auth & permissions
-└── docs/            # Documentation
+│       ├── services/    # graph builder, search index
+│       └── middleware/  # auth + permissions
+├── shared/          # types shared between client and server (workspace)
+├── scripts/         # deploy + maintenance helpers
+└── .githooks/       # pre-commit + commit-msg hooks (wired by `bun install`)
 ```
 
 ## Code of Conduct
