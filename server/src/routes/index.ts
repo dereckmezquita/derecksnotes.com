@@ -7,6 +7,7 @@ import adminRoutes from './admin';
 import searchRoutes from './search';
 import graphRoutes from './graph';
 import notificationRoutes from './notifications';
+import reportRoutes from './reports';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/admin', adminRoutes);
 router.use('/search', searchRoutes);
 router.use('/graph', graphRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/reports', reportRoutes);
 
 export default router;

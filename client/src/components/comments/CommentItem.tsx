@@ -157,6 +157,37 @@ export function CommentItem({
     }
   };
 
+  const handleReport = async () => {
+    const reason = prompt(
+      'Why are you reporting this comment? (spam / harassment / misinformation / other)',
+      'spam'
+    );
+    if (!reason) return;
+    const normalised = [
+      'spam',
+      'harassment',
+      'misinformation',
+      'other'
+    ].includes(reason)
+      ? reason
+      : 'other';
+    const details = prompt(
+      'Optional: add a brief note for the moderators.',
+      ''
+    );
+    try {
+      await api.post('/reports', {
+        targetType: 'comment',
+        targetId: comment.id,
+        reason: normalised,
+        details: details || undefined
+      });
+      toast.success('Reported — thanks. A moderator will take a look.');
+    } catch {
+      toast.error('Failed to submit report');
+    }
+  };
+
   const handleShowHistory = async () => {
     setHistoryLoading(true);
     try {
@@ -314,6 +345,9 @@ export function CommentItem({
                 <ReplyLink onClick={() => setEditing(true)}>Edit</ReplyLink>
                 <ReplyLink onClick={handleDelete}>Delete</ReplyLink>
               </>
+            )}
+            {user && !isOwner && (
+              <ReplyLink onClick={handleReport}>Report</ReplyLink>
             )}
           </CommentActions>
         )}

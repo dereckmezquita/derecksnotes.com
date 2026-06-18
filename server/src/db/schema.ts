@@ -210,6 +210,29 @@ export const auditLog = sqliteTable('audit_log', {
 });
 
 // ============================================================================
+// REPORTS
+// ============================================================================
+
+export const reports = sqliteTable('reports', {
+  id: text('id').primaryKey(),
+  reporterId: text('reporter_id')
+    .notNull()
+    .references(() => users.id),
+  // 'comment' | 'user' for now.
+  targetType: text('target_type').notNull(),
+  targetId: text('target_id').notNull(),
+  // 'spam' | 'harassment' | 'misinformation' | 'other'.
+  reason: text('reason').notNull(),
+  // Free-form caller-supplied note (≤ 1000 chars in route validation).
+  details: text('details'),
+  // 'open' | 'resolved' | 'dismissed'.
+  status: text('status').notNull().default('open'),
+  resolvedAt: text('resolved_at'),
+  resolvedBy: text('resolved_by').references(() => users.id),
+  createdAt: text('created_at').notNull()
+});
+
+// ============================================================================
 // FOLLOWS
 // ============================================================================
 
@@ -295,6 +318,13 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
   user: one(users, { fields: [bookmarks.userId], references: [users.id] }),
   post: one(posts, { fields: [bookmarks.postId], references: [posts.id] })
+}));
+
+export const reportsRelations = relations(reports, ({ one }) => ({
+  reporter: one(users, {
+    fields: [reports.reporterId],
+    references: [users.id]
+  })
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
