@@ -42,6 +42,17 @@ interface ActivityItem {
   reaction?: 'like' | 'dislike';
 }
 
+interface TopComment {
+  id: string;
+  slug: string;
+  postTitle: string;
+  content: string;
+  createdAt: string;
+  likes: number;
+  dislikes: number;
+  score: number;
+}
+
 const Counts = styled.div`
   display: flex;
   gap: 18px;
@@ -56,6 +67,59 @@ const Count = styled.span`
     font-weight: 700;
     margin-right: 4px;
   }
+`;
+
+const EmptyBio = styled.p`
+  margin: 0.75rem 0 0;
+  color: ${(p) => p.theme.text.colour.light_grey()};
+  font-style: italic;
+  font-size: 0.9rem;
+`;
+
+const SocialLinks = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0.75rem;
+`;
+
+const SocialChip = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+  border-radius: 12px;
+  color: ${(p) => p.theme.text.colour.primary()};
+  text-decoration: none;
+
+  &:hover {
+    border-color: ${(p) => p.theme.text.colour.header()};
+    color: ${(p) => p.theme.text.colour.header()};
+  }
+
+  /* Tiny external-link affordance — drawn in pure CSS so we don't need
+     to add another react-icons import just for this hint. */
+  &::after {
+    content: '↗';
+    font-size: 0.7em;
+    opacity: 0.6;
+  }
+`;
+
+const TopCommentRow = styled.div`
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const Score = styled.span`
+  font-weight: 700;
+  color: ${(p) => p.theme.text.colour.header()};
+  margin-right: 0.5rem;
 `;
 
 function formatDate(iso: string): string {
@@ -76,6 +140,7 @@ export default function PublicProfilePage() {
   const [following, setFollowing] = useState<boolean | null>(null);
   const [pending, setPending] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [topComments, setTopComments] = useState<TopComment[]>([]);
 
   const isSelf = user?.username === username;
 
@@ -117,6 +182,12 @@ export default function PublicProfilePage() {
         silent: true
       })
       .then((d) => setActivity(d.data))
+      .catch(() => {});
+    api
+      .get<{ data: TopComment[] }>(`/users/${username}/top-comments?limit=5`, {
+        silent: true
+      })
+      .then((d) => setTopComments(d.data))
       .catch(() => {});
   }, [username, refreshFollow]);
 
@@ -212,28 +283,58 @@ export default function PublicProfilePage() {
             </Button>
           )}
         </ProfileHeader>
-        {profile.bio && <Bio>{profile.bio}</Bio>}
+        {profile.bio ? (
+          <Bio>{profile.bio}</Bio>
+        ) : (
+          <EmptyBio>
+            @{profile.username} hasn&apos;t written a bio yet.
+          </EmptyBio>
+        )}
         {profile.location && (
           <Counts>
             <Count>📍 {profile.location}</Count>
           </Counts>
         )}
         {profile.socialLinks.length > 0 && (
-          <Counts>
+          <SocialLinks>
             {profile.socialLinks.map((l) => (
-              <a
+              <SocialChip
                 key={l.url}
                 href={l.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ marginRight: 12 }}
               >
                 {l.label}
-              </a>
+              </SocialChip>
             ))}
-          </Counts>
+          </SocialLinks>
         )}
       </Card>
+      {topComments.length > 0 && (
+        <Card>
+          <h3 style={{ marginTop: 0 }}>Top comments</h3>
+          {topComments.map((c) => (
+            <TopCommentRow key={c.id}>
+              <div style={{ fontSize: '0.95rem' }}>
+                <Score>+{c.score}</Score>
+                {c.content.length > 240
+                  ? c.content.substring(0, 240) + '…'
+                  : c.content}
+              </div>
+              <div
+                style={{
+                  color: '#888',
+                  fontSize: '0.75rem',
+                  marginTop: '0.25rem'
+                }}
+              >
+                on <a href={`/${c.slug}`}>{c.postTitle || c.slug}</a> ·{' '}
+                {formatDate(c.createdAt)}
+              </div>
+            </TopCommentRow>
+          ))}
+        </Card>
+      )}
       {activity.length > 0 && (
         <Card>
           <h3 style={{ marginTop: 0 }}>Activity</h3>

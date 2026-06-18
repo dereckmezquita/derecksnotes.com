@@ -103,6 +103,33 @@ router.get('/:username/activity', async (req: AuthenticatedRequest, res) => {
   }
 });
 
+router.get(
+  '/:username/top-comments',
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const usernameParsed = usernameParamSchema.safeParse(req.params.username);
+      if (!usernameParsed.success) {
+        res.status(400).json({ error: 'Invalid username format' });
+        return;
+      }
+      const target = await userService.findUserByUsername(usernameParsed.data);
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      const limit = Math.min(
+        20,
+        Math.max(1, parseInt(req.query.limit as string) || 5)
+      );
+      const items = await userService.getTopComments(target.id, limit);
+      res.json({ data: items });
+    } catch (error) {
+      console.error('User top-comments error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 router.post(
   '/:username/follow',
   authenticate(),

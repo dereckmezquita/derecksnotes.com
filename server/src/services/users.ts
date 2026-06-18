@@ -315,6 +315,54 @@ export async function getUserActivity(userId: string, limit: number = 30) {
   return merged.slice(0, limit);
 }
 
+/**
+ * Public-profile "top comments" — the user's highest-scored undeleted
+ * approved comments, ranked by net (likes − dislikes) desc, ties broken
+ * by recency. Ranking happens in JS because Drizzle's findMany aliases
+ * the reactions subquery awkwardly and we already learned that lesson
+ * with the comment sort feature.
+ */
+export async function getTopComments(userId: string, limit: number = 5) {
+  const rows = await db.query.comments.findMany({
+    where: and(
+      eq(schema.comments.userId, userId),
+      eq(schema.comments.approved, 1),
+      isNull(schema.comments.deletedAt)
+    ),
+    // Wider candidate window so a user with a few high-scored comments
+    // buried under recent low-scored ones still surfaces.
+    limit: Math.max(50, limit * 10),
+    orderBy: [desc(schema.comments.createdAt)],
+    with: { post: true, reactions: true }
+  });
+  const scored = rows.map((c) => {
+    let likes = 0;
+    let dislikes = 0;
+    for (const r of c.reactions) {
+      if (r.type === 'like') likes++;
+      else if (r.type === 'dislike') dislikes++;
+    }
+    return {
+      id: c.id,
+      slug: c.post?.slug || '',
+      postTitle: c.post?.title || '',
+      content: c.content,
+      createdAt: c.createdAt,
+      likes,
+      dislikes,
+      score: likes - dislikes
+    };
+  });
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.createdAt < a.createdAt ? -1 : 1;
+  });
+  // Drop true-neutral comments (score 0, no engagement) — they're not
+  // "top" of anything, just noise. Comments with positive engagement
+  // always make the cut.
+  return scored.filter((c) => c.likes > 0 || c.score > 0).slice(0, limit);
+}
+
 export async function getReadHistory(
   userId: string,
   page: number,
