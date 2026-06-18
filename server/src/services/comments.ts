@@ -511,7 +511,7 @@ function formatCommentTreeBatched(
 
   return {
     id: comment.id,
-    content: comment.deletedAt ? '[deleted]' : comment.content,
+    content: comment.deletedAt ? '[DELETED]' : comment.content,
     depth: comment.depth,
     approved: !!comment.approved,
     createdAt: comment.createdAt,
@@ -666,7 +666,7 @@ async function formatCommentTree(
 
   return {
     id: comment.id,
-    content: comment.deletedAt ? '[deleted]' : comment.content,
+    content: comment.deletedAt ? '[DELETED]' : comment.content,
     depth: comment.depth,
     approved: !!comment.approved,
     createdAt: comment.createdAt,
@@ -807,11 +807,83 @@ async function getCommentReactions(commentId: string, userId: string | null) {
   };
 }
 
-export async function approveComment(commentId: string): Promise<void> {
+/**
+ * Approve a single comment and notify the author. `approvedBy` is the
+ * moderator's id and becomes the notification's actor so the author sees
+ * "X approved your comment". Passing `null` is allowed for system-driven
+ * approvals (none today) and just suppresses the actor.
+ */
+export async function approveComment(
+  commentId: string,
+  approvedBy: string | null = null
+): Promise<void> {
   await db
     .update(schema.comments)
     .set({ approved: 1 })
     .where(eq(schema.comments.id, commentId));
+  try {
+    const comment = await db.query.comments.findFirst({
+      where: eq(schema.comments.id, commentId),
+      columns: { userId: true, content: true },
+      with: { post: true }
+    });
+    if (comment) {
+      await notificationService.createNotification({
+        userId: comment.userId,
+        type: 'comment.approved',
+        actorUserId: approvedBy,
+        targetType: 'comment',
+        targetId: commentId,
+        payload: {
+          postSlug: comment.post?.slug || '',
+          postTitle: comment.post?.title || '',
+          preview: (comment.content || '').slice(0, 200)
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[notifications] failed to fan comment.approved:', err);
+  }
+}
+
+/**
+ * Bulk-approve variant — emits one notification per author for the rows
+ * matched. Used by /admin/comments/bulk-approve.
+ */
+export async function approveCommentsBulk(
+  commentIds: string[],
+  approvedBy: string
+): Promise<void> {
+  if (commentIds.length === 0) return;
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.comments)
+      .set({ approved: 1 })
+      .where(inArray(schema.comments.id, commentIds));
+  });
+  try {
+    const rows = await db.query.comments.findMany({
+      where: inArray(schema.comments.id, commentIds),
+      columns: { id: true, userId: true, content: true },
+      with: { post: true }
+    });
+    for (const r of rows) {
+      await notificationService.createNotification({
+        userId: r.userId,
+        type: 'comment.approved',
+        actorUserId: approvedBy,
+        targetType: 'comment',
+        targetId: r.id,
+        payload: {
+          postSlug: r.post?.slug || '',
+          postTitle: r.post?.title || '',
+          preview: (r.content || '').slice(0, 200)
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[notifications] failed to fan bulk comment.approved:', err);
+  }
 }
 
 export async function rejectComment(commentId: string): Promise<void> {
@@ -819,6 +891,16 @@ export async function rejectComment(commentId: string): Promise<void> {
     .update(schema.comments)
     .set({ deletedAt: new Date().toISOString() })
     .where(eq(schema.comments.id, commentId));
+}
+
+export async function rejectCommentsBulk(commentIds: string[]): Promise<void> {
+  if (commentIds.length === 0) return;
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.comments)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(inArray(schema.comments.id, commentIds));
+  });
 }
 
 export async function getPendingComments(page: number, limit: number) {

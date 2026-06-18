@@ -4,8 +4,6 @@ import type { AuthenticatedRequest } from '@/types';
 import { requirePermission } from '@middleware/auth';
 import * as commentService from '@services/comments';
 import * as auditService from '@services/audit';
-import { db, schema } from '@db/index';
-import { inArray } from 'drizzle-orm';
 
 const router = Router();
 const uuidParamSchema = z.string().uuid();
@@ -46,7 +44,7 @@ router.post(
         res.status(400).json({ error: 'Invalid comment ID format' });
         return;
       }
-      await commentService.approveComment(idParsed.data);
+      await commentService.approveComment(idParsed.data, req.user!.id);
       await auditService.logAuditAction(
         req.user!.id,
         'comment.approve',
@@ -113,12 +111,10 @@ router.post(
         });
         return;
       }
-      await db.transaction(async (tx) => {
-        await tx
-          .update(schema.comments)
-          .set({ approved: 1 })
-          .where(inArray(schema.comments.id, parsed.data.commentIds));
-      });
+      await commentService.approveCommentsBulk(
+        parsed.data.commentIds,
+        req.user!.id
+      );
       await auditService.logAuditAction(
         req.user!.id,
         'comment.bulk-approve',
@@ -148,12 +144,7 @@ router.post(
         });
         return;
       }
-      await db.transaction(async (tx) => {
-        await tx
-          .update(schema.comments)
-          .set({ deletedAt: new Date().toISOString() })
-          .where(inArray(schema.comments.id, parsed.data.commentIds));
-      });
+      await commentService.rejectCommentsBulk(parsed.data.commentIds);
       await auditService.logAuditAction(
         req.user!.id,
         'comment.bulk-reject',

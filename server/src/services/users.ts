@@ -226,9 +226,13 @@ export async function getUserComments(
     .where(eq(schema.comments.userId, userId));
 
   return {
+    // Defense-in-depth: even on /me/comments (the user's own list), we
+    // serve `[DELETED]` for soft-deleted rows. The client UI also gates
+    // on `isDeleted`, but two layers prevents a future API consumer or
+    // copy-paste of the response from showing the original content.
     comments: rows.map((c) => ({
       id: c.id,
-      content: c.content,
+      content: c.deletedAt ? '[DELETED]' : c.content,
       slug: c.post?.slug || '',
       postTitle: c.post?.title || '',
       depth: c.depth,
@@ -339,4 +343,41 @@ export async function getReadHistory(
     })),
     total: total[0]?.count || 0
   };
+}
+
+/**
+ * Wipe the caller's full read history. Used by the Clear button on the
+ * /account read-history tab.
+ */
+export async function clearReadHistory(userId: string): Promise<number> {
+  const ids = await db
+    .delete(schema.readHistory)
+    .where(eq(schema.readHistory.userId, userId))
+    .returning({ id: schema.readHistory.id });
+  return ids.length;
+}
+
+/**
+ * Remove read-history entries for a single post slug (all sessions). Hard
+ * delete: read history is a personal log, not a moderation artefact.
+ */
+export async function removeReadHistoryForSlug(
+  userId: string,
+  slug: string
+): Promise<number> {
+  const post = await db.query.posts.findFirst({
+    where: eq(schema.posts.slug, slug),
+    columns: { id: true }
+  });
+  if (!post) return 0;
+  const ids = await db
+    .delete(schema.readHistory)
+    .where(
+      and(
+        eq(schema.readHistory.userId, userId),
+        eq(schema.readHistory.postId, post.id)
+      )
+    )
+    .returning({ id: schema.readHistory.id });
+  return ids.length;
 }

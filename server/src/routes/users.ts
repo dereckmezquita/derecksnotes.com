@@ -514,6 +514,44 @@ router.get(
   }
 );
 
+/**
+ * DELETE /users/me/read-history — body { slug } removes a single entry;
+ * empty body wipes the whole history. Same endpoint, two semantics, so the
+ * client can use one route for both flows.
+ */
+router.delete(
+  '/me/read-history',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const body = req.body ?? {};
+      const parsed = z
+        .object({ slug: z.string().min(1).max(500).optional() })
+        .safeParse(body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.issues
+        });
+        return;
+      }
+      if (parsed.data.slug) {
+        const removed = await userService.removeReadHistoryForSlug(
+          req.user!.id,
+          parsed.data.slug
+        );
+        res.json({ success: true, removed });
+        return;
+      }
+      const cleared = await userService.clearReadHistory(req.user!.id);
+      res.json({ success: true, cleared });
+    } catch (error) {
+      console.error('Delete read history error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 // Global error handler for user routes
 router.use(
   (

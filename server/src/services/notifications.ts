@@ -13,6 +13,7 @@ export type NotificationType =
   | 'comment.like'
   | 'mention'
   | 'follow.new'
+  | 'comment.approved'
   | 'comment.pending-review'
   | 'report.new'
   | 'admin.message'
