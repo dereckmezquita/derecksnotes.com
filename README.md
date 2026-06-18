@@ -51,7 +51,7 @@ bun run dev          # client on :3000, server on :3001
 
 Other handy scripts: `bun run format`, `bun run typecheck`, `bun run lint`, `bun run test`, `bun run build`.
 
-The pre-commit hook auto-formats with Prettier; the commit-msg hook prefixes commit subjects with the branch name. If commits land without those, your hooks aren't wired — re-run `bun install`.
+The pre-commit hook auto-formats with Prettier. If commits land without formatting, your hooks aren't wired, re-run `bun install`.
 
 ## Project Structure
 
@@ -69,7 +69,7 @@ derecksnotes.com/
 │       └── services/    # graph builder, search index
 ├── shared/          # types shared between client and server
 ├── scripts/         # deploy + maintenance helpers
-└── .githooks/       # pre-commit + commit-msg hooks
+└── .githooks/       # pre-commit hook (auto-format)
 ```
 
 ## Features

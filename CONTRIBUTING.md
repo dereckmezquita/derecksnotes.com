@@ -16,7 +16,7 @@ Thank you for considering contributing. Below is what you need to get set up loc
    ```bash
    bun install
    ```
-   This also wires the native git hooks under `.githooks/` via the `prepare` script. If your commits later land without auto-formatting or branch-prefixing, re-run `bun install`.
+   This also wires the native git hooks under `.githooks/` via the `prepare` script. If your commits later land without auto-formatting, re-run `bun install`.
 3. **Start development**:
    ```bash
    bun run dev
@@ -51,8 +51,8 @@ The `pre-commit` hook runs `bun run format` on every commit so formatting is aut
 
 ## Pull Requests
 
-1. **Branch**: pick a descriptive name. If you prefix the name with `LETTERS-NUMBER` (e.g. `DN-42`, `FEAT-7`), the `commit-msg` hook will auto-prefix every commit subject with it. Without that pattern, commits go through as-is.
-2. **Commit messages**: short subjects; the hook strips newlines so write the meaning in the subject. (For longer rationale, put it in the PR description.)
+1. **Branch**: pick a descriptive name.
+2. **Commit messages**: short, clear subjects. For longer rationale, put it in the PR description.
 3. **Push** to your fork and open a PR; the [pull request template](.github/pull_request_template.md) walks you through the checklist.
 
 ## Issue Creation
@@ -78,7 +78,7 @@ derecksnotes.com/
 │       └── middleware/  # auth + permissions
 ├── shared/          # types shared between client and server (workspace)
 ├── scripts/         # deploy + maintenance helpers
-└── .githooks/       # pre-commit + commit-msg hooks (wired by `bun install`)
+└── .githooks/       # pre-commit hook (wired by `bun install`)
 ```
 
 ## Code of Conduct

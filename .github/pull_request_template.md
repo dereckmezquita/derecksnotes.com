@@ -11,9 +11,8 @@ Welcome! Before opening this PR, a quick reminder for first-time setup:
   bun run dev                # client on :3000, server on :3001 (concurrently)
   bun run build              # production-like build
 
-The pre-commit hook auto-formats and the commit-msg hook prefixes your subject
-with the branch name (e.g. `feature-x: …`). If commits land without the prefix
-or with formatting noise, your hooks aren't wired — run `bun install` again.
+The pre-commit hook auto-formats. If commits land with formatting noise,
+your hooks aren't wired, run `bun install` again.
 
 For deployment / VPS / secrets setup, see `.github/SECRETS.md` and `scripts/README.md`.
 -->
@@ -43,7 +42,7 @@ For deployment / VPS / secrets setup, see `.github/SECRETS.md` and `scripts/READ
 
 ## Checklist
 
-- [ ] Branch name reflects the scope (the commit-msg hook will prefix commits with it)
+- [ ] Branch name reflects the scope
 - [ ] Code is formatted (`bun run format`) — should be automatic via the pre-commit hook
 - [ ] No secrets, tokens, or `.env` files committed
 - [ ] Migrations (if any) tested locally and reviewed for safety
