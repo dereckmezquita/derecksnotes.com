@@ -11,25 +11,7 @@ import {
   CommentSubmitButton,
   LoginPrompt
 } from './CommentStyles';
-
-const TabRow = styled.div`
-  display: flex;
-  gap: 6px;
-  margin-bottom: 4px;
-`;
-
-const FormTab = styled.button<{ $active: boolean }>`
-  font-family: ${(p) => p.theme.text.font.roboto};
-  font-size: 0.75rem;
-  padding: 3px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  border: 1px solid
-    ${(p) => (p.$active ? p.theme.text.colour.header() : 'transparent')};
-  background: ${(p) =>
-    p.$active ? `${p.theme.text.colour.header()}10` : 'transparent'};
-  color: ${(p) => p.theme.text.colour.primary()};
-`;
+import { TabBar, Tab } from '@/components/ui/PageStyles';
 
 const PreviewPane = styled.div`
   min-height: 80px;
@@ -278,22 +260,22 @@ export function CommentForm({
   return (
     <CommentFormWrapper>
       <form onSubmit={handleSubmit}>
-        <TabRow>
-          <FormTab
+        <TabBar>
+          <Tab
             type="button"
             $active={mode === 'write'}
             onClick={() => setMode('write')}
           >
             Write
-          </FormTab>
-          <FormTab
+          </Tab>
+          <Tab
             type="button"
             $active={mode === 'preview'}
             onClick={() => setMode('preview')}
           >
             Preview
-          </FormTab>
-        </TabRow>
+          </Tab>
+        </TabBar>
         <MentionContainer>
           {mode === 'write' ? (
             <CommentTextarea

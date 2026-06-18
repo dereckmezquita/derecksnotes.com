@@ -1,5 +1,7 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
+import styled from 'styled-components';
 import {
   Card,
   CardTitle,
@@ -20,6 +22,56 @@ import type {
 const SOCIAL_LINK_LIMIT = 8;
 
 const blankLink = (): SocialLink => ({ label: '', url: '' });
+
+/**
+ * Small inline 'x' that lives flush with the row's vertical centre — the
+ * previous control was a full Button with default padding, which made the
+ * row taller than the inputs. Square so the hit-area scales with the input
+ * height; visually a chip, not a button.
+ */
+const SocialRow = styled.div`
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+`;
+
+const RemoveX = styled.button`
+  flex: 0 0 auto;
+  width: 28px;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: ${(p) => p.theme.text.colour.light_grey()};
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+
+  &:hover {
+    color: #c62828;
+    border-color: #e0bcbc;
+    background: #fbeaea;
+  }
+`;
+
+const ProfilePreviewLink = styled(Link)`
+  font-size: 0.85rem;
+  color: ${(p) => p.theme.text.colour.header()};
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+`;
 
 export function ProfileTab({
   user,
@@ -99,7 +151,15 @@ export function ProfileTab({
   return (
     <>
       <Card>
-        <CardTitle>Edit Profile</CardTitle>
+        <HeaderRow>
+          <CardTitle style={{ margin: 0 }}>Edit Profile</CardTitle>
+          <ProfilePreviewLink
+            href={`/profile/${user.username}`}
+            target="_blank"
+          >
+            View public profile →
+          </ProfilePreviewLink>
+        </HeaderRow>
         <Label>Display Name</Label>
         <Input
           value={displayName}
@@ -123,14 +183,7 @@ export function ProfileTab({
         />
         <Label>Social links (HTTPS only, up to {SOCIAL_LINK_LIMIT})</Label>
         {socialLinks.map((l, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              marginBottom: '0.25rem'
-            }}
-          >
+          <SocialRow key={i}>
             <Input
               value={l.label}
               onChange={(e) => updateLink(i, { label: e.target.value })}
@@ -145,15 +198,15 @@ export function ProfileTab({
               maxLength={500}
               style={{ flex: 1 }}
             />
-            <Button
+            <RemoveX
               type="button"
-              $variant="secondary"
               onClick={() => removeLink(i)}
-              style={{ padding: '4px 10px' }}
+              title="Remove link"
+              aria-label="Remove link"
             >
-              −
-            </Button>
-          </div>
+              ×
+            </RemoveX>
+          </SocialRow>
         ))}
         {socialLinks.length < SOCIAL_LINK_LIMIT && (
           <ButtonRow>

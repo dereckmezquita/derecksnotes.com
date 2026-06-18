@@ -183,35 +183,30 @@ export function CommentItem({
   return (
     <>
       <CommentCard $depth={comment.depth}>
+        {/*
+          Soft-deleted comments keep their author + timestamp visible so the
+          reply thread structure stays coherent. The body is replaced with a
+          `[DELETED]` placeholder; per-comment actions are hidden below.
+        */}
         <CommentHeader>
-          {comment.isDeleted ? (
-            <CommentTimestamp>[deleted]</CommentTimestamp>
-          ) : (
-            <>
-              <CommentAuthor href={`/profile/${comment.user?.username}`}>
-                {comment.user?.displayName ||
-                  comment.user?.username ||
-                  'Unknown'}
-              </CommentAuthor>
-              <CommentTimestamp>
-                {formatDate(comment.createdAt)}
-              </CommentTimestamp>
-              {comment.editedAt && (
-                <EditedBadge onClick={handleShowHistory}>
-                  {historyLoading ? '(loading...)' : '(edited)'}
-                </EditedBadge>
-              )}
-              {!comment.approved && (
-                <PendingBadge title="Only you can see this comment until a moderator approves it. New accounts are queued by default; trusted users post directly.">
-                  pending review — only visible to you
-                </PendingBadge>
-              )}
-            </>
+          <CommentAuthor href={`/profile/${comment.user?.username}`}>
+            {comment.user?.displayName || comment.user?.username || 'Unknown'}
+          </CommentAuthor>
+          <CommentTimestamp>{formatDate(comment.createdAt)}</CommentTimestamp>
+          {!comment.isDeleted && comment.editedAt && (
+            <EditedBadge onClick={handleShowHistory}>
+              {historyLoading ? '(loading...)' : '(edited)'}
+            </EditedBadge>
+          )}
+          {!comment.isDeleted && !comment.approved && (
+            <PendingBadge title="Only you can see this comment until a moderator approves it. New accounts are queued by default; trusted users post directly.">
+              pending review — only visible to you
+            </PendingBadge>
           )}
         </CommentHeader>
 
         {comment.isDeleted ? (
-          <DeletedMessage>[This comment has been deleted]</DeletedMessage>
+          <DeletedMessage>[DELETED]</DeletedMessage>
         ) : editing ? (
           <div>
             <CommentTextarea
