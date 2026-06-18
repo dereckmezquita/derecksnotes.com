@@ -35,9 +35,9 @@ type ActiveTab =
 const TABS: { key: ActiveTab; label: string }[] = [
   { key: 'profile', label: 'Profile' },
   { key: 'security', label: 'Security' },
-  { key: 'notifications', label: 'Notifications' },
-  { key: 'comments', label: 'My Comments' },
-  { key: 'history', label: 'Read History' },
+  { key: 'notifications', label: 'Notifs' },
+  { key: 'comments', label: 'Comments' },
+  { key: 'history', label: 'History' },
   { key: 'bookmarks', label: 'Bookmarks' },
   { key: 'feed', label: 'Following' }
 ];

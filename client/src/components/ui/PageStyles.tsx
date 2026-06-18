@@ -250,9 +250,13 @@ export const TabBar = styled.div`
   }
 `;
 
+/**
+ * Tab pill. Padding kept tight so 7+ tabs (admin, /account) can fit on a
+ * laptop screen without horizontal scroll. Mobile still scrolls — the
+ * TabBar gradient hint above signals it.
+ */
 export const Tab = styled.button<{ $active: boolean }>`
-  padding: ${(p) => p.theme.container.spacing.small}
-    ${(p) => p.theme.container.spacing.medium};
+  padding: ${(p) => p.theme.container.spacing.small} 0.6rem;
   background: none;
   border: none;
   border-bottom: 2px solid
@@ -267,7 +271,7 @@ export const Tab = styled.button<{ $active: boolean }>`
     p.$active ? p.theme.text.weight.bold : p.theme.text.weight.normal};
   cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   flex-shrink: 0;
 

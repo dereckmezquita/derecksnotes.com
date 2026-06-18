@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
 import { api } from '@/utils/api';
 import type { CommentsListResponse } from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
@@ -11,6 +10,7 @@ import {
   NoCommentsMessage,
   LoadMoreButton
 } from './CommentStyles';
+import { TabBar, Tab } from '@/components/ui/PageStyles';
 
 interface CommentsProps {
   slug: string;
@@ -18,27 +18,6 @@ interface CommentsProps {
 }
 
 type SortOption = 'new' | 'top' | 'best';
-
-const SortBar = styled.div`
-  display: flex;
-  gap: 6px;
-  margin: 0.5rem 0;
-`;
-
-const SortChip = styled.button<{ $active: boolean }>`
-  font-family: ${(p) => p.theme.text.font.roboto};
-  font-size: 0.75rem;
-  padding: 3px 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  border: 1px solid
-    ${(p) => (p.$active ? p.theme.text.colour.header() : 'rgba(0,0,0,0.18)')};
-  background: ${(p) =>
-    p.$active ? `${p.theme.text.colour.header()}18` : 'transparent'};
-  color: ${(p) =>
-    p.$active ? p.theme.text.colour.header() : p.theme.text.colour.primary()};
-  text-transform: capitalize;
-`;
 
 export function Comments({ slug, title }: CommentsProps) {
   const [comments, setComments] = useState<CommentsListResponse['comments']>(
@@ -99,13 +78,18 @@ export function Comments({ slug, title }: CommentsProps) {
       <CommentForm slug={slug} title={title} onSubmitted={handleRefresh} />
 
       {total > 0 && (
-        <SortBar>
+        <TabBar>
           {(['new', 'top', 'best'] as const).map((s) => (
-            <SortChip key={s} $active={sort === s} onClick={() => setSort(s)}>
+            <Tab
+              key={s}
+              type="button"
+              $active={sort === s}
+              onClick={() => setSort(s)}
+            >
               {s}
-            </SortChip>
+            </Tab>
           ))}
-        </SortBar>
+        </TabBar>
       )}
 
       {comments.length === 0 && !loading ? (
