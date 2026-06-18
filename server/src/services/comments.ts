@@ -305,8 +305,12 @@ export async function getCommentsForPost(
   const offset = (page - 1) * limit;
 
   // Visibility: approved comments + the requesting user's own unapproved
-  // comments. I17: exclude soft-deleted from the top-level page so deleted
-  // top-level rows do NOT consume slots and inflate `total`.
+  // comments. Soft-deleted comments INTENTIONALLY pass through — the format
+  // function below scrubs their content to `[DELETED]` and nulls the author
+  // so the row becomes a placeholder. This preserves reply thread structure
+  // (a deleted parent must remain visible or its children get orphaned).
+  // The earlier I17 design dropped deleted rows entirely; superseded by the
+  // soft-delete UX work.
   const visibilityFilter = userId
     ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
     : eq(schema.comments.approved, 1);
@@ -314,7 +318,6 @@ export async function getCommentsForPost(
   const topLevelWhere = and(
     eq(schema.comments.postId, postId),
     isNull(schema.comments.parentId),
-    isNull(schema.comments.deletedAt),
     visibilityFilter
   );
 
@@ -434,11 +437,11 @@ async function collectDescendants(
   const collected: any[] = [];
   let frontier = rootIds;
   for (let level = 0; level < maxDepth && frontier.length > 0; level++) {
+    // Include soft-deleted descendants — the format function scrubs them
+    // to `[DELETED]` placeholders so reply structure stays intact when an
+    // ancestor is deleted between two surviving comments.
     const rows = await db.query.comments.findMany({
-      where: and(
-        inArray(schema.comments.parentId, frontier),
-        isNull(schema.comments.deletedAt)
-      ),
+      where: inArray(schema.comments.parentId, frontier),
       orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
       with: {
         user: {
@@ -539,12 +542,10 @@ export async function getRepliesForComment(
     ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
     : eq(schema.comments.approved, 1);
 
+  // Soft-deleted children remain in the result (scrubbed by formatter)
+  // so reply chains aren't broken by an intermediate delete.
   const childComments = await db.query.comments.findMany({
-    where: and(
-      eq(schema.comments.parentId, commentId),
-      isNull(schema.comments.deletedAt),
-      replyVisibility
-    ),
+    where: and(eq(schema.comments.parentId, commentId), replyVisibility),
     // I18: id tiebreaker for deterministic pagination across boundaries.
     orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
     limit,
@@ -565,12 +566,7 @@ export async function getRepliesForComment(
   const total = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.comments)
-    .where(
-      and(
-        eq(schema.comments.parentId, commentId),
-        isNull(schema.comments.deletedAt)
-      )
-    );
+    .where(eq(schema.comments.parentId, commentId));
 
   const totalCount = total[0]?.count || 0;
   const parent = await db.query.comments.findFirst({
@@ -615,24 +611,17 @@ async function formatCommentTree(
   let replyCount = 0;
   let hasMoreReplies = false;
 
-  // Always get the total count of replies
+  // Always get the total count of replies — deleted ones count toward the
+  // visible slot total since they render as `[DELETED]` placeholders.
   const countResult = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.comments)
-    .where(
-      and(
-        eq(schema.comments.parentId, comment.id),
-        isNull(schema.comments.deletedAt)
-      )
-    );
+    .where(eq(schema.comments.parentId, comment.id));
   replyCount = countResult[0]?.count || 0;
 
   if (currentDepth < maxDepth && replyCount > 0) {
     const childComments = await db.query.comments.findMany({
-      where: and(
-        eq(schema.comments.parentId, comment.id),
-        isNull(schema.comments.deletedAt)
-      ),
+      where: eq(schema.comments.parentId, comment.id),
       orderBy: [asc(schema.comments.createdAt)],
       limit: repliesPerLevel,
       with: {

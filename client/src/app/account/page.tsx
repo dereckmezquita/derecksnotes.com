@@ -1,5 +1,6 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   PageContainer,
@@ -42,6 +43,21 @@ const TABS: { key: ActiveTab; label: string }[] = [
   { key: 'feed', label: 'Following' }
 ];
 
+const VALID_TABS = new Set<ActiveTab>([
+  'profile',
+  'security',
+  'notifications',
+  'comments',
+  'history',
+  'bookmarks',
+  'feed'
+]);
+
+function parseTab(raw: string | null): ActiveTab {
+  if (raw && VALID_TABS.has(raw as ActiveTab)) return raw as ActiveTab;
+  return 'profile';
+}
+
 export default function AccountPage() {
   const {
     user,
@@ -52,7 +68,31 @@ export default function AccountPage() {
     deleteAccount,
     logout
   } = useAuth();
-  const [tab, setTab] = useState<ActiveTab>('profile');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<ActiveTab>(() =>
+    parseTab(searchParams.get('tab'))
+  );
+
+  // Keep the URL in sync when the user clicks a tab so deep links + back/
+  // forward work. The notification toast's "Open" action navigates to
+  // /account?tab=notifications so we honour it on mount too.
+  useEffect(() => {
+    const fromUrl = parseTab(searchParams.get('tab'));
+    if (fromUrl !== tab) setTab(fromUrl);
+    // searchParams change is the trigger; we intentionally don't list `tab`
+    // to avoid a re-entrant loop with the click handler below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleTabClick = (key: ActiveTab) => {
+    setTab(key);
+    const next = new URLSearchParams(searchParams.toString());
+    if (key === 'profile') next.delete('tab');
+    else next.set('tab', key);
+    const qs = next.toString();
+    router.replace(`/account${qs ? `?${qs}` : ''}`, { scroll: false });
+  };
 
   if (authLoading)
     return (
@@ -93,7 +133,7 @@ export default function AccountPage() {
           <Tab
             key={t.key}
             $active={tab === t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => handleTabClick(t.key)}
           >
             {t.label}
           </Tab>
