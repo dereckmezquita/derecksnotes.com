@@ -2,6 +2,7 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '@/types';
 import { db, schema } from '@db/index';
 import { eq, and, gt, isNull } from 'drizzle-orm';
+import { hashSessionToken } from '@services/auth';
 
 export function authenticate() {
   return async (
@@ -15,9 +16,10 @@ export function authenticate() {
       return;
     }
 
+    const tokenHash = hashSessionToken(token);
     const session = await db.query.sessions.findFirst({
       where: and(
-        eq(schema.sessions.token, token),
+        eq(schema.sessions.tokenHash, tokenHash),
         gt(schema.sessions.expiresAt, new Date().toISOString())
       ),
       with: { user: true }
@@ -96,9 +98,10 @@ export function optionalAuth() {
       return;
     }
 
+    const tokenHash = hashSessionToken(token);
     const session = await db.query.sessions.findFirst({
       where: and(
-        eq(schema.sessions.token, token),
+        eq(schema.sessions.tokenHash, tokenHash),
         gt(schema.sessions.expiresAt, new Date().toISOString())
       ),
       with: { user: true }

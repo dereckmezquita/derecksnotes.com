@@ -95,23 +95,27 @@ export async function softDeleteComment(
     .where(eq(schema.comments.id, commentId));
 }
 
-export async function getCommentHistory(commentId: string) {
-  const entries = await db.query.commentHistory.findMany({
-    where: eq(schema.commentHistory.commentId, commentId),
-    orderBy: [desc(schema.commentHistory.editedAt)],
-    with: {
-      editor: {
-        columns: {
-          id: true,
-          username: true,
-          displayName: true,
-          avatarUrl: true
-        }
-      }
-    }
-  });
-
-  // Also include the current version
+/**
+ * Returns the full revision history of a comment, including the current
+ * version, ordered newest-first. Returns `null` when the caller is neither
+ * the comment's author nor a moderator — the caller maps that to a 403.
+ * Returns `[]` when the comment does not exist (matches the prior contract).
+ */
+export async function getCommentHistory(
+  commentId: string,
+  callerUserId: string,
+  isModerator: boolean
+): Promise<Array<{
+  id: string;
+  content: string;
+  editedAt: string;
+  editedBy: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+}> | null> {
   const comment = await db.query.comments.findFirst({
     where: eq(schema.comments.id, commentId),
     with: {
@@ -127,6 +131,24 @@ export async function getCommentHistory(commentId: string) {
   });
 
   if (!comment) return [];
+
+  const isAuthor = comment.userId === callerUserId;
+  if (!isAuthor && !isModerator) return null;
+
+  const entries = await db.query.commentHistory.findMany({
+    where: eq(schema.commentHistory.commentId, commentId),
+    orderBy: [desc(schema.commentHistory.editedAt)],
+    with: {
+      editor: {
+        columns: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true
+        }
+      }
+    }
+  });
 
   const current = {
     id: 'current',

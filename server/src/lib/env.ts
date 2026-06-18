@@ -63,6 +63,18 @@ if (config.isProduction && !config.secureCookies) {
   );
 }
 
+// Loud warning if a non-local deploy has no ADMIN_USERNAME — a fresh DB will
+// have zero admins, locking the dashboard. The bootstrap is implemented in
+// services/users.ts: a registration with username === ADMIN_USERNAME is
+// auto-elevated to the admin group. Warn only — don't refuse to start, since
+// existing prod databases may already have an admin and the env var is no
+// longer needed there.
+if (APP_ENV !== 'local' && !process.env.ADMIN_USERNAME) {
+  console.warn(
+    `[env] ADMIN_USERNAME is not set on APP_ENV=${APP_ENV}. A fresh database will have no admin until the env var is set and the matching user registers.`
+  );
+}
+
 export const secrets = {
   sessionSecret: requireEnv('SESSION_SECRET')
 };

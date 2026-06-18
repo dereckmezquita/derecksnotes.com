@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { db, schema } from '@db/index';
 import { eq, and, isNull, desc, sql } from 'drizzle-orm';
-import { hashPassword } from './auth';
+import { hashPassword, ensureAdminUser } from './auth';
 
 export async function createUser(data: {
   username: string;
@@ -32,6 +32,17 @@ export async function createUser(data: {
       userId: id,
       groupId: defaultGroup.id
     });
+  }
+
+  // ADMIN_USERNAME bootstrap: if the env var matches this registration, elevate.
+  // This is how a fresh prod gets its first admin without manual SQL.
+  // Case-sensitive exact match; documented in server/.env.example.
+  const adminUsername = process.env.ADMIN_USERNAME?.trim();
+  if (adminUsername && adminUsername === data.username) {
+    await ensureAdminUser(id);
+    console.log(
+      `[admin-bootstrap] Elevated '${data.username}' to admin (matches ADMIN_USERNAME)`
+    );
   }
 
   return { id, username: data.username };
