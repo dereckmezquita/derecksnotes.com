@@ -286,7 +286,7 @@ async function seed() {
       updatedAt: daysAgo(45)
     },
     {
-      id: userIds[0],
+      id: userIds[0]!,
       username: 'new_user_sam',
       email: null,
       passwordHash,
@@ -296,7 +296,7 @@ async function seed() {
       updatedAt: daysAgo(5)
     },
     {
-      id: userIds[1],
+      id: userIds[1]!,
       username: 'science_nerd',
       email: 'nerd@example.com',
       passwordHash,
@@ -306,7 +306,7 @@ async function seed() {
       updatedAt: daysAgo(30)
     },
     {
-      id: userIds[2],
+      id: userIds[2]!,
       username: 'code_monkey',
       email: null,
       passwordHash,
@@ -316,7 +316,7 @@ async function seed() {
       updatedAt: daysAgo(20)
     },
     {
-      id: userIds[3],
+      id: userIds[3]!,
       username: 'bookworm_42',
       email: 'books@example.com',
       passwordHash,
@@ -326,7 +326,7 @@ async function seed() {
       updatedAt: daysAgo(15)
     },
     {
-      id: userIds[4],
+      id: userIds[4]!,
       username: 'banned_troll',
       email: null,
       passwordHash,
@@ -356,7 +356,7 @@ async function seed() {
   // Ban the troll
   await db.insert(schema.userBans).values({
     id: id(),
-    userId: userIds[4],
+    userId: userIds[4]!,
     bannedBy: adminId,
     reason: 'Spam and harassment',
     createdAt: daysAgo(10)
@@ -403,7 +403,7 @@ async function seed() {
     // Post 1 - async programming
     {
       id: id(),
-      postId: posts[0].id,
+      postId: posts[0]!.id,
       userId: trustedId,
       content:
         "Great article! I never thought about using **async patterns** in R like this. The comparison with JavaScript's `Promise.all()` was really helpful.",
@@ -413,8 +413,8 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[0].id,
-      userId: userIds[1],
+      postId: posts[0]!.id,
+      userId: userIds[1]!,
       content:
         'This is exactly what I needed for my bioinformatics pipeline. Processing multiple FASTA files concurrently is a game changer.',
       depth: 0,
@@ -423,8 +423,8 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[0].id,
-      userId: userIds[2],
+      postId: posts[0]!.id,
+      userId: userIds[2]!,
       content:
         'As a JS dev learning R, this bridged a huge gap for me. Would love to see a follow-up on error handling in async R.',
       depth: 0,
@@ -434,8 +434,8 @@ async function seed() {
     // Post 2 - bioinformatics
     {
       id: id(),
-      postId: posts[1].id,
-      userId: userIds[1],
+      postId: posts[1]!.id,
+      userId: userIds[1]!,
       content:
         'This cheat sheet is incredible. Bookmarked for daily reference. The section on **sequence alignment** algorithms is particularly well-written.',
       depth: 0,
@@ -444,7 +444,7 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[1].id,
+      postId: posts[1]!.id,
       userId: trustedId,
       content:
         'One small correction: BLAST uses a heuristic approach, not dynamic programming directly. The E-value explanation is spot on though.',
@@ -455,7 +455,7 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[1].id,
+      postId: posts[1]!.id,
       userId: modId,
       content:
         'Pinning this as a community resource. Really well done, Dereck.',
@@ -468,8 +468,8 @@ async function seed() {
     // Post 3 - canvases
     {
       id: id(),
-      postId: posts[2].id,
-      userId: userIds[2],
+      postId: posts[2]!.id,
+      userId: userIds[2]!,
       content:
         'The Canvas API examples are clean. I used this approach in my portfolio site. One question: how do you handle **retina displays** with canvas?',
       depth: 0,
@@ -478,8 +478,8 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[2].id,
-      userId: userIds[3],
+      postId: posts[2]!.id,
+      userId: userIds[3]!,
       content:
         'Beautiful visualizations! Is there a performance comparison between Canvas and SVG for the kind of animations shown here?',
       depth: 0,
@@ -489,8 +489,8 @@ async function seed() {
     // Pending comments (from new users)
     {
       id: id(),
-      postId: posts[0].id,
-      userId: userIds[0],
+      postId: posts[0]!.id,
+      userId: userIds[0]!,
       content:
         'Thanks for this tutorial! Quick question: does this work with R version 4.3?',
       depth: 0,
@@ -499,8 +499,8 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[1].id,
-      userId: userIds[0],
+      postId: posts[1]!.id,
+      userId: userIds[0]!,
       content:
         'Could you add a section on _proteomics_ workflows? That would make this guide even more complete.',
       depth: 0,
@@ -509,8 +509,8 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[2].id,
-      userId: userIds[0],
+      postId: posts[2]!.id,
+      userId: userIds[0]!,
       content:
         'I tried the code examples but got an error. Is `CanvasRenderingContext2D` supported in all browsers?',
       depth: 0,
@@ -520,7 +520,7 @@ async function seed() {
     // Demo page comments
     {
       id: id(),
-      postId: posts[4].id,
+      postId: posts[4]!.id,
       userId: adminId,
       content:
         'This is a test comment on the **demo page**. Everything seems to be working!',
@@ -530,7 +530,7 @@ async function seed() {
     },
     {
       id: id(),
-      postId: posts[4].id,
+      postId: posts[4]!.id,
       userId: trustedId,
       content: 'Confirmed — comments with `markdown` rendering look great.',
       depth: 0,
@@ -547,9 +547,9 @@ async function seed() {
     // Reply to first comment on post 1
     {
       id: reply1Id,
-      postId: posts[0].id,
+      postId: posts[0]!.id,
       userId: adminId,
-      parentId: commentData[0].id,
+      parentId: commentData[0]!.id,
       content:
         "Thanks! I'm planning a follow-up on error handling. Stay tuned.",
       depth: 1,
@@ -559,7 +559,7 @@ async function seed() {
     // Reply to the reply
     {
       id: id(),
-      postId: posts[0].id,
+      postId: posts[0]!.id,
       userId: trustedId,
       parentId: reply1Id,
       content: 'Looking forward to it! Will you cover `tryCatch` patterns too?',
@@ -570,9 +570,9 @@ async function seed() {
     // Reply on post 2
     {
       id: id(),
-      postId: posts[1].id,
+      postId: posts[1]!.id,
       userId: adminId,
-      parentId: commentData[4].id,
+      parentId: commentData[4]!.id,
       content:
         "Good catch on the BLAST detail! I've updated the article. Thanks for the correction.",
       depth: 1,
@@ -582,9 +582,9 @@ async function seed() {
     // Reply on canvas post
     {
       id: id(),
-      postId: posts[2].id,
+      postId: posts[2]!.id,
       userId: adminId,
-      parentId: commentData[6].id,
+      parentId: commentData[6]!.id,
       content:
         "For retina: use `window.devicePixelRatio` to scale the canvas. I'll add an example to the article.",
       depth: 1,
@@ -594,9 +594,9 @@ async function seed() {
     // Reply on demo page
     {
       id: id(),
-      postId: posts[4].id,
+      postId: posts[4]!.id,
       userId: modId,
-      parentId: commentData[11].id,
+      parentId: commentData[11]!.id,
       content: 'Looks good! The threading works nicely.',
       depth: 1,
       approved: 1,
@@ -609,7 +609,7 @@ async function seed() {
   // Comment history for the edited comment
   await db.insert(schema.commentHistory).values({
     id: id(),
-    commentId: commentData[4].id,
+    commentId: commentData[4]!.id,
     content:
       'One small correction: BLAST uses a heuristic approach, not dynamic programming. The E-value explanation is spot on though.',
     editedAt: daysAgo(37),
@@ -636,7 +636,7 @@ async function seed() {
         reactionInserts.push({
           id: id(),
           commentId: c.id,
-          userId: shuffled[i],
+          userId: shuffled[i]!,
           type: 'like',
           createdAt: c.createdAt
         });
@@ -683,7 +683,7 @@ async function seed() {
       readInserts.push({
         id: id(),
         userId: uid,
-        postId: shuffledPosts[i].id,
+        postId: shuffledPosts[i]!.id,
         readAt: daysAgo(Math.floor(Math.random() * 30))
       });
     }
@@ -697,7 +697,7 @@ async function seed() {
       adminId,
       action: 'comment.approve',
       targetType: 'comment',
-      targetId: commentData[0].id,
+      targetId: commentData[0]!.id,
       details: JSON.stringify({ username: 'trusted_alex' }),
       ipAddress: '192.168.1.1',
       createdAt: daysAgo(55)
@@ -707,7 +707,7 @@ async function seed() {
       adminId,
       action: 'comment.approve',
       targetType: 'comment',
-      targetId: commentData[1].id,
+      targetId: commentData[1]!.id,
       details: JSON.stringify({ username: 'science_nerd' }),
       ipAddress: '192.168.1.1',
       createdAt: daysAgo(50)
@@ -727,7 +727,7 @@ async function seed() {
       adminId,
       action: 'user.ban',
       targetType: 'user',
-      targetId: userIds[4],
+      targetId: userIds[4]!,
       details: JSON.stringify({
         username: 'banned_troll',
         reason: 'Spam and harassment'
@@ -740,7 +740,7 @@ async function seed() {
       adminId: modId,
       action: 'comment.approve',
       targetType: 'comment',
-      targetId: commentData[6].id,
+      targetId: commentData[6]!.id,
       details: JSON.stringify({ username: 'code_monkey' }),
       ipAddress: '10.0.0.5',
       createdAt: daysAgo(25)
@@ -750,7 +750,7 @@ async function seed() {
       adminId: modId,
       action: 'comment.approve',
       targetType: 'comment',
-      targetId: commentData[7].id,
+      targetId: commentData[7]!.id,
       details: JSON.stringify({ username: 'bookworm_42' }),
       ipAddress: '10.0.0.5',
       createdAt: daysAgo(22)
