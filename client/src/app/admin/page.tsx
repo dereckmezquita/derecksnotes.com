@@ -25,6 +25,14 @@ import {
   TabBar,
   Tab
 } from '@/components/ui/PageStyles';
+import {
+  DataTable,
+  DataTableWrapper,
+  DataTableCheckbox,
+  SelectAllCheckbox
+} from '@/components/ui/DataTable';
+import { BulkActionBar } from '@/components/ui/BulkActionBar';
+import { useRangeSelect } from '@/components/ui/useRangeSelect';
 import styled from 'styled-components';
 
 const StatGrid = styled.div`
@@ -240,62 +248,9 @@ function OverviewTab() {
 // ── Pending Comments: rich table + shift-click multi-select ────────────────
 //
 // Reputation columns surface the cursory information an admin needs without
-// having to click into the user's profile. Shift-click on a checkbox selects
-// the range from the last clicked row to the current row (toggling all of
-// them to the current row's new state) — the standard table-multiselect
-// keyboard convention.
-
-const PendingTableWrapper = styled.div`
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-`;
-
-const PendingTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-  font-family: ${(p) => p.theme.text.font.roboto};
-
-  th,
-  td {
-    padding: 6px 8px;
-    text-align: left;
-    border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
-    vertical-align: top;
-  }
-
-  th {
-    font-weight: ${(p) => p.theme.text.weight.bold};
-    color: ${(p) => p.theme.text.colour.light_grey()};
-    text-transform: uppercase;
-    font-size: 0.65rem;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid ${(p) => p.theme.text.colour.header()};
-    white-space: nowrap;
-  }
-
-  tbody tr.selected {
-    background: ${(p) => p.theme.text.colour.header()}10;
-  }
-
-  td .content-preview {
-    max-width: 340px;
-    color: ${(p) => p.theme.text.colour.primary()};
-    line-height: 1.35;
-  }
-
-  td .meta {
-    color: ${(p) => p.theme.text.colour.light_grey()};
-    font-size: 0.7rem;
-  }
-`;
-
-const TableCheckbox = styled.input.attrs({ type: 'checkbox' })`
-  cursor: pointer;
-  /* Big hit area so shift-clicking on a fiddly checkbox isn't a sniper shot. */
-  width: 16px;
-  height: 16px;
-`;
+// having to click into the user's profile. Shift-click range select is
+// provided by the shared useRangeSelect hook so other moderation surfaces
+// (Users tab, future moderator queues) reuse the same behaviour.
 
 const InlineActions = styled.div`
   display: flex;
@@ -355,10 +310,7 @@ function CommentsTab() {
   const [comments, setComments] = useState<AdminPendingComment[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  // Index of the last checkbox-clicked row. Shift-click reads this to compute
-  // the range. Reset on data reloads so we can't anchor to a now-stale row.
-  const [anchorIdx, setAnchorIdx] = useState<number | null>(null);
+  const sel = useRangeSelect(comments);
 
   useEffect(() => {
     load(1);
@@ -372,21 +324,22 @@ function CommentsTab() {
     setComments(p === 1 ? data.data : [...comments, ...data.data]);
     setHasMore(data.hasMore);
     setPage(p);
-    setAnchorIdx(null);
+    sel.resetAnchor();
   };
 
-  const removeFromList = (ids: string[]) =>
+  const removeFromList = (ids: string[]) => {
     setComments((prev) => prev.filter((c) => !ids.includes(c.id)));
+    sel.setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  };
 
   const approve = async (id: string) => {
     try {
       await api.post(`/admin/comments/${id}/approve`);
       removeFromList([id]);
-      setSelected((prev) => {
-        const n = new Set(prev);
-        n.delete(id);
-        return n;
-      });
       toast.success('Comment approved');
     } catch {
       toast.error('Failed to approve');
@@ -397,11 +350,6 @@ function CommentsTab() {
     try {
       await api.post(`/admin/comments/${id}/reject`);
       removeFromList([id]);
-      setSelected((prev) => {
-        const n = new Set(prev);
-        n.delete(id);
-        return n;
-      });
       toast.success('Comment rejected');
     } catch {
       toast.error('Failed to reject');
@@ -409,13 +357,12 @@ function CommentsTab() {
   };
 
   const bulkApprove = async () => {
-    if (selected.size === 0) return;
-    if (!confirm(`Approve ${selected.size} comment(s)?`)) return;
-    const ids = Array.from(selected);
+    if (sel.count === 0) return;
+    if (!confirm(`Approve ${sel.count} comment(s)?`)) return;
+    const ids = Array.from(sel.selected);
     try {
       await api.post('/admin/comments/bulk-approve', { commentIds: ids });
       removeFromList(ids);
-      setSelected(new Set());
       toast.success(`${ids.length} comment(s) approved`);
     } catch {
       toast.error('Failed to approve comments');
@@ -423,53 +370,16 @@ function CommentsTab() {
   };
 
   const bulkReject = async () => {
-    if (selected.size === 0) return;
-    if (!confirm(`Reject ${selected.size} comment(s)?`)) return;
-    const ids = Array.from(selected);
+    if (sel.count === 0) return;
+    if (!confirm(`Reject ${sel.count} comment(s)?`)) return;
+    const ids = Array.from(sel.selected);
     try {
       await api.post('/admin/comments/bulk-reject', { commentIds: ids });
       removeFromList(ids);
-      setSelected(new Set());
       toast.success(`${ids.length} comment(s) rejected`);
     } catch {
       toast.error('Failed to reject comments');
     }
-  };
-
-  /**
-   * onClick fires BEFORE the native checkbox flips its checked state, so
-   * `selected.has(id)` here is the pre-click state. We invert it ourselves
-   * and (for shift-click) propagate that target state across the range —
-   * the standard email/file-manager shift-click behaviour.
-   */
-  const onCheckboxClick = (
-    id: string,
-    idx: number,
-    e: React.MouseEvent<HTMLInputElement>
-  ) => {
-    const isCurrentlySelected = selected.has(id);
-    const targetState = !isCurrentlySelected;
-    const next = new Set(selected);
-
-    if (e.shiftKey && anchorIdx !== null && anchorIdx !== idx) {
-      const [lo, hi] = [Math.min(anchorIdx, idx), Math.max(anchorIdx, idx)];
-      for (let i = lo; i <= hi; i++) {
-        const cid = comments[i]?.id;
-        if (!cid) continue;
-        if (targetState) next.add(cid);
-        else next.delete(cid);
-      }
-    } else {
-      if (targetState) next.add(id);
-      else next.delete(id);
-    }
-    setSelected(next);
-    setAnchorIdx(idx);
-  };
-
-  const toggleAll = () => {
-    if (selected.size === comments.length) setSelected(new Set());
-    else setSelected(new Set(comments.map((c) => c.id)));
   };
 
   return (
@@ -486,36 +396,24 @@ function CommentsTab() {
         you approve them. Tip: click a checkbox, then shift-click another row to
         (de)select the whole range.
       </p>
-      {selected.size > 0 && (
-        <ButtonRow>
-          <Button onClick={bulkApprove}>Approve ({selected.size})</Button>
-          <Button $variant="danger" onClick={bulkReject}>
-            Reject ({selected.size})
-          </Button>
-          <Button $variant="secondary" onClick={() => setSelected(new Set())}>
-            Clear
-          </Button>
-        </ButtonRow>
-      )}
+      <BulkActionBar count={sel.count} onClear={sel.clear}>
+        <Button onClick={bulkApprove}>Approve ({sel.count})</Button>
+        <Button $variant="danger" onClick={bulkReject}>
+          Reject ({sel.count})
+        </Button>
+      </BulkActionBar>
       {comments.length === 0 ? (
         <EmptyState>No pending comments.</EmptyState>
       ) : (
-        <PendingTableWrapper>
-          <PendingTable>
+        <DataTableWrapper>
+          <DataTable>
             <thead>
               <tr>
                 <th style={{ width: 28 }}>
-                  <TableCheckbox
-                    checked={
-                      selected.size > 0 && selected.size === comments.length
-                    }
-                    ref={(el) => {
-                      // Indeterminate state when some-but-not-all selected.
-                      if (el)
-                        el.indeterminate =
-                          selected.size > 0 && selected.size < comments.length;
-                    }}
-                    onChange={toggleAll}
+                  <SelectAllCheckbox
+                    checked={sel.isAllSelected}
+                    indeterminate={sel.isIndeterminate}
+                    onChange={sel.toggleAll}
                   />
                 </th>
                 <th>Author</th>
@@ -530,16 +428,16 @@ function CommentsTab() {
             <tbody>
               {comments.map((c, idx) => {
                 const flavour = reputationFlavour(c);
-                const isSel = selected.has(c.id);
+                const isSel = sel.isSelected(c.id);
                 return (
                   <tr key={c.id} className={isSel ? 'selected' : ''}>
                     <td>
-                      <TableCheckbox
+                      <DataTableCheckbox
                         checked={isSel}
                         onChange={() => {
                           /* handled in onClick to capture shiftKey */
                         }}
-                        onClick={(e) => onCheckboxClick(c.id, idx, e)}
+                        onClick={(e) => sel.onCheckboxClick(c.id, idx, e)}
                       />
                     </td>
                     <td>
@@ -631,8 +529,8 @@ function CommentsTab() {
                 );
               })}
             </tbody>
-          </PendingTable>
-        </PendingTableWrapper>
+          </DataTable>
+        </DataTableWrapper>
       )}
       {hasMore && (
         <ButtonRow>
@@ -653,8 +551,18 @@ function UsersTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterGroup, setFilterGroup] = useState<string>('all');
+
+  const filteredUsers =
+    filterGroup === 'all'
+      ? users
+      : filterGroup === 'banned'
+        ? users.filter((u) => u.isBanned)
+        : users.filter((u) => u.groups.includes(filterGroup));
+
+  // Bind selection to the visible (filtered) list — the standard mental model
+  // for "select all" when a filter is applied.
+  const sel = useRangeSelect(filteredUsers);
 
   useEffect(() => {
     load(1);
@@ -667,6 +575,7 @@ function UsersTab() {
     setUsers(p === 1 ? data.data : [...users, ...data.data]);
     setHasMore(data.hasMore);
     setPage(p);
+    sel.resetAnchor();
   };
 
   const ban = async (id: string) => {
@@ -680,30 +589,14 @@ function UsersTab() {
     load(1);
   };
 
-  const toggle = (id: string) => {
-    setSelected((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  };
-
   const bulkBan = async () => {
-    if (!confirm(`Ban ${selected.size} user(s)?`)) return;
+    if (!confirm(`Ban ${sel.count} user(s)?`)) return;
     const reason = prompt('Ban reason (optional):');
-    for (const id of selected)
+    for (const id of sel.selected)
       await api.post(`/admin/users/${id}/ban`, { reason });
-    setSelected(new Set());
+    sel.clear();
     load(1);
   };
-
-  const filteredUsers =
-    filterGroup === 'all'
-      ? users
-      : filterGroup === 'banned'
-        ? users.filter((u) => u.isBanned)
-        : users.filter((u) => u.groups.includes(filterGroup));
 
   const groupCounts = {
     all: users.length,
@@ -748,17 +641,12 @@ function UsersTab() {
           </button>
         ))}
       </div>
-      {selected.size > 0 && (
-        <ButtonRow>
-          <Button $variant="danger" onClick={bulkBan}>
-            Ban Selected ({selected.size})
-          </Button>
-          <Button $variant="secondary" onClick={() => setSelected(new Set())}>
-            Clear
-          </Button>
-        </ButtonRow>
-      )}
-      {filteredUsers.map((u) => (
+      <BulkActionBar count={sel.count} onClear={sel.clear}>
+        <Button $variant="danger" onClick={bulkBan}>
+          Ban Selected ({sel.count})
+        </Button>
+      </BulkActionBar>
+      {filteredUsers.map((u, idx) => (
         <InfoRow key={u.id}>
           <div
             style={{
@@ -768,10 +656,12 @@ function UsersTab() {
               flex: 1
             }}
           >
-            <input
-              type="checkbox"
-              checked={selected.has(u.id)}
-              onChange={() => toggle(u.id)}
+            <DataTableCheckbox
+              checked={sel.isSelected(u.id)}
+              onChange={() => {
+                /* handled in onClick to capture shiftKey */
+              }}
+              onClick={(e) => sel.onCheckboxClick(u.id, idx, e)}
             />
             <div>
               <InfoValue>
