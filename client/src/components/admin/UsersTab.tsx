@@ -76,13 +76,25 @@ export function UsersTab() {
 
   const ban = async (id: string) => {
     const reason = prompt('Ban reason (optional):');
-    await api.post(`/admin/users/${id}/ban`, { reason });
-    load(1);
+    const target = users.find((u) => u.id === id);
+    try {
+      await api.post(`/admin/users/${id}/ban`, { reason });
+      toast.success(`Banned @${target?.username || id.slice(0, 8)}`);
+      load(1);
+    } catch {
+      // 4xx body errors (already banned, last admin, etc.) come through api util
+    }
   };
 
   const unban = async (id: string) => {
-    await api.post(`/admin/users/${id}/unban`);
-    load(1);
+    const target = users.find((u) => u.id === id);
+    try {
+      await api.post(`/admin/users/${id}/unban`);
+      toast.success(`Unbanned @${target?.username || id.slice(0, 8)}`);
+      load(1);
+    } catch {
+      // ignore — api util surfaces 4xx/5xx
+    }
   };
 
   const toggleMentionMute = async (u: AdminUser) => {
@@ -102,8 +114,23 @@ export function UsersTab() {
   const bulkBan = async () => {
     if (!confirm(`Ban ${sel.count} user(s)?`)) return;
     const reason = prompt('Ban reason (optional):');
-    for (const id of sel.selected)
-      await api.post(`/admin/users/${id}/ban`, { reason });
+    const targetCount = sel.count;
+    let ok = 0;
+    for (const id of sel.selected) {
+      try {
+        await api.post(`/admin/users/${id}/ban`, { reason });
+        ok++;
+      } catch {
+        // continue — individual failures surfaced by the api util's toast
+      }
+    }
+    if (ok === targetCount) {
+      toast.success(`Banned ${ok} user(s)`);
+    } else if (ok > 0) {
+      toast.warning(`Banned ${ok} of ${targetCount} user(s)`);
+    } else {
+      toast.error('No users banned');
+    }
     sel.clear();
     load(1);
   };

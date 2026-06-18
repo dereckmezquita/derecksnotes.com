@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate } from '@middleware/auth';
 import * as reportService from '@services/reports';
+import * as notificationService from '@services/notifications';
 
 const router = Router();
 
@@ -33,6 +34,26 @@ router.post('/', authenticate(), async (req: AuthenticatedRequest, res) => {
       reason: parsed.data.reason,
       details: parsed.data.details || null
     });
+
+    // Fan to every admin + moderator so the moderation queue gets a live
+    // bell + toast. The reporter is excluded automatically — if they're a
+    // moderator, they already know.
+    try {
+      await notificationService.fanToModerators({
+        type: 'report.new',
+        actorUserId: req.user!.id,
+        targetType: 'report',
+        targetId: id,
+        payload: {
+          reportTargetType: parsed.data.targetType,
+          reportTargetId: parsed.data.targetId,
+          reason: parsed.data.reason
+        }
+      });
+    } catch (err) {
+      console.error('[notifications] failed to fan report.new:', err);
+    }
+
     res.status(201).json({ id });
   } catch (error) {
     console.error('Create report error:', error);

@@ -4,6 +4,11 @@ export type NotificationType =
   | 'comment.reply'
   | 'comment.like'
   | 'mention'
+  | 'follow.new'
+  // Admin-only: a fresh comment is sitting in the pending queue.
+  | 'comment.pending-review'
+  // Admin-only: a user filed a report.
+  | 'report.new'
   | 'admin.message'
   | 'admin.broadcast';
 

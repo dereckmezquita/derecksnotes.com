@@ -132,12 +132,46 @@ function describeType(n: NotificationEntry): string {
       return `${actor} liked your comment`;
     case 'mention':
       return `${actor} mentioned you`;
+    case 'follow.new':
+      return `${actor} started following you`;
+    case 'comment.pending-review':
+      return `${actor} posted a comment awaiting review`;
+    case 'report.new':
+      return `${actor} filed a report`;
     case 'admin.message':
       return `Message from ${actor}`;
     case 'admin.broadcast':
       return `Announcement`;
     default:
       return n.type;
+  }
+}
+
+/**
+ * Summary line for N items of a single type — used when the same kind of
+ * notification arrives in a burst (e.g. 5 pending-review comments in one
+ * poll). Keeps the toast pipeline from spamming on busy intervals.
+ */
+function summarizeType(type: NotificationEntry['type'], count: number): string {
+  switch (type) {
+    case 'comment.reply':
+      return `${count} new replies to your comments`;
+    case 'comment.like':
+      return `${count} new likes on your comments`;
+    case 'mention':
+      return `${count} new mentions of you`;
+    case 'follow.new':
+      return `${count} new followers`;
+    case 'comment.pending-review':
+      return `${count} comments awaiting review`;
+    case 'report.new':
+      return `${count} new reports filed`;
+    case 'admin.message':
+      return `${count} admin messages`;
+    case 'admin.broadcast':
+      return `${count} announcements`;
+    default:
+      return `${count} new ${type}`;
   }
 }
 
@@ -148,6 +182,14 @@ function hrefFor(n: NotificationEntry): string | null {
       : null) || null;
   if (n.targetType === 'comment' && n.targetId && slug) {
     return `/${slug}#comment-${n.targetId}`;
+  }
+  if (n.type === 'comment.pending-review') return '/admin';
+  if (n.type === 'report.new') return '/admin';
+  if (n.type === 'follow.new' && n.actor?.username) {
+    return `/profile/${n.actor.username}`;
+  }
+  if (n.targetType === 'user' && n.actor?.username) {
+    return `/profile/${n.actor.username}`;
   }
   return null;
 }
@@ -194,6 +236,15 @@ export function NotificationBell() {
             for (const n of latest.data) seenIds.current.add(n.id);
             primed.current = true;
           } else {
+            // Collect the fresh items into per-type buckets, then surface a
+            // single toast per bucket — one polished line for a lone reply,
+            // a summary for "5 new replies", a global summary if many
+            // distinct types arrive at once. This keeps a busy hour on a
+            // moderation queue from showing 20 individual toasts.
+            const freshByType = new Map<
+              NotificationEntry['type'],
+              NotificationEntry[]
+            >();
             for (const n of latest.data) {
               if (seenIds.current.has(n.id)) continue;
               if (n.readAt) {
@@ -201,23 +252,54 @@ export function NotificationBell() {
                 continue;
               }
               seenIds.current.add(n.id);
-              toast.message(describeType(n), {
-                description:
-                  (n.payload?.preview as string | undefined) ||
-                  (n.payload?.message as string | undefined) ||
-                  undefined,
-                action: (() => {
-                  const href = hrefFor(n);
-                  return href
-                    ? {
-                        label: 'Open',
-                        onClick: () => {
-                          window.location.href = href;
-                        }
-                      }
-                    : undefined;
-                })()
+              const arr = freshByType.get(n.type);
+              if (arr) arr.push(n);
+              else freshByType.set(n.type, [n]);
+            }
+            const typeCount = freshByType.size;
+            const totalFresh = Array.from(freshByType.values()).reduce(
+              (a, b) => a + b.length,
+              0
+            );
+            if (typeCount > 3) {
+              // Many kinds at once — collapse to one global toast.
+              toast.message(`${totalFresh} new notifications`, {
+                action: {
+                  label: 'Open',
+                  onClick: () => setOpen(true)
+                }
               });
+            } else {
+              for (const [type, batch] of freshByType) {
+                if (batch.length === 1) {
+                  const n = batch[0]!;
+                  toast.message(describeType(n), {
+                    description:
+                      (n.payload?.preview as string | undefined) ||
+                      (n.payload?.message as string | undefined) ||
+                      undefined,
+                    action: (() => {
+                      const href = hrefFor(n);
+                      return href
+                        ? {
+                            label: 'Open',
+                            onClick: () => {
+                              window.location.href = href;
+                            }
+                          }
+                        : undefined;
+                    })()
+                  });
+                } else {
+                  // Summary toast for a burst of the same kind.
+                  toast.message(summarizeType(type, batch.length), {
+                    action: {
+                      label: 'See all',
+                      onClick: () => setOpen(true)
+                    }
+                  });
+                }
+              }
             }
           }
           // Bound the seen set so the very-long-session case stays small.

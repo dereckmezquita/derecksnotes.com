@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
+import { toast } from 'sonner';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { renderCommentMarkdown } from './markdown';
@@ -245,18 +246,30 @@ export function CommentForm({
     setSubmitting(true);
     setError(null);
     try {
-      await api.post('/comments', {
-        slug,
-        title,
-        content: content.trim(),
-        parentId
-      });
+      const result = await api.post<{ id: string; approved: boolean }>(
+        '/comments',
+        {
+          slug,
+          title,
+          content: content.trim(),
+          parentId
+        }
+      );
       setContent('');
       setMentionStart(null);
       setSuggestions([]);
+      toast.success(
+        result.approved
+          ? parentId
+            ? 'Reply posted'
+            : 'Comment posted'
+          : 'Submitted — visible to you while it waits for moderator review'
+      );
       onSubmitted();
     } catch (err: any) {
-      setError(err.data?.error || 'Failed to post comment');
+      const msg = err.data?.error || 'Failed to post comment';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

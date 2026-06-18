@@ -6,6 +6,7 @@ import React, {
   useContext,
   useCallback
 } from 'react';
+import { toast } from 'sonner';
 import { api, ApiError } from '@/utils/api';
 import type { User, AuthError, UpdateProfileInput } from '@derecksnotes/shared';
 
@@ -77,6 +78,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     try {
       await api.post('/auth/register', data);
       await checkAuth();
+      toast.success(`Welcome, @${data.username}`);
     } catch (error) {
       if (error instanceof ApiError) {
         setAuthError(error.data as AuthError);
@@ -95,6 +97,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     try {
       await api.post('/auth/login', { username, password });
       await checkAuth();
+      toast.success(`Welcome back, @${username}`);
     } catch (error) {
       if (error instanceof ApiError) {
         setAuthError(error.data as AuthError);
@@ -114,6 +117,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
       // Clear user even if server call fails
     } finally {
       setUser(null);
+      toast.success('Signed out');
     }
   };
 
@@ -127,6 +131,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
         currentPassword,
         newPassword
       });
+      toast.success('Password changed — other sessions signed out');
     } catch (error) {
       if (error instanceof ApiError) setAuthError(error.data as AuthError);
       throw error;
@@ -147,6 +152,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
               : user.socialLinks
         });
       }
+      toast.success('Profile updated');
     } catch (error) {
       if (error instanceof ApiError) setAuthError(error.data as AuthError);
       throw error;
@@ -160,6 +166,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
       if (user) {
         setUser({ ...user, username: newUsername });
       }
+      toast.success(`Username changed to @${newUsername}`);
     } catch (error) {
       if (error instanceof ApiError) setAuthError(error.data as AuthError);
       throw error;
@@ -171,6 +178,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     try {
       await api.delete('/users/me');
       setUser(null);
+      toast.success('Account deleted');
     } catch (error) {
       if (error instanceof ApiError) setAuthError(error.data as AuthError);
       throw error;

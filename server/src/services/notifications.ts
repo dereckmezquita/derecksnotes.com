@@ -12,6 +12,9 @@ export type NotificationType =
   | 'comment.reply'
   | 'comment.like'
   | 'mention'
+  | 'follow.new'
+  | 'comment.pending-review'
+  | 'report.new'
   | 'admin.message'
   | 'admin.broadcast';
 
@@ -234,4 +237,43 @@ export async function listActiveUserIds(
   if (exclude.length === 0) return rows.map((r) => r.id);
   const excludeSet = new Set(exclude);
   return rows.map((r) => r.id).filter((id) => !excludeSet.has(id));
+}
+
+/**
+ * Resolve every active admin + moderator user id. Used to fan
+ * moderation-queue events (pending comment, new report). Single
+ * batched JOIN query — no N+1 even with a busy site.
+ */
+export async function listAdminAndModeratorIds(
+  exclude: string[] = []
+): Promise<string[]> {
+  const rows = await db
+    .select({ userId: schema.userGroups.userId })
+    .from(schema.userGroups)
+    .innerJoin(schema.groups, eq(schema.userGroups.groupId, schema.groups.id))
+    .innerJoin(schema.users, eq(schema.userGroups.userId, schema.users.id))
+    .where(
+      and(
+        isNull(schema.users.deletedAt),
+        inArray(schema.groups.name, ['admin', 'moderator'])
+      )
+    );
+  const ids = Array.from(new Set(rows.map((r) => r.userId)));
+  if (exclude.length === 0) return ids;
+  const excludeSet = new Set(exclude);
+  return ids.filter((id) => !excludeSet.has(id));
+}
+
+/**
+ * Convenience: fan a single notification to every admin/moderator. Self-
+ * fan (recipient === actorUserId) is already dropped by createNotification.
+ */
+export async function fanToModerators(
+  template: Omit<CreateNotificationInput, 'userId'>
+): Promise<number> {
+  const ids = await listAdminAndModeratorIds(
+    template.actorUserId ? [template.actorUserId] : []
+  );
+  if (ids.length === 0) return 0;
+  return createNotificationsForUsers(ids, template);
 }

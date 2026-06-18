@@ -1,17 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { db, schema } from '@db/index';
 import { eq, and, desc, sql, inArray, isNull } from 'drizzle-orm';
+import * as notificationService from './notifications';
 
 /**
  * Follow another user. Self-follow is silently dropped. Duplicate is a no-op
  * via the (follower, followed) unique index + ON CONFLICT DO NOTHING.
+ * Fans a `follow.new` notification to the followee on a fresh row only
+ * (the .returning() guard prevents re-notifying on idempotent re-follows).
  */
 export async function follow(
   followerId: string,
   followedId: string
 ): Promise<void> {
   if (followerId === followedId) return;
-  await db
+  const inserted = await db
     .insert(schema.follows)
     .values({
       id: randomUUID(),
@@ -19,7 +22,20 @@ export async function follow(
       followedId,
       createdAt: new Date().toISOString()
     })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: schema.follows.id });
+  if (inserted.length === 0) return;
+  try {
+    await notificationService.createNotification({
+      userId: followedId,
+      type: 'follow.new',
+      actorUserId: followerId,
+      targetType: 'user',
+      targetId: followerId
+    });
+  } catch (err) {
+    console.error('[notifications] failed to fan follow.new:', err);
+  }
 }
 
 export async function unfollow(

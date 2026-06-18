@@ -75,6 +75,31 @@ export async function createComment(data: {
     createdAt: new Date().toISOString()
   });
 
+  // If the comment lands in the pending queue, fan-out to every admin and
+  // moderator so the queue gets a bell + toast instead of needing a
+  // dashboard refresh. The actor is excluded automatically (trusted users
+  // would never hit this branch because their comments auto-approve).
+  if (!data.autoApprove) {
+    try {
+      await notificationService.fanToModerators({
+        type: 'comment.pending-review',
+        actorUserId: data.userId,
+        targetType: 'comment',
+        targetId: id,
+        payload: {
+          postSlug: data.postSlug,
+          postTitle: data.postTitle,
+          preview: sanitized.slice(0, 200)
+        }
+      });
+    } catch (err) {
+      console.error(
+        '[notifications] failed to fan pending-review notification:',
+        err
+      );
+    }
+  }
+
   // Fan a reply notification. Wrap in its own try so a failure here can't
   // poison the user-visible create-comment response. createNotification
   // already drops the self-reply case.
