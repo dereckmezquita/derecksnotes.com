@@ -133,6 +133,8 @@ router.post(
 
       const commentId = await commentService.createComment({
         postId,
+        postSlug: slug,
+        postTitle: title,
         userId: req.user!.id,
         content,
         parentId,

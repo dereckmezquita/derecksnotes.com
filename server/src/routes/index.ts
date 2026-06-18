@@ -6,6 +6,7 @@ import postRoutes from './posts';
 import adminRoutes from './admin';
 import searchRoutes from './search';
 import graphRoutes from './graph';
+import notificationRoutes from './notifications';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/posts', postRoutes);
 router.use('/admin', adminRoutes);
 router.use('/search', searchRoutes);
 router.use('/graph', graphRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

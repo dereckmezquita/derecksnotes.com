@@ -1,0 +1,308 @@
+'use client';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import styled from 'styled-components';
+import { FaBell } from 'react-icons/fa';
+import { api } from '@/utils/api';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
+import type {
+  NotificationEntry,
+  PaginatedResponse
+} from '@derecksnotes/shared';
+
+const POLL_MS = 30_000;
+
+const Wrap = styled.div`
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 14px 13px;
+  &:hover {
+    color: ${(p) => p.theme.text.colour.white()};
+    background-color: ${(p) => p.theme.theme_colours[5]()};
+  }
+`;
+
+const Badge = styled.span`
+  position: absolute;
+  top: 6px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #c62828;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+`;
+
+const Dropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 360px;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 200;
+  background: ${(p) => p.theme.container.background.colour.card()};
+  border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+  border-radius: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-family: ${(p) => p.theme.text.font.roboto};
+  font-size: 0.85rem;
+`;
+
+const DropdownHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+  font-weight: 600;
+`;
+
+const MarkAllButton = styled.button`
+  font-family: inherit;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border: 1px solid #0f9960;
+  background: rgba(15, 153, 96, 0.08);
+  color: #0f9960;
+  border-radius: 3px;
+  cursor: pointer;
+`;
+
+const Item = styled.div<{ $unread: boolean }>`
+  padding: 10px 12px;
+  border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+  background: ${(p) =>
+    p.$unread ? `${p.theme.text.colour.header()}10` : 'transparent'};
+  &:last-child {
+    border-bottom: none;
+  }
+  cursor: pointer;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  &:hover {
+    background: ${(p) => p.theme.text.colour.header()}18;
+  }
+`;
+
+const ItemTitle = styled.div`
+  font-weight: 600;
+  margin-bottom: 2px;
+`;
+
+const ItemMeta = styled.div`
+  color: ${(p) => p.theme.text.colour.light_grey()};
+  font-size: 0.72rem;
+`;
+
+const ItemPreview = styled.div`
+  color: ${(p) => p.theme.text.colour.primary()};
+  font-size: 0.78rem;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const Empty = styled.div`
+  padding: 20px 12px;
+  text-align: center;
+  color: ${(p) => p.theme.text.colour.light_grey()};
+`;
+
+function describeType(n: NotificationEntry): string {
+  const actor = n.actor?.displayName || n.actor?.username || 'Someone';
+  switch (n.type) {
+    case 'comment.reply':
+      return `${actor} replied to your comment`;
+    case 'comment.like':
+      return `${actor} liked your comment`;
+    case 'mention':
+      return `${actor} mentioned you`;
+    case 'admin.message':
+      return `Message from ${actor}`;
+    case 'admin.broadcast':
+      return `Announcement`;
+    default:
+      return n.type;
+  }
+}
+
+function hrefFor(n: NotificationEntry): string | null {
+  const slug =
+    (n.payload && typeof n.payload.postSlug === 'string'
+      ? (n.payload.postSlug as string)
+      : null) || null;
+  if (n.targetType === 'comment' && n.targetId && slug) {
+    return `/${slug}#comment-${n.targetId}`;
+  }
+  return null;
+}
+
+export function NotificationBell() {
+  const { isAuthenticated } = useAuth();
+  const [unread, setUnread] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotificationEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const refreshUnread = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    try {
+      const data = await api.get<{ count: number }>(
+        '/notifications/unread-count',
+        { silent: true }
+      );
+      setUnread(data.count);
+    } catch {
+      // silent — bell shouldn't toast on poll failure
+    }
+  }, [isAuthenticated]);
+
+  const loadList = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<PaginatedResponse<NotificationEntry>>(
+        '/notifications?page=1&limit=20',
+        { silent: true }
+      );
+      setItems(data.data);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial fetch + interval poll.
+  useEffect(() => {
+    refreshUnread();
+    const t = setInterval(refreshUnread, POLL_MS);
+    return () => clearInterval(t);
+  }, [refreshUnread]);
+
+  // Close on outside-click.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const onToggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next) await loadList();
+  };
+
+  const handleItemClick = async (n: NotificationEntry) => {
+    setOpen(false);
+    if (!n.readAt) {
+      try {
+        await api.post(`/notifications/${n.id}/read`, undefined, {
+          silent: true
+        });
+      } catch {
+        // silent
+      }
+      setUnread((u) => Math.max(0, u - 1));
+    }
+  };
+
+  const handleMarkAll = async () => {
+    try {
+      await api.post('/notifications/read-all');
+      setUnread(0);
+      setItems((prev) =>
+        prev.map((n) => ({
+          ...n,
+          readAt: n.readAt || new Date().toISOString()
+        }))
+      );
+    } catch {
+      toast.error('Failed to mark all as read');
+    }
+  };
+
+  if (!isAuthenticated()) return null;
+
+  return (
+    <Wrap ref={wrapRef} onClick={(e) => e.stopPropagation()}>
+      <span onClick={onToggle} role="button" aria-label="Notifications">
+        <FaBell />
+        {unread > 0 && <Badge>{unread > 99 ? '99+' : unread}</Badge>}
+      </span>
+      {open && (
+        <Dropdown>
+          <DropdownHeader>
+            <span>
+              Notifications {unread > 0 && <span>({unread} unread)</span>}
+            </span>
+            {unread > 0 && (
+              <MarkAllButton onClick={handleMarkAll}>
+                Mark all read
+              </MarkAllButton>
+            )}
+          </DropdownHeader>
+          {loading && items.length === 0 ? (
+            <Empty>Loading…</Empty>
+          ) : items.length === 0 ? (
+            <Empty>No notifications yet.</Empty>
+          ) : (
+            items.map((n) => {
+              const href = hrefFor(n);
+              const inner = (
+                <>
+                  <ItemTitle>{describeType(n)}</ItemTitle>
+                  {n.payload?.preview ? (
+                    <ItemPreview>{String(n.payload.preview)}</ItemPreview>
+                  ) : null}
+                  {n.payload?.message ? (
+                    <ItemPreview>{String(n.payload.message)}</ItemPreview>
+                  ) : null}
+                  <ItemMeta>{new Date(n.createdAt).toLocaleString()}</ItemMeta>
+                </>
+              );
+              return href ? (
+                <Item
+                  as={Link}
+                  href={href}
+                  key={n.id}
+                  $unread={!n.readAt}
+                  onClick={() => handleItemClick(n)}
+                >
+                  {inner}
+                </Item>
+              ) : (
+                <Item
+                  key={n.id}
+                  $unread={!n.readAt}
+                  onClick={() => handleItemClick(n)}
+                >
+                  {inner}
+                </Item>
+              );
+            })
+          )}
+        </Dropdown>
+      )}
+    </Wrap>
+  );
+}

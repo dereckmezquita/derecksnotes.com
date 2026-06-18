@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { db, schema } from '@db/index';
 import { eq, and, isNull, desc, asc, sql, inArray } from 'drizzle-orm';
 import { sanitizeMarkdown } from '@middleware/sanitize';
+import * as notificationService from './notifications';
 import type { CommentData } from '@derecksnotes/shared';
 
 export const MAX_DEPTH = 5;
@@ -30,12 +31,16 @@ export class CommentAuthError extends Error {
 
 export async function createComment(data: {
   postId: string;
+  postSlug: string;
+  postTitle: string;
   userId: string;
   content: string;
   parentId?: string;
   autoApprove: boolean;
 }): Promise<string> {
   let depth = 0;
+
+  let parentForNotify: { userId: string } | null = null;
 
   if (data.parentId) {
     const parent = await db.query.comments.findFirst({
@@ -52,6 +57,7 @@ export async function createComment(data: {
         `Maximum reply depth of ${MAX_DEPTH} reached`
       );
     depth = parent.depth + 1;
+    parentForNotify = { userId: parent.userId };
   }
 
   const id = crypto.randomUUID();
@@ -67,6 +73,28 @@ export async function createComment(data: {
     approved: data.autoApprove ? 1 : 0,
     createdAt: new Date().toISOString()
   });
+
+  // Fan a reply notification. Wrap in its own try so a failure here can't
+  // poison the user-visible create-comment response. createNotification
+  // already drops the self-reply case.
+  if (parentForNotify && data.autoApprove) {
+    try {
+      await notificationService.createNotification({
+        userId: parentForNotify.userId,
+        type: 'comment.reply',
+        actorUserId: data.userId,
+        targetType: 'comment',
+        targetId: id,
+        payload: {
+          postSlug: data.postSlug,
+          postTitle: data.postTitle,
+          preview: sanitized.slice(0, 200)
+        }
+      });
+    } catch (err) {
+      console.error('[notifications] failed to fan reply notification:', err);
+    }
+  }
 
   return id;
 }
@@ -557,9 +585,8 @@ export async function reactToComment(
   userReaction: 'like' | 'dislike' | null;
 }> {
   // I14: wrap the read-modify-write in an IMMEDIATE transaction so concurrent
-  // double-clicks can't end with mismatched state (the unique index already
-  // prevented duplicate rows, but the prior path could surface a generic
-  // 500 instead of a deterministic toggle).
+  // double-clicks can't end with mismatched state.
+  let becameNewLike = false;
   await db.transaction(async (tx) => {
     const existing = await tx.query.commentReactions.findFirst({
       where: and(
@@ -578,6 +605,7 @@ export async function reactToComment(
           .update(schema.commentReactions)
           .set({ type })
           .where(eq(schema.commentReactions.id, existing.id));
+        if (type === 'like') becameNewLike = true;
       }
     } else {
       await tx.insert(schema.commentReactions).values({
@@ -587,8 +615,37 @@ export async function reactToComment(
         type,
         createdAt: new Date().toISOString()
       });
+      if (type === 'like') becameNewLike = true;
     }
   });
+
+  // Fan a like notification when the reaction transitions to like
+  // (initial insert or dislike → like). Skip on dislikes — those are noise.
+  if (becameNewLike) {
+    try {
+      const comment = await db.query.comments.findFirst({
+        where: eq(schema.comments.id, commentId),
+        columns: { userId: true, content: true },
+        with: { post: true }
+      });
+      if (comment) {
+        await notificationService.createNotification({
+          userId: comment.userId,
+          type: 'comment.like',
+          actorUserId: userId,
+          targetType: 'comment',
+          targetId: commentId,
+          payload: {
+            postSlug: comment.post?.slug || '',
+            postTitle: comment.post?.title || '',
+            preview: (comment.content || '').slice(0, 200)
+          }
+        });
+      }
+    } catch (err) {
+      console.error('[notifications] failed to fan like notification:', err);
+    }
+  }
 
   return getCommentReactions(commentId, userId);
 }

@@ -184,6 +184,35 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+export type NotificationType =
+  | 'comment.reply'
+  | 'comment.like'
+  | 'mention'
+  | 'admin.message'
+  | 'admin.broadcast';
+
+export interface NotificationEntry {
+  id: string;
+  type: NotificationType;
+  actor: UserBasic | null;
+  targetType: string | null;
+  targetId: string | null;
+  payload: Record<string, unknown> | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  perType: Array<{ type: string; count: number }>;
+  last7Days: number;
+}
+
 export interface AdminPendingComment {
   id: string;
   content: string;

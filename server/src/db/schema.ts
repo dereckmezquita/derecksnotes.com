@@ -207,6 +207,31 @@ export const auditLog = sqliteTable('audit_log', {
 });
 
 // ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+export const notifications = sqliteTable('notifications', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  // Producer key — e.g. 'comment.reply', 'comment.like', 'mention',
+  // 'admin.message', 'admin.broadcast'. Free-form so new producers don't
+  // require a schema migration.
+  type: text('type').notNull(),
+  // Optional source user. Null for system / broadcast notifications.
+  actorUserId: text('actor_user_id').references(() => users.id),
+  // Optional target (comment id, post slug, etc.) — drives the click-through.
+  targetType: text('target_type'),
+  targetId: text('target_id'),
+  // Free-form JSON for per-type payload (preview text, post title, etc).
+  payload: text('payload'),
+  // Null while unread; ISO timestamp once marked read.
+  readAt: text('read_at'),
+  createdAt: text('created_at').notNull()
+});
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
 
@@ -216,7 +241,20 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   postReactions: many(postReactions),
   commentReactions: many(commentReactions),
-  readHistory: many(readHistory)
+  readHistory: many(readHistory),
+  notifications: many(notifications, { relationName: 'recipient' })
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+    relationName: 'recipient'
+  }),
+  actor: one(users, {
+    fields: [notifications.actorUserId],
+    references: [users.id]
+  })
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
