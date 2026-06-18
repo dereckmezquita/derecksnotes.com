@@ -5,6 +5,9 @@ import { useState } from 'react';
 import styled from 'styled-components';
 import type { GraphQueryOptions } from '@derecksnotes/shared';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import type { PhysicsParamKey } from '@/lib/graph/GraphSimulation';
+
+export type PhysicsControlKey = PhysicsParamKey | 'gridStrength';
 
 // ── styled ───────────────────────────────────────────────────────────
 const Panel = styled.div<{ $collapsed: boolean; $inline?: boolean }>`
@@ -92,6 +95,17 @@ const Dot = styled.span<{ $colour: string }>`
   background: ${(p) => p.$colour};
 `;
 
+const ToggleButton = styled.button<{ $active: boolean }>`
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  background: ${(p) => (p.$active ? '#c87137' : 'rgba(255, 255, 255, 0.6)')};
+  color: ${(p) => (p.$active ? '#fff' : '#333')};
+  cursor: pointer;
+`;
+
 const SliderRow = styled.div`
   display: flex;
   flex-direction: column;
@@ -130,7 +144,14 @@ const EDGE_TYPES = [
 ];
 
 // ── physics slider config ────────────────────────────────────────────
-const PHYSICS_SLIDERS = [
+const PHYSICS_SLIDERS: ReadonlyArray<{
+  key: PhysicsControlKey;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  default: number;
+}> = [
   {
     key: 'repulsionStrength',
     label: 'Repulsion',
@@ -187,7 +208,7 @@ type SearchMode = 'highlight' | 'filter';
 interface ExploreControlPanelProps {
   options: GraphQueryOptions;
   onChange: (next: GraphQueryOptions) => void;
-  onPhysicsChange?: (param: string, value: number) => void;
+  onPhysicsChange?: (param: PhysicsControlKey, value: number) => void;
   searchTerm?: string;
   onSearchChange?: (value: string) => void;
   searchMode?: SearchMode;
@@ -253,7 +274,7 @@ export default function ExploreControlPanel({
     onChange({ ...options, edgeTypes: next });
   }
 
-  function handlePhysicsSlider(key: string, value: number) {
+  function handlePhysicsSlider(key: PhysicsControlKey, value: number) {
     setPhysicsValues((prev) => ({ ...prev, [key]: value }));
     onPhysicsChange?.(key, value);
   }
@@ -296,42 +317,18 @@ export default function ExploreControlPanel({
               }}
             />
             <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-              <button
+              <ToggleButton
+                $active={searchMode === 'highlight'}
                 onClick={() => onSearchModeChange?.('highlight')}
-                style={{
-                  flex: 1,
-                  padding: '4px 8px',
-                  fontSize: 11,
-                  border: '1px solid rgba(0,0,0,0.15)',
-                  borderRadius: 3,
-                  background:
-                    searchMode === 'highlight'
-                      ? '#c87137'
-                      : 'rgba(255,255,255,0.6)',
-                  color: searchMode === 'highlight' ? '#fff' : '#333',
-                  cursor: 'pointer'
-                }}
               >
                 Highlight
-              </button>
-              <button
+              </ToggleButton>
+              <ToggleButton
+                $active={searchMode === 'filter'}
                 onClick={() => onSearchModeChange?.('filter')}
-                style={{
-                  flex: 1,
-                  padding: '4px 8px',
-                  fontSize: 11,
-                  border: '1px solid rgba(0,0,0,0.15)',
-                  borderRadius: 3,
-                  background:
-                    searchMode === 'filter'
-                      ? '#c87137'
-                      : 'rgba(255,255,255,0.6)',
-                  color: searchMode === 'filter' ? '#fff' : '#333',
-                  cursor: 'pointer'
-                }}
               >
                 Filter
-              </button>
+              </ToggleButton>
             </div>
           </div>
         )}
@@ -558,40 +555,18 @@ export default function ExploreControlPanel({
             Show Grid
           </CheckRow>
           <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-            <button
+            <ToggleButton
+              $active={!useSpatialHash}
               onClick={() => onSpatialHashToggle?.(false)}
-              style={{
-                flex: 1,
-                padding: '4px 8px',
-                fontSize: 11,
-                border: '1px solid rgba(0,0,0,0.15)',
-                borderRadius: 3,
-                background: !useSpatialHash
-                  ? '#c87137'
-                  : 'rgba(255,255,255,0.6)',
-                color: !useSpatialHash ? '#fff' : '#333',
-                cursor: 'pointer'
-              }}
             >
               QuadTree
-            </button>
-            <button
+            </ToggleButton>
+            <ToggleButton
+              $active={useSpatialHash}
               onClick={() => onSpatialHashToggle?.(true)}
-              style={{
-                flex: 1,
-                padding: '4px 8px',
-                fontSize: 11,
-                border: '1px solid rgba(0,0,0,0.15)',
-                borderRadius: 3,
-                background: useSpatialHash
-                  ? '#c87137'
-                  : 'rgba(255,255,255,0.6)',
-                color: useSpatialHash ? '#fff' : '#333',
-                cursor: 'pointer'
-              }}
             >
               Hash Grid
-            </button>
+            </ToggleButton>
           </div>
         </div>
       </Body>

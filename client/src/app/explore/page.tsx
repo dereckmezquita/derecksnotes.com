@@ -3,7 +3,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GraphQueryOptions } from '@derecksnotes/shared';
 
 import type { SearchMode } from '@/lib/graph/GraphRenderer';
-import ExploreControlPanel from '@/components/pages/explore/ExploreControlPanel';
+import ExploreControlPanel, {
+  type PhysicsControlKey
+} from '@/components/pages/explore/ExploreControlPanel';
 import { useSearch } from '@/hooks/useSearch';
 import KnowledgeGraphCanvas, {
   DEFAULT_GRAPH_OPTIONS,
@@ -54,7 +56,7 @@ export default function ExplorePage() {
             ' ' +
             node.section +
             ' ' +
-            (Array.isArray(node.tags) ? node.tags.join(' ') : '')
+            (node.tags?.join(' ') ?? '')
           ).toLowerCase();
           if (haystack.includes(needle)) {
             titleSet.add(node.id);
@@ -109,16 +111,19 @@ export default function ExplorePage() {
   }, []);
 
   // ── Physics param handler from control panel ───────────────────────
-  const handlePhysicsChange = useCallback((param: string, value: number) => {
-    const renderer = canvasRef.current?.getRenderer();
-    if (param === 'gridStrength' && renderer) {
-      renderer.gridStrength = value;
-      return;
-    }
-    const sim = canvasRef.current?.getSimulation();
-    if (!sim) return;
-    sim.setParam(param as any, value);
-  }, []);
+  const handlePhysicsChange = useCallback(
+    (param: PhysicsControlKey, value: number) => {
+      const renderer = canvasRef.current?.getRenderer();
+      if (param === 'gridStrength') {
+        if (renderer) renderer.gridStrength = value;
+        return;
+      }
+      const sim = canvasRef.current?.getSimulation();
+      if (!sim) return;
+      sim.setParam(param, value);
+    },
+    []
+  );
 
   const handleOptionsChange = useCallback((next: GraphQueryOptions) => {
     setOptions(next);

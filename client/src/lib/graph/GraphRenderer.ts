@@ -435,17 +435,8 @@ export class GraphRenderer {
 
       // Show shared tags for tag-similarity edges
       if (hoveredEdge.edgeType === 'tag-similarity') {
-        const toArr = (t: string[] | string | undefined): string[] =>
-          Array.isArray(t)
-            ? t
-            : typeof t === 'string'
-              ? t
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [];
-        const srcTags = new Set(toArr(hoveredEdge.source.tags));
-        const shared = toArr(hoveredEdge.target.tags).filter((t) =>
+        const srcTags = new Set(hoveredEdge.source.tags ?? []);
+        const shared = (hoveredEdge.target.tags ?? []).filter((t) =>
           srcTags.has(t)
         );
         if (shared.length > 0) {
@@ -535,20 +526,13 @@ export class GraphRenderer {
     });
 
     // Tags
-    const tags = node.tags as string[] | string | undefined;
-    if (tags) {
-      const tagArr: string[] = Array.isArray(tags)
-        ? tags
-        : typeof tags === 'string'
-          ? tags.split(',').map((t: string) => t.trim())
-          : [];
-      if (tagArr.length > 0) {
-        lines.push({
-          text: tagArr.slice(0, 4).join(', '),
-          font: '10px system-ui, sans-serif',
-          colour: 'rgba(100, 100, 100, 0.7)'
-        });
-      }
+    const tagArr = node.tags ?? [];
+    if (tagArr.length > 0) {
+      lines.push({
+        text: tagArr.slice(0, 4).join(', '),
+        font: '10px system-ui, sans-serif',
+        colour: 'rgba(100, 100, 100, 0.7)'
+      });
     }
 
     // Snippet

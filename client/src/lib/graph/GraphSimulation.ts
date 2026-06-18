@@ -45,13 +45,15 @@ export interface SimEdge {
   restLength: number;
 }
 
-interface PhysicsParams {
+export interface PhysicsParams {
   repulsionStrength: number;
   bondStrength: number;
   damping: number;
   wind: number;
   gravity: number;
 }
+
+export type PhysicsParamKey = keyof PhysicsParams;
 
 const BASE_RADIUS = 6;
 const WALL_BOUNCE = 0.7;

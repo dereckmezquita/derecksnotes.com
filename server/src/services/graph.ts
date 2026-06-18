@@ -1137,8 +1137,10 @@ export function getGraphData(options: GraphQueryOptions = {}): {
   const whereClause =
     nodeConditions.length > 0 ? `WHERE ${nodeConditions.join(' AND ')}` : '';
 
-  // Fetch nodes
-  const nodes = sqlite
+  // Fetch nodes. Tags are stored as a comma-separated string in SQLite;
+  // normalize to string[] here so the GraphNode contract (tags?: string[])
+  // is honored across the wire.
+  const rawNodes = sqlite
     .prepare(
       `SELECT id, path, title, section, category, tags, date, author, snippet,
               node_type as nodeType, parent_id as parentId, depth, metadata
@@ -1146,7 +1148,20 @@ export function getGraphData(options: GraphQueryOptions = {}): {
        ${whereClause}
        LIMIT ?`
     )
-    .all(...nodeParams, limit) as GraphNode[];
+    .all(...nodeParams, limit) as Array<
+    { tags: string | null } & Record<string, unknown>
+  >;
+
+  const nodes = rawNodes.map((n) => ({
+    ...n,
+    tags:
+      typeof n.tags === 'string' && n.tags.length > 0
+        ? n.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : undefined
+  })) as unknown as GraphNode[];
 
   const nodeIds = new Set(nodes.map((n) => n.id));
 
