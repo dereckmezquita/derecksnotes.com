@@ -1,7 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import styled from 'styled-components';
 import { api, ApiError } from '@/utils/api';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 import {
   PageContainer,
   Card,
@@ -12,7 +15,8 @@ import {
   DisplayName,
   Bio,
   JoinDate,
-  EmptyState
+  EmptyState,
+  Button
 } from '@/components/ui/PageStyles';
 
 interface PublicProfile {
@@ -22,7 +26,25 @@ interface PublicProfile {
   bio: string | null;
   avatarUrl: string | null;
   createdAt: string;
+  followerCount: number;
+  followingCount: number;
 }
+
+const Counts = styled.div`
+  display: flex;
+  gap: 18px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: ${(p) => p.theme.text.colour.light_grey()};
+`;
+
+const Count = styled.span`
+  & strong {
+    color: ${(p) => p.theme.text.colour.primary()};
+    font-weight: 700;
+    margin-right: 4px;
+  }
+`;
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -35,9 +57,30 @@ function formatDate(iso: string): string {
 export default function PublicProfilePage() {
   const params = useParams();
   const username = params.username as string;
+  const { user, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [following, setFollowing] = useState<boolean | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const isSelf = user?.username === username;
+
+  const refreshFollow = useCallback(async () => {
+    if (!isAuthenticated() || isSelf) {
+      setFollowing(null);
+      return;
+    }
+    try {
+      const data = await api.get<{ following: boolean }>(
+        `/users/${username}/follow-status`,
+        { silent: true }
+      );
+      setFollowing(data.following);
+    } catch {
+      // silent
+    }
+  }, [isAuthenticated, isSelf, username]);
 
   useEffect(() => {
     async function load() {
@@ -55,7 +98,45 @@ export default function PublicProfilePage() {
       }
     }
     load();
-  }, [username]);
+    refreshFollow();
+  }, [username, refreshFollow]);
+
+  const toggleFollow = async () => {
+    if (pending || following === null) return;
+    setPending(true);
+    const next = !following;
+    setFollowing(next); // optimistic
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            followerCount: Math.max(0, p.followerCount + (next ? 1 : -1))
+          }
+        : p
+    );
+    try {
+      if (next) {
+        await api.post(`/users/${username}/follow`);
+        toast.success(`Following @${username}`);
+      } else {
+        await api.delete(`/users/${username}/follow`);
+        toast.success(`Unfollowed @${username}`);
+      }
+    } catch {
+      // revert on error
+      setFollowing(!next);
+      setProfile((p) =>
+        p
+          ? {
+              ...p,
+              followerCount: Math.max(0, p.followerCount + (next ? -1 : 1))
+            }
+          : p
+      );
+    } finally {
+      setPending(false);
+    }
+  };
 
   if (loading)
     return (
@@ -92,7 +173,25 @@ export default function PublicProfilePage() {
               <DisplayName>{profile.displayName}</DisplayName>
             )}
             <JoinDate>Joined {formatDate(profile.createdAt)}</JoinDate>
+            <Counts>
+              <Count>
+                <strong>{profile.followerCount}</strong> followers
+              </Count>
+              <Count>
+                <strong>{profile.followingCount}</strong> following
+              </Count>
+            </Counts>
           </ProfileInfo>
+          {!isSelf && isAuthenticated() && following !== null && (
+            <Button
+              $variant={following ? 'secondary' : undefined}
+              onClick={toggleFollow}
+              disabled={pending}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              {following ? 'Unfollow' : 'Follow'}
+            </Button>
+          )}
         </ProfileHeader>
         {profile.bio && <Bio>{profile.bio}</Bio>}
       </Card>

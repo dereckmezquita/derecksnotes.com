@@ -12,6 +12,7 @@ import * as userService from '@services/users';
 import * as authService from '@services/auth';
 import * as auditService from '@services/audit';
 import * as bookmarkService from '@services/bookmarks';
+import * as followService from '@services/follows';
 import { config } from '@lib/env';
 
 const router = Router();
@@ -57,19 +58,125 @@ router.get('/:username', async (req: AuthenticatedRequest, res) => {
       return;
     }
 
+    // Inline follower / following counts so the profile page can render
+    // them without a second round-trip.
+    const [followers, following] = await Promise.all([
+      followService.followerCount(user.id),
+      followService.followingCount(user.id)
+    ]);
+
     res.json({
       id: user.id,
       username: user.username,
       displayName: user.displayName,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
+      followerCount: followers,
+      followingCount: following
     });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+router.post(
+  '/:username/follow',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const usernameParsed = usernameParamSchema.safeParse(req.params.username);
+      if (!usernameParsed.success) {
+        res.status(400).json({ error: 'Invalid username format' });
+        return;
+      }
+      const target = await userService.findUserByUsername(usernameParsed.data);
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      if (target.id === req.user!.id) {
+        res.status(400).json({ error: 'Cannot follow yourself' });
+        return;
+      }
+      await followService.follow(req.user!.id, target.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Follow error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.delete(
+  '/:username/follow',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const usernameParsed = usernameParamSchema.safeParse(req.params.username);
+      if (!usernameParsed.success) {
+        res.status(400).json({ error: 'Invalid username format' });
+        return;
+      }
+      const target = await userService.findUserByUsername(usernameParsed.data);
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      await followService.unfollow(req.user!.id, target.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Unfollow error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.get(
+  '/:username/follow-status',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const usernameParsed = usernameParamSchema.safeParse(req.params.username);
+      if (!usernameParsed.success) {
+        res.status(400).json({ error: 'Invalid username format' });
+        return;
+      }
+      const target = await userService.findUserByUsername(usernameParsed.data);
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      const following = await followService.isFollowing(
+        req.user!.id,
+        target.id
+      );
+      res.json({ following });
+    } catch (error) {
+      console.error('Follow-status error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.get(
+  '/me/following-feed',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const limit = Math.min(
+        50,
+        Math.max(1, parseInt(req.query.limit as string) || 30)
+      );
+      const items = await followService.followingFeed(req.user!.id, limit);
+      res.json({ data: items });
+    } catch (error) {
+      console.error('Following feed error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 router.patch('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
   try {

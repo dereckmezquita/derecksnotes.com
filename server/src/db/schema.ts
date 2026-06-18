@@ -210,6 +210,30 @@ export const auditLog = sqliteTable('audit_log', {
 });
 
 // ============================================================================
+// FOLLOWS
+// ============================================================================
+
+export const follows = sqliteTable(
+  'follows',
+  {
+    id: text('id').primaryKey(),
+    followerId: text('follower_id')
+      .notNull()
+      .references(() => users.id),
+    followedId: text('followed_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: text('created_at').notNull()
+  },
+  (table) => [
+    uniqueIndex('follows_follower_followed').on(
+      table.followerId,
+      table.followedId
+    )
+  ]
+);
+
+// ============================================================================
 // BOOKMARKS
 // ============================================================================
 
