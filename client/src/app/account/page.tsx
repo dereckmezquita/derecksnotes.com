@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -58,7 +58,27 @@ function parseTab(raw: string | null): ActiveTab {
   return 'profile';
 }
 
+/**
+ * Next 15 forces any client component that calls useSearchParams() to be
+ * wrapped in a Suspense boundary at the page level so the build-time
+ * static shell can render without bailing. We keep the search-params logic
+ * inside `AccountPageInner` and the exported page is just a Suspense shell.
+ */
 export default function AccountPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageContainer>
+          <EmptyState>Loading...</EmptyState>
+        </PageContainer>
+      }
+    >
+      <AccountPageInner />
+    </Suspense>
+  );
+}
+
+function AccountPageInner() {
   const {
     user,
     loading: authLoading,
