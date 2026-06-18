@@ -21,6 +21,27 @@ const usernameParamSchema = z
   .max(30)
   .regex(/^[a-zA-Z0-9_-]+$/);
 
+// Prefix search for mention autocomplete. Placed BEFORE the `/:username` route
+// so the literal "search" segment doesn't get captured as a username.
+router.get(
+  '/search',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const q = z.string().min(1).max(50).safeParse(req.query.q);
+      if (!q.success) {
+        res.json({ data: [] });
+        return;
+      }
+      const rows = await userService.searchUsernames(q.data, 10);
+      res.json({ data: rows });
+    } catch (error) {
+      console.error('User search error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 router.get('/:username', async (req: AuthenticatedRequest, res) => {
   try {
     const usernameParsed = usernameParamSchema.safeParse(req.params.username);

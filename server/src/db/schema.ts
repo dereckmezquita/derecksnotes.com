@@ -18,6 +18,9 @@ export const users = sqliteTable('users', {
   displayName: text('display_name'),
   bio: text('bio'),
   avatarUrl: text('avatar_url'),
+  // When 1, @mentions targeting this user do NOT fan a notification.
+  // Set by a moderator on the admin Users tab.
+  mentionMuted: integer('mention_muted').notNull().default(0),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   deletedAt: text('deleted_at')

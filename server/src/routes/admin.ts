@@ -337,7 +337,8 @@ router.get(
             (!activeBan.expiresAt ||
               new Date(activeBan.expiresAt) > new Date()),
           banExpiresAt: activeBan?.expiresAt || null,
-          createdAt: u.createdAt
+          createdAt: u.createdAt,
+          mentionMuted: !!u.mentionMuted
         });
       }
 
@@ -457,6 +458,43 @@ router.post(
       res.json({ success: true });
     } catch (error) {
       console.error('Ban user error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// Toggle the mention-mute flag on a user. Used as an abuse-control lever:
+// the user can still write @mentions, but no notification fans to them.
+router.post(
+  '/users/:id/mention-mute',
+  requirePermission('user.ban'),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const idParsed = uuidParamSchema.safeParse(req.params.id);
+      if (!idParsed.success) {
+        res.status(400).json({ error: 'Invalid user ID format' });
+        return;
+      }
+      const parsed = z.object({ muted: z.boolean() }).safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.issues
+        });
+        return;
+      }
+      await userService.setMentionMuted(idParsed.data, parsed.data.muted);
+      await auditService.logAuditAction(
+        req.user!.id,
+        parsed.data.muted ? 'user.mention-mute' : 'user.mention-unmute',
+        'user',
+        idParsed.data,
+        undefined,
+        req.ip
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Mention-mute toggle error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

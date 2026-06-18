@@ -793,6 +793,20 @@ function UsersTab() {
     load(1);
   };
 
+  const toggleMentionMute = async (u: AdminUser) => {
+    try {
+      await api.post(`/admin/users/${u.id}/mention-mute`, {
+        muted: !u.mentionMuted
+      });
+      toast.success(
+        `@-mentions ${!u.mentionMuted ? 'muted' : 'unmuted'} for ${u.username}`
+      );
+      load(1);
+    } catch {
+      // toast handled by api util
+    }
+  };
+
   const bulkBan = async () => {
     if (!confirm(`Ban ${sel.count} user(s)?`)) return;
     const reason = prompt('Ban reason (optional):');
@@ -888,21 +902,31 @@ function UsersTab() {
                 </Badge>
               ))}
               {u.isBanned && <Badge $color="#c62828">banned</Badge>}
+              {u.mentionMuted && <Badge $color="#996f0f">mention-muted</Badge>}
               <br />
               <InfoLabel>
                 {u.email || 'No email'} — joined {formatDate(u.createdAt)}
               </InfoLabel>
             </div>
           </div>
-          {u.isBanned ? (
-            <Button $variant="secondary" onClick={() => unban(u.id)}>
-              Unban
+          <ButtonRow>
+            <Button
+              $variant="secondary"
+              onClick={() => toggleMentionMute(u)}
+              title="Suppress @mention notifications from this user's posts (they can still type @-mentions but no one is notified)"
+            >
+              {u.mentionMuted ? 'Unmute mentions' : 'Mute mentions'}
             </Button>
-          ) : (
-            <Button $variant="danger" onClick={() => ban(u.id)}>
-              Ban
-            </Button>
-          )}
+            {u.isBanned ? (
+              <Button $variant="secondary" onClick={() => unban(u.id)}>
+                Unban
+              </Button>
+            ) : (
+              <Button $variant="danger" onClick={() => ban(u.id)}>
+                Ban
+              </Button>
+            )}
+          </ButtonRow>
         </InfoRow>
       ))}
       {filteredUsers.length === 0 && (

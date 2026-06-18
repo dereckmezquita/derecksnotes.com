@@ -158,6 +158,7 @@ export interface AdminUser {
   isBanned: boolean;
   banExpiresAt: string | null;
   createdAt: string;
+  mentionMuted: boolean;
 }
 
 export interface DashboardStats {

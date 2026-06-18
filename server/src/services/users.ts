@@ -112,6 +112,71 @@ export async function isUsernameAvailable(username: string): Promise<boolean> {
   return !existing;
 }
 
+/**
+ * Prefix search across username + displayName. Used by the mention
+ * autocomplete in <CommentForm>. Capped at 10 so a fat-finger query
+ * can't pull the whole table.
+ */
+export async function searchUsernames(q: string, limit: number = 10) {
+  const trimmed = q.trim();
+  if (trimmed.length === 0) return [];
+  // SQLite LIKE — fast enough at this scale; case-insensitive default.
+  const prefix = `${trimmed.replace(/[%_\\]/g, (c) => '\\' + c)}%`;
+  const rows = await db
+    .select({
+      id: schema.users.id,
+      username: schema.users.username,
+      displayName: schema.users.displayName,
+      avatarUrl: schema.users.avatarUrl
+    })
+    .from(schema.users)
+    .where(
+      and(
+        isNull(schema.users.deletedAt),
+        sql`(${schema.users.username} LIKE ${prefix} ESCAPE '\\' OR ${schema.users.displayName} LIKE ${prefix} ESCAPE '\\')`
+      )
+    )
+    .limit(limit);
+  return rows;
+}
+
+/**
+ * Resolve a list of usernames (case-insensitive) to their user records.
+ * Used by the mention fan-out. Soft-deleted users are filtered.
+ */
+export async function findUsersByUsernames(usernames: string[]) {
+  if (usernames.length === 0) return [];
+  // Normalise case once on the caller side via lowercased input; usernames
+  // in the DB are case-preserved, so use a COLLATE NOCASE comparison.
+  const placeholders = usernames.map((u) => u.toLowerCase());
+  const rows = await db
+    .select({
+      id: schema.users.id,
+      username: schema.users.username,
+      displayName: schema.users.displayName,
+      avatarUrl: schema.users.avatarUrl,
+      mentionMuted: schema.users.mentionMuted
+    })
+    .from(schema.users)
+    .where(
+      and(
+        isNull(schema.users.deletedAt),
+        sql`lower(${schema.users.username}) in ${placeholders}`
+      )
+    );
+  return rows;
+}
+
+export async function setMentionMuted(
+  userId: string,
+  muted: boolean
+): Promise<void> {
+  await db
+    .update(schema.users)
+    .set({ mentionMuted: muted ? 1 : 0, updatedAt: new Date().toISOString() })
+    .where(eq(schema.users.id, userId));
+}
+
 export async function getUserComments(
   userId: string,
   page: number,

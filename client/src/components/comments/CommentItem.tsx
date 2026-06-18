@@ -5,10 +5,11 @@ import DOMPurify from 'dompurify';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import type {
-  CommentData,
-  CommentHistoryEntry,
-  RepliesResponse
+import {
+  linkifyMentions,
+  type CommentData,
+  type CommentHistoryEntry,
+  type RepliesResponse
 } from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
 import {
@@ -51,7 +52,10 @@ function formatDate(iso: string): string {
 
 function renderMarkdown(content: string): string {
   try {
-    const raw = marked.parse(content);
+    // Rewrite @-mentions to markdown links before passing through marked so
+    // they get the full anchor + sanitisation path (no raw HTML, no XSS).
+    const withMentions = linkifyMentions(content);
+    const raw = marked.parse(withMentions);
     const html = typeof raw === 'string' ? raw : content;
     return DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [

@@ -3,7 +3,8 @@ import { db, schema } from '@db/index';
 import { eq, and, isNull, desc, asc, sql, inArray } from 'drizzle-orm';
 import { sanitizeMarkdown } from '@middleware/sanitize';
 import * as notificationService from './notifications';
-import type { CommentData } from '@derecksnotes/shared';
+import * as userService from './users';
+import { parseMentions, type CommentData } from '@derecksnotes/shared';
 
 export const MAX_DEPTH = 5;
 
@@ -93,6 +94,41 @@ export async function createComment(data: {
       });
     } catch (err) {
       console.error('[notifications] failed to fan reply notification:', err);
+    }
+  }
+
+  // Fan mention notifications. Resolve all mentioned usernames to user ids
+  // in one query; skip muted users (admin-set), the parent author (already
+  // got a reply notification), and the commenter themselves.
+  if (data.autoApprove) {
+    try {
+      const usernames = parseMentions(sanitized);
+      if (usernames.length > 0) {
+        const users = await userService.findUsersByUsernames(usernames);
+        const skipIds = new Set<string>([data.userId]);
+        if (parentForNotify) skipIds.add(parentForNotify.userId);
+        for (const u of users) {
+          if (skipIds.has(u.id)) continue;
+          if (u.mentionMuted) continue;
+          await notificationService.createNotification({
+            userId: u.id,
+            type: 'mention',
+            actorUserId: data.userId,
+            targetType: 'comment',
+            targetId: id,
+            payload: {
+              postSlug: data.postSlug,
+              postTitle: data.postTitle,
+              preview: sanitized.slice(0, 200)
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error(
+        '[notifications] failed to fan mention notifications:',
+        err
+      );
     }
   }
 
