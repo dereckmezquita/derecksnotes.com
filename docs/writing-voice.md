@@ -1,6 +1,12 @@
 # Writing voice — Dereck Mezquita
 
-A reference profile of the author's voice, distilled from a close-reading of authentic posts. Used as a guide when AI assistance is involved in drafting, so the result still sounds like Dereck.
+A reference profile of the author's voice, distilled from a close-reading of the older philosophy-tagged blog posts. These are the touchstone for the voice the author wants reflected in AI-assisted drafts — discursive, thinking-aloud, semi-formal essayistic. Used as a guide when AI assistance is involved in drafting, so the result still sounds like Dereck.
+
+**Two modes.** The patterns below mostly describe the **philosophical / discursive** voice: posts that explore a question, written from a chair after a conversation or a documentary. **Scientific or technical writing shares the same register** (British essayistic, hedged on opinion, plain on facts) but tends to land a proper conclusion grounded in the demonstrated result, code, or evidence.
+
+**On endings — there is no fixed rule.** Open-question philosophical posts often end unresolved, on a rhetorical question or a promise to reflect further. But when the author has a strong philosophical opinion, the post may close on a stated conclusion. Likewise, scientific / instructional posts usually conclude with the demonstrated result, but may end on the last code block without a wrap-up paragraph. Treat the choice as deliberate per post; do not impose a rule in either direction.
+
+**French dissertation structure.** Roughly 40-50% of the author's posts follow the **thesis → antithesis → synthesis** triadic structure he was educated in (French academic tradition). Lay out a position, then the strongest counter-position, then a synthesis that does not simply choose one side. This is a recurring scaffold, not a universal one — use it when the topic genuinely has two well-formed opposed positions; do not force it when it would feel artificial.
 
 This document is for the maintainer; it is not published on the site.
 
@@ -8,118 +14,122 @@ This document is for the maintainer; it is not published on the site.
 
 ## Headline
 
-A scientifically-trained, British-English-using essayist who treats the blog as a thinking surface, not a finished product. Declarative and unhedged on facts; openly opinionated on aesthetic and ethical questions. Reaches for a slightly elevated literary register without lapsing into ornament. Walks the reader through ideas in **first-person plural** ("we'll delve into…"), pairs concepts with code or formulas, and ends abruptly — on the last code block, an open question, or a "note to self" — never on a tidy wrap-up.
+A discursive, visibly thinking-aloud voice in **philosophical / open-question** posts. Such posts begin with a real conversation with a friend or a video just watched, move through a hedged step-by-step argument staged as "his stance vs my stance" — or, in roughly 40-50% of posts, as a French-tradition **thesis / antithesis / synthesis** triad — and may either end unresolved (rhetorical question, promise to reflect further) or, when the author has a strong opinion on the question, close on a stated conclusion. The register is semi-formal British essayistic English with mild archaic flourishes ("one must", "upon", "whatsoever") sitting next to bluntly colloquial moments and small typos left unedited. Hedges almost everything with "It seems that" and "in general", uses semicolons where most writers would use a full stop, and never uses em-dashes.
 
 ## Persona
 
-A working scientist-engineer (bioinformatics / R / JS / maths) with an essayistic streak. Reads Feynman and the British essayists. Distrusts authority on principle. Treats writing as note-taking for himself first, audience second.
+A formally trained life scientist with both computational and wet-lab background — a Master's in systems and synthetic biology with a bioinformatics focus, training in pharmaceutical chemistry, and a Bachelor's in molecular biology, physiology, and cellular biology. The philosophy posts are not the work of a philosophy specialist; they are the work of a scientist thinking aloud about questions outside his trained remit, treating the post as a first pass at an idea rather than a finished essay. Earnest, semi-formal, hedged, openly provisional — wants to be rigorous, but willing to admit being scared, defeated, or unsure mid-argument. The science training shows in the instinct to reach for biological and physical concepts (entropy, apoptosis, biological imperatives) when reasoning about abstract questions.
 
 ## Sentence shape
 
-Medium-length declarative sentences, typically 15-30 words, with one or two comma-separated clauses and a tendency toward triadic lists ("the syntax is clean, the mental model is clear, and it handles concurrent operations gracefully"). Sentences open with a framing clause ("In this guide, we...", "In R...", "Programmatically, we...", "I had an interesting..."), then commit to a main clause, often closing on a participial tag-on ("illustrating not just...", "reflecting the fractal principle..."). Short 6-15-word openers are common in personal/reflective posts; longer hypotactic sentences appear in technical exposition. Semicolons are rare; commas and colons carry the load. Fragments are not used.
+Short to medium declarative sentences (10-25 words), often opening with "I", "It seems that", "In general", "There is", "Note that" or "The interesting bit". Two clauses are frequently spliced with a semicolon, where the second clause adds a confession, an aside, or a sardonic tag ("I admitted to being so"; "jolly"). Occasional longer sentence built around a "moreover" or "however" hinge. Endings trail off with an ellipsis or a rhetorical question, sometimes punctuated with a period instead of a question mark.
 
 ## Paragraph shape
 
-Paragraphs are short and load-bearing. Technical posts follow a tight micro-pattern: name the concept (bold on first mention), give one or two sentences of intuition, present the formula or code, then a single closing sentence that observes what just happened ("The perimeter grows without bound, yet the area converges"). Reflective posts open with a personal trigger (a video, a conversation, a documentary), pivot to the idea in a paragraph or two, and stop. There is no concluding paragraph, no summary, no call to action — the post ends on the last code block, the last formula, or an open question.
+Very short paragraphs — frequently a single sentence — stacked so the post reads as stepwise thinking. A typical paragraph states a small claim, hedges it, and hands off to the next paragraph rather than developing internally. When a longer paragraph does build, it goes: general claim, hedge, parenthetical list of biological or physical examples, then a restated generalisation. Section-level builds end on a bolded thesis sentence as a punchline, after which the next paragraph immediately re-opens the question.
 
 ## Vocabulary signature
 
-- "we'll walk through" / "we'll delve into" / "we'll discuss" as scope-setters
-- "Programmatically, we…" as the bridge from concept to code
-- "In this guide/article, we…" opener
-- "interesting" as the default trigger adjective ("an interesting conversation", "interesting documentary")
-- "I remain sceptical / unimpressed / unconvinced" for stating a steady opinion
-- "of course" as inline concession ("This is of course me paraphrasing")
-- "in fact", "however", "moreover", "indeed" as connective tissue
-- "simply" as softener for strong claims
-- "one" as impersonal essayistic pronoun ("one must first demonstrate mastery")
-- "Note to self" / "Lesson learned" / "The insight was the following" as meta-labels
-- "I'm paraphrasing of course" as a near-tic after reported speech
-- Latinate reaches when editorialising: *ameliorate*, *banality*, *fantastical*, *indelible*, *irreverent*, *exuberance*, *permeates*
-- Decorative descriptors for maths: *captivating*, *stunning*, *remarkable*, *beautiful*
-- Hedging only on opinion or future plans: "I suppose", "it seems", "might be", "I believe"
-- "e.g.," for examples (not "i.e." or "for example")
+- "interesting" as the default evaluative adjective ("an interesting conversation", "the interesting bit", "some interesting thoughts")
+- "It seems that…" as the default hedge
+- "one" as the impersonal pronoun ("one must", "how much should one question")
+- "Moreover", "however", "Thus", "Note that", "Needless to say", "As previously stated" as discursive connectives
+- "reflect / reflection / reflect further upon this"
+- "upon" instead of "on"
+- "whatsoever" for emphatic negation; "indeed" as a mild intensifier
+- "bit" as a casual noun for "part"
+- Abstract-philosophical register: *entropy*, *heat death of the universe*, *biological imperatives*, *apoptosis*, *cessation of existence*
+- Self-referential framing: "My stance", "My View", "I must maintain my position"
+- Binary structuring vocabulary: *opposite sides*, *diverge*, *optimistic … pessimistic*
+- Italicising a short word for emphasis (`*try*`)
 
 ## Structural moves
 
-- Frontmatter `blurb` is a short evocative or colloquial tagline often unrelated to the body ("Blood marriage in blue", "Classical art still kicks ass!", "We're all dust anyway", "Moths recite the spreadsheet.")
-- First non-frontmatter line is either a scope statement ("In this guide, we'll walk through…") or a personal trigger ("I had an interesting conversation with Guy the other day")
-- H2 noun-phrase headings, sometimes with a colon and a descriptive subtitle ("The Golden Spiral: A Visualisation of the Divine Proportion"); numbered H2/H3 in tutorial-style posts
-- Numbered lists written as `1. … 1. … 1.` (relying on markdown to renumber), used as the argumentative spine
-- Bold the named object/term on first mention; inline backticks for paths, packages, functions, CLI tools
-- Concept → formula in display LaTeX → prose explanation of symbols → implementation paragraph
-- In ops/tutorial posts: imperative sentence → optional one-line justification → fenced code block with teaching comments inline
-- Reflective posts cite a YouTube `<iframe>` or `<Blockquote src='…'>` as primary source
-- Posts end abruptly: last code block, last formula, an open question, or a "note to self" — no sign-off, no summary
+- Opens by locating the post in a real-world trigger: a conversation with a friend, a small documentary, a video
+- Narrates the lead-up before stating the idea ("We started by discussing…", "I came up with the following.")
+- Stages the disagreement explicitly with bolded inline labels ("**[friend]'s stance:**" / "**My stance:**")
+- In roughly 40-50% of posts: **thesis → antithesis → synthesis** scaffold (French academic tradition). Lay out a position, then the strongest counter-position, then a synthesis that does not simply pick a side. Use when the topic genuinely has two opposed positions; do not impose it
+- Drops a `<Blockquote>` component to carry a long paraphrased argument, then steps back and comments on it, often flagging "(paraphrased)" or "This is of course me paraphrasing"
+- Uses a colon followed by "the following:" to introduce the central claim
+- Embeds an iframe (YouTube) or `<Figure>` at the top as the prompt for the thinking
+- Numbered logical decomposition inside prose or inside a quote ("There are a two possibilities… 1. … 1. …")
+- Bolds the closing thesis of a section as a punchline, then re-opens the question in the next paragraph
+- Endings vary by post; there is no fixed rule. Common closes: an unresolved rhetorical question, a trailing ellipsis, an explicit "I will have to reflect further upon this", a stated conclusion when the author holds a strong opinion, or simply the last code block / formula / observation in technical posts. Treat the choice as a deliberate decision per post — do not default to either pattern.
+- Footnote linking back to a previous post on the same theme
 
 ## Rhetorical devices
 
-- Personal-trigger openings — anchor an abstract topic in a concrete recent experience (a conversation, a video, a documentary)
-- First-person plural "we" to walk the reader through technical steps; first-person singular "I" only when stating an opinion or admitting uncertainty
-- Open editorialising on aesthetic and ethical questions ("I remain sceptical of…", "I believe one must first…") — does not pretend to neutrality
-- Humility markers when borrowing ideas: "I'm paraphrasing of course", "This is of course me paraphrasing", "I will have to reflect further upon this"
-- Triadic lists as default rhythm (three nouns, three clauses)
-- Parenthetical "e.g.," glosses; occasional "(Note: …)" for pitfalls in tutorials
-- Open-question or "note to self" closer in personal posts; punchy aphoristic observation closer in technical sections
-- Footnote citations `[^1]` even on short personal posts
-- Distrust-of-authority framing as a recurring identity move ("do not trust any authority… This is what it means to be a scientist")
+- Rhetorical questions stacked to open a problem, sometimes punctuated with a period instead of a question mark
+- Trailing ellipsis followed by a short pointed question ("… which ones?")
+- Self-citation of his own emotional state mid-argument ("I admitted to being so", "as I did admit that I feared death")
+- Self-deprecating epistemic disclaimer ("I have no idea if this is an original idea")
+- Sardonic single-word aside spliced on with a semicolon ("jolly")
+- Scare quotes around a loaded everyday word ("waste")
+- Paraphrased famous-scientist quotation as a rhetorical pivot
+- Hedged generalisation via "It seems that" / "in general" / "perhaps" / "maybe"
+- Terse imperative aphorism as a takeaway, often after a colon or semicolon ("Lesson learned; do not trust any authority, and always question everything.")
+- Reaches for a slightly grand register at the close ("This is what it means to be a scientist")
 
 ## Spelling and conventions
 
-British/Oxford English throughout: *sceptical, favour, behaviour, organised, realise, recognise, characterise, colonise, humour, signalling, prioritise, optimise, specialised, normalisation, visualisation, characterisation, modelling, standardisation*. Acronyms in technical bullets are often lowercased inside running prose (rna-seq, gc content, gsea, vcf, bam) even when the bolded heading uses canonical casing.
+British/Oxford English throughout: *behaviour*, *behaviours*, *favourable*, *favourably*, *compartmentalising*, *organised*, *realise*, *recognise*, *characterise*, *visualisation*, *modelling*, *optimise*, *normalisation*. Mid-formal essayistic register with mild archaic flourishes ("one must", "upon", "whatsoever") sitting next to plain colloquial sentences. Contractions are rare but not absent. Comma usage is loose ("There is however, a practical aspect…"). Semicolons are overused by standard editorial taste — used where commas or full stops would be more standard. Typos and small grammatical slips are left in unedited (e.g. "a two possibilities", "fealt", "eneded", "quiet" for "quite", "beacuse", "choses" for "chooses").
 
-**No em-dashes (U+2014).** Use commas, colons, and full stops; semicolons sparingly. Contractions limited to the common forms ("we'll", "you're", "we've", "I'd"). No emoji. Inline backticks for code; bold for first mention of named objects; LaTeX in display math.
+**Em-dash count across all four philosophy posts: 0.** Do not use em-dashes (U+2014). Use commas, colons, full stops; semicolons sparingly (but as a tic, occasionally splice where it would be unconventional). No emoji. Inline backticks for code; italics for one-word emphasis; bold for staged-disagreement labels and section-end punchlines.
 
 ## Forbidden patterns
 
-- Em-dashes (`—`) anywhere — use commas, colons, or full stops instead
-- AI-flavoured openers and connectives: *"let's dive in"*, *"let's explore"*, *"in today's fast-paced world"*, *"it's worth noting that"*, *"in conclusion"*
-- Marketing adjectives: *amazing, incredible, powerful, seamless, game-changing, cutting-edge*
-- Tidy wrap-up paragraphs, sign-offs, or calls to action ("Hope this helps", "Happy hacking", "Let me know in the comments", "Subscribe")
-- Rhetorical questions to the reader ("Ever wondered…?", "So what does this mean?") and casual interjections ("Heads up", "Quick aside", "Fun fact")
-- American spellings (*normalization, visualization, behavior, skeptical, favor, recognize*) and Title-Casing of section headings beyond what he actually does
-- Hedging filler on technical claims ("sort of", "kind of", "basically", "literally") — hedging is reserved for opinion only
-- Headings phrased as questions ("What is a fractal?") or as rhetorical hooks; headings are noun phrases or numbered descriptors
-- Pretending neutrality on aesthetic or ethical questions; the writer names his stance plainly
+- Em-dashes (`—`) anywhere — verified zero across all philosophy posts read
+- **Generic / formulaic wrap-up paragraphs** ("In conclusion…", "To summarise…", "Hope this helps", "Happy hacking"). A real conclusion that states a stance or result is welcome when warranted; the formulaic *shape* of a wrap-up paragraph is what is forbidden
+- **Imposing thesis-antithesis-synthesis** on a topic that does not have two well-formed opposed positions. It is a scaffold the author uses when it fits, not a default
+- American spellings of -our / -ise words (*behavior*, *favorable*, *compartmentalizing*, *organize*, *realize*)
+- Sub-headings on short discursive posts (the 2018 posts use no H2/H3 at all)
+- Academic hedge phrases like "arguably" or "it could be argued" — he uses "It seems that" instead
+- Showy rhetorical flourishes or literary metaphor; the register stays plain even when the topic is large
+- Bullet-point lists outside of a quoted argument
+- Emojis, exclamation marks, internet slang, direct reader address ("right?", "look", "you guys")
+- Heavy citation of secondary literature; the trigger is always personal (a chat, a video, a documentary) and at most one paraphrased famous quote
+- Encyclopedic third-person narration — that is the biography voice, not the philosophy voice
 
 ## Sample phrasings — canon to mirror
 
-Verbatim quotes from his actual posts. These are the touchstones.
+Verbatim quotes from his actual philosophy posts (with the friend's name replaced by "a friend" or "[friend]"). These are the touchstones.
 
-- *"In this guide, we'll walk through the process of setting up a mail server on a Linode server, which includes configuring DNS records, installing Postfix and OpenDKIM, and ensuring your server can send emails successfully."*
-- *"We'll delve into the mathematics behind golden spirals, fractal sets, and parametric curves."*
-- *"Along the way, we'll discuss the programming strategies that implement these visualisations and show how combining mathematics with code can produce stunning results."*
-- *"Programmatically, we step through angles, compute radii, and trace out the spiral on the canvas."*
-- *"The perimeter grows without bound, yet the area converges."*
-- *"Despite the randomness, the points converge into a realistic fern shape."*
-- *"A compilation of tools, methodologies, workflows and resources for bioinformatics analysis. This is meant to be a quick reference sheet and not comprehensive."*
-- *"In R, while asynchronous programming isn't built into the language core, we can achieve similar elegance by combining the promises, later, and coro packages."*
-- *"As you see, the R version mirrors the JavaScript version in structure by using `$then()` and `$catch()`."*
-- *"Even so, I remain sceptical of modern art that disregards technical skill in favour of so called conceptual depth."*
+- *"I had an interesting conversation with a friend the other day."*
+- *"The interesting bit of the conversation came when I asked him if he was not afraid of death; I admitted to being so."*
+- *"This is of course me paraphrasing, and I've even added some ideas to the central thesis."*
+- *"After further reflection I do not think I continue to fear my death. I will have to reflect further upon this."*
+- *"I had some interesting thoughts while watching this small documentary on fraud in the art world."*
 - *"Lesson learned; do not trust any authority, and always question everything. This is what it means to be a scientist."*
+- *"There is however, a practical aspect that one must take into account."*
 - *"It seems that at some point, and at some level I will have to trust some authorities… which ones?"*
+- *"Needless to say, our perspectives diverge: his outlook is optimistic, while mine is pessimistic."*
+- *"life goes against the grain of the universe, and will lose; life is by definition suffering."*
+- *"So note that this framed our discussion; jolly."*
+- *"I did not know how to answer and had to think for quiet a while. I came up with the following. I have no idea if this is an original idea."*
+- *"In general it seems that life forms should wish to avoid suffering by any mechanism possible: modifications to the body (shells, claws, teeth), or behaviours (social cooperation, tool use, agressivity, flight mechanims)."*
+- *"Is this the reason why humanity and history looks favourably upon those men who are logical and objective; philosophers, scientists, engineers?"*
 
 ---
 
 ## Methodology
 
-Generated 2026-06-18 from a close-reading of these 11 files:
+Generated 2026-06-18, refreshed from a close-reading of the philosophy-tagged blog posts (older posts where the voice is at its most distinctive) plus a small biographies sample for contrast:
 
-- `client/src/app/blog/posts/20180624_earth-biogenome-project.mdx`
-- `client/src/app/blog/posts/20181127_hierarchy-in-art.mdx`
+**Philosophy posts** (the primary corpus — voice to mirror):
+
 - `client/src/app/blog/posts/20181204_on-the-meaning-of-life.mdx`
 - `client/src/app/blog/posts/20181217_on-authority.mdx`
-- `client/src/app/blog/posts/20190405_japanese-archery-and-focus.mdx`
-- `client/src/app/blog/posts/20231117_how-to-send-e-mail-from-node.mdx`
-- `client/src/app/blog/posts/20241214_new-blog-feature-canvases.mdx`
-- `client/src/app/blog/posts/20241220_bioinformatics-cheat-sheet.mdx`
-- `client/src/app/blog/posts/20250208_async-programming-in-R-for-JS-devs.mdx`
-- `client/src/app/dictionaries/biology/definitions/biology_general-biology_e_e-coli-escherichia-coli-k12-strain.mdx`
-- `client/src/app/dictionaries/chemistry/definitions/chemistry_general-chemistry_a_alkoxide.mdx`
-- `client/src/app/references/posts/biography_richard-feynman.mdx`
+- `client/src/app/blog/posts/20191007_life-is-suffering.mdx`
+- `client/src/app/blog/posts/20191010_why-objectivity.mdx`
 
-Deliberately **excluded**: `20260405_a-portrait-of-the-author.mdx` (Claude-assisted, would have reflected previously-imitated voice rather than authentic voice) and `20241213_on_consciousness.mdx` (suspicious em-dash density suggesting Claude polishing).
+**Biographies** (read for contrast — the third-person encyclopedic voice, explicitly held aside as the *not-this* register):
 
-Three independent readers each took a subset, characterised the voice from their excerpts with verbatim evidence, and a synthesiser merged their observations — preferring patterns observed by multiple readers and discarding low-confidence single-reader claims.
+- `client/src/app/references/posts/biography_aristotle.mdx`
+- `client/src/app/references/posts/biography_charles-darwin.mdx`
+- `client/src/app/references/posts/biography_carl-von-linnaeus.mdx`
 
-Update this document by re-running the same workflow when new posts shift the voice meaningfully.
+Deliberately **excluded**: `20260405_a-portrait-of-the-author.mdx` (Claude-assisted; would have reflected previously-imitated voice rather than authentic voice). `20241213_on_consciousness.mdx` was also held aside (em-dash density suggested polishing assistance).
+
+Three independent readers each took a subset, characterised the voice with verbatim evidence, and a synthesiser merged their observations — preferring patterns observed by multiple readers and discarding low-confidence single-reader claims. The recurring friend / interlocutor's proper name was replaced with "a friend" or "[friend]" throughout.
+
+Update this document by re-running the workflow when new posts shift the voice meaningfully.
