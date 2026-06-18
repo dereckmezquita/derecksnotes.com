@@ -15,10 +15,12 @@ export default function rehypeAddHeadingLinks() {
         node.type === 'element' &&
         ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes((node as any).tagName)
       ) {
-        const id = (node as any).properties.id;
+        const id = (node as any).properties?.id;
 
-        // if the id is table-of-contents then skip this one
-        if (id === 'table-of-contents') return;
+        // Skip headings that have no id (rehype-slug didn't run on them,
+        // or they arrived as mdxJsxFlowElement with attributes instead of
+        // properties). Also skip the Table of contents heading itself.
+        if (!id || id === 'table-of-contents') return;
 
         // Create link element
         const link = {
@@ -56,8 +58,8 @@ export default function rehypeAddHeadingLinks() {
         (node as any).children.push(link);
       }
 
-      if ('children' in node) {
-        (node.children as Node[]).forEach(addHeadingLinks);
+      if ('children' in node && Array.isArray((node as any).children)) {
+        ((node as any).children as Node[]).forEach(addHeadingLinks);
       }
     };
 
