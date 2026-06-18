@@ -150,7 +150,15 @@ export function CommentForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'write' | 'preview'>('write');
-  const previewHtml = useMemo(() => renderPreview(content), [content]);
+  // DOMPurify is browser-only; gate on `window` so SSR prerender doesn't
+  // crash trying to sanitize on the server. Also only compute when the
+  // preview tab is actually open so writing-mode keystrokes don't pay
+  // the marked + DOMPurify cost.
+  const previewHtml = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    if (mode !== 'preview') return '';
+    return renderPreview(content);
+  }, [content, mode]);
 
   // Autocomplete state
   const [suggestions, setSuggestions] = useState<UserMatch[]>([]);
