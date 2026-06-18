@@ -14,6 +14,11 @@ jobs:
   test:
     name: Typecheck + bun test
     runs-on: ubuntu-latest
+    env:
+      # APP_ENV=local is the default but spell it out so the [env] warning
+      # doesn't clutter the CI log. SESSION_SECRET is satisfied by the
+      # local-dev placeholder branch in server/src/lib/env.ts.
+      APP_ENV: local
     steps:
       - uses: actions/checkout@v4
 

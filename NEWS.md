@@ -1,5 +1,59 @@
 # derecksnotes.com Change Log
 
+## v6.2.0 - Account & Content Hardening (2026-06)
+
+A research-backed pass over the account, comment, and moderation surface plus a usable admin moderation queue.
+
+### Security
+
+- **Session tokens hashed at rest**: the DB now stores `SHA-256` (or `HMAC-SHA256` with optional `SESSION_TOKEN_PEPPER`) of the cookie value, not the raw token. A read-only DB leak can no longer resume any live session.
+- **CSRF defence-in-depth** on `/api/v1`: rejects mutating requests whose `Sec-Fetch-Site` is `none`/`cross-site` and whose `Origin`/`Referer` is not in the allowlist. `GET`/`HEAD`/`OPTIONS` unaffected.
+- **Login enumeration** killed: a precomputed dummy bcrypt round runs on every failed login, so the response time no longer leaks whether a username exists.
+- **Register enumeration** mitigated: email conflict now returns a generic refusal instead of "Email already registered" (TODO: switch to the Mozilla send-on-conflict pattern once an email sender is wired up).
+- **Comment edit history** is no longer public: gated on `authenticate()` and visible only to the author or moderators with `comment.view.unapproved`.
+- **SSE `/api/v1/graph/live`** authenticated, per-user + per-IP connection caps, explicit `node:crypto` import.
+- **`ADMIN_USERNAME` bootstrap**: matching registration is auto-elevated to admin so fresh prod is never locked out; loud warning on non-local deploys when the var is empty.
+- **Password length / 72-byte bcrypt truncation**: `hashPassword` / `verifyPassword` pre-hash with NFC-normalised SHA-256 → base64 so the full passphrase contributes entropy regardless of length.
+- **Moderator boundary**: `user.ban` callers cannot ban admins (unless they themselves are admin), themselves, or the last remaining admin; can't stack a second ban while one is active.
+- **Per-route rate limits** on password change (bcrypt CPU pin), account delete, bulk operations, and all `/admin/*` writes.
+- **Audit log auth events**: register, login, logout, password change, account delete now log to `auditLog`.
+- **Logout idempotency**: clears the cookie even if no live session — no more 401 on expired-cookie logout.
+
+### Comment correctness
+
+- **N+1 fixed**: `formatCommentTree` was ~800 SQLite round-trips per 20-row page (per-node count + per-node fetch). Replaced with a single BFS sweep + in-memory grouping. Single-digit query count, same output.
+- **Soft-deleted top-level comments** no longer consume slots / inflate `total` in the page response.
+- **Stable pagination**: `orderBy` gained an `asc(id)` tiebreaker so offset pages can't repeat or skip rows when timestamps collide.
+- **Reaction toggle race**: `reactToComment` read-modify-write wrapped in `db.transaction()`.
+- **Typed errors**: `CommentValidationError` / `NotFoundError` / `AuthError` replace the fragile `error.stack?.includes('at')` heuristic that silently coerced every business error to 500.
+- **Bulk-delete fix**: previously did `N` statements and mis-reported `deleted` as the input length; now a single `inArray` UPDATE with `.returning`.
+
+### Admin moderation queue
+
+- Pending Comments tab is now a rich table with per-author reputation columns: account age, history (approved / rejected / pending), karma (likes minus dislikes received), groups, per-comment reactions, and a flavour badge per row (`admin`, `moderator`, `trusted`, `brand new`, `first comment`, `has rejections`, `clean history`, `unranked`).
+- **Shift-click multi-select**: click a checkbox, shift-click another row → toggles every row in between to the new target state. Header checkbox is indeterminate on partial selection.
+- Bulk Approve / Bulk Reject wired to the existing transactional endpoints.
+- Author-facing pending badge now reads `pending review — only visible to you` with a tooltip explaining the auto-approve threshold.
+
+### Reusable UI primitives
+
+- `DataTable`, `DataTableWrapper`, `DataTableCheckbox`, `SelectAllCheckbox` extracted as the canonical styled table for the codebase.
+- `useRangeSelect<T>(items)` hook — id-keyed multi-select with shift-click range semantics; reusable across any selectable list.
+- `BulkActionBar` toolbar component that renders nothing when count is 0, with a built-in Clear button.
+- `UsersTab` refactored to use the hook — gains shift-click for free.
+
+### Backup hardening
+
+- `scripts/backup-db.sh` runs `PRAGMA integrity_check` + `PRAGMA foreign_key_check` before gzip and `gunzip -t` after; any failure removes the bad artefact and exits non-zero so the rotation can't silently drop the last known-good copy.
+- `.github/workflows/backup-db.yml` now scp's the script to the VPS and invokes it instead of inlining a duplicate (single source of truth).
+
+### Convention & infrastructure
+
+- **`BUILD_ENV` → `APP_ENV`** across server, client (`NEXT_PUBLIC_APP_ENV`), Dockerfile, docker-compose, CI workflows, and `.env` examples — following the [Next.js docs convention](https://nextjs.org/docs/messages/non-standard-node-env) and mirroring Vercel's own `NODE_ENV` + `VERCEL_ENV` split. `NODE_ENV=production` pinned at Docker build time so Webpack inlines the production code path through `next-mdx-remote`.
+- **MDX 500 fix**: dictionary `[slug]/page.tsx` now pre-builds every MDX file on dev too. The dev "slice(0,3) + dynamicParams" split was leaving the rest to an on-demand RSC compile that crashes inside `@mdx-js/mdx`'s `recma-jsx-rewrite` under Bun. Regression test (12 cases) blocks reintroduction.
+- **CI**: new `test.yml` workflow runs client + server typecheck and `bun test` on push and PRs (28/28 green).
+- **Security spike** documented at `docs/spikes/2026-06-18-security-fix-research.md` — current best practices for session storage, account enumeration defences, rate-limit budgets, CSRF in 2026, password hashing edge cases, SSE security, SQLite backup durability, and Drizzle transactions. Reference for the implementations above.
+
 ## v6.1.0 - Knowledge Graph & Content Rendering Fixes (2026-06)
 
 A WebGL knowledge-graph view of the whole corpus, dictionary UI cleanup, and a batch of MDX rendering fixes.
