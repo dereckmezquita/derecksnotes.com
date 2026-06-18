@@ -9,6 +9,7 @@ import type {
   AdminUser,
   AuditLogEntry,
   AnalyticsData,
+  AdminReport,
   NotificationStats,
   PaginatedResponse
 } from '@derecksnotes/shared';
@@ -144,23 +145,6 @@ type ActiveTab =
   | 'analytics'
   | 'notifications'
   | 'reports';
-
-interface AdminReport {
-  id: string;
-  reporter: {
-    id: string;
-    username: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  } | null;
-  targetType: 'comment' | 'user';
-  targetId: string;
-  reason: string;
-  details: string | null;
-  status: 'open' | 'resolved' | 'dismissed';
-  resolvedAt: string | null;
-  createdAt: string;
-}
 
 export default function AdminPage() {
   const { user, isAdmin } = useAuth();

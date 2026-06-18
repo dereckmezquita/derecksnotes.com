@@ -8,6 +8,10 @@ import type {
   UserComment,
   PaginatedResponse
 } from '@derecksnotes/shared';
+import {
+  PASSWORD_RULES,
+  isPasswordValid as sharedIsPasswordValid
+} from '@derecksnotes/shared';
 import { toast } from 'sonner';
 import {
   PageContainer,
@@ -491,18 +495,14 @@ function ProfileTab({
 // Password Helpers
 // ============================================================================
 
-function isPasswordValid(password: string): boolean {
-  return (
-    password.length >= 8 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password)
-  );
-}
+const isPasswordValid = sharedIsPasswordValid;
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: '8+ characters', pass: password.length >= 8 },
+    {
+      label: `${PASSWORD_RULES.minLength}+ characters`,
+      pass: password.length >= PASSWORD_RULES.minLength
+    },
     { label: 'Uppercase letter', pass: /[A-Z]/.test(password) },
     { label: 'Lowercase letter', pass: /[a-z]/.test(password) },
     { label: 'Number', pass: /[0-9]/.test(password) }

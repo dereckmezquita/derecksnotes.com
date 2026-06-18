@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import styled from 'styled-components';
+import type { PostReactionResponse } from '@derecksnotes/shared';
 
 interface PostReactionButtonsProps {
   slug: string;
@@ -42,15 +43,9 @@ const ReactionBtn = styled.button<{ $active?: boolean }>`
   }
 `;
 
-interface Stats {
-  likes: number;
-  dislikes: number;
-  userReaction: 'like' | 'dislike' | null;
-}
-
 export function PostReactionButtons({ slug, title }: PostReactionButtonsProps) {
   const { user } = useAuth();
-  const [stats, setStats] = useState<Stats>({
+  const [stats, setStats] = useState<PostReactionResponse>({
     likes: 0,
     dislikes: 0,
     userReaction: null
@@ -58,7 +53,9 @@ export function PostReactionButtons({ slug, title }: PostReactionButtonsProps) {
 
   useEffect(() => {
     api
-      .get<Stats>(`/posts/stats?slug=${encodeURIComponent(slug)}`)
+      .get<PostReactionResponse>(
+        `/posts/stats?slug=${encodeURIComponent(slug)}`
+      )
       .then(setStats)
       .catch(() => {});
   }, [slug]);
@@ -66,7 +63,7 @@ export function PostReactionButtons({ slug, title }: PostReactionButtonsProps) {
   const handleReaction = async (type: 'like' | 'dislike') => {
     if (!user) return;
     try {
-      const result = await api.post<Stats>('/posts/react', {
+      const result = await api.post<PostReactionResponse>('/posts/react', {
         slug,
         title,
         type

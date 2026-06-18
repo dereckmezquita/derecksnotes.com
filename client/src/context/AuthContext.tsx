@@ -7,7 +7,7 @@ import React, {
   useCallback
 } from 'react';
 import { api, ApiError } from '@/utils/api';
-import type { User, AuthError } from '@derecksnotes/shared';
+import type { User, AuthError, UpdateProfileInput } from '@derecksnotes/shared';
 
 export type { User, AuthError };
 
@@ -25,13 +25,7 @@ interface AuthContextType {
     currentPassword: string,
     newPassword: string
   ) => Promise<void>;
-  updateProfile: (data: {
-    displayName?: string;
-    bio?: string;
-    avatarUrl?: string | null;
-    location?: string | null;
-    socialLinks?: { label: string; url: string }[] | null;
-  }) => Promise<void>;
+  updateProfile: (data: UpdateProfileInput) => Promise<void>;
   changeUsername: (newUsername: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   isAuthenticated: () => boolean;
@@ -139,13 +133,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     }
   };
 
-  const updateProfile = async (data: {
-    displayName?: string;
-    bio?: string;
-    avatarUrl?: string | null;
-    location?: string | null;
-    socialLinks?: { label: string; url: string }[] | null;
-  }) => {
+  const updateProfile = async (data: UpdateProfileInput) => {
     clearAuthError();
     try {
       await api.patch('/users/me', data);

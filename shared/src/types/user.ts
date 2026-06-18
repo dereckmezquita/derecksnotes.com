@@ -23,8 +23,3 @@ export interface UserBasic {
   displayName: string | null;
   avatarUrl: string | null;
 }
-
-export interface AuthError {
-  error: string;
-  details?: Array<{ message: string; path?: string[] }>;
-}
