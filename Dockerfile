@@ -19,11 +19,23 @@ COPY client/ client/
 RUN rm -rf client/.next
 
 # Build arguments
-ARG BUILD_ENV=prod
+ARG APP_ENV=prod
 ARG COMMIT_SHA=local
 
-ENV BUILD_ENV=${BUILD_ENV}
+# APP_ENV is read by the server. NEXT_PUBLIC_APP_ENV is inlined into the client
+# bundle by Next.js (the NEXT_PUBLIC_ prefix is the framework convention for
+# build-time exposure to browser code).
+ENV APP_ENV=${APP_ENV}
+ENV NEXT_PUBLIC_APP_ENV=${APP_ENV}
 ENV NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA}
+
+# NODE_ENV is owned by Next.js (development | production). Pin it to production
+# at build time so Webpack inlines the production code path through
+# next-mdx-remote (whose serialize.js bakes `development: ...` from
+# process.env.NODE_ENV into the compiled MDX). Without this, on-demand MDX
+# rendering crashes because the compiled body expects _jsxDEV but the runtime
+# loads the production jsx-runtime.
+ENV NODE_ENV=production
 
 WORKDIR /app/client
 RUN bun run build

@@ -42,10 +42,6 @@ export async function processMdx<
         parseFrontmatter: true,
         // REF: https://github.com/hashicorp/next-mdx-remote/issues/356#issuecomment-1556074660
         mdxOptions: {
-          // Pin to the production jsx runtime explicitly. Belt and braces
-          // against NODE_ENV being ambiguous at module-load time under Bun,
-          // which is the root cause of the on-demand MDX 500 we hit on dev.
-          development: false,
           remarkPlugins: [
             remarkGfm,
             remarkUnwrapImages,
@@ -88,6 +84,11 @@ export async function processMdx<
       source: content
     };
   } catch (err) {
+    const e = err as any;
+    console.error('[processMdx] FULL ERROR:', e);
+    console.error('[processMdx] stack:', e?.stack);
+    console.error('[processMdx] cause:', e?.cause);
+    console.error('[processMdx] markdown preview:', markdown.slice(0, 200));
     throw new Error(
       `MDX compilation error: ${err instanceof Error ? err.message : String(err)}\nError occurred when processing: ${markdown}`
     );

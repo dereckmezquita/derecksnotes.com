@@ -4,13 +4,11 @@ const nextConfig: NextConfig = {
   compiler: {
     styledComponents: true
   },
-  env: {
-    BUILD_ENV: process.env.BUILD_ENV || 'local'
-  },
   async rewrites() {
     // Only proxy API calls in local development
     // In dev/prod, nginx handles routing
-    if (process.env.BUILD_ENV === 'local' || !process.env.BUILD_ENV) {
+    const appEnv = process.env.NEXT_PUBLIC_APP_ENV;
+    if (appEnv === 'local' || !appEnv) {
       return [
         {
           source: '/api/:path*',

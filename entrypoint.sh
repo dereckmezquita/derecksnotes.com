@@ -1,16 +1,10 @@
 #!/bin/sh
 set -e
 
-# BUILD_ENV (local | dev | prod) is the single source of truth for this app.
-# Derive NODE_ENV from it so we never have two env vars to keep in sync:
-#   local → development (matches `next dev` locally; never runs in this script
-#                        in practice, but kept correct for completeness)
-#   dev   → production  (deployed VPS build, production-mode Next runtime)
-#   prod  → production  (deployed VPS build, production-mode Next runtime)
-case "${BUILD_ENV:-prod}" in
-  local) export NODE_ENV=development ;;
-  *)     export NODE_ENV=production ;;
-esac
+# NODE_ENV is pinned to production at Docker build time (see Dockerfile).
+# APP_ENV (local | dev | prod) carries the deploy-target identity and is
+# read by the server config and inlined into the client bundle via
+# NEXT_PUBLIC_APP_ENV. No derivation needed here.
 
 # Start the Next.js client
 cd /app/client && bun run start &

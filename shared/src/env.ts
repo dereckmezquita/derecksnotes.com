@@ -1,4 +1,4 @@
-export type BuildEnv = 'local' | 'dev' | 'prod';
+export type AppEnv = 'local' | 'dev' | 'prod';
 
 export interface EnvConfig {
   domain: string;
@@ -6,7 +6,7 @@ export interface EnvConfig {
   apiUrl: string;
 }
 
-export const ENV_CONFIG: Record<BuildEnv, EnvConfig> = {
+export const ENV_CONFIG: Record<AppEnv, EnvConfig> = {
   local: {
     domain: 'localhost',
     baseUrl: 'http://localhost:3000',

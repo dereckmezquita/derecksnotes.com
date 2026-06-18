@@ -26,7 +26,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: config.buildEnv === 'local' ? true : config.baseUrl,
+    origin: config.appEnv === 'local' ? true : config.baseUrl,
     credentials: true
   })
 );
@@ -39,7 +39,7 @@ app.get('/api', (_req, res) => {
     name: 'derecksnotes-api',
     version: '6.0.0',
     status: 'ok',
-    environment: config.buildEnv
+    environment: config.appEnv
   });
 });
 
@@ -80,5 +80,5 @@ try {
 
 app.listen(config.port, () => {
   console.log(`API server running at http://localhost:${config.port}`);
-  console.log(`Environment: ${config.buildEnv}`);
+  console.log(`Environment: ${config.appEnv}`);
 });

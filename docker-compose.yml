@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        BUILD_ENV: ${BUILD_ENV:-prod}
+        APP_ENV: ${APP_ENV:-prod}
         COMMIT_SHA: ${COMMIT_SHA:-local}
     image: ${IMAGE_NAME:-derecksnotes}
     container_name: ${CONTAINER_NAME:-derecksnotes}
@@ -11,7 +11,7 @@ services:
       - '${PORT_CLIENT:-3000}:3000'
       - '${PORT_SERVER:-3001}:3001'
     environment:
-      - BUILD_ENV=${BUILD_ENV:-prod}
+      - APP_ENV=${APP_ENV:-prod}
       - SESSION_SECRET=${SESSION_SECRET}
     networks:
       - dereck-network
