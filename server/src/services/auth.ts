@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import crypto from 'crypto';
+import { randomBytes, randomUUID, createHash, createHmac } from 'node:crypto';
 import { db, schema } from '@db/index';
 import { eq, and, desc } from 'drizzle-orm';
 import { config } from '@lib/env';
@@ -8,15 +8,50 @@ const SALT_ROUNDS = 12;
 const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_SESSIONS_PER_USER = 5;
 
+/**
+ * I22: bcrypt silently truncates the input at 72 bytes, so a 200-char
+ * passphrase from a security-conscious user is in reality just its first 72
+ * bytes. Pre-hash with SHA-256 + base64 (44 chars, under 72 bytes) so the
+ * full passphrase contributes entropy, and apply NFC normalisation so
+ * combining-character forms compare equal (NIST 800-63B §5.1.1.2).
+ *
+ * This is the Dropbox-published pattern, used widely (cal.com, etc.). It
+ * works for both fresh hashes (hashPassword) and verification
+ * (verifyPassword) — the same transformation is applied on both sides.
+ */
+function prehashForBcrypt(password: string): string {
+  const normalised = password.normalize('NFC');
+  return createHash('sha256').update(normalised, 'utf8').digest('base64');
+}
+
+// Optional pepper for the session-token hash. If set, the DB stores
+// HMAC-SHA256(pepper, token) instead of plain SHA-256(token). Rotation
+// invalidates every session — that is the intended operational cost.
+const SESSION_TOKEN_PEPPER = process.env.SESSION_TOKEN_PEPPER || '';
+
+/**
+ * Hash a raw session token for storage and lookup. The raw token (returned to
+ * the client as a cookie) is never persisted — the DB row only ever contains
+ * the digest, so a read-only DB leak cannot resume any live session.
+ */
+export function hashSessionToken(token: string): string {
+  if (SESSION_TOKEN_PEPPER) {
+    return createHmac('sha256', SESSION_TOKEN_PEPPER)
+      .update(token)
+      .digest('hex');
+  }
+  return createHash('sha256').update(token).digest('hex');
+}
+
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, SALT_ROUNDS);
+  return bcrypt.hash(prehashForBcrypt(password), SALT_ROUNDS);
 }
 
 export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+  return bcrypt.compare(prehashForBcrypt(password), hash);
 }
 
 export async function createSession(
@@ -24,32 +59,36 @@ export async function createSession(
   userAgent?: string,
   ipAddress?: string
 ): Promise<{ id: string; token: string; expiresAt: string }> {
-  const id = crypto.randomUUID();
-  const token = crypto.randomBytes(32).toString('hex');
+  const id = randomUUID();
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = hashSessionToken(token);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_EXPIRY_MS).toISOString();
 
-  // Enforce max sessions — revoke oldest if at limit
-  const existingSessions = await db.query.sessions.findMany({
-    where: eq(schema.sessions.userId, userId),
-    orderBy: [desc(schema.sessions.createdAt)]
-  });
+  // Enforce max sessions — revoke oldest if at limit. Wrapped in IMMEDIATE
+  // transaction to make the read-then-write race-safe under concurrent logins.
+  await db.transaction(async (tx) => {
+    const existingSessions = await tx.query.sessions.findMany({
+      where: eq(schema.sessions.userId, userId),
+      orderBy: [desc(schema.sessions.createdAt)]
+    });
 
-  if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
-    const toRevoke = existingSessions.slice(MAX_SESSIONS_PER_USER - 1);
-    for (const s of toRevoke) {
-      await db.delete(schema.sessions).where(eq(schema.sessions.id, s.id));
+    if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
+      const toRevoke = existingSessions.slice(MAX_SESSIONS_PER_USER - 1);
+      for (const s of toRevoke) {
+        await tx.delete(schema.sessions).where(eq(schema.sessions.id, s.id));
+      }
     }
-  }
 
-  await db.insert(schema.sessions).values({
-    id,
-    userId,
-    token,
-    userAgent: userAgent || null,
-    ipAddress: ipAddress || null,
-    createdAt: now.toISOString(),
-    expiresAt
+    await tx.insert(schema.sessions).values({
+      id,
+      userId,
+      tokenHash,
+      userAgent: userAgent || null,
+      ipAddress: ipAddress || null,
+      createdAt: now.toISOString(),
+      expiresAt
+    });
   });
 
   return { id, token, expiresAt };

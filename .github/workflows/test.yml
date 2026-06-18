@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck + bun test
+    runs-on: ubuntu-latest
+    env:
+      # APP_ENV=local is the default but spell it out so the [env] warning
+      # doesn't clutter the CI log. SESSION_SECRET is satisfied by the
+      # local-dev placeholder branch in server/src/lib/env.ts.
+      APP_ENV: local
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2'
+
+      - name: Install workspace deps
+        run: bun install --frozen-lockfile
+
+      # I29: regression-protect every fix in this PR. The repo currently has
+      # 26 tests across client + server; CI didn't run them before this
+      # workflow.
+      - name: Client typecheck
+        run: cd client && bun run typecheck
+
+      - name: Server typecheck
+        run: cd server && bunx tsc --noEmit
+
+      - name: Client tests
+        run: cd client && bun test
+
+      - name: Server tests
+        run: cd server && bun test

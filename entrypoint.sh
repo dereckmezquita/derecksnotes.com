@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+# NODE_ENV is pinned to production at Docker build time (see Dockerfile).
+# APP_ENV (local | dev | prod) carries the deploy-target identity and is
+# read by the server config and inlined into the client bundle via
+# NEXT_PUBLIC_APP_ENV. No derivation needed here.
+
 # Start the Next.js client
 cd /app/client && bun run start &
 CLIENT_PID=$!

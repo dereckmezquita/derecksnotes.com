@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { config } from '@lib/env';
 import { generalLimiter } from '@middleware/rateLimit';
+import { csrfGuard } from '@middleware/csrf';
 import v1Routes from '@routes/index';
 import { db, schema } from '@db/index';
 import { buildSearchIndex } from '@services/search';
@@ -26,12 +27,15 @@ app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: config.buildEnv === 'local' ? true : config.baseUrl,
+    origin: config.appEnv === 'local' ? true : config.baseUrl,
     credentials: true
   })
 );
 
 app.use('/api', generalLimiter);
+// CSRF guard mounted only on /api/v1 — leaves health + root info untouched
+// so monitoring tools (which don't send Origin) keep working.
+app.use('/api/v1', csrfGuard());
 
 // API info
 app.get('/api', (_req, res) => {
@@ -39,7 +43,7 @@ app.get('/api', (_req, res) => {
     name: 'derecksnotes-api',
     version: '6.0.0',
     status: 'ok',
-    environment: config.buildEnv
+    environment: config.appEnv
   });
 });
 
@@ -80,5 +84,5 @@ try {
 
 app.listen(config.port, () => {
   console.log(`API server running at http://localhost:${config.port}`);
-  console.log(`Environment: ${config.buildEnv}`);
+  console.log(`Environment: ${config.appEnv}`);
 });

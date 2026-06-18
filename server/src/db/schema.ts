@@ -28,7 +28,10 @@ export const sessions = sqliteTable('sessions', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id),
-  token: text('token').notNull().unique(),
+  // SHA-256 (optionally HMAC'd with SESSION_TOKEN_PEPPER) of the raw cookie
+  // value. The raw token is never persisted; lookup is by hash. A DB compromise
+  // therefore cannot resume live sessions.
+  tokenHash: text('token_hash').notNull().unique(),
   userAgent: text('user_agent'),
   ipAddress: text('ip_address'),
   createdAt: text('created_at').notNull(),

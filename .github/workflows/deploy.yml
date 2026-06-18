@@ -67,7 +67,7 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.image_tag }}
           build-args: |
-            BUILD_ENV=${{ steps.vars.outputs.environment }}
+            APP_ENV=${{ steps.vars.outputs.environment }}
             COMMIT_SHA=${{ github.sha }}
 
   deploy:
@@ -140,7 +140,7 @@ jobs:
               "CONTAINER_NAME=${{ steps.vars.outputs.container_name }}" \
               "PORT_CLIENT=${{ steps.vars.outputs.port_client }}" \
               "PORT_SERVER=${{ steps.vars.outputs.port_server }}" \
-              "BUILD_ENV=${{ env.ENV }}" \
+              "APP_ENV=${{ env.ENV }}" \
               "COMMIT_SHA=${{ github.sha }}" \
               "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \
               "DATA_PATH=${{ steps.vars.outputs.data_path }}" \

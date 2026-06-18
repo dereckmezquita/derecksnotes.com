@@ -14,10 +14,10 @@ import { GraphSimulation, GraphRenderer } from '@/lib/graph';
 import type { SimNode, SimEdge } from '@/lib/graph';
 import type { SearchMode } from '@/lib/graph/GraphRenderer';
 
-import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
+import { ENV_CONFIG, type AppEnv } from '@derecksnotes/shared';
 
-const BUILD_ENV = (process.env.BUILD_ENV as BuildEnv) || 'local';
-const API_URL = ENV_CONFIG[BUILD_ENV].apiUrl;
+const APP_ENV = (process.env.NEXT_PUBLIC_APP_ENV as AppEnv) || 'local';
+const API_URL = ENV_CONFIG[APP_ENV].apiUrl;
 
 // ── default query options ────────────────────────────────────────────
 export const DEFAULT_GRAPH_OPTIONS: GraphQueryOptions = {

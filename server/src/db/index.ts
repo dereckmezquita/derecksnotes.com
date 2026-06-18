@@ -3,7 +3,16 @@ import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import { config } from '@lib/env';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as schema from './schema';
+
+// Ensure the parent directory exists before opening — otherwise SQLite
+// throws SQLITE_CANTOPEN on first import in any context that doesn't
+// pre-create it (CI runners, fresh dev clones, ephemeral containers).
+// The same mkdir lived in server/src/index.ts; pulling it here means any
+// caller of @db/index (tests, scripts) gets it for free.
+const dbDir = path.dirname(config.databasePath);
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
 export const sqlite = new Database(config.databasePath);
 sqlite.exec('PRAGMA journal_mode = WAL;');

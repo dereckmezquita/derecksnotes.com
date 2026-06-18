@@ -84,6 +84,11 @@ export async function processMdx<
       source: content
     };
   } catch (err) {
+    const e = err as any;
+    console.error('[processMdx] FULL ERROR:', e);
+    console.error('[processMdx] stack:', e?.stack);
+    console.error('[processMdx] cause:', e?.cause);
+    console.error('[processMdx] markdown preview:', markdown.slice(0, 200));
     throw new Error(
       `MDX compilation error: ${err instanceof Error ? err.message : String(err)}\nError occurred when processing: ${markdown}`
     );

@@ -1,15 +1,26 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import bcrypt from 'bcrypt';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate } from '@middleware/auth';
 import { authLimiter } from '@middleware/rateLimit';
 import * as authService from '@services/auth';
 import * as userService from '@services/users';
+import * as auditService from '@services/audit';
 import { config } from '@lib/env';
 import { db, schema } from '@db/index';
 import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
+
+// Precomputed dummy bcrypt hash, run on every failed login when the user
+// doesn't exist. Without this, the absence of a bcrypt round on the
+// missing-user branch is a measurable timing oracle for enumeration. Cost
+// matches production registrations (services/auth.ts SALT_ROUNDS = 12).
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+  'login-enumeration-defense-placeholder',
+  12
+);
 
 const registerSchema = z.object({
   username: z
@@ -42,18 +53,27 @@ router.post(
 
       const { username, password, email } = parsed.data;
 
+      // Username enumeration is acceptable here: usernames are publicly listed
+      // on profile pages (/profile/[username]) and on comment authorship, so
+      // hiding the conflict on /register would not actually hide membership.
       if (!(await userService.isUsernameAvailable(username))) {
         res.status(409).json({ error: 'Username already taken' });
         return;
       }
 
+      // Email is NOT publicly enumerable, so don't leak it. Without a real
+      // email-confirmation flow we can't do the full Mozilla send-on-conflict
+      // pattern; the next-best defence is to refuse with a generic message
+      // that does not distinguish "email in use" from any other server-side
+      // rejection. TODO: when an email sender is wired up, switch to 202 +
+      // queued conflict email and identical response to the success path.
       if (email) {
         const existingEmail = await db.query.users.findFirst({
           where: eq(schema.users.email, email)
         });
         if (existingEmail) {
           res.status(409).json({
-            error: 'Email already registered'
+            error: 'Registration cannot be completed with the provided details.'
           });
           return;
         }
@@ -77,6 +97,17 @@ router.post(
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
+
+      // I4: forensic trail for auth events. adminId on the audit row is
+      // overloaded to mean "actor" — column rename is out of scope here.
+      await auditService.logAuditAction(
+        user.id,
+        'auth.register',
+        'user',
+        user.id,
+        { username: user.username, hadEmail: !!email },
+        req.ip
+      );
 
       res.status(201).json({
         user: { id: user.id, username: user.username }
@@ -102,13 +133,13 @@ router.post('/login', authLimiter, async (req: AuthenticatedRequest, res) => {
     const { username, password } = parsed.data;
     const user = await userService.findUserByUsername(username);
 
-    if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    const valid = await authService.verifyPassword(password, user.passwordHash);
-    if (!valid) {
+    // Always run bcrypt.compare — against the real hash if the user exists,
+    // against a precomputed dummy otherwise. This removes the timing oracle
+    // (no-bcrypt-on-missing-user → ~100 ms faster response) that lets an
+    // attacker enumerate registered usernames without ever guessing a password.
+    const hashToCheck = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+    const valid = await bcrypt.compare(password, hashToCheck);
+    if (!user || !valid) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -126,6 +157,15 @@ router.post('/login', authLimiter, async (req: AuthenticatedRequest, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+    await auditService.logAuditAction(
+      user.id,
+      'auth.login',
+      'session',
+      session.id,
+      undefined,
+      req.ip
+    );
+
     res.json({ user: { id: user.id, username: user.username } });
   } catch (error) {
     console.error('Login error:', error);
@@ -133,22 +173,38 @@ router.post('/login', authLimiter, async (req: AuthenticatedRequest, res) => {
   }
 });
 
-router.post(
-  '/logout',
-  authenticate(),
-  async (req: AuthenticatedRequest, res) => {
-    try {
-      if (req.sessionId) {
-        await authService.revokeSession(req.sessionId);
+// I12: logout MUST be idempotent from the client's perspective. Don't gate
+// on a live session — an already-expired cookie should still clear cleanly
+// (otherwise a perfectly reasonable client action surfaces an error).
+router.post('/logout', async (req: AuthenticatedRequest, res) => {
+  try {
+    const token = req.cookies?.sessionId;
+    if (token) {
+      const tokenHash = authService.hashSessionToken(token);
+      const session = await db.query.sessions.findFirst({
+        where: eq(schema.sessions.tokenHash, tokenHash)
+      });
+      if (session) {
+        await authService.revokeSession(session.id);
+        await auditService.logAuditAction(
+          session.userId,
+          'auth.logout',
+          'session',
+          session.id,
+          undefined,
+          req.ip
+        );
       }
-      res.clearCookie('sessionId');
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Logout error:', error);
-      res.status(500).json({ error: 'Internal server error' });
     }
+    res.clearCookie('sessionId');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Even on internal error, the cookie still gets cleared client-side.
+    res.clearCookie('sessionId');
+    res.json({ success: true });
   }
-);
+});
 
 router.get('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
   try {

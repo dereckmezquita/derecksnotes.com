@@ -1,7 +1,8 @@
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '@/types';
 import { db, schema } from '@db/index';
-import { eq, and, gt, isNull } from 'drizzle-orm';
+import { eq, and, gt, isNull, desc } from 'drizzle-orm';
+import { hashSessionToken } from '@services/auth';
 
 export function authenticate() {
   return async (
@@ -15,9 +16,10 @@ export function authenticate() {
       return;
     }
 
+    const tokenHash = hashSessionToken(token);
     const session = await db.query.sessions.findFirst({
       where: and(
-        eq(schema.sessions.token, token),
+        eq(schema.sessions.tokenHash, tokenHash),
         gt(schema.sessions.expiresAt, new Date().toISOString())
       ),
       with: { user: true }
@@ -35,17 +37,30 @@ export function authenticate() {
       return;
     }
 
-    // Check ban status
+    // Check ban status. Order by createdAt desc so any "active ban" query
+    // elsewhere consistently sees the newest first (I15 also addresses this
+    // by writing liftedAt when an expired ban is observed).
     const activeBan = await db.query.userBans.findFirst({
       where: and(
         eq(schema.userBans.userId, session.user.id),
         isNull(schema.userBans.liftedAt)
-      )
+      ),
+      orderBy: [desc(schema.userBans.createdAt)]
     });
 
     if (activeBan) {
       if (activeBan.expiresAt && new Date(activeBan.expiresAt) < new Date()) {
-        // Ban expired — ignore
+        // I15: mark expired bans as lifted in the DB the first time we see
+        // them so future "has active ban" queries stop returning them. Best
+        // effort — if the update fails we still allow the request through.
+        try {
+          await db
+            .update(schema.userBans)
+            .set({ liftedAt: new Date().toISOString() })
+            .where(eq(schema.userBans.id, activeBan.id));
+        } catch (err) {
+          console.error('[auth] failed to mark expired ban as lifted:', err);
+        }
       } else {
         res.clearCookie('sessionId');
         res.status(403).json({
@@ -96,9 +111,10 @@ export function optionalAuth() {
       return;
     }
 
+    const tokenHash = hashSessionToken(token);
     const session = await db.query.sessions.findFirst({
       where: and(
-        eq(schema.sessions.token, token),
+        eq(schema.sessions.tokenHash, tokenHash),
         gt(schema.sessions.expiresAt, new Date().toISOString())
       ),
       with: { user: true }

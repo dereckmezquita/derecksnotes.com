@@ -1,26 +1,26 @@
 import path from 'path';
-import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
+import { ENV_CONFIG, type AppEnv } from '@derecksnotes/shared';
 
-const VALID_BUILD_ENVS = ['local', 'dev', 'prod'] as const;
+const VALID_APP_ENVS = ['local', 'dev', 'prod'] as const;
 
-function resolveBuildEnv(): BuildEnv {
-  const raw = process.env.BUILD_ENV;
+function resolveAppEnv(): AppEnv {
+  const raw = process.env.APP_ENV;
   if (raw === undefined) {
     // Default to 'local' only when truly unset. Make it explicit and noisy.
     console.warn(
-      "[env] BUILD_ENV is not set; defaulting to 'local'. Set BUILD_ENV=local|dev|prod explicitly for non-dev environments."
+      "[env] APP_ENV is not set; defaulting to 'local'. Set APP_ENV=local|dev|prod explicitly for non-dev environments."
     );
     return 'local';
   }
-  if (!(VALID_BUILD_ENVS as readonly string[]).includes(raw)) {
+  if (!(VALID_APP_ENVS as readonly string[]).includes(raw)) {
     throw new Error(
-      `[env] Invalid BUILD_ENV='${raw}'. Must be one of: ${VALID_BUILD_ENVS.join(', ')}`
+      `[env] Invalid APP_ENV='${raw}'. Must be one of: ${VALID_APP_ENVS.join(', ')}`
     );
   }
-  return raw as BuildEnv;
+  return raw as AppEnv;
 }
 
-const BUILD_ENV = resolveBuildEnv();
+const APP_ENV = resolveAppEnv();
 const SERVER_DIR = path.resolve(import.meta.dir, '../..');
 
 const SERVER_CONFIG = {
@@ -38,12 +38,12 @@ const SERVER_CONFIG = {
   }
 } as const;
 
-const derived = ENV_CONFIG[BUILD_ENV];
-const serverDerived = SERVER_CONFIG[BUILD_ENV];
+const derived = ENV_CONFIG[APP_ENV];
+const serverDerived = SERVER_CONFIG[APP_ENV];
 
 export const config = {
-  buildEnv: BUILD_ENV,
-  isProduction: BUILD_ENV === 'prod',
+  appEnv: APP_ENV,
+  isProduction: APP_ENV === 'prod',
   port: parseInt(process.env.PORT || '3001', 10),
   domain: derived.domain,
   baseUrl: derived.baseUrl,
@@ -56,10 +56,22 @@ export const config = {
 
 // Invariant: production must always emit Secure cookies. Refuse to start
 // the process in an inconsistent state (e.g., production deploy with
-// BUILD_ENV accidentally set to 'local').
+// APP_ENV accidentally set to 'local').
 if (config.isProduction && !config.secureCookies) {
   throw new Error(
     '[env] Inconsistent configuration: isProduction=true but secureCookies=false. Refusing to start.'
+  );
+}
+
+// Loud warning if a non-local deploy has no ADMIN_USERNAME — a fresh DB will
+// have zero admins, locking the dashboard. The bootstrap is implemented in
+// services/users.ts: a registration with username === ADMIN_USERNAME is
+// auto-elevated to the admin group. Warn only — don't refuse to start, since
+// existing prod databases may already have an admin and the env var is no
+// longer needed there.
+if (APP_ENV !== 'local' && !process.env.ADMIN_USERNAME) {
+  console.warn(
+    `[env] ADMIN_USERNAME is not set on APP_ENV=${APP_ENV}. A fresh database will have no admin until the env var is set and the matching user registers.`
   );
 }
 
@@ -70,7 +82,7 @@ export const secrets = {
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
-    if (BUILD_ENV === 'local') {
+    if (APP_ENV === 'local') {
       console.warn(
         `Warning: Missing ${name} — using placeholder for local dev`
       );

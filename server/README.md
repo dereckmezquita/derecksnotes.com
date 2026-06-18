@@ -61,7 +61,7 @@ bun run db:studio    # Browse database
 ```env
 SESSION_SECRET=your-secret-key
 ADMIN_USERNAME=your_admin_username
-BUILD_ENV=local  # local | dev | prod
+APP_ENV=local  # local | dev | prod
 ```
 
 ## Permission Groups

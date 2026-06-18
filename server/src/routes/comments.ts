@@ -9,8 +9,36 @@ import {
   editLimiter
 } from '@middleware/rateLimit';
 import * as commentService from '@services/comments';
+import {
+  CommentValidationError,
+  CommentNotFoundError,
+  CommentAuthError
+} from '@services/comments';
 import * as postService from '@services/posts';
 import * as authService from '@services/auth';
+
+// Map typed service-layer errors to HTTP status codes. Replaces the
+// fragile stack-string heuristic (I21).
+function mapCommentError(
+  error: unknown,
+  res: import('express').Response,
+  context: string
+): void {
+  if (error instanceof CommentValidationError) {
+    res.status(400).json({ error: error.message });
+    return;
+  }
+  if (error instanceof CommentNotFoundError) {
+    res.status(404).json({ error: error.message });
+    return;
+  }
+  if (error instanceof CommentAuthError) {
+    res.status(403).json({ error: error.message });
+    return;
+  }
+  console.error(`${context} error:`, error);
+  res.status(500).json({ error: 'Internal server error' });
+}
 
 const router = Router();
 
@@ -118,13 +146,8 @@ router.post(
         type: 'comment',
         data: { commentId, postId, approved: autoApprove }
       });
-    } catch (error: any) {
-      if (error.message && !error.stack?.includes('at')) {
-        res.status(400).json({ error: error.message });
-      } else {
-        console.error('Create comment error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    } catch (error) {
+      mapCommentError(error, res, 'Create comment');
     }
   }
 );
@@ -160,13 +183,8 @@ router.patch(
         parsed.data.content
       );
       res.json({ success: true });
-    } catch (error: any) {
-      if (error.message && !error.stack?.includes('at')) {
-        res.status(400).json({ error: error.message });
-      } else {
-        console.error('Edit comment error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    } catch (error) {
+      mapCommentError(error, res, 'Edit comment');
     }
   }
 );
@@ -186,32 +204,50 @@ router.delete(
 
       await commentService.softDeleteComment(idParsed.data, req.user!.id);
       res.json({ success: true });
-    } catch (error: any) {
-      if (error.message && !error.stack?.includes('at')) {
-        res.status(400).json({ error: error.message });
-      } else {
-        console.error('Delete comment error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    } catch (error) {
+      mapCommentError(error, res, 'Delete comment');
     }
   }
 );
 
-router.get('/:id/history', async (req: AuthenticatedRequest, res) => {
-  try {
-    const idParsed = uuidParamSchema.safeParse(req.params.id);
-    if (!idParsed.success) {
-      res.status(400).json({ error: 'Invalid comment ID format' });
-      return;
-    }
+// Comment edit history exposes prior revisions including deleted / unapproved
+// content, so it must NOT be public. Authenticated callers see history only
+// for their own comments, or for any comment when they hold the
+// 'comment.view.unapproved' permission (moderators / admins).
+router.get(
+  '/:id/history',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const idParsed = uuidParamSchema.safeParse(req.params.id);
+      if (!idParsed.success) {
+        res.status(400).json({ error: 'Invalid comment ID format' });
+        return;
+      }
 
-    const history = await commentService.getCommentHistory(idParsed.data);
-    res.json(history);
-  } catch (error) {
-    console.error('Get comment history error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+      const isModerator =
+        req.permissions?.has('comment.view.unapproved') ?? false;
+      const history = await commentService.getCommentHistory(
+        idParsed.data,
+        req.user!.id,
+        isModerator
+      );
+
+      // getCommentHistory returns null when the caller is neither the author
+      // nor a moderator — translate to 403 here so the service layer stays
+      // pure data access.
+      if (history === null) {
+        res.status(403).json({ error: 'Not authorized to view this history' });
+        return;
+      }
+
+      res.json(history);
+    } catch (error) {
+      console.error('Get comment history error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
-});
+);
 
 router.get(
   '/:id/replies',

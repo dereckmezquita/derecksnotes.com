@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, requirePermission } from '@middleware/auth';
 import { graphLimiter } from '@middleware/rateLimit';
@@ -9,6 +10,12 @@ import {
   buildGraphIndex,
   isGraphReady
 } from '@services/graph';
+
+// SSE connection caps. Long-lived connections aren't a fit for express-rate-limit
+// (which counts requests); track open EventSource connections per user + per IP
+// in-process. Values match the security-fix-research-spike doc.
+const SSE_MAX_PER_USER = 3;
+const SSE_MAX_PER_IP = 10;
 
 const router = Router();
 
@@ -119,11 +126,25 @@ router.post(
 // SSE: Live updates for the graph
 // ============================================================================
 
-// Store active SSE connections
+// Store active SSE connections. Track user and IP for cap enforcement.
 const sseClients = new Set<{
   res: import('express').Response;
   id: string;
+  userId: string;
+  ip: string;
 }>();
+
+function countByUser(userId: string): number {
+  let n = 0;
+  for (const c of sseClients) if (c.userId === userId) n++;
+  return n;
+}
+
+function countByIp(ip: string): number {
+  let n = 0;
+  for (const c of sseClients) if (c.ip === ip) n++;
+  return n;
+}
 
 export function notifyGraphClients(event: {
   type: 'comment' | 'reaction' | 'new-post';
@@ -141,7 +162,24 @@ export function notifyGraphClients(event: {
 }
 
 // GET /api/v1/graph/live — SSE endpoint for real-time updates
-router.get('/live', (req, res) => {
+// Authenticated, with per-user and per-IP connection caps to prevent fd exhaustion.
+router.get('/live', authenticate(), (req: AuthenticatedRequest, res) => {
+  const userId = req.user!.id;
+  const ip = req.ip || 'unknown';
+
+  if (countByUser(userId) >= SSE_MAX_PER_USER) {
+    res.status(429).json({
+      error: `Too many open live connections (max ${SSE_MAX_PER_USER} per user)`
+    });
+    return;
+  }
+  if (countByIp(ip) >= SSE_MAX_PER_IP) {
+    res.status(429).json({
+      error: `Too many open live connections (max ${SSE_MAX_PER_IP} per IP)`
+    });
+    return;
+  }
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -152,10 +190,10 @@ router.get('/live', (req, res) => {
   // Send initial keepalive
   res.write(': connected\n\n');
 
-  const client = { res, id: crypto.randomUUID() };
+  const client = { res, id: randomUUID(), userId, ip };
   sseClients.add(client);
 
-  // Keepalive every 30 seconds
+  // Keepalive every 25 seconds (under common 30s proxy idle timeouts)
   const keepalive = setInterval(() => {
     try {
       res.write(': keepalive\n\n');
@@ -163,13 +201,15 @@ router.get('/live', (req, res) => {
       clearInterval(keepalive);
       sseClients.delete(client);
     }
-  }, 30000);
+  }, 25000);
 
-  // Cleanup on close
-  req.on('close', () => {
+  const cleanup = () => {
     clearInterval(keepalive);
     sseClients.delete(client);
-  });
+  };
+  req.on('close', cleanup);
+  req.on('error', cleanup);
+  res.on('error', cleanup);
 });
 
 export default router;
