@@ -1,18 +1,12 @@
 ---
-letter: 's'
-word: 'surjection'
-dictionary: 'mathematics'
-category: 'functions'
-dataSource: 'assistant'
+letter: s
+dictionary: mathematics
+category: functions
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['injection','bijection']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="surjection">Surjection</a> - In **functions** (set theory), a **surjection** (or onto function) is a function $f: A \to B$ such that every element in $B$ has at least one preimage in $A$. Formally:
@@ -39,6 +33,7 @@ f_surjective <- function(n) letters[n]
 
 dt_map <- data.table(a = A, f_of_a = sapply(A, f_surjective))
 dt_map
+# This is surjective over B=letters[1:5], as all letters a through e appear.
 ```
 
 ```
@@ -49,8 +44,4 @@ dt_map
 ## 3:     3      c
 ## 4:     4      d
 ## 5:     5      e
-```
-
-``` r
-# This is surjective over B=letters[1:5], as all letters a through e appear.
 ```

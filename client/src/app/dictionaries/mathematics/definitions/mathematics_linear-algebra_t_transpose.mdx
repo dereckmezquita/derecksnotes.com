@@ -1,19 +1,12 @@
 ---
-letter: 't'
-word: 'transpose'
-dictionary: 'mathematics'
-category: 'linear-algebra'
-dataSource: 'assistant'
+letter: t
+dictionary: mathematics
+category: linear-algebra
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: ['matrix','orthogonal']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="transpose">Transpose</a> - In **linear algebra**, the **transpose** of a [matrix](#matrix) $A\in\mathbb{R}^{m\times n}$ is the $n\times m$ matrix $A^T$ obtained by switching rows and columns. That is, $A^T_{ij} = A_{ji}$. 
@@ -31,19 +24,13 @@ library(data.table)
 A <- matrix(1:6, nrow=2, byrow=TRUE)
 A_t <- t(A)
 A
+A_t
 ```
 
 ```
 ##      [,1] [,2] [,3]
 ## [1,]    1    2    3
 ## [2,]    4    5    6
-```
-
-``` r
-A_t
-```
-
-```
 ##      [,1] [,2]
 ## [1,]    1    4
 ## [2,]    2    5

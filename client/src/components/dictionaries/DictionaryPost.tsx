@@ -41,7 +41,7 @@ export function DictionaryPost({
   const pathname = usePathname();
 
   const slug = pathname.startsWith('/') ? pathname.substring(1) : pathname;
-  const title = frontmatter.word;
+  const title = frontmatter.displayName;
 
   usePageView({
     slug,

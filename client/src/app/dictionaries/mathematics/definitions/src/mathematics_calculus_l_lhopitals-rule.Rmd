@@ -1,38 +1,13 @@
 ---
-letter: 'l'
-word: 'lhopitals-rule'
-dictionary: 'mathematics'
-category: 'calculus'
-dataSource: 'assistant'
+letter: l
+dictionary: mathematics
+category: calculus
+dataSource: assistant
 published: true
 comments: true
-
-# We reference "derivative" and "limit" in the definition, so let's add them.
-linksTo: ['derivative','limit']
-linkedFrom: []
-
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) {
-  knitr::knit_hooks$set(
-    plot = function(x, options) {
-      cap <- options$fig.cap
-      as.character(
-        htmltools::tag(
-          "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
-        )
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
-```
 
 <a id="lhopitals-rule">L'Hôpital's Rule</a> - In **calculus**, **L'Hôpital's rule** is a result for evaluating certain indeterminate forms of [limit](#limit) expressions. If
 
@@ -50,7 +25,7 @@ provided the latter limit exists. It relies on the concept of the [derivative](#
 
 **Simple R demonstration** (symbolic approach would be used in a CAS, but we can do numeric checks):
 
-```{r}
+```{r lhopitals-rule-demo}
 library(data.table)
 
 f <- function(x) x^2 - 1

@@ -105,6 +105,14 @@ export function SideBarAbout(): ReactElement {
           github.com/dereckmezquita/derecksnotes.com
         </Link>
       </p>
+      <SideBarAboutH2>Knowledge Graph</SideBarAboutH2>
+      <p>
+        See every post, definition, and reference on the site rendered as one
+        interconnected network of ideas.{' '}
+        <Link href="/explore" scroll={false}>
+          Visit it &rarr;
+        </Link>
+      </p>
     </SideBarAboutContainer>
   );
 }

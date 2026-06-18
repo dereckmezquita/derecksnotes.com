@@ -1,34 +1,13 @@
 ---
-letter: 'k'
-word: 'knn'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: k
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: ['distance','classification','regression']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(
-    plot=function(x, options){
-      cap<-options$fig.cap
-      as.character(htmltools::tag("Figure",
-        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
-      ))
-    }
-  )
-}
-knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
-```
 
 <a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point $x_{new}$ by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
 
@@ -40,7 +19,7 @@ where $ \mathcal{N}_k(x_{new}) $ is the set of k nearest neighbors under a chose
 
 **R demonstration** (using `class::knn` for classification):
 
-```{r}
+```{r knn-demo, fig.cap="K-nearest neighbours classification regions on two-class synthetic data"}
 library(class)
 library(data.table)
 library(ggplot2)

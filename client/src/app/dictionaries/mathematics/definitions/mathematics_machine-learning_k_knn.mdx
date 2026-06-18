@@ -1,19 +1,12 @@
 ---
-letter: 'k'
-word: 'knn'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: k
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-
-linksTo: ['distance','classification','regression']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point $x_{new}$ by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
@@ -29,6 +22,20 @@ where $ \mathcal{N}_k(x_{new}) $ is the set of k nearest neighbors under a chose
 
 ``` r
 library(class)
+```
+
+```
+## 
+## Attaching package: 'class'
+```
+
+```
+## The following object is masked from 'package:igraph':
+## 
+##     knn
+```
+
+``` r
 library(data.table)
 library(ggplot2)
 
@@ -54,13 +61,7 @@ pred_knn <- knn(train_x, test_x, cl=train_y, k=3)
 
 accuracy <- mean(pred_knn == true_y)
 accuracy
-```
 
-```
-## [1] 0.8333333
-```
-
-``` r
 # Plot classification boundary
 grid_x1 <- seq(0,5, by=0.1)
 grid_x2 <- seq(0,5, by=0.1)
@@ -77,6 +78,10 @@ ggplot() +
   theme_minimal()
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_k_knn_files/unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_k_knn-knn-demo-1.png" alt="K-nearest neighbours classification regions on two-class synthetic data">
+	K-nearest neighbours classification regions on two-class synthetic data
 </Figure>
+
+```
+## [1] 0.8333333
+```

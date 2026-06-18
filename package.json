@@ -1,6 +1,6 @@
 {
   "name": "derecksnotes.com",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "type": "module",
   "workspaces": [
     "client",
@@ -9,6 +9,7 @@
   ],
   "repository": "git@github.com:dereckdemezquita/derecksnotes.com.git",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "dev": "concurrently -n client,server -c blue,green \"bun run --cwd client dev\" \"bun run --cwd server dev\"",
     "build": "bun run --cwd client build",
     "start": "concurrently -n client,server \"bun run --cwd client start\" \"bun run --cwd server start\"",
@@ -42,7 +43,6 @@
     "@types/bun": "^1.1.4",
     "@types/node": "^20.14.2",
     "concurrently": "^9.2.1",
-    "husky": "^9.0.11",
     "prettier": "^3.3.2",
     "typescript": "^5.4.5"
   },

@@ -1,33 +1,13 @@
 ---
-letter: 'o'
-word: 'one-hot-encoding'
-dictionary: 'mathematics'
-category: 'data-science'
-dataSource: 'assistant'
+letter: o
+dictionary: mathematics
+category: data-science
+dataSource: assistant
 published: true
 comments: true
-linksTo: []
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) {
-  knitr::knit_hooks$set(
-    plot = function(x, options) {
-      cap <- options$fig.cap
-      as.character(
-        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
-```
 
 <a id="one-hot-encoding">One-Hot Encoding</a> - In **data science** and **machine learning**, **one-hot encoding** is a method to transform categorical variables into numeric arrays with only one “active” position. For example, a feature “colour” with possible values (red, green, blue) might become:
 
@@ -37,7 +17,7 @@ knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
 
 **R demonstration** (converting a factor to dummy variables):
 
-```{r}
+```{r one-hot-encoding-demo, fig.cap="One-hot encoded matrix for categorical colour data"}
 library(data.table)
 library(ggplot2)
 

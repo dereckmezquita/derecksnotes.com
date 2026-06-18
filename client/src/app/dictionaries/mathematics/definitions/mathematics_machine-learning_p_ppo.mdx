@@ -1,18 +1,12 @@
 ---
-letter: 'p'
-word: 'ppo'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: p
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['reinforcement-learning','markov-chain','policy-gradient']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="ppo">PPO (Proximal Policy Optimization)</a> - An advanced **reinforcement learning** algorithm by OpenAI, improving **policy gradient** methods by controlling how far the new policy can deviate from the old policy. The objective uses a **clipped** surrogate function:
@@ -36,13 +30,7 @@ where:
 library(data.table)
 set.seed(123)
 cat("Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:")
-```
 
-```
-## Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:
-```
-
-``` r
 ppo_update_step <- function(log_prob_old, log_prob_new, advantage, epsilon=0.2) {
   ratio <- exp(log_prob_new - log_prob_old)
   unclipped <- ratio * advantage
@@ -59,5 +47,5 @@ ppo_update_step(log_prob_old, log_prob_new, advantage, 0.2)
 ```
 
 ```
-## [1] 0.7827393
+## Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:[1] 0.7827393
 ```

@@ -1,44 +1,13 @@
 ---
-letter: 'j'
-word: 'jacobian'
-dictionary: 'mathematics'
-category: 'calculus'
-dataSource: 'assistant'
+letter: j
+dictionary: mathematics
+category: calculus
+dataSource: assistant
 published: true
 comments: true
-
-# Suppose we reference "gradient" in the definition,
-# so we add it to linksTo.
-linksTo: ['gradient']
-linkedFrom: []
-
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) {
-  knitr::knit_hooks$set(
-    plot = function(x, options) {
-      cap <- options$fig.cap
-      as.character(
-        htmltools::tag(
-          "Figure",
-          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-        )
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(
-  dpi=300,
-  fig.width=10,
-  fig.height=7
-)
-```
 
 <a id="jacobian">Jacobian</a> - In multivariable calculus, the **Jacobian** of a vector function 
 $$ \mathbf{f}(x_1, \dots, x_n) = (f_1, f_2, \dots, f_m) $$  
@@ -57,7 +26,7 @@ $$
 
 **R demonstration** (numerical approximation of a Jacobian):
 
-```{r}
+```{r jacobian-demo}
 library(data.table)
 
 f_xy <- function(x, y) c(x^2 + 3*y, 2*x + y^2)

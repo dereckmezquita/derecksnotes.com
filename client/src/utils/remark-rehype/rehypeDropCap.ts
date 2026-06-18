@@ -41,7 +41,12 @@ export default function rehypeDropCap(config?: DropCapConfig) {
     if (firstParagraphNode) {
       const firstChild = (firstParagraphNode as any).children[0];
       if (firstChild && firstChild.type === 'text') {
-        const value = firstChild.value.trim();
+        // Strip only LEADING whitespace; trailing whitespace must be preserved
+        // or the space before a following link in the same paragraph gets eaten.
+        const value: string = firstChild.value;
+        const firstCharIndex = value.search(/\S/);
+        if (firstCharIndex === -1) return;
+        const dropCapChar = value[firstCharIndex];
 
         // Step 5: Create dropCapSpan
         const dropCapSpan = {
@@ -61,13 +66,14 @@ export default function rehypeDropCap(config?: DropCapConfig) {
           children: [
             {
               type: 'text',
-              value: value[0]
+              value: dropCapChar
             }
           ]
         };
 
-        // Step 6: Modify firstParagraphNode
-        firstChild.value = value.slice(1);
+        // Step 6: Modify firstParagraphNode — keep everything after the dropcap char,
+        // including any trailing whitespace that precedes inline links.
+        firstChild.value = value.slice(firstCharIndex + 1);
         (firstParagraphNode as any).children.unshift(dropCapSpan);
       }
     }

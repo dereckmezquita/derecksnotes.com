@@ -1,18 +1,12 @@
 ---
 letter: 'n'
-word: 'naive-bayes'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['bayes-theorem','distribution']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="naive-bayes">Naive Bayes</a> - In **machine learning**, **Naive Bayes** is a probabilistic classifier applying [Bayes' theorem](#bayes-theorem) with a “naive” (independence) assumption among features given the class. For a class $C_k$ and features $x_1,\dots,x_n$:
@@ -30,6 +24,30 @@ $$
 
 ``` r
 library(e1071)
+```
+
+```
+## Warning: package 'e1071' was built under R version 4.5.2
+```
+
+```
+## 
+## Attaching package: 'e1071'
+```
+
+```
+## The following object is masked from 'package:brms':
+## 
+##     rwiener
+```
+
+```
+## The following object is masked from 'package:ggplot2':
+## 
+##     element
+```
+
+``` r
 library(data.table)
 library(ggplot2)
 
@@ -47,7 +65,25 @@ dt_nb <- rbind(cl1, cl2)
 
 fit_nb <- naiveBayes(y ~ x1 + x2, data=dt_nb)
 fit_nb
+
+# Predict
+grid_x1 <- seq(-5,5, by=0.2)
+grid_x2 <- seq(-5,5, by=0.2)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+grid_data[, pred := predict(fit_nb, newdata=.SD)]
+
+ggplot() +
+  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
+  geom_point(data=dt_nb, aes(x=x1, y=x2, color=y), size=2) +
+  scale_fill_manual(values=c("Class1"="lightblue","Class2"="salmon")) +
+  scale_color_manual(values=c("Class1"="blue","Class2"="red")) +
+  labs(title="Naive Bayes Classification", x="x1", y="x2") +
+  theme_minimal()
 ```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_n_naive-bayes-naive-bayes-demo-1.png" alt="Naive Bayes classification boundaries on two-dimensional Gaussian data">
+	Naive Bayes classification boundaries on two-dimensional Gaussian data
+</Figure>
 
 ```
 ## 
@@ -72,23 +108,3 @@ fit_nb
 ##   Class1 -1.107547 0.9669866
 ##   Class2  1.963777 1.0387812
 ```
-
-``` r
-# Predict
-grid_x1 <- seq(-5,5, by=0.2)
-grid_x2 <- seq(-5,5, by=0.2)
-grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
-grid_data[, pred := predict(fit_nb, newdata=.SD)]
-
-ggplot() +
-  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
-  geom_point(data=dt_nb, aes(x=x1, y=x2, color=y), size=2) +
-  scale_fill_manual(values=c("Class1"="lightblue","Class2"="salmon")) +
-  scale_color_manual(values=c("Class1"="blue","Class2"="red")) +
-  labs(title="Naive Bayes Classification", x="x1", y="x2") +
-  theme_minimal()
-```
-
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_n_naive-bayes_files/unnamed-chunk-1-1.png">
-	
-</Figure>

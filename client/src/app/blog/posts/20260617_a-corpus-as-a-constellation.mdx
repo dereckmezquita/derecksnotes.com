@@ -1,0 +1,129 @@
+---
+title: "A Corpus as a Constellation"
+blurb: Moths recite the spreadsheet.
+coverImage: 142
+author: Dereck Mezquita
+date: 2026-06-17T00:00:00.000Z
+tags:
+  - nlp
+  - graph
+  - visualisation
+  - webgl
+  - tf-idf
+  - knowledge-graph
+published: true
+comments: true
+category: programming
+---
+
+## Table of contents
+
+I have been writing into this site as a lab notebook for years. The [Knowledge Graph](/explore) is what the notebook looks like once drawn. The graph contains 12,336 nodes and 19,648 edges; union-find on the edge list found 465 communities. It is best read with the canvas open and a node already pulled up.
+
+<KnowledgeGraphEmbed />
+
+The corpus is a tree of MDX files: blog posts, references, course chapters, and dictionary entries split across biology, chemistry, and mathematics. The builder walks the tree, parses frontmatter with grey-matter, converts MDX bodies to plain text, and decomposes each file into a small hierarchy.
+
+## What is a node
+
+A node is not a single thing; it is whatever a piece of writing turns out to be made of upon inspection.
+
+- **Depth 0**: the page itself, one node per file
+- **Depth 1**: headings (`##`, `###`) extracted by regex, attached to the parent page with a heading edge of weight 50
+- **Depth 2**: key terms produced by the NLP pipeline, attached to the parent with weight proportional to frequency
+- **External URLs**: deduplicated by URL, weight 10
+- **Internal `[text](/path)` links**: resolved page-to-page edges, weight 30
+- **Tags**: a quiet secondary structure used for topical clustering
+
+Note the weight hierarchy. Heading-to-page edges are the heaviest because they are scaffolding: mechanical, unambiguous, not a semantic claim. Explicit page-to-page links carry the highest semantic confidence per unit weight; I authored them deliberately. Everything inferred sits below.
+
+## The NLP pipeline
+
+Key-term extraction is the most consequential stage in the pipeline. Get it wrong and every downstream similarity edge inherits the error.
+
+- **Tokenisation**. Plain text is passed to `natural.WordTokenizer`, which splits on whitespace and punctuation and lowercases the result; plain.
+- **Stopword filtering**. Two stopword sets: the standard `natural` list, plus a custom list of programming noise (`function`, `const`, `return`, and so on, because much of my writing carries code). Without this, it seems that every page would be "about" the most common function words.
+- **Stemming, in theory**. The Porter stemmer is imported at the top of `server/src/services/graph.ts` and never called by `extractKeyTerms`. The pipeline currently ships with the stemmer un-wired. *Photosynthesis* and *photosynthetic* are treated as two different tokens. I am leaving the import there as a reminder. Note that the next section would be shorter had I wired it in.
+- **Frequency counting**. Count token occurrences, drop hapax legomena (one mention is more often noise than signal), keep the rest.
+- **N-grams**. Add bigrams longer than six characters and trigrams longer than ten. *Partial pressure* is a bigram; *gibbs free energy* is a trigram. It seems a unigram-only model could not tell that two pages were both about thermodynamics. It would only see that they both mentioned *free*.
+- **Top thirty**. The thirty highest-frequency terms per page become depth-2 key-term nodes.
+
+## TF-IDF and cosine similarity
+
+We now have a per-page bag of tokens. The question is how related two such bags are.
+
+Naïve overlap fails because common words dominate. We want shared rare words to count for more than shared common ones. **TF-IDF** does exactly that: term frequency `tf(t, d)` weights local importance; inverse document frequency `idf(t) = log(N / df(t))` weights global rarity. Their product is each term's coordinate in a high-dimensional vector. Two pages that share rare terms point in nearly the same direction; two pages that share only `the` and `of` point nowhere in particular.
+
+The pipeline uses `natural.TfIdf` to build a vector per page, then compares pairs with cosine similarity:
+
+```
+for each page i:
+    for each page j > i:
+        sim = dot(normalise(tfidf[i]), normalise(tfidf[j]))
+        if sim >= 0.15:
+            edge(i, j, type='nlp-similarity', weight=round(sim * 100))
+```
+
+The threshold `0.15` is the single most consequential parameter in the pipeline; there is no principled way to choose it. Set it high and the graph fragments into islands. Set it low and every page connects to every other through accidental overlap; the result is a hairball. I tuned it empirically by redrawing the graph and stopping where the communities looked like communities. It seems the real answer to "why 0.15" is that the graph looks right at 0.15; I have no better justification.
+
+## Communities by union-find
+
+Most reach for Louvain or Leiden when they hear "community detection". It seems to me that union find serves better here, for the following reason. The pipeline runs a **union-find** over the edge list and assigns each connected component a community ID.
+
+- Start with every node in its own set
+- For each edge `(u, v)`, merge `find(u)` with `find(v)` using path compression and union by rank
+- After processing all edges, every node is in a set with the nodes it is transitively connected to by any path through any edge type
+- 465 communities fall out
+
+This is a deliberate choice. Modularity methods assume you want to *partition* a connected graph. My graph is not fully connected; the corpus has genuine islands, sections of writing that never reference each other and share no vocabulary. I want to see where those islands are, not force the algorithm to invent boundaries within them. Union-find is also O(α(n)) per operation, which is effectively free; Louvain on twelve thousand nodes is not.
+
+What falls out is one large main island holding most of the cross-disciplinary writing, plus a quiet archipelago of small components: a mathematics cluster that references only itself, a few biology pages I have not linked anywhere, references cited once and forgotten. The archipelago is itself the useful signal; it tells me where my writing has become inbred.
+
+## Drawing twelve thousand nodes
+
+A JSON blob is useful but inert; it seems one only sees the structure once it is drawn. The renderer behind /explore puts 12,336 nodes on screen and lets one drag them at 60 fps.
+
+- **Hybrid stack**. WebGL 1.0 for primitives: lines for edges, point sprites with a custom fragment shader for filled circles and ring outlines, batched into pre-allocated `Float32Array`s and flushed through dynamic buffers each frame. Canvas 2D on top for text: labels on the top fifteen highest-degree nodes, section centroids, tooltips, the detail card. Text in WebGL is painful in practice; text in a 2D context is straightforward. It seems the hybrid is worth the seam.
+- **Force model**. Each node carries position, velocity, mass, radius. Each edge is a Hooke spring with `F = -bondStrength × (distance - restLength)` and `restLength = source.radius + target.radius + 15px`. Every node exerts Coulomb repulsion on every other: `F = (repulsionStrength × m1 × m2) / r²`, clamped at `MAX_FORCE = 50` to stop numerical explosions when two nodes drift too close.
+- **Euler integration**. Explicit Euler: add velocity to position each step. Cheaper than Verlet, less stable at large timesteps, perfectly fine here with damping at `0.92` per frame.
+- **Fixed timestep**. `1/60 s` with an accumulator, so the physics is frame-rate independent and reproducible.
+- **Quadtree**. Naïve repulsion is O(n²): 12,336² is ~152 million pairwise forces every 16 ms, which is not feasible. The renderer rebuilds a quadtree each frame (`client/src/lib/physics/QuadTree.ts`) and queries it with `queryRadius` at `MAX_REPULSION_DIST = 300px` (`client/src/lib/graph/GraphSimulation.ts`). Particles outside that radius contribute zero force; particles inside are summed pairwise. The complexity is roughly O(n * k), where k is the average count of neighbours inside the cutoff, not the O(n log n) of true Barnes-Hut, which would require carrying an aggregated centre of mass per quadtree node and an opening criterion; neither is implemented here.
+- **Edge colour by provenance**. Explicit links are dark grey, tag-similarity is blue, NLP-similarity is purple, external links are orange. It is not decoration; it makes visible at a glance whether a cluster is held together by authorial intent or by accidental vocabulary.
+
+## What jumped out of the data
+
+This is a v1 of the NLP pipeline; the analysis is intentionally simple. The edges that follow are real lexical overlaps; the question is whether the overlaps are meaningful, and a token-level pipeline has no way to decide that. The cost of treating language as a bag of tokens is on full display.
+
+The recurring pattern is the **homonym**. A token-level pipeline cannot tell that two pages using the same string mean different things. A few clear cases:
+
+- **Marsupial** (biology) and **Young Tableau** (mathematics), weight 57. Shared term: *young*. The offspring noun and the surname of Alfred Young, the British mathematician, collapsed into the same token by a tokeniser that has no concept of either, and no casing left to disambiguate them.
+- **Anagenesis** (biology) and the **Chain Rule** (calculus), weight 56. Shared term: *change*. Both pages talk about change. They are talking about completely different changes.
+- **Line Spectrum** (chemistry) and the **Number Line** (mathematics), weight 63. Shared term: *line*.
+- **Balmer Series** (chemistry) and **Taylor Series** (mathematics), weight 43. Shared term: *series*. Hydrogen spectral lines on one side, the polynomial expansion of analytic functions on the other; one shared word, and the edge appears.
+- **Gibbs Free Energy** (chemistry) and the **Sharpe Ratio** (finance), weight 18. Shared term: *free*. Thermodynamic free energy on one side, the risk-*free* rate on the other; the shared token is the only thing they have in common.
+
+The most striking case is *partial*. **Dalton's Law**, a chemistry entry on partial pressures, pulled in the entire vector-calculus dictionary: **Gradient**, **Laplacian**, **Divergence**, **Jacobian**, and **Curl**, with edge weights between 47 and 50. *Partial pressure* against *partial derivative*; one shared token dragged a whole neighbourhood into existence. Note that this is exactly the case where bigram extraction *should* have helped; both *partial pressure* and *partial derivative* are bigrams. But Dalton's Law also uses the bare word *partial* in surrounding prose, so the unigram signal leaked through and outvoted the bigrams. Moreover, the un-wired stemmer would not have helped here either; the mismatch is not morphological, it is semantic.
+
+These are not bugs. The algorithm is doing exactly what it was designed to do; the edges are real lexical overlaps. In general, meaning does not appear reducible to vocabulary; perhaps that is the most interesting thing the data shows.
+
+## The almost-right edge
+
+One finding deserves to be pulled out on its own, because it is not a failure.
+
+The blog post **Interesting phylogenetic tree** is connected to the dictionary entry **Decision Tree** with weight 37, on the shared term *tree*. By the rule that produced *Marsupial* ~ *Young Tableau*, this should be another homonym joke. It is not, quite. A phylogeny and a decision tree are different rooted graphs in detail, but they are both branching recursive structures with a partition logic; the abstract resemblance is real. It seems the algorithm picked up the surface of the analogy, not its substance.
+
+It seems that *tree*, unlike *young* or *partial*, is doing genuine structural work in both documents. Indeed the homonym and the analogy are not always cleanly separable; the failures and the near-misses live on the same axis. It seems the graph is an imperfect instrument. It distorts what it shows, but what it shows is real: my writing recycles a small set of words across very different domains. I had not noticed how often I leant upon *line*, *series*, *partial*, *open*, *free* until the graph made it visible.
+
+## What this is for
+
+There is a quieter use I want to name. When I write a new post now, I run it through the pipeline and look at where it lands.
+
+- Connects to nothing: the piece sits in isolation. Either the topic is genuinely new to the corpus, or I have failed to use the vocabulary that would let it find its neighbours.
+- Connects to too much: I have been generic. I have used *system*, *function*, *process* without earning them, and the graph is telling me so.
+- Connects to the right cluster with the right edge colour: the new piece has found its position.
+
+It seems the graph is positional, not evaluative. It cannot tell me whether an argument is good. It can tell me where in my own corpus a new piece lands; in general that has been more useful than I expected.
+
+## Where a v2 might go
+
+This is a v1 pipeline; the point of building it from scratch was to know what each stage of an NLP pipeline actually does on my own writing rather than in the abstract. The improvements I would reach for first are classical, not large-language-model based. Wiring up the imported Porter stemmer would collapse *photosynthesis* and *photosynthetic* into a single token. Part-of-speech tagging would separate *young* the adjective from *Young* the proper noun by syntactic role, and would dissolve the *Marsupial* / *Young Tableau* edge without any semantic understanding required. Named-entity recognition would catch *Alfred Young* and *Sharpe ratio* as proper nouns and demote their components in the term vector. Word-sense disambiguation against WordNet senses would, with effort, separate *partial pressure* from *partial derivative* at the unigram level. Sentence embeddings (sBERT-style) are also a reasonable candidate and would likely do well on the *young marsupial* / *Alfred Young* case; I am wary, however, of reaching for them as a default. A great deal of recent work substitutes embeddings or an LLM for any analysis that would otherwise require thought, and the result is a black box that is expensive to introspect and that trades one set of failure modes for another. I would rather understand the failure first. A v2 of this post will come once some of these are implemented and the two pipelines can be compared side by side.

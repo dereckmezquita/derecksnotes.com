@@ -1,0 +1,56 @@
+---
+letter: e
+dictionary: mathematics
+category: number-theory
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="euclidean-algorithm">Euclidean Algorithm</a> - The **Euclidean algorithm** is a process to find the greatest common divisor (GCD) of two integers. It repeatedly applies the rule:
+
+$$
+\gcd(a, b) = \gcd(b, a \bmod b),
+$$
+
+until the remainder is zero.
+
+**Key points**:
+- Efficiently computes the GCD without factorising the numbers fully.
+- Fundamental in number theory and applications like rational simplification.
+
+**R demonstration** (using built-in gcd from base R):
+
+
+``` r
+library(data.table)
+library(numbers)
+```
+
+```
+## Warning: package 'numbers' was built under R version 4.5.2
+```
+
+``` r
+# Let's pick two integers
+a_val <- 56
+b_val <- 98
+
+gcd_val <- GCD(a_val, b_val)
+gcd_val
+
+# Or define a custom Euclidean function:
+euclid_gcd <- function(a, b) {
+  if (b == 0) return(a)
+  euclid_gcd(b, a %% b)
+}
+euclid_gcd(a_val, b_val)
+```
+
+```
+## [1] 14
+## [1] 14
+```
+

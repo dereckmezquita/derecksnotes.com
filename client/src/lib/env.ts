@@ -1,10 +1,7 @@
 import pkg from '../../../package.json';
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
-const BUILD_ENV =
-  (process.env.NEXT_PUBLIC_BUILD_ENV as BuildEnv) ||
-  (process.env.BUILD_ENV as BuildEnv) ||
-  'local';
+const BUILD_ENV = (process.env.BUILD_ENV as BuildEnv) || 'local';
 
 const derived = ENV_CONFIG[BUILD_ENV];
 

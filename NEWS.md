@@ -1,5 +1,45 @@
 # derecksnotes.com Change Log
 
+## v6.1.0 - Knowledge Graph & Content Rendering Fixes (2026-06)
+
+A WebGL knowledge-graph view of the whole corpus, dictionary UI cleanup, and a batch of MDX rendering fixes.
+
+### New Features
+
+- **Knowledge Graph (`/explore`)**: a force-directed view of every post, definition, and reference on the site. Drag nodes, click to pin, search across the corpus, toggle sections and edge types.
+- **Inline graph embed**: a `<KnowledgeGraphEmbed />` MDX component that drops the same canvas into any blog post, with collapsible controls and a "View full screen" link.
+- **NLP pipeline (server)**: tokenisation, stopword filtering, n-grams (bigrams + trigrams), TF-IDF, cosine similarity, and union-find communities — built with `natural`, persisted in SQLite.
+- **New blog post**: *A Corpus as a Constellation* — a long-form essay on how the graph is built and what the data revealed.
+
+### Cleanup & UX
+
+- **Dictionary sidebar standardisation**: identical layout on listing and entry pages; markdown stripped from tag pills; consistent links to the Knowledge Graph in the About section and footer.
+- **Dev/prod SSG split** for dictionary `[slug]` pages: prebuild only the first 3 slugs in dev (`dynamicParams = true` handles the rest on demand) so dev builds stay fast; full SSG in prod.
+
+### MDX Rendering Fixes
+
+- **Drop cap**: preserves the trailing space of the first text node so a same-paragraph link doesn't lose the space before it (`rehypeDropCap.ts`).
+- **MDX summary extractor**: recurses into inline children so link / emphasis / strong / code text is no longer dropped from card summaries (`extractMdxSummary.ts`), with unit tests.
+- **Math content**: replaced stray placeholder tokens (`'NNNNN'`) that had leaked through the math-protection pass back to `$` / `$$` delimiters across 5 dictionary entries (capm, gradient-boosting, neural-network, normal-distribution, poisson-distribution).
+
+### Server / Graph Builder
+
+- **Heading extractor**: strips fenced code blocks before scanning (R uses `##` as a comment prefix), and dedupes anchors per file — fixes the foreign-key constraint failures that were skipping 12 MDX files from the graph index.
+- **`/explore` page refactor**: extracted the canvas + simulation + render loop into a reusable `KnowledgeGraphCanvas` component (614 → ~177 LOC for the page), reused by both `/explore` and the inline embed.
+- **Hover tooltip**: now clamps to the canvas bounds in all four directions, fixing overflow in the smaller embed.
+
+### Build Tooling
+
+- **Husky → native git hooks**: migrated to `.githooks/` (pre-commit auto-formats with Prettier; commit-msg prefixes the subject with `^[A-Za-z]+-[0-9]+` if the branch matches). The `prepare` script in root `package.json` wires `core.hooksPath` on `bun install` — no more `husky` dep, no `node_modules` magic.
+- **SSL certs**: switched the renewal pipeline on the VPS from manual DNS-01 challenges to the `certbot-dns-linode` plugin so cron renewals are fully automatic.
+
+### Sidebar & Footer
+
+- New **Knowledge Graph** section in the About panel of every sidebar (dictionary listings, dictionary entries, content posts) with a heading + short blurb + link.
+- Footer gained a one-line link to the Knowledge Graph between the copyright and version chip.
+
+---
+
 ## v5.1.0 - Page Analytics & Code Cleanup (2025-01)
 
 Page view tracking, server logs management, and codebase modularisation.

@@ -1,18 +1,12 @@
 ---
-letter: 'o'
-word: 'orthogonal'
-dictionary: 'mathematics'
-category: 'linear-algebra'
-dataSource: 'assistant'
+letter: o
+dictionary: mathematics
+category: linear-algebra
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['matrix']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="orthogonal">Orthogonal</a> - In **linear algebra**, vectors (or subspaces) are **orthogonal** if their dot product is zero. A set of vectors is orthogonal if every pair of distinct vectors in the set is orthogonal. A [matrix](#matrix) is an orthogonal matrix if $Q^T Q = I$.
@@ -31,14 +25,11 @@ Q <- matrix(c(0,1, -1,0), nrow=2, byrow=TRUE)
 # Q^T Q
 test_orth <- t(Q) %*% Q
 test_orth
+# If Q is orthogonal, test_orth should be the 2x2 identity.
 ```
 
 ```
 ##      [,1] [,2]
 ## [1,]    1    0
 ## [2,]    0    1
-```
-
-``` r
-# If Q is orthogonal, test_orth should be the 2x2 identity.
 ```

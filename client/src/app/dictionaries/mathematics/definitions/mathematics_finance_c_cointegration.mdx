@@ -1,0 +1,76 @@
+---
+letter: c
+dictionary: mathematics
+category: finance
+dataSource: assistant
+published: true
+comments: true
+links: []
+---
+
+
+<a id="cointegration">Cointegration</a> - In **time-series** analysis, two (or more) series $X_t, Y_t$ are **cointegrated** if a linear combination $\alpha X_t + \beta Y_t$ is **stationary**, even if $X_t$ and $Y_t$ themselves are individually non-stationary (e.g., I(1) processes).
+
+**Key formula**:
+A common approach is to test:
+$$
+Z_t = X_t - \beta Y_t
+$$
+for stationarity (via the Engle–Granger two-step method or the Johansen test).
+
+**Finance usage**:
+- Pairs trading strategies rely on cointegration between asset prices.
+- If they deviate from their equilibrium spread, trade accordingly.
+
+**R demonstration** (synthetic pairs data with partial cointegration):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+
+n <- 300
+x <- cumsum(rnorm(n, mean=0.01, sd=0.05)) + 100  # random walk
+y <- 0.5*x + cumsum(rnorm(n, mean=0, sd=0.02))  # partially following x + noise
+
+dt_coin <- data.table(time=1:n, X=x, Y=y)
+
+# Fit linear model and extract residuals
+fit_lm <- lm(Y ~ X, data=dt_coin)
+summary(fit_lm)
+
+# Plot residuals — if stationary, suggests cointegration
+dt_coin[, residual := residuals(fit_lm)]
+ggplot(dt_coin, aes(x=time)) +
+  geom_line(aes(y=residual)) +
+  labs(title="Residual from linear combination X_t - beta*Y_t", x="time", y="residual") +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_finance_c_cointegration-cointegration-demo-1.png" alt="Residuals from a linear combination of two cointegrated time series">
+	Residuals from a linear combination of two cointegrated time series
+</Figure>
+
+```
+## 
+## Call:
+## lm(formula = Y ~ X, data = dt_coin)
+## 
+## Residuals:
+##       Min        1Q    Median        3Q       Max 
+## -0.175201 -0.066490  0.008495  0.059429  0.151732 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(>|t|)    
+## (Intercept) -6.229972   0.511119  -12.19   <2e-16 ***
+## X            0.561543   0.005031  111.61   <2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.07478 on 298 degrees of freedom
+## Multiple R-squared:  0.9766,	Adjusted R-squared:  0.9766 
+## F-statistic: 1.246e+04 on 1 and 298 DF,  p-value: < 2.2e-16
+```
+

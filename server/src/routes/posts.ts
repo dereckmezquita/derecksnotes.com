@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, optionalAuth } from '@middleware/auth';
 import { reactionLimiter } from '@middleware/rateLimit';
+import { notifyGraphClients } from '@routes/graph';
 import * as postService from '@services/posts';
 
 const router = Router();
@@ -39,6 +40,12 @@ router.post(
         parsed.data.type
       );
       res.json(result);
+
+      // Notify graph SSE clients
+      notifyGraphClients({
+        type: 'reaction',
+        data: { slug: parsed.data.slug, reactionType: parsed.data.type }
+      });
     } catch (error) {
       console.error('React to post error:', error);
       res.status(500).json({ error: 'Internal server error' });

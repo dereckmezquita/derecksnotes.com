@@ -6,7 +6,8 @@ import {
   LINE_VERTEX,
   LINE_FRAGMENT,
   CIRCLE_VERTEX,
-  CIRCLE_FRAGMENT
+  CIRCLE_FRAGMENT,
+  FILLED_CIRCLE_FRAGMENT
 } from './shaders';
 
 interface ShaderProgram {
@@ -60,8 +61,10 @@ export class WebGLRenderer {
   private gl: WebGLRenderingContext;
   private lineProgram: ShaderProgram;
   private circleProgram: ShaderProgram;
+  private filledCircleProgram: ShaderProgram;
   private lineBuffer: WebGLBuffer;
   private circleBuffer: WebGLBuffer;
+  private filledCircleBuffer: WebGLBuffer;
   private triBuffer: WebGLBuffer;
 
   // Reusable arrays to avoid GC pressure
@@ -69,6 +72,8 @@ export class WebGLRenderer {
   private lineCount: number = 0;
   private circleData: Float32Array;
   private circleCount: number = 0;
+  private filledCircleData: Float32Array;
+  private filledCircleCount: number = 0;
   private triData: Float32Array;
   private triCount: number = 0; // count of triangles (3 verts each)
 
@@ -110,23 +115,44 @@ export class WebGLRenderer {
       }
     };
 
+    // Filled circle program (for graph nodes)
+    const filledCircleProg = createProgram(
+      gl,
+      CIRCLE_VERTEX,
+      FILLED_CIRCLE_FRAGMENT
+    );
+    this.filledCircleProgram = {
+      program: filledCircleProg,
+      attrs: {
+        aPosition: gl.getAttribLocation(filledCircleProg, 'aPosition'),
+        aRadius: gl.getAttribLocation(filledCircleProg, 'aRadius'),
+        aColor: gl.getAttribLocation(filledCircleProg, 'aColor')
+      },
+      uniforms: {
+        uResolution: gl.getUniformLocation(filledCircleProg, 'uResolution')!
+      }
+    };
+
     this.lineBuffer = gl.createBuffer()!;
     this.circleBuffer = gl.createBuffer()!;
+    this.filledCircleBuffer = gl.createBuffer()!;
     this.triBuffer = gl.createBuffer()!;
 
     // Pre-allocate buffers (6 floats per vertex: x, y, r, g, b, a)
     this.lineData = new Float32Array(2400000); // ~200k lines
     this.circleData = new Float32Array(50000);
+    this.filledCircleData = new Float32Array(50000);
     this.triData = new Float32Array(2000000); // for thick lines, rects, arrow tips
   }
 
-  clear(w: number, h: number): void {
+  clear(w: number, h: number, bgR = 1, bgG = 1, bgB = 1, bgA = 1): void {
     const gl = this.gl;
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.clearColor(1, 1, 1, 1);
+    gl.clearColor(bgR, bgG, bgB, bgA);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.lineCount = 0;
     this.circleCount = 0;
+    this.filledCircleCount = 0;
     this.triCount = 0;
 
     // Clear text overlay
@@ -135,7 +161,7 @@ export class WebGLRenderer {
 
   // ---- Line batching ----
 
-  private addLine(
+  public addLine(
     x1: number,
     y1: number,
     x2: number,
@@ -162,7 +188,7 @@ export class WebGLRenderer {
     this.lineCount++;
   }
 
-  private addCircle(
+  public addCircle(
     x: number,
     y: number,
     radius: number,
@@ -183,12 +209,33 @@ export class WebGLRenderer {
     this.circleCount++;
   }
 
+  public addFilledCircle(
+    x: number,
+    y: number,
+    radius: number,
+    r: number,
+    g: number,
+    b: number,
+    a: number
+  ): void {
+    const i = this.filledCircleCount * 7;
+    if (i + 7 > this.filledCircleData.length) return;
+    this.filledCircleData[i] = x;
+    this.filledCircleData[i + 1] = y;
+    this.filledCircleData[i + 2] = radius;
+    this.filledCircleData[i + 3] = r;
+    this.filledCircleData[i + 4] = g;
+    this.filledCircleData[i + 5] = b;
+    this.filledCircleData[i + 6] = a;
+    this.filledCircleCount++;
+  }
+
   /**
    * Draw a thick line as a quad (2 triangles).
    * Computes perpendicular offset from line direction to create width.
    * thickness = line width in pixels
    */
-  private addThickLine(
+  public addThickLine(
     x1: number,
     y1: number,
     x2: number,
@@ -270,7 +317,7 @@ export class WebGLRenderer {
    * Draw a filled triangle (3 vertices).
    * Used for arrowhead tips on velocity vectors.
    */
-  private addFilledTriangle(
+  public addFilledTriangle(
     x1: number,
     y1: number,
     x2: number,
@@ -329,7 +376,7 @@ export class WebGLRenderer {
     this.triCount++;
   }
 
-  private addRect(
+  public addRect(
     x: number,
     y: number,
     rw: number,
@@ -459,6 +506,36 @@ export class WebGLRenderer {
 
     gl.drawArrays(gl.POINTS, 0, this.circleCount);
     this.circleCount = 0;
+  }
+
+  flushFilledCircles(w: number, h: number): void {
+    if (this.filledCircleCount === 0) return;
+    const gl = this.gl;
+    const p = this.filledCircleProgram;
+
+    gl.useProgram(p.program);
+    gl.uniform2f(p.uniforms.uResolution, w, h);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.filledCircleBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      this.filledCircleData.subarray(0, this.filledCircleCount * 7),
+      gl.DYNAMIC_DRAW
+    );
+
+    const stride = 28; // 7 floats × 4 bytes
+
+    gl.enableVertexAttribArray(p.attrs.aPosition);
+    gl.vertexAttribPointer(p.attrs.aPosition, 2, gl.FLOAT, false, stride, 0);
+
+    gl.enableVertexAttribArray(p.attrs.aRadius);
+    gl.vertexAttribPointer(p.attrs.aRadius, 1, gl.FLOAT, false, stride, 8);
+
+    gl.enableVertexAttribArray(p.attrs.aColor);
+    gl.vertexAttribPointer(p.attrs.aColor, 4, gl.FLOAT, false, stride, 12);
+
+    gl.drawArrays(gl.POINTS, 0, this.filledCircleCount);
+    this.filledCircleCount = 0;
   }
 
   // ---- Drawing methods (matching Canvas 2D Renderer API) ----

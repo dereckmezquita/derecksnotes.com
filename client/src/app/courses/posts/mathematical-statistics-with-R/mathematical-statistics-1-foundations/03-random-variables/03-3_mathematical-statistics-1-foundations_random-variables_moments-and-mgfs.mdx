@@ -1,11 +1,18 @@
 ---
-title: "Mathematical Statistics with R I: Foundations"
-chapter: "Chapter 3: Random Variables"
-part: "Part 3: Higher Moments and Moment Generating Functions"
+title: 'Mathematical Statistics with R I: Foundations'
+chapter: 'Chapter 3: Random Variables'
+part: 'Part 3: Higher Moments and Moment Generating Functions'
 coverImage: 13
-author: "Dereck Mezquita"
-date: "2026-04-03"
-tags: [statistics, mathematics, probability, random-variables, moments, mgf, R]
+author: Dereck Mezquita
+date: '2026-04-03'
+tags:
+  - statistics
+  - mathematics
+  - probability
+  - random-variables
+  - moments
+  - mgf
+  - r
 published: true
 comments: true
 output:
@@ -589,9 +596,9 @@ Moment generating functions are strictly a theoretical tool and should never app
 |:---|:---|:---|
 | **$k$-th raw moment** | $\mu_k' = E[X^k]$ | $\mu_1' = E[X]$ |
 | **$k$-th central moment** | $\mu_k = E[(X - \mu)^k]$ | $\mu_2 = \text{Var}(X)$ |
-| **Skewness** | $\gamma_1 = E[(X-\mu)^3]/\sigma^3$ | $>0$ right skew, $<0$ left skew |
+| **Skewness** | $\gamma_1 = E[(X-\mu)^3]/\sigma^3$ | Positive → right skew, negative → left skew |
 | **Kurtosis** | $\gamma_2 = E[(X-\mu)^4]/\sigma^4$ | Normal has $\gamma_2 = 3$ |
-| **Excess kurtosis** | $\gamma_2 - 3$ | $>0$ heavy tails, $<0$ light tails |
+| **Excess kurtosis** | $\gamma_2 - 3$ | Positive → heavy tails, negative → light tails |
 | **MGF definition** | $M_X(t) = E[e^{tX}]$ | Must exist in neighbourhood of 0 |
 | **Moment extraction** | $M_X^{(k)}(0) = E[X^k]$ | Differentiate $k$ times, set $t=0$ |
 | **Uniqueness** | Same MGF $\Rightarrow$ same distribution | Powerful identification tool |

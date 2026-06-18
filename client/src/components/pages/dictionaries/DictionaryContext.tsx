@@ -35,10 +35,6 @@ interface DictionaryContextType {
   definitions: Definition[];
   filteredDefinitions: Definition[];
   setFilteredDefinitions: React.Dispatch<React.SetStateAction<Definition[]>>;
-  searchMode: 'words' | 'tags';
-  setSearchMode: React.Dispatch<React.SetStateAction<'words' | 'tags'>>;
-  searchTerm: string;
-  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
   selectedTags: string[];
   setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>;
   dictionaryType: string;
@@ -71,28 +67,20 @@ export function DictionaryProvider({
   initialDefinitions: Definition[];
   dictionaryType: string;
 }) {
-  // Initialize all the state variables
   const [definitions] = useState<Definition[]>(initialDefinitions);
   const [filteredDefinitions, setFilteredDefinitions] =
     useState<Definition[]>(initialDefinitions);
-  const [searchMode, setSearchMode] = useState<'words' | 'tags'>('words');
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Provide the state and setter functions to all children through the context
   return (
     <DictionaryContext.Provider
       value={{
         definitions,
         filteredDefinitions,
         setFilteredDefinitions,
-        searchMode,
-        setSearchMode,
-        searchTerm,
-        setSearchTerm,
         selectedTags,
         setSelectedTags,
-        dictionaryType // Add this line
+        dictionaryType
       }}
     >
       {children}

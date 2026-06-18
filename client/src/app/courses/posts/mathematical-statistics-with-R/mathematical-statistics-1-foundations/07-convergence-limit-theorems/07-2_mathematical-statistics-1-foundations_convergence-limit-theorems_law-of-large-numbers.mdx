@@ -1,11 +1,17 @@
 ---
-title: "Mathematical Statistics with R I: Foundations"
-chapter: "Chapter 7: Convergence and Limit Theorems"
-part: "Part 2: The Law of Large Numbers"
+title: 'Mathematical Statistics with R I: Foundations'
+chapter: 'Chapter 7: Convergence and Limit Theorems'
+part: 'Part 2: The Law of Large Numbers'
 coverImage: 13
-author: "Dereck Mezquita"
-date: "2026-04-03"
-tags: [statistics, mathematics, probability, convergence, LLN, R]
+author: Dereck Mezquita
+date: '2026-04-03'
+tags:
+  - statistics
+  - mathematics
+  - probability
+  - convergence
+  - law-of-large-numbers
+  - r
 published: true
 comments: true
 output:
@@ -537,10 +543,10 @@ When explaining the LLN to a non-technical audience:
 | Result | Statement | Conditions |
 |:---|:---|:---|
 | **WLLN** | $\bar{X}_n \xrightarrow{P} \mu$ | iid, $E[X_i^2] < \infty$ |
-| **SLLN** | $\bar{X}_n \xrightarrow{a.s.} \mu$ | iid, $E[\|X_i\|] < \infty$ |
-| **Chebyshev rate** | $P(\|\bar{X}_n - \mu\| \ge \epsilon) \le \sigma^2/(n\epsilon^2)$ | iid, finite variance |
+| **SLLN** | $\bar{X}_n \xrightarrow{a.s.} \mu$ | iid, $E[\lvert X_i\rvert] < \infty$ |
+| **Chebyshev rate** | $P(\lvert\bar{X}_n - \mu\rvert \ge \epsilon) \le \sigma^2/(n\epsilon^2)$ | iid, finite variance |
 | **Standard error** | $\text{SE}(\bar{X}_n) = \sigma/\sqrt{n}$ | iid, finite variance |
-| **Failure case** | Cauchy: $\bar{X}_n$ does not converge | $E[\|X\|] = \infty$ |
+| **Failure case** | Cauchy: $\bar{X}_n$ does not converge | $E[\lvert X\rvert] = \infty$ |
 
 ---
 

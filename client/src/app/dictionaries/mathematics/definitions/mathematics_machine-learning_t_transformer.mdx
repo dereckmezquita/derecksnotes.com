@@ -1,18 +1,12 @@
 ---
-letter: 't'
-word: 'transformer'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: t
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['attention-mechanism','neural-network','llm']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="transformer">Transformer</a> - A **Transformer** is an advanced **neural network** architecture introduced by Vaswani et al. (2017) for sequence-to-sequence tasks, eliminating recurrence by relying solely on **self-attention** mechanisms.
@@ -44,13 +38,7 @@ K <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
 V <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
 
 cat("Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.\n")
-```
 
-```
-## Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.
-```
-
-``` r
 attention_naive <- function(Q,K,V) {
   # We'll flatten batch dimension in naive approach
   out <- array(0, dim=dim(Q))
@@ -76,6 +64,7 @@ dim(res)
 ```
 
 ```
+## Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.
 ## [1]  2 10 64
 ```
 

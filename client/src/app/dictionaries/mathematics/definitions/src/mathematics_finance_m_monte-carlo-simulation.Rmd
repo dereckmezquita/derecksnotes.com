@@ -1,35 +1,13 @@
 ---
-letter: 'm'
-word: 'monte-carlo-simulation'
-dictionary: 'mathematics'
-category: 'finance'
-dataSource: 'assistant'
+letter: m
+dictionary: mathematics
+category: finance
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['distribution','probability','markov-chain']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if(knitr::is_html_output()){
-  knitr::knit_hooks$set(
-    plot=function(x, options){
-      cap <- options$fig.cap
-      as.character(
-        htmltools::tag("Figure",
-          list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
-        )
-      )
-    }
-  )
-}
-knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng=knitr::hook_optipng)
-knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
-```
 
 <a id="monte-carlo-simulation">Monte Carlo Simulation</a> - A **Monte Carlo simulation** uses repeated random sampling to estimate numerical results. In **finance**, it’s often used for pricing derivatives, calculating risk metrics, or projecting potential outcomes of uncertain processes.
 
@@ -45,7 +23,7 @@ $$
 
 **R demonstration** (estimating the price of a European call option via a simple GBM model):
 
-```{r}
+```{r monte-carlo-simulation-demo, fig.cap="Monte Carlo simulated stock price paths using geometric Brownian motion"}
 library(data.table)
 library(ggplot2)
 

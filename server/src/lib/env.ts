@@ -1,7 +1,26 @@
 import path from 'path';
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
-const BUILD_ENV = (process.env.BUILD_ENV as BuildEnv) || 'local';
+const VALID_BUILD_ENVS = ['local', 'dev', 'prod'] as const;
+
+function resolveBuildEnv(): BuildEnv {
+  const raw = process.env.BUILD_ENV;
+  if (raw === undefined) {
+    // Default to 'local' only when truly unset. Make it explicit and noisy.
+    console.warn(
+      "[env] BUILD_ENV is not set; defaulting to 'local'. Set BUILD_ENV=local|dev|prod explicitly for non-dev environments."
+    );
+    return 'local';
+  }
+  if (!(VALID_BUILD_ENVS as readonly string[]).includes(raw)) {
+    throw new Error(
+      `[env] Invalid BUILD_ENV='${raw}'. Must be one of: ${VALID_BUILD_ENVS.join(', ')}`
+    );
+  }
+  return raw as BuildEnv;
+}
+
+const BUILD_ENV = resolveBuildEnv();
 const SERVER_DIR = path.resolve(import.meta.dir, '../..');
 
 const SERVER_CONFIG = {
@@ -34,6 +53,15 @@ export const config = {
   contentDir:
     process.env.CONTENT_DIR || path.resolve(SERVER_DIR, '../client/src/app')
 };
+
+// Invariant: production must always emit Secure cookies. Refuse to start
+// the process in an inconsistent state (e.g., production deploy with
+// BUILD_ENV accidentally set to 'local').
+if (config.isProduction && !config.secureCookies) {
+  throw new Error(
+    '[env] Inconsistent configuration: isProduction=true but secureCookies=false. Refusing to start.'
+  );
+}
 
 export const secrets = {
   sessionSecret: requireEnv('SESSION_SECRET')

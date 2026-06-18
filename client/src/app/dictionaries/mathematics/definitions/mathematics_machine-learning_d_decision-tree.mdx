@@ -1,18 +1,12 @@
 ---
-letter: 'd'
-word: 'decision-tree'
-dictionary: 'mathematics'
-category: 'machine-learning'
-dataSource: 'assistant'
+letter: d
+dictionary: mathematics
+category: machine-learning
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['binary-operation','entropy','information-gain']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
-
 
 
 <a id="decision-tree">Decision Tree</a> - A **decision tree** is a model that splits data by features to produce a tree of decisions for classification or regression. Nodes perform tests (e.g., $x_j < c$), and leaves provide outcomes or values.
@@ -27,6 +21,13 @@ output:
 ``` r
 library(rpart)
 library(rpart.plot)
+```
+
+```
+## Warning: package 'rpart.plot' was built under R version 4.5.2
+```
+
+``` r
 library(data.table)
 
 set.seed(123)
@@ -40,6 +41,6 @@ fit_tree <- rpart(y ~ x1 + x2, data=dt_tree, method="class")
 rpart.plot(fit_tree)
 ```
 
-<Figure src="/dictionaries/mathematics/mathematics_machine-learning_d_decision-tree_files/unnamed-chunk-1-1.png">
-	
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_d_decision-tree-decision-tree-demo-1.png" alt="Decision tree classification boundary on two-dimensional synthetic data">
+	Decision tree classification boundary on two-dimensional synthetic data
 </Figure>

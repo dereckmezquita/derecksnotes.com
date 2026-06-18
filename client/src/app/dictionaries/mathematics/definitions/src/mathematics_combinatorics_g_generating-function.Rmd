@@ -1,32 +1,13 @@
 ---
-letter: 'g'
-word: generating-function
-dictionary: 'mathematics'
-category: 'combinatorics'
-dataSource: 'assistant'
+letter: g
+dictionary: mathematics
+category: combinatorics
+dataSource: assistant
 published: true
 comments: true
-linksTo: ['gamma-function','graph']
-linkedFrom: []
-output:
-  html_document:
-    keep_md: true
+links: []
 ---
 
-```{r setup, include=FALSE}
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-  plot = function(x, options) {
-    cap <- options$fig.cap
-    as.character(htmltools::tag(
-      "Figure",
-      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = "")))
-    )
-  }
-)
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
-```
 
 <a id="generating-function">Generating Function</a> - A **generating function** is a formal power series whose coefficients encode information about a sequence $(a_n)$. For instance:
 
@@ -46,7 +27,7 @@ $$
 
 No direct data.table example is typical here, but generating functions are used in discrete math. One might do symbolic manipulations with external packages. We can, however, illustrate partial sums numerically:
 
-```{r}
+```{r generating-function-demo}
 library(data.table)
 
 x_val <- 0.2
