@@ -1,17 +1,15 @@
 'use client';
 import React, { useState } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import {
-  linkifyMentions,
-  type CommentData,
-  type CommentHistoryEntry,
-  type RepliesResponse
+import type {
+  CommentData,
+  CommentHistoryEntry,
+  RepliesResponse
 } from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
+import { renderCommentMarkdown } from './markdown';
 import {
   CommentCard,
   CommentHeader,
@@ -50,50 +48,7 @@ function formatDate(iso: string): string {
   });
 }
 
-function renderMarkdown(content: string): string {
-  try {
-    // Rewrite @-mentions to markdown links before passing through marked so
-    // they get the full anchor + sanitisation path (no raw HTML, no XSS).
-    const withMentions = linkifyMentions(content);
-    const raw = marked.parse(withMentions);
-    const html = typeof raw === 'string' ? raw : content;
-    return DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: [
-        'p',
-        'br',
-        'strong',
-        'em',
-        'code',
-        'pre',
-        'blockquote',
-        'ul',
-        'ol',
-        'li',
-        'a',
-        'h1',
-        'h2',
-        'h3',
-        'h4',
-        'h5',
-        'h6',
-        'hr',
-        'del',
-        'sup',
-        'sub',
-        'table',
-        'thead',
-        'tbody',
-        'tr',
-        'th',
-        'td'
-      ],
-      ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
-      ALLOW_DATA_ATTR: false
-    });
-  } catch {
-    return DOMPurify.sanitize(content, { ALLOWED_TAGS: [] });
-  }
-}
+const renderMarkdown = renderCommentMarkdown;
 
 export function CommentItem({
   comment,

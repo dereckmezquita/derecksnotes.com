@@ -1,11 +1,9 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import styled from 'styled-components';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
-import { linkifyMentions } from '@derecksnotes/shared';
+import { renderCommentMarkdown } from './markdown';
 import {
   CommentFormWrapper,
   CommentTextarea,
@@ -42,39 +40,9 @@ const PreviewPane = styled.div`
   line-height: 1.5;
 `;
 
-function renderPreview(content: string): string {
-  try {
-    const withMentions = linkifyMentions(content);
-    const raw = marked.parse(withMentions);
-    const html = typeof raw === 'string' ? raw : content;
-    return DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: [
-        'p',
-        'br',
-        'strong',
-        'em',
-        'code',
-        'pre',
-        'blockquote',
-        'ul',
-        'ol',
-        'li',
-        'a',
-        'h1',
-        'h2',
-        'h3',
-        'h4',
-        'h5',
-        'h6',
-        'hr',
-        'del'
-      ],
-      ALLOWED_ATTR: ['href', 'title', 'target', 'rel']
-    });
-  } catch {
-    return DOMPurify.sanitize(content, { ALLOWED_TAGS: [] });
-  }
-}
+// Preview shares the renderer with <CommentItem> so it shows the same tags
+// that survive the post-submit render. See markdown.ts.
+const renderPreview = renderCommentMarkdown;
 
 interface CommentFormProps {
   slug: string;
@@ -150,15 +118,13 @@ export function CommentForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'write' | 'preview'>('write');
-  // DOMPurify is browser-only; gate on `window` so SSR prerender doesn't
-  // crash trying to sanitize on the server. Also only compute when the
-  // preview tab is actually open so writing-mode keystrokes don't pay
-  // the marked + DOMPurify cost.
-  const previewHtml = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    if (mode !== 'preview') return '';
-    return renderPreview(content);
-  }, [content, mode]);
+  // renderCommentMarkdown already gates on `window` so SSR prerender does
+  // not crash on DOMPurify; we additionally skip the compute when the
+  // preview tab is hidden so write-mode keystrokes don't pay the cost.
+  const previewHtml = useMemo(
+    () => (mode === 'preview' ? renderPreview(content) : ''),
+    [content, mode]
+  );
 
   // Autocomplete state
   const [suggestions, setSuggestions] = useState<UserMatch[]>([]);
