@@ -184,14 +184,17 @@ export function CommentItem({
     <>
       <CommentCard $depth={comment.depth}>
         {/*
-          Soft-deleted comments keep their author + timestamp visible so the
-          reply thread structure stays coherent. The body is replaced with a
-          `[DELETED]` placeholder; per-comment actions are hidden below.
+          Soft-deleted comments keep the timestamp visible so the reply
+          thread structure stays coherent. Author name + profile link are
+          omitted entirely (server already nulls `comment.user` for deleted
+          rows); the body is replaced with a `[DELETED]` placeholder.
         */}
         <CommentHeader>
-          <CommentAuthor href={`/profile/${comment.user?.username}`}>
-            {comment.user?.displayName || comment.user?.username || 'Unknown'}
-          </CommentAuthor>
+          {!comment.isDeleted && (
+            <CommentAuthor href={`/profile/${comment.user?.username}`}>
+              {comment.user?.displayName || comment.user?.username || 'Unknown'}
+            </CommentAuthor>
+          )}
           <CommentTimestamp>{formatDate(comment.createdAt)}</CommentTimestamp>
           {!comment.isDeleted && comment.editedAt && (
             <EditedBadge onClick={handleShowHistory}>
