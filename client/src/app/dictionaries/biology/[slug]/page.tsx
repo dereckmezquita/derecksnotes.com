@@ -31,7 +31,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
     return { slug };
   });
 
-  return config.isProduction ? slugs : slugs.slice(0, 3);
+  return slugs;
 }
 
 async function Page({ params }: { params: Promise<{ slug: string }> }) {
