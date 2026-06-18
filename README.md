@@ -15,7 +15,7 @@ Welcome to version `v6.1.0` of [Dereck's Notes](https://www.derecksnotes.com). T
 For the full changelog (including the rendering fixes, build-tooling migration, and other under-the-hood work), see [NEWS.md](NEWS.md).
 
 <p align="center">
-    <img src="./.graphics/screen-captures/interactive-profile.png" width="750">
+    <img src="./.graphics/screen-captures/knowledge-graph.png" width="750">
 </p>
 
 ## Technical Overview
@@ -79,6 +79,10 @@ derecksnotes.com/
 - **Comments**: nested Reddit-style threads on every blog post.
 - **Admin dashboard**: user management, comment moderation, audit log.
 - **Interactive blog filter**: by category, date, and search.
+
+<p align="center">
+    <img src="./.graphics/screen-captures/interactive-profile.png" width="750">
+</p>
 
 ## Documentation
 
