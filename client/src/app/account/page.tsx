@@ -20,11 +20,13 @@ import { CommentsTab } from '@/components/account/CommentsTab';
 import { HistoryTab } from '@/components/account/HistoryTab';
 import { BookmarksTab } from '@/components/account/BookmarksTab';
 import { FollowingFeedTab } from '@/components/account/FollowingFeedTab';
+import { NotificationsTab } from '@/components/account/NotificationsTab';
 import { formatAccountDate } from '@/components/account/_shared/formatDate';
 
 type ActiveTab =
   | 'profile'
   | 'security'
+  | 'notifications'
   | 'comments'
   | 'history'
   | 'bookmarks'
@@ -33,6 +35,7 @@ type ActiveTab =
 const TABS: { key: ActiveTab; label: string }[] = [
   { key: 'profile', label: 'Profile' },
   { key: 'security', label: 'Security' },
+  { key: 'notifications', label: 'Notifications' },
   { key: 'comments', label: 'My Comments' },
   { key: 'history', label: 'Read History' },
   { key: 'bookmarks', label: 'Bookmarks' },
@@ -111,6 +114,7 @@ export default function AccountPage() {
           logout={logout}
         />
       )}
+      {tab === 'notifications' && <NotificationsTab />}
       {tab === 'comments' && <CommentsTab />}
       {tab === 'history' && <HistoryTab />}
       {tab === 'bookmarks' && <BookmarksTab />}

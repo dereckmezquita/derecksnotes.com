@@ -5,7 +5,6 @@ import styled from 'styled-components';
 import { FaBars, FaUser, FaSearch } from 'react-icons/fa';
 import { AuthModal } from './modal/auth/AuthModal';
 import { SearchSpotlight } from './SearchSpotlight';
-import { NotificationBell } from './NotificationBell';
 import { useAuth } from '@/context/AuthContext';
 
 // TODO: create a type for theme; so we can have intellisense
@@ -255,7 +254,6 @@ function Navbar() {
           </DropDownContent>
         </DropDownContainer>
         <NavSpacer />
-        {isAuthenticated() && <NotificationBell />}
         {isAuthenticated() ? (
           <NavRightItemLink href="/account">
             <FaUser />
