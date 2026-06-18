@@ -207,7 +207,9 @@ export function CommentItem({
                 </EditedBadge>
               )}
               {!comment.approved && (
-                <PendingBadge>pending approval</PendingBadge>
+                <PendingBadge title="Only you can see this comment until a moderator approves it. New accounts are queued by default; trusted users post directly.">
+                  pending review — only visible to you
+                </PendingBadge>
               )}
             </>
           )}

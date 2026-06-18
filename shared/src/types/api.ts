@@ -191,4 +191,19 @@ export interface AdminPendingComment {
   postTitle: string;
   createdAt: string;
   user: UserBasic | null;
+  // Per-comment engagement.
+  commentLikes: number;
+  commentDislikes: number;
+  // Per-author moderation context, surfaced inline so the admin can decide
+  // without having to drill into the user's profile.
+  authorAccountAgeDays: number;
+  authorTotalComments: number;
+  authorApprovedCount: number;
+  authorPendingCount: number;
+  // Comments that were unapproved and got soft-deleted — a strong signal
+  // that prior moderation rejected this author's content.
+  authorRejectedCount: number;
+  authorTotalLikesReceived: number;
+  authorTotalDislikesReceived: number;
+  authorGroups: string[];
 }

@@ -667,7 +667,8 @@ export async function getPendingComments(page: number, limit: number) {
       eq(schema.comments.approved, 0),
       isNull(schema.comments.deletedAt)
     ),
-    orderBy: [asc(schema.comments.createdAt)],
+    // Oldest first so moderation queue is FIFO.
+    orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
     limit,
     offset,
     with: {
@@ -676,10 +677,12 @@ export async function getPendingComments(page: number, limit: number) {
           id: true,
           username: true,
           displayName: true,
-          avatarUrl: true
+          avatarUrl: true,
+          createdAt: true
         }
       },
-      post: true
+      post: true,
+      reactions: true
     }
   });
 
@@ -690,15 +693,125 @@ export async function getPendingComments(page: number, limit: number) {
       and(eq(schema.comments.approved, 0), isNull(schema.comments.deletedAt))
     );
 
+  // Batch the per-author reputation aggregates so the queue stays O(1) DB
+  // round-trips regardless of page size.
+  const authorIds = Array.from(
+    new Set(rows.map((c) => c.userId).filter((id): id is string => !!id))
+  );
+
+  const reputationByUser = new Map<
+    string,
+    {
+      totalComments: number;
+      approvedCount: number;
+      pendingCount: number;
+      rejectedCount: number;
+      totalLikesReceived: number;
+      totalDislikesReceived: number;
+      groups: string[];
+    }
+  >();
+
+  if (authorIds.length > 0) {
+    const commentCounts = await db
+      .select({
+        userId: schema.comments.userId,
+        total: sql<number>`count(*)`,
+        approved: sql<number>`sum(case when ${schema.comments.approved} = 1 then 1 else 0 end)`,
+        pending: sql<number>`sum(case when ${schema.comments.approved} = 0 and ${schema.comments.deletedAt} is null then 1 else 0 end)`,
+        rejected: sql<number>`sum(case when ${schema.comments.approved} = 0 and ${schema.comments.deletedAt} is not null then 1 else 0 end)`
+      })
+      .from(schema.comments)
+      .where(inArray(schema.comments.userId, authorIds))
+      .groupBy(schema.comments.userId);
+
+    const reactionTotals = await db
+      .select({
+        userId: schema.comments.userId,
+        likes: sql<number>`sum(case when ${schema.commentReactions.type} = 'like' then 1 else 0 end)`,
+        dislikes: sql<number>`sum(case when ${schema.commentReactions.type} = 'dislike' then 1 else 0 end)`
+      })
+      .from(schema.commentReactions)
+      .innerJoin(
+        schema.comments,
+        eq(schema.commentReactions.commentId, schema.comments.id)
+      )
+      .where(inArray(schema.comments.userId, authorIds))
+      .groupBy(schema.comments.userId);
+
+    const groupRows = await db.query.userGroups.findMany({
+      where: inArray(schema.userGroups.userId, authorIds),
+      with: { group: true }
+    });
+
+    const groupsByUser = new Map<string, string[]>();
+    for (const g of groupRows) {
+      const list = groupsByUser.get(g.userId);
+      if (list) list.push(g.group.name);
+      else groupsByUser.set(g.userId, [g.group.name]);
+    }
+
+    const reactionsByUser = new Map(reactionTotals.map((r) => [r.userId, r]));
+
+    for (const c of commentCounts) {
+      const reactions = reactionsByUser.get(c.userId);
+      reputationByUser.set(c.userId, {
+        totalComments: c.total || 0,
+        approvedCount: c.approved || 0,
+        pendingCount: c.pending || 0,
+        rejectedCount: c.rejected || 0,
+        totalLikesReceived: reactions?.likes || 0,
+        totalDislikesReceived: reactions?.dislikes || 0,
+        groups: groupsByUser.get(c.userId) || []
+      });
+    }
+  }
+
+  const now = Date.now();
+
   return {
-    comments: rows.map((c) => ({
-      id: c.id,
-      content: c.content,
-      slug: c.post?.slug || '',
-      postTitle: c.post?.title || '',
-      createdAt: c.createdAt,
-      user: c.user
-    })),
+    comments: rows.map((c) => {
+      const reactions = c.reactions || [];
+      const commentLikes = reactions.filter((r) => r.type === 'like').length;
+      const commentDislikes = reactions.filter(
+        (r) => r.type === 'dislike'
+      ).length;
+      const rep = c.userId ? reputationByUser.get(c.userId) : undefined;
+      const authorAccountAgeDays = c.user?.createdAt
+        ? Math.max(
+            0,
+            Math.floor(
+              (now - new Date(c.user.createdAt).getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          )
+        : 0;
+      return {
+        id: c.id,
+        content: c.content,
+        slug: c.post?.slug || '',
+        postTitle: c.post?.title || '',
+        createdAt: c.createdAt,
+        user: c.user
+          ? {
+              id: c.user.id,
+              username: c.user.username,
+              displayName: c.user.displayName,
+              avatarUrl: c.user.avatarUrl
+            }
+          : null,
+        commentLikes,
+        commentDislikes,
+        authorAccountAgeDays,
+        authorTotalComments: rep?.totalComments ?? 0,
+        authorApprovedCount: rep?.approvedCount ?? 0,
+        authorPendingCount: rep?.pendingCount ?? 0,
+        authorRejectedCount: rep?.rejectedCount ?? 0,
+        authorTotalLikesReceived: rep?.totalLikesReceived ?? 0,
+        authorTotalDislikesReceived: rep?.totalDislikesReceived ?? 0,
+        authorGroups: rep?.groups ?? []
+      };
+    }),
     total: total[0]?.count || 0
   };
 }

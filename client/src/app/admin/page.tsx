@@ -237,14 +237,132 @@ function OverviewTab() {
 // Comments Moderation
 // ============================================================================
 
+// ── Pending Comments: rich table + shift-click multi-select ────────────────
+//
+// Reputation columns surface the cursory information an admin needs without
+// having to click into the user's profile. Shift-click on a checkbox selects
+// the range from the last clicked row to the current row (toggling all of
+// them to the current row's new state) — the standard table-multiselect
+// keyboard convention.
+
+const PendingTableWrapper = styled.div`
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+`;
+
+const PendingTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-family: ${(p) => p.theme.text.font.roboto};
+
+  th,
+  td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: ${(p) => p.theme.text.weight.bold};
+    color: ${(p) => p.theme.text.colour.light_grey()};
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid ${(p) => p.theme.text.colour.header()};
+    white-space: nowrap;
+  }
+
+  tbody tr.selected {
+    background: ${(p) => p.theme.text.colour.header()}10;
+  }
+
+  td .content-preview {
+    max-width: 340px;
+    color: ${(p) => p.theme.text.colour.primary()};
+    line-height: 1.35;
+  }
+
+  td .meta {
+    color: ${(p) => p.theme.text.colour.light_grey()};
+    font-size: 0.7rem;
+  }
+`;
+
+const TableCheckbox = styled.input.attrs({ type: 'checkbox' })`
+  cursor: pointer;
+  /* Big hit area so shift-clicking on a fiddly checkbox isn't a sniper shot. */
+  width: 16px;
+  height: 16px;
+`;
+
+const InlineActions = styled.div`
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+`;
+
+const MiniButton = styled.button<{ $variant?: 'approve' | 'reject' }>`
+  font-family: ${(p) => p.theme.text.font.roboto};
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 1px solid ${(p) => (p.$variant === 'reject' ? '#c62828' : '#0F9960')};
+  background: ${(p) =>
+    p.$variant === 'reject' ? 'rgba(198,40,40,0.08)' : 'rgba(15,153,96,0.08)'};
+  color: ${(p) => (p.$variant === 'reject' ? '#c62828' : '#0F9960')};
+  &:hover {
+    background: ${(p) =>
+      p.$variant === 'reject'
+        ? 'rgba(198,40,40,0.18)'
+        : 'rgba(15,153,96,0.18)'};
+  }
+`;
+
+const Sparkline = styled.span`
+  font-family: ${(p) => p.theme.text.font.roboto};
+  white-space: nowrap;
+`;
+
+function reputationFlavour(c: AdminPendingComment): {
+  label: string;
+  colour: string;
+} {
+  if (c.authorGroups.includes('admin'))
+    return { label: 'admin', colour: '#c62828' };
+  if (c.authorGroups.includes('moderator'))
+    return { label: 'moderator', colour: '#106BA3' };
+  if (c.authorGroups.includes('trusted'))
+    return { label: 'trusted', colour: '#0F9960' };
+  if (c.authorAccountAgeDays < 1)
+    return { label: 'brand new', colour: '#c62828' };
+  if (c.authorTotalComments <= 1)
+    return { label: 'first comment', colour: '#996f0f' };
+  if (
+    c.authorRejectedCount > 0 &&
+    c.authorRejectedCount >= c.authorApprovedCount
+  )
+    return { label: 'has rejections', colour: '#c62828' };
+  if (c.authorApprovedCount >= 5 && c.authorRejectedCount === 0)
+    return { label: 'clean history', colour: '#0F9960' };
+  return { label: 'unranked', colour: '#999' };
+}
+
 function CommentsTab() {
   const [comments, setComments] = useState<AdminPendingComment[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Index of the last checkbox-clicked row. Shift-click reads this to compute
+  // the range. Reset on data reloads so we can't anchor to a now-stale row.
+  const [anchorIdx, setAnchorIdx] = useState<number | null>(null);
 
   useEffect(() => {
     load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const load = async (p: number) => {
@@ -254,12 +372,21 @@ function CommentsTab() {
     setComments(p === 1 ? data.data : [...comments, ...data.data]);
     setHasMore(data.hasMore);
     setPage(p);
+    setAnchorIdx(null);
   };
+
+  const removeFromList = (ids: string[]) =>
+    setComments((prev) => prev.filter((c) => !ids.includes(c.id)));
 
   const approve = async (id: string) => {
     try {
       await api.post(`/admin/comments/${id}/approve`);
-      setComments((prev) => prev.filter((c) => c.id !== id));
+      removeFromList([id]);
+      setSelected((prev) => {
+        const n = new Set(prev);
+        n.delete(id);
+        return n;
+      });
       toast.success('Comment approved');
     } catch {
       toast.error('Failed to approve');
@@ -269,7 +396,12 @@ function CommentsTab() {
   const reject = async (id: string) => {
     try {
       await api.post(`/admin/comments/${id}/reject`);
-      setComments((prev) => prev.filter((c) => c.id !== id));
+      removeFromList([id]);
+      setSelected((prev) => {
+        const n = new Set(prev);
+        n.delete(id);
+        return n;
+      });
       toast.success('Comment rejected');
     } catch {
       toast.error('Failed to reject');
@@ -277,45 +409,83 @@ function CommentsTab() {
   };
 
   const bulkApprove = async () => {
+    if (selected.size === 0) return;
     if (!confirm(`Approve ${selected.size} comment(s)?`)) return;
+    const ids = Array.from(selected);
     try {
-      await api.post('/admin/comments/bulk-approve', {
-        commentIds: Array.from(selected)
-      });
-      toast.success(`${selected.size} comment(s) approved`);
+      await api.post('/admin/comments/bulk-approve', { commentIds: ids });
+      removeFromList(ids);
       setSelected(new Set());
-      load(1);
+      toast.success(`${ids.length} comment(s) approved`);
     } catch {
       toast.error('Failed to approve comments');
     }
   };
 
   const bulkReject = async () => {
+    if (selected.size === 0) return;
     if (!confirm(`Reject ${selected.size} comment(s)?`)) return;
+    const ids = Array.from(selected);
     try {
-      await api.post('/admin/comments/bulk-reject', {
-        commentIds: Array.from(selected)
-      });
-      toast.success(`${selected.size} comment(s) rejected`);
+      await api.post('/admin/comments/bulk-reject', { commentIds: ids });
+      removeFromList(ids);
       setSelected(new Set());
-      load(1);
+      toast.success(`${ids.length} comment(s) rejected`);
     } catch {
       toast.error('Failed to reject comments');
     }
   };
 
-  const toggle = (id: string) => {
-    setSelected((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
+  /**
+   * onClick fires BEFORE the native checkbox flips its checked state, so
+   * `selected.has(id)` here is the pre-click state. We invert it ourselves
+   * and (for shift-click) propagate that target state across the range —
+   * the standard email/file-manager shift-click behaviour.
+   */
+  const onCheckboxClick = (
+    id: string,
+    idx: number,
+    e: React.MouseEvent<HTMLInputElement>
+  ) => {
+    const isCurrentlySelected = selected.has(id);
+    const targetState = !isCurrentlySelected;
+    const next = new Set(selected);
+
+    if (e.shiftKey && anchorIdx !== null && anchorIdx !== idx) {
+      const [lo, hi] = [Math.min(anchorIdx, idx), Math.max(anchorIdx, idx)];
+      for (let i = lo; i <= hi; i++) {
+        const cid = comments[i]?.id;
+        if (!cid) continue;
+        if (targetState) next.add(cid);
+        else next.delete(cid);
+      }
+    } else {
+      if (targetState) next.add(id);
+      else next.delete(id);
+    }
+    setSelected(next);
+    setAnchorIdx(idx);
+  };
+
+  const toggleAll = () => {
+    if (selected.size === comments.length) setSelected(new Set());
+    else setSelected(new Set(comments.map((c) => c.id)));
   };
 
   return (
     <Card>
       <CardTitle>Pending Comments</CardTitle>
+      <p
+        style={{
+          fontSize: '0.75rem',
+          color: '#888',
+          margin: '0 0 0.5rem 0'
+        }}
+      >
+        Unapproved comments are hidden from everyone except their author until
+        you approve them. Tip: click a checkbox, then shift-click another row to
+        (de)select the whole range.
+      </p>
       {selected.size > 0 && (
         <ButtonRow>
           <Button onClick={bulkApprove}>Approve ({selected.size})</Button>
@@ -330,39 +500,139 @@ function CommentsTab() {
       {comments.length === 0 ? (
         <EmptyState>No pending comments.</EmptyState>
       ) : (
-        comments.map((c) => (
-          <InfoRow key={c.id}>
-            <div
-              style={{
-                display: 'flex',
-                gap: '0.5rem',
-                alignItems: 'flex-start',
-                flex: 1
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(c.id)}
-                onChange={() => toggle(c.id)}
-              />
-              <div style={{ flex: 1 }}>
-                <InfoValue>{c.user?.username || 'Unknown'}</InfoValue>
-                <Badge $color="#999">on {c.postTitle || c.slug}</Badge>
-                <br />
-                <InfoLabel>
-                  {c.content.substring(0, 150)}
-                  {c.content.length > 150 ? '...' : ''}
-                </InfoLabel>
-              </div>
-            </div>
-            <ButtonRow>
-              <Button onClick={() => approve(c.id)}>Approve</Button>
-              <Button $variant="danger" onClick={() => reject(c.id)}>
-                Reject
-              </Button>
-            </ButtonRow>
-          </InfoRow>
-        ))
+        <PendingTableWrapper>
+          <PendingTable>
+            <thead>
+              <tr>
+                <th style={{ width: 28 }}>
+                  <TableCheckbox
+                    checked={
+                      selected.size > 0 && selected.size === comments.length
+                    }
+                    ref={(el) => {
+                      // Indeterminate state when some-but-not-all selected.
+                      if (el)
+                        el.indeterminate =
+                          selected.size > 0 && selected.size < comments.length;
+                    }}
+                    onChange={toggleAll}
+                  />
+                </th>
+                <th>Author</th>
+                <th>Account</th>
+                <th>History</th>
+                <th>Karma</th>
+                <th>Comment</th>
+                <th>Posted</th>
+                <th style={{ width: 130 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comments.map((c, idx) => {
+                const flavour = reputationFlavour(c);
+                const isSel = selected.has(c.id);
+                return (
+                  <tr key={c.id} className={isSel ? 'selected' : ''}>
+                    <td>
+                      <TableCheckbox
+                        checked={isSel}
+                        onChange={() => {
+                          /* handled in onClick to capture shiftKey */
+                        }}
+                        onClick={(e) => onCheckboxClick(c.id, idx, e)}
+                      />
+                    </td>
+                    <td>
+                      <a
+                        href={`/profile/${c.user?.username || ''}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {c.user?.username || '(unknown)'}
+                      </a>
+                      <div>
+                        <Badge $color={flavour.colour}>{flavour.label}</Badge>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="meta">
+                        {c.authorAccountAgeDays === 0
+                          ? '<1 day'
+                          : `${c.authorAccountAgeDays} day${c.authorAccountAgeDays === 1 ? '' : 's'}`}
+                      </div>
+                    </td>
+                    <td>
+                      <Sparkline>
+                        <span style={{ color: '#0F9960' }}>
+                          ✓ {c.authorApprovedCount}
+                        </span>{' '}
+                        <span style={{ color: '#c62828' }}>
+                          ✗ {c.authorRejectedCount}
+                        </span>{' '}
+                        <span style={{ color: '#996f0f' }}>
+                          … {c.authorPendingCount}
+                        </span>
+                      </Sparkline>
+                      <div className="meta">{c.authorTotalComments} total</div>
+                    </td>
+                    <td>
+                      <Sparkline>
+                        <span style={{ color: '#0F9960' }}>
+                          ▲ {c.authorTotalLikesReceived}
+                        </span>{' '}
+                        <span style={{ color: '#c62828' }}>
+                          ▼ {c.authorTotalDislikesReceived}
+                        </span>
+                      </Sparkline>
+                      <div className="meta">
+                        net{' '}
+                        {c.authorTotalLikesReceived -
+                          c.authorTotalDislikesReceived}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="content-preview">
+                        {c.content.length > 200
+                          ? c.content.substring(0, 200) + '…'
+                          : c.content}
+                      </div>
+                      <div className="meta">
+                        on{' '}
+                        <a href={`/${c.slug}`} target="_blank" rel="noreferrer">
+                          {c.postTitle || c.slug}
+                        </a>{' '}
+                        · this comment: ▲ {c.commentLikes} ▼ {c.commentDislikes}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="meta">
+                        {new Date(c.createdAt).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </td>
+                    <td>
+                      <InlineActions>
+                        <MiniButton onClick={() => approve(c.id)}>
+                          Approve
+                        </MiniButton>
+                        <MiniButton
+                          $variant="reject"
+                          onClick={() => reject(c.id)}
+                        >
+                          Reject
+                        </MiniButton>
+                      </InlineActions>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </PendingTable>
+        </PendingTableWrapper>
       )}
       {hasMore && (
         <ButtonRow>
