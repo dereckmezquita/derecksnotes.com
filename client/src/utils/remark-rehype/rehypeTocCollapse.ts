@@ -14,12 +14,16 @@ const rehypeTocCollapse: Plugin = () => {
           if (
             !parent ||
             !Array.isArray(parent.children) ||
-            index === parent.children.length - 1
+            index + 2 >= parent.children.length
           )
             return;
           const subsequentNode = parent.children[index + 2];
 
-          if (subsequentNode.tagName === 'ul') {
+          if (
+            subsequentNode &&
+            subsequentNode.type === 'element' &&
+            subsequentNode.tagName === 'ul'
+          ) {
             // Remove the original h1 (Table of Contents title)
             parent.children.splice(index, 1);
 
