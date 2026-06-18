@@ -17,6 +17,7 @@ import {
 } from '@/components/pages/posts-dictionaries';
 import { Comments } from '@/components/comments/Comments';
 import { PostReactionButtons } from '@/components/posts/PostReactionButtons';
+import { BookmarkButton } from '@/components/posts/BookmarkButton';
 import { usePageView } from '@/hooks/usePageView';
 import { usePathname } from 'next/navigation';
 
@@ -267,6 +268,7 @@ export function ContentPost(props: ContentPostProps) {
         {isClient && (
           <PostEngagement>
             <PostReactionButtons slug={slug} title={title} />
+            <BookmarkButton slug={slug} title={title} />
           </PostEngagement>
         )}
 

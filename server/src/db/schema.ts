@@ -210,6 +210,25 @@ export const auditLog = sqliteTable('audit_log', {
 });
 
 // ============================================================================
+// BOOKMARKS
+// ============================================================================
+
+export const bookmarks = sqliteTable(
+  'bookmarks',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    postId: text('post_id')
+      .notNull()
+      .references(() => posts.id),
+    createdAt: text('created_at').notNull()
+  },
+  (table) => [uniqueIndex('bookmarks_user_post').on(table.userId, table.postId)]
+);
+
+// ============================================================================
 // NOTIFICATIONS
 // ============================================================================
 
@@ -245,7 +264,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   postReactions: many(postReactions),
   commentReactions: many(commentReactions),
   readHistory: many(readHistory),
-  notifications: many(notifications, { relationName: 'recipient' })
+  notifications: many(notifications, { relationName: 'recipient' }),
+  bookmarks: many(bookmarks)
+}));
+
+export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
+  user: one(users, { fields: [bookmarks.userId], references: [users.id] }),
+  post: one(posts, { fields: [bookmarks.postId], references: [posts.id] })
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({

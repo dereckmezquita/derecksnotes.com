@@ -82,6 +82,7 @@ export interface AnalyticsData {
   usersPerDay: Array<{ date: string; count: number }>;
   topCommentedPosts: Array<{ slug: string; title: string; count: number }>;
   topLikedPosts: Array<{ slug: string; title: string; likes: number }>;
+  topBookmarkedPosts: Array<{ slug: string; title: string; count: number }>;
 }
 
 // ============================================================================

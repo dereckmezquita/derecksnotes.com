@@ -5,6 +5,7 @@ import { authenticate, optionalAuth } from '@middleware/auth';
 import { reactionLimiter } from '@middleware/rateLimit';
 import { notifyGraphClients } from '@routes/graph';
 import * as postService from '@services/posts';
+import * as bookmarkService from '@services/bookmarks';
 
 const router = Router();
 
@@ -139,6 +140,90 @@ router.post('/read', authenticate(), async (req: AuthenticatedRequest, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Bookmarks — get / set / clear for the current post.
+router.get(
+  '/bookmark-status',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = z.string().min(1).max(500).safeParse(req.query.slug);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Valid slug query parameter required' });
+        return;
+      }
+      const post = await postService.findPostBySlug(parsed.data);
+      if (!post) {
+        res.json({ bookmarked: false });
+        return;
+      }
+      const bookmarked = await bookmarkService.isBookmarked(
+        req.user!.id,
+        post.id
+      );
+      res.json({ bookmarked });
+    } catch (error) {
+      console.error('Bookmark status error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.post(
+  '/bookmark',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = z
+        .object({
+          slug: z.string().min(1).max(500),
+          title: z.string().min(1).max(500)
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.issues
+        });
+        return;
+      }
+      const postId = await postService.getOrCreatePost(
+        parsed.data.slug,
+        parsed.data.title
+      );
+      await bookmarkService.addBookmark(req.user!.id, postId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Add bookmark error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.delete(
+  '/bookmark',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = z
+        .object({ slug: z.string().min(1).max(500) })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.issues
+        });
+        return;
+      }
+      const post = await postService.findPostBySlug(parsed.data.slug);
+      if (post) await bookmarkService.removeBookmark(req.user!.id, post.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Remove bookmark error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 // Global error handler for post routes
 router.use(

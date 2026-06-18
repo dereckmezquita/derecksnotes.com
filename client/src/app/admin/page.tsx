@@ -1110,6 +1110,37 @@ function AnalyticsTab() {
           </RankList>
         )}
       </Card>
+
+      <Card>
+        <CardTitle>Top Bookmarked Posts</CardTitle>
+        {data.topBookmarkedPosts.length === 0 ? (
+          <EmptyState>No data.</EmptyState>
+        ) : (
+          (() => {
+            const maxB = Math.max(
+              1,
+              ...data.topBookmarkedPosts.map((p) => p.count)
+            );
+            return (
+              <RankList>
+                {data.topBookmarkedPosts.map((p, i) => (
+                  <RankRow key={p.slug}>
+                    <RankNumber>{i + 1}</RankNumber>
+                    <div style={{ flex: 1 }}>
+                      <a href={`/${p.slug}`}>{p.title}</a>
+                    </div>
+                    <Bar
+                      $width={(p.count / maxB) * 60}
+                      style={{ minWidth: 0, maxWidth: '120px' }}
+                    />
+                    <BarValue>{p.count} saves</BarValue>
+                  </RankRow>
+                ))}
+              </RankList>
+            );
+          })()
+        )}
+      </Card>
     </>
   );
 }

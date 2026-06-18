@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/utils/api';
 import type {
@@ -42,7 +42,7 @@ function formatDate(iso: string): string {
   });
 }
 
-type ActiveTab = 'profile' | 'security' | 'comments' | 'history';
+type ActiveTab = 'profile' | 'security' | 'comments' | 'history' | 'bookmarks';
 
 export default function AccountPage() {
   const {
@@ -103,6 +103,9 @@ export default function AccountPage() {
         <Tab $active={tab === 'history'} onClick={() => setTab('history')}>
           Read History
         </Tab>
+        <Tab $active={tab === 'bookmarks'} onClick={() => setTab('bookmarks')}>
+          Bookmarks
+        </Tab>
       </TabBar>
 
       {tab === 'profile' && (
@@ -121,7 +124,85 @@ export default function AccountPage() {
       )}
       {tab === 'comments' && <CommentsTab />}
       {tab === 'history' && <HistoryTab />}
+      {tab === 'bookmarks' && <BookmarksTab />}
     </PageContainer>
+  );
+}
+
+// ============================================================================
+// Bookmarks tab
+// ============================================================================
+
+interface BookmarkEntry {
+  id: string;
+  slug: string;
+  title: string;
+  createdAt: string;
+}
+
+function BookmarksTab() {
+  const [items, setItems] = useState<BookmarkEntry[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async (p: number) => {
+    setLoading(true);
+    try {
+      const data = await api.get<{
+        data: BookmarkEntry[];
+        hasMore: boolean;
+      }>(`/users/me/bookmarks?page=${p}&limit=20`);
+      setItems((prev) => (p === 1 ? data.data : [...prev, ...data.data]));
+      setHasMore(data.hasMore);
+      setPage(p);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load(1);
+  }, [load]);
+
+  if (loading && items.length === 0) {
+    return (
+      <Card>
+        <CardTitle>Saved posts</CardTitle>
+        <EmptyState>Loading…</EmptyState>
+      </Card>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <Card>
+        <CardTitle>Saved posts</CardTitle>
+        <EmptyState>You haven&apos;t bookmarked anything yet.</EmptyState>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <CardTitle>Saved posts</CardTitle>
+      {items.map((b) => (
+        <InfoRow key={b.id}>
+          <div>
+            <InfoValue>
+              <a href={`/${b.slug}`}>{b.title || b.slug}</a>
+            </InfoValue>
+            <br />
+            <InfoLabel>Saved {formatDate(b.createdAt)}</InfoLabel>
+          </div>
+        </InfoRow>
+      ))}
+      {hasMore && (
+        <ButtonRow>
+          <Button $variant="secondary" onClick={() => load(page + 1)}>
+            Load more
+          </Button>
+        </ButtonRow>
+      )}
+    </Card>
   );
 }
 

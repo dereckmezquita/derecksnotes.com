@@ -11,6 +11,7 @@ import {
 import * as userService from '@services/users';
 import * as authService from '@services/auth';
 import * as auditService from '@services/audit';
+import * as bookmarkService from '@services/bookmarks';
 import { config } from '@lib/env';
 
 const router = Router();
@@ -300,6 +301,35 @@ router.post(
       res.json({ success: true, deleted });
     } catch (error) {
       console.error('Bulk delete comments error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.get(
+  '/me/bookmarks',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(
+        50,
+        Math.max(1, parseInt(req.query.limit as string) || 20)
+      );
+      const result = await bookmarkService.listForUser(
+        req.user!.id,
+        page,
+        limit
+      );
+      res.json({
+        data: result.bookmarks,
+        page,
+        limit,
+        total: result.total,
+        hasMore: page * limit < result.total
+      });
+    } catch (error) {
+      console.error('Get bookmarks error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

@@ -7,6 +7,7 @@ import * as commentService from '@services/comments';
 import * as auditService from '@services/audit';
 import * as notificationService from '@services/notifications';
 import * as userService from '@services/users';
+import * as bookmarkService from '@services/bookmarks';
 import { db, schema } from '@db/index';
 import { eq, and, isNull, desc, sql, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -664,11 +665,14 @@ router.get(
         .orderBy(sql`count(${schema.postReactions.id}) DESC`)
         .limit(5);
 
+      const topBookmarkedPosts = await bookmarkService.getMostBookmarked(5);
+
       res.json({
         commentsPerDay,
         usersPerDay,
         topCommentedPosts,
-        topLikedPosts
+        topLikedPosts,
+        topBookmarkedPosts
       });
     } catch (error) {
       console.error('Analytics error:', error);
