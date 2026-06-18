@@ -21,6 +21,9 @@ export const users = sqliteTable('users', {
   // When 1, @mentions targeting this user do NOT fan a notification.
   // Set by a moderator on the admin Users tab.
   mentionMuted: integer('mention_muted').notNull().default(0),
+  location: text('location'),
+  // JSON array of {label, url}. Validated server-side as HTTPS-only.
+  socialLinks: text('social_links'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   deletedAt: text('deleted_at')
@@ -208,6 +211,29 @@ export const auditLog = sqliteTable('audit_log', {
   ipAddress: text('ip_address'),
   createdAt: text('created_at').notNull()
 });
+
+// ============================================================================
+// READ PROGRESS
+// ============================================================================
+
+export const readProgress = sqliteTable(
+  'read_progress',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    postId: text('post_id')
+      .notNull()
+      .references(() => posts.id),
+    // 0..100. Capped on update so a misbehaving client can't store garbage.
+    percent: integer('percent').notNull().default(0),
+    updatedAt: text('updated_at').notNull()
+  },
+  (table) => [
+    uniqueIndex('read_progress_user_post').on(table.userId, table.postId)
+  ]
+);
 
 // ============================================================================
 // REPORTS

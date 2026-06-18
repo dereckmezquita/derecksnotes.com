@@ -1,14 +1,80 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import styled from 'styled-components';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
+import { linkifyMentions } from '@derecksnotes/shared';
 import {
   CommentFormWrapper,
   CommentTextarea,
   CommentSubmitButton,
   LoginPrompt
 } from './CommentStyles';
+
+const TabRow = styled.div`
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+`;
+
+const FormTab = styled.button<{ $active: boolean }>`
+  font-family: ${(p) => p.theme.text.font.roboto};
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid
+    ${(p) => (p.$active ? p.theme.text.colour.header() : 'transparent')};
+  background: ${(p) =>
+    p.$active ? `${p.theme.text.colour.header()}10` : 'transparent'};
+  color: ${(p) => p.theme.text.colour.primary()};
+`;
+
+const PreviewPane = styled.div`
+  min-height: 80px;
+  padding: 6px 8px;
+  border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+  border-radius: 4px;
+  background: ${(p) => p.theme.container.background.colour.card()};
+  font-size: 0.9rem;
+  line-height: 1.5;
+`;
+
+function renderPreview(content: string): string {
+  try {
+    const withMentions = linkifyMentions(content);
+    const raw = marked.parse(withMentions);
+    const html = typeof raw === 'string' ? raw : content;
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'p',
+        'br',
+        'strong',
+        'em',
+        'code',
+        'pre',
+        'blockquote',
+        'ul',
+        'ol',
+        'li',
+        'a',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'hr',
+        'del'
+      ],
+      ALLOWED_ATTR: ['href', 'title', 'target', 'rel']
+    });
+  } catch {
+    return DOMPurify.sanitize(content, { ALLOWED_TAGS: [] });
+  }
+}
 
 interface CommentFormProps {
   slug: string;
@@ -83,6 +149,8 @@ export function CommentForm({
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'write' | 'preview'>('write');
+  const previewHtml = useMemo(() => renderPreview(content), [content]);
 
   // Autocomplete state
   const [suggestions, setSuggestions] = useState<UserMatch[]>([]);
@@ -223,16 +291,42 @@ export function CommentForm({
   return (
     <CommentFormWrapper>
       <form onSubmit={handleSubmit}>
+        <TabRow>
+          <FormTab
+            type="button"
+            $active={mode === 'write'}
+            onClick={() => setMode('write')}
+          >
+            Write
+          </FormTab>
+          <FormTab
+            type="button"
+            $active={mode === 'preview'}
+            onClick={() => setMode('preview')}
+          >
+            Preview
+          </FormTab>
+        </TabRow>
         <MentionContainer>
-          <CommentTextarea
-            ref={textareaRef}
-            value={content}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            maxLength={10000}
-            disabled={submitting}
-          />
+          {mode === 'write' ? (
+            <CommentTextarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              maxLength={10000}
+              disabled={submitting}
+            />
+          ) : (
+            <PreviewPane
+              dangerouslySetInnerHTML={{
+                __html: content.trim()
+                  ? previewHtml
+                  : '<em>Nothing to preview yet.</em>'
+              }}
+            />
+          )}
           {suggestions.length > 0 && (
             <SuggestionList role="listbox">
               {suggestions.map((s, i) => (

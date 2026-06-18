@@ -18,6 +18,7 @@ import {
 import { Comments } from '@/components/comments/Comments';
 import { PostReactionButtons } from '@/components/posts/PostReactionButtons';
 import { BookmarkButton } from '@/components/posts/BookmarkButton';
+import { ReadProgressTracker } from '@/components/posts/ReadProgressTracker';
 import { usePageView } from '@/hooks/usePageView';
 import { usePathname } from 'next/navigation';
 
@@ -266,10 +267,13 @@ export function ContentPost(props: ContentPostProps) {
           : renderStandaloneNavigation()}
 
         {isClient && (
-          <PostEngagement>
-            <PostReactionButtons slug={slug} title={title} />
-            <BookmarkButton slug={slug} title={title} />
-          </PostEngagement>
+          <>
+            <PostEngagement>
+              <PostReactionButtons slug={slug} title={title} />
+              <BookmarkButton slug={slug} title={title} />
+            </PostEngagement>
+            <ReadProgressTracker slug={slug} title={title} />
+          </>
         )}
 
         {comments && <Comments slug={slug} title={title} />}

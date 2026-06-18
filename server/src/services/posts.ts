@@ -158,3 +158,38 @@ export async function markPostRead(
 export async function findPostBySlug(slug: string) {
   return db.query.posts.findFirst({ where: eq(schema.posts.slug, slug) });
 }
+
+/**
+ * Upsert read progress for (user, post). Only persists if the new percent
+ * is strictly greater than the stored value — clients can debounce as
+ * aggressively as they like, the row only grows.
+ */
+export async function upsertReadProgress(
+  userId: string,
+  postId: string,
+  percent: number,
+  now: string
+): Promise<void> {
+  const existing = await db.query.readProgress.findFirst({
+    where: and(
+      eq(schema.readProgress.userId, userId),
+      eq(schema.readProgress.postId, postId)
+    )
+  });
+  if (existing) {
+    if (percent > existing.percent) {
+      await db
+        .update(schema.readProgress)
+        .set({ percent, updatedAt: now })
+        .where(eq(schema.readProgress.id, existing.id));
+    }
+    return;
+  }
+  await db.insert(schema.readProgress).values({
+    id: crypto.randomUUID(),
+    userId,
+    postId,
+    percent,
+    updatedAt: now
+  });
+}

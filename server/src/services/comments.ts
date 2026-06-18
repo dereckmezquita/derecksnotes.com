@@ -260,13 +260,16 @@ export async function getCommentHistory(
   ];
 }
 
+export type CommentSort = 'new' | 'top' | 'best';
+
 export async function getCommentsForPost(
   postId: string,
   userId: string | null,
   page: number,
   limit: number,
   maxDepth: number = 3,
-  repliesPerLevel: number = 3
+  repliesPerLevel: number = 3,
+  sort: CommentSort = 'new'
 ): Promise<{
   comments: CommentData[];
   total: number;
@@ -290,16 +293,53 @@ export async function getCommentsForPost(
     visibilityFilter
   );
 
+  // Sort ordering. Pinned always wins; id is the deterministic tiebreaker.
+  // For 'top' and 'best' we lean on the reactions aggregate via a subquery
+  // — fast at this scale (single post, ~20 rows).
+  const reactionsCol = sql`(
+    SELECT COALESCE(SUM(CASE WHEN ${schema.commentReactions.type} = 'like' THEN 1 WHEN ${schema.commentReactions.type} = 'dislike' THEN -1 ELSE 0 END), 0)
+    FROM ${schema.commentReactions}
+    WHERE ${schema.commentReactions.commentId} = ${schema.comments.id}
+  )`;
+  // Wilson lower bound (95% confidence) on positive rate. Approximate with
+  // (likes - 1.96*sqrt(likes*dislikes/n)/n) — close enough for ranking.
+  const bestCol = sql`(
+    WITH r AS (
+      SELECT
+        SUM(CASE WHEN ${schema.commentReactions.type} = 'like' THEN 1 ELSE 0 END) AS likes,
+        SUM(CASE WHEN ${schema.commentReactions.type} = 'dislike' THEN 1 ELSE 0 END) AS dislikes
+      FROM ${schema.commentReactions}
+      WHERE ${schema.commentReactions.commentId} = ${schema.comments.id}
+    )
+    SELECT CASE WHEN (likes + dislikes) = 0 THEN 0 ELSE
+      (likes / CAST(likes + dislikes AS REAL)) - 1.96 * SQRT((likes * dislikes) / CAST((likes + dislikes) * (likes + dislikes) * (likes + dislikes) AS REAL))
+    END FROM r
+  )`;
+
+  const sortClause =
+    sort === 'top'
+      ? [
+          desc(schema.comments.pinnedAt),
+          desc(reactionsCol),
+          desc(schema.comments.createdAt),
+          asc(schema.comments.id)
+        ]
+      : sort === 'best'
+        ? [
+            desc(schema.comments.pinnedAt),
+            desc(bestCol),
+            desc(schema.comments.createdAt),
+            asc(schema.comments.id)
+          ]
+        : [
+            desc(schema.comments.pinnedAt),
+            desc(schema.comments.createdAt),
+            asc(schema.comments.id)
+          ];
+
   const topLevel = await db.query.comments.findMany({
     where: topLevelWhere,
-    // I18: stable tiebreaker — id is the unique fallback ordering key, so
-    // offset pagination cannot repeat or skip rows when pinnedAt/createdAt
-    // collide.
-    orderBy: [
-      desc(schema.comments.pinnedAt),
-      desc(schema.comments.createdAt),
-      asc(schema.comments.id)
-    ],
+    orderBy: sortClause,
     limit,
     offset,
     with: {

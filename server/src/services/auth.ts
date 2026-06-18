@@ -139,6 +139,8 @@ export async function getUserWithGroupsAndPermissions(userId: string) {
     displayName: user.displayName,
     bio: user.bio,
     avatarUrl: user.avatarUrl,
+    location: user.location,
+    socialLinks: user.socialLinks ? JSON.parse(user.socialLinks) : [],
     createdAt: user.createdAt,
     groups,
     permissions: Array.from(permissions)

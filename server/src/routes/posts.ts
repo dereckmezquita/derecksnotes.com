@@ -112,6 +112,47 @@ router.get('/stats', optionalAuth(), async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// Reading-progress sink: ContentPost reports the percent scrolled (clamped
+// 0..100) via debounced fetch. Idempotent upsert keyed on (user, post) so
+// repeated writes never multiply rows. Only stores the MAX seen.
+router.post(
+  '/read-progress',
+  authenticate(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const parsed = z
+        .object({
+          slug: z.string().min(1).max(500),
+          title: z.string().min(1).max(500),
+          percent: z.coerce.number().min(0).max(100)
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parsed.error.issues
+        });
+        return;
+      }
+      const postId = await postService.getOrCreatePost(
+        parsed.data.slug,
+        parsed.data.title
+      );
+      const now = new Date().toISOString();
+      await postService.upsertReadProgress(
+        req.user!.id,
+        postId,
+        Math.round(parsed.data.percent),
+        now
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Read-progress error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 router.post('/read', authenticate(), async (req: AuthenticatedRequest, res) => {
   try {
     const parsed = z

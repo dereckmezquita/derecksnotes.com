@@ -63,15 +63,33 @@ export async function findUserById(id: string) {
   });
 }
 
+export interface SocialLink {
+  label: string;
+  url: string;
+}
+
 export async function updateProfile(
   userId: string,
-  data: { displayName?: string; bio?: string; avatarUrl?: string | null }
+  data: {
+    displayName?: string;
+    bio?: string;
+    avatarUrl?: string | null;
+    location?: string | null;
+    socialLinks?: SocialLink[] | null;
+  }
 ) {
-  await db
-    .update(schema.users)
-    .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(schema.users.id, userId));
-
+  const patch: Record<string, unknown> = {
+    updatedAt: new Date().toISOString()
+  };
+  if (data.displayName !== undefined) patch.displayName = data.displayName;
+  if (data.bio !== undefined) patch.bio = data.bio;
+  if (data.avatarUrl !== undefined) patch.avatarUrl = data.avatarUrl;
+  if (data.location !== undefined) patch.location = data.location;
+  if (data.socialLinks !== undefined)
+    patch.socialLinks = data.socialLinks
+      ? JSON.stringify(data.socialLinks)
+      : null;
+  await db.update(schema.users).set(patch).where(eq(schema.users.id, userId));
   return findUserById(userId);
 }
 
@@ -240,6 +258,50 @@ export async function bulkDeleteComments(
     )
     .returning({ id: schema.comments.id });
   return ids.length;
+}
+
+/**
+ * Public-profile activity feed: the user's recent approved comments + their
+ * post reactions, merged and sorted by timestamp desc. Keeps the payload
+ * shape small — just enough to render in a list.
+ */
+export async function getUserActivity(userId: string, limit: number = 30) {
+  const commentRows = await db.query.comments.findMany({
+    where: and(
+      eq(schema.comments.userId, userId),
+      eq(schema.comments.approved, 1),
+      isNull(schema.comments.deletedAt)
+    ),
+    orderBy: [desc(schema.comments.createdAt)],
+    limit,
+    with: { post: true }
+  });
+  const reactionRows = await db.query.postReactions.findMany({
+    where: eq(schema.postReactions.userId, userId),
+    orderBy: [desc(schema.postReactions.createdAt)],
+    limit,
+    with: { post: true }
+  });
+  const merged = [
+    ...commentRows.map((c) => ({
+      type: 'comment' as const,
+      id: c.id,
+      createdAt: c.createdAt,
+      slug: c.post?.slug || '',
+      postTitle: c.post?.title || '',
+      content: c.content
+    })),
+    ...reactionRows.map((r) => ({
+      type: 'reaction' as const,
+      id: r.id,
+      createdAt: r.createdAt,
+      slug: r.post?.slug || '',
+      postTitle: r.post?.title || '',
+      reaction: r.type as 'like' | 'dislike'
+    }))
+  ];
+  merged.sort((a, b) => (b.createdAt < a.createdAt ? -1 : 1));
+  return merged.slice(0, limit);
 }
 
 export async function getReadHistory(

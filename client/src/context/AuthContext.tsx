@@ -29,6 +29,8 @@ interface AuthContextType {
     displayName?: string;
     bio?: string;
     avatarUrl?: string | null;
+    location?: string | null;
+    socialLinks?: { label: string; url: string }[] | null;
   }) => Promise<void>;
   changeUsername: (newUsername: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -141,12 +143,21 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     displayName?: string;
     bio?: string;
     avatarUrl?: string | null;
+    location?: string | null;
+    socialLinks?: { label: string; url: string }[] | null;
   }) => {
     clearAuthError();
     try {
       await api.patch('/users/me', data);
       if (user) {
-        setUser({ ...user, ...data });
+        setUser({
+          ...user,
+          ...data,
+          socialLinks:
+            data.socialLinks !== undefined
+              ? data.socialLinks || []
+              : user.socialLinks
+        });
       }
     } catch (error) {
       if (error instanceof ApiError) setAuthError(error.data as AuthError);

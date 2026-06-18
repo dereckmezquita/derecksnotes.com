@@ -82,13 +82,18 @@ router.get('/', optionalAuth(), async (req: AuthenticatedRequest, res) => {
       Math.max(1, parseInt(req.query.repliesPerLevel as string) || 3)
     );
 
+    const sortParam = (req.query.sort as string) || 'new';
+    const sort: 'new' | 'top' | 'best' =
+      sortParam === 'top' || sortParam === 'best' ? sortParam : 'new';
+
     const result = await commentService.getCommentsForPost(
       post.id,
       req.user?.id || null,
       page,
       limit,
       maxDepth,
-      repliesPerLevel
+      repliesPerLevel,
+      sort
     );
     res.json(result);
   } catch (error) {

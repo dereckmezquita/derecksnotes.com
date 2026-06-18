@@ -71,12 +71,34 @@ router.get('/:username', async (req: AuthenticatedRequest, res) => {
       displayName: user.displayName,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
+      location: user.location,
+      socialLinks: user.socialLinks ? JSON.parse(user.socialLinks) : [],
       createdAt: user.createdAt,
       followerCount: followers,
       followingCount: following
     });
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/:username/activity', async (req: AuthenticatedRequest, res) => {
+  try {
+    const usernameParsed = usernameParamSchema.safeParse(req.params.username);
+    if (!usernameParsed.success) {
+      res.status(400).json({ error: 'Invalid username format' });
+      return;
+    }
+    const target = await userService.findUserByUsername(usernameParsed.data);
+    if (!target) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    const items = await userService.getUserActivity(target.id, 30);
+    res.json({ data: items });
+  } catch (error) {
+    console.error('User activity error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -184,7 +206,25 @@ router.patch('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
       .object({
         displayName: z.string().min(1).max(50).optional(),
         bio: z.string().max(500).optional(),
-        avatarUrl: z.string().url().max(2048).nullable().optional()
+        avatarUrl: z.string().url().max(2048).nullable().optional(),
+        location: z.string().max(100).nullable().optional(),
+        socialLinks: z
+          .array(
+            z.object({
+              label: z.string().min(1).max(30),
+              // Force HTTPS — no `javascript:`, `data:`, or http surface.
+              url: z
+                .string()
+                .url()
+                .max(500)
+                .refine((u) => u.startsWith('https://'), {
+                  message: 'Social links must use https://'
+                })
+            })
+          )
+          .max(8)
+          .nullable()
+          .optional()
       })
       .safeParse(req.body);
 
@@ -202,7 +242,9 @@ router.patch('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
       username: updated!.username,
       displayName: updated!.displayName,
       bio: updated!.bio,
-      avatarUrl: updated!.avatarUrl
+      avatarUrl: updated!.avatarUrl,
+      location: updated!.location,
+      socialLinks: updated!.socialLinks ? JSON.parse(updated!.socialLinks) : []
     });
   } catch (error) {
     console.error('Update profile error:', error);

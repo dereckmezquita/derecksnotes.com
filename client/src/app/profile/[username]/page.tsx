@@ -25,9 +25,21 @@ interface PublicProfile {
   displayName: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  location: string | null;
+  socialLinks: { label: string; url: string }[];
   createdAt: string;
   followerCount: number;
   followingCount: number;
+}
+
+interface ActivityItem {
+  type: 'comment' | 'reaction';
+  id: string;
+  createdAt: string;
+  slug: string;
+  postTitle: string;
+  content?: string;
+  reaction?: 'like' | 'dislike';
 }
 
 const Counts = styled.div`
@@ -63,6 +75,7 @@ export default function PublicProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [following, setFollowing] = useState<boolean | null>(null);
   const [pending, setPending] = useState(false);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
 
   const isSelf = user?.username === username;
 
@@ -99,6 +112,12 @@ export default function PublicProfilePage() {
     }
     load();
     refreshFollow();
+    api
+      .get<{ data: ActivityItem[] }>(`/users/${username}/activity`, {
+        silent: true
+      })
+      .then((d) => setActivity(d.data))
+      .catch(() => {});
   }, [username, refreshFollow]);
 
   const toggleFollow = async () => {
@@ -194,7 +213,63 @@ export default function PublicProfilePage() {
           )}
         </ProfileHeader>
         {profile.bio && <Bio>{profile.bio}</Bio>}
+        {profile.location && (
+          <Counts>
+            <Count>📍 {profile.location}</Count>
+          </Counts>
+        )}
+        {profile.socialLinks.length > 0 && (
+          <Counts>
+            {profile.socialLinks.map((l) => (
+              <a
+                key={l.url}
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginRight: 12 }}
+              >
+                {l.label}
+              </a>
+            ))}
+          </Counts>
+        )}
       </Card>
+      {activity.length > 0 && (
+        <Card>
+          <h3 style={{ marginTop: 0 }}>Activity</h3>
+          {activity.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                padding: '6px 0',
+                borderBottom: '1px solid rgba(0,0,0,0.08)'
+              }}
+            >
+              {a.type === 'comment' ? (
+                <>
+                  Commented on{' '}
+                  <a href={`/${a.slug}`}>{a.postTitle || a.slug}</a>
+                  {a.content && (
+                    <div style={{ color: '#555', fontSize: '0.85rem' }}>
+                      {a.content.length > 200
+                        ? a.content.substring(0, 200) + '…'
+                        : a.content}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {a.reaction === 'like' ? '👍 Liked' : '👎 Disliked'}{' '}
+                  <a href={`/${a.slug}`}>{a.postTitle || a.slug}</a>
+                </>
+              )}
+              <div style={{ color: '#999', fontSize: '0.72rem' }}>
+                {formatDate(a.createdAt)}
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
     </PageContainer>
   );
 }

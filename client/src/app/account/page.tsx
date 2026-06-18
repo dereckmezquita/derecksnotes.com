@@ -296,37 +296,78 @@ function BookmarksTab() {
 // Profile Tab
 // ============================================================================
 
+interface SocialLinkInput {
+  label: string;
+  url: string;
+}
+
 function ProfileTab({
   user,
   updateProfile,
   changeUsername
 }: {
-  user: { username: string; displayName: string | null; bio: string | null };
+  user: {
+    username: string;
+    displayName: string | null;
+    bio: string | null;
+    location?: string | null;
+    socialLinks?: SocialLinkInput[];
+  };
   updateProfile: (data: {
     displayName?: string;
     bio?: string;
+    location?: string | null;
+    socialLinks?: SocialLinkInput[] | null;
   }) => Promise<void>;
   changeUsername: (username: string) => Promise<void>;
 }) {
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [bio, setBio] = useState(user.bio || '');
+  const [location, setLocation] = useState(user.location || '');
+  const [socialLinks, setSocialLinks] = useState<SocialLinkInput[]>(
+    user.socialLinks && user.socialLinks.length > 0
+      ? user.socialLinks
+      : [{ label: '', url: '' }]
+  );
   const [newUsername, setNewUsername] = useState('');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const updateLink = (idx: number, patch: Partial<SocialLinkInput>) =>
+    setSocialLinks((prev) =>
+      prev.map((l, i) => (i === idx ? { ...l, ...patch } : l))
+    );
+
+  const addLink = () =>
+    setSocialLinks((prev) =>
+      prev.length < 8 ? [...prev, { label: '', url: '' }] : prev
+    );
+
+  const removeLink = (idx: number) =>
+    setSocialLinks((prev) =>
+      prev.length === 1
+        ? [{ label: '', url: '' }]
+        : prev.filter((_, i) => i !== idx)
+    );
 
   const handleSaveProfile = async () => {
     setSaving(true);
     setSuccess(null);
     setError(null);
     try {
+      const cleaned = socialLinks
+        .map((l) => ({ label: l.label.trim(), url: l.url.trim() }))
+        .filter((l) => l.label && l.url);
       await updateProfile({
         displayName: displayName || undefined,
-        bio: bio || undefined
+        bio: bio || undefined,
+        location: location || null,
+        socialLinks: cleaned.length > 0 ? cleaned : null
       });
       setSuccess('Profile updated');
     } catch {
-      setError('Failed to update profile');
+      setError('Failed to update profile (HTTPS URLs only)');
     } finally {
       setSaving(false);
     }
@@ -366,6 +407,55 @@ function ProfileTab({
           placeholder="Tell us about yourself"
           maxLength={500}
         />
+        <Label>Location</Label>
+        <Input
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="City, country (optional)"
+          maxLength={100}
+        />
+        <Label>Social links (HTTPS only, up to 8)</Label>
+        {socialLinks.map((l, i) => (
+          <div
+            key={i}
+            style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}
+          >
+            <Input
+              value={l.label}
+              onChange={(e) => updateLink(i, { label: e.target.value })}
+              placeholder="Label (e.g. GitHub)"
+              maxLength={30}
+              style={{ width: '140px' }}
+            />
+            <Input
+              value={l.url}
+              onChange={(e) => updateLink(i, { url: e.target.value })}
+              placeholder="https://…"
+              maxLength={500}
+              style={{ flex: 1 }}
+            />
+            <Button
+              type="button"
+              $variant="secondary"
+              onClick={() => removeLink(i)}
+              style={{ padding: '4px 10px' }}
+            >
+              −
+            </Button>
+          </div>
+        ))}
+        {socialLinks.length < 8 && (
+          <ButtonRow>
+            <Button
+              type="button"
+              $variant="secondary"
+              onClick={addLink}
+              style={{ padding: '4px 10px' }}
+            >
+              + Add link
+            </Button>
+          </ButtonRow>
+        )}
         {success && <SuccessMessage>{success}</SuccessMessage>}
         {error && <ErrorMessage>{error}</ErrorMessage>}
         <ButtonRow>
