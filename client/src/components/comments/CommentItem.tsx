@@ -115,7 +115,12 @@ export function CommentItem({
   const [replyPage, setReplyPage] = useState(1);
   const [loadingReplies, setLoadingReplies] = useState(false);
 
-  const isOwner = user?.id === comment.user?.id;
+  // Both sides can be undefined (anonymous viewer + tombstoned comment) —
+  // the loose `===` would treat that as ownership and surface Edit/Delete
+  // to a logged-out viewer if either action ever became un-gated. Anchor
+  // on `!!user` so the predicate can never go truthy on the undefined
+  // path.
+  const isOwner = !!user && !!comment.user && user.id === comment.user.id;
 
   const handleReaction = async (type: 'like' | 'dislike') => {
     if (!user) return;
@@ -385,7 +390,7 @@ export function CommentItem({
           >
             {loadingReplies
               ? 'Loading...'
-              : `Show more replies (${comment.replyCount - replies.length} remaining)`}
+              : `Show more replies (${Math.max(0, comment.replyCount - replies.length)} remaining)`}
           </LoadMoreReplies>
         )}
       </CommentCard>

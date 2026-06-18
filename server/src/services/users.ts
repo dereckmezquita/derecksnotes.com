@@ -3,6 +3,10 @@ import { db, schema } from '@db/index';
 import { eq, and, isNull, desc, sql, inArray } from 'drizzle-orm';
 import { hashPassword, ensureAdminUser } from './auth';
 
+// `inArray` is already imported above; this file used to redeclare the
+// helper inline via raw `sql` template which silently turned the IN-list
+// into a single bound parameter. See findUsersByUsernames below.
+
 export async function createUser(data: {
   username: string;
   password: string;
@@ -161,12 +165,15 @@ export async function searchUsernames(q: string, limit: number = 10) {
 /**
  * Resolve a list of usernames (case-insensitive) to their user records.
  * Used by the mention fan-out. Soft-deleted users are filtered.
+ *
+ * Earlier this function used `sql\`lower(...) in ${jsArray}\`` which Drizzle
+ * binds as ONE parameter, not as an IN-list — every mention silently
+ * failed to resolve. The correct form is `inArray()` against a sql
+ * lower(column) expression so each candidate is bound separately.
  */
 export async function findUsersByUsernames(usernames: string[]) {
   if (usernames.length === 0) return [];
-  // Normalise case once on the caller side via lowercased input; usernames
-  // in the DB are case-preserved, so use a COLLATE NOCASE comparison.
-  const placeholders = usernames.map((u) => u.toLowerCase());
+  const lower = usernames.map((u) => u.toLowerCase());
   const rows = await db
     .select({
       id: schema.users.id,
@@ -179,7 +186,7 @@ export async function findUsersByUsernames(usernames: string[]) {
     .where(
       and(
         isNull(schema.users.deletedAt),
-        sql`lower(${schema.users.username}) in ${placeholders}`
+        inArray(sql`lower(${schema.users.username})`, lower)
       )
     );
   return rows;
