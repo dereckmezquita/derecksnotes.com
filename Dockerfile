@@ -47,11 +47,6 @@ FROM oven/bun:1.2-slim AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends tini curl && rm -rf /var/lib/apt/lists/*
 
-# Pin NODE_ENV=production so next-mdx-remote and react/jsx-runtime agree on
-# which JSX helper to use; without this the on-demand RSC MDX path crashes
-# under Bun. See entrypoint.sh for the runtime explanation.
-ENV NODE_ENV=production
-
 WORKDIR /app
 
 # Copy root package.json for version reading

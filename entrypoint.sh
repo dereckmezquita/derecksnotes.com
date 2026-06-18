@@ -1,11 +1,16 @@
 #!/bin/sh
 set -e
 
-# Pin runtime to production. Under Bun, next-mdx-remote and react/jsx-runtime
-# each read process.env.NODE_ENV independently and can disagree if it is unset
-# at module-load time, which causes on-demand MDX rendering to crash with
-# "undefined is not an object (evaluating 'Object.keys(t)')". Pin it here.
-export NODE_ENV=production
+# BUILD_ENV (local | dev | prod) is the single source of truth for this app.
+# Derive NODE_ENV from it so we never have two env vars to keep in sync:
+#   local → development (matches `next dev` locally; never runs in this script
+#                        in practice, but kept correct for completeness)
+#   dev   → production  (deployed VPS build, production-mode Next runtime)
+#   prod  → production  (deployed VPS build, production-mode Next runtime)
+case "${BUILD_ENV:-prod}" in
+  local) export NODE_ENV=development ;;
+  *)     export NODE_ENV=production ;;
+esac
 
 # Start the Next.js client
 cd /app/client && bun run start &
