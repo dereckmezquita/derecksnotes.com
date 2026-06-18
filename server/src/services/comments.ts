@@ -294,54 +294,29 @@ export async function getCommentsForPost(
   );
 
   // Sort ordering. Pinned always wins; id is the deterministic tiebreaker.
-  // For 'top' and 'best' we lean on the reactions aggregate via a subquery
-  // — fast at this scale (single post, ~20 rows).
-  const reactionsCol = sql`(
-    SELECT COALESCE(SUM(CASE WHEN ${schema.commentReactions.type} = 'like' THEN 1 WHEN ${schema.commentReactions.type} = 'dislike' THEN -1 ELSE 0 END), 0)
-    FROM ${schema.commentReactions}
-    WHERE ${schema.commentReactions.commentId} = ${schema.comments.id}
-  )`;
-  // Wilson lower bound (95% confidence) on positive rate. Approximate with
-  // (likes - 1.96*sqrt(likes*dislikes/n)/n) — close enough for ranking.
-  const bestCol = sql`(
-    WITH r AS (
-      SELECT
-        SUM(CASE WHEN ${schema.commentReactions.type} = 'like' THEN 1 ELSE 0 END) AS likes,
-        SUM(CASE WHEN ${schema.commentReactions.type} = 'dislike' THEN 1 ELSE 0 END) AS dislikes
-      FROM ${schema.commentReactions}
-      WHERE ${schema.commentReactions.commentId} = ${schema.comments.id}
-    )
-    SELECT CASE WHEN (likes + dislikes) = 0 THEN 0 ELSE
-      (likes / CAST(likes + dislikes AS REAL)) - 1.96 * SQRT((likes * dislikes) / CAST((likes + dislikes) * (likes + dislikes) * (likes + dislikes) AS REAL))
-    END FROM r
-  )`;
+  // For 'top' / 'best' we sort in two phases:
+  //  1. fetch the top-level rows by createdAt desc (limit * 3 cap so the
+  //     re-sort has enough candidates to surface high-karma comments that
+  //     would otherwise sit on later pages),
+  //  2. aggregate reactions per row in a single GROUP BY,
+  //  3. sort in JS and slice to (offset, limit).
+  // Drizzle's relational findMany aliases tables in a way that breaks the
+  // sql`(SELECT … FROM comment_reactions WHERE …)` interpolation — its
+  // identifier `commentReactions.type` collapses to `comments.type`. Doing
+  // the score join outside the relational query sidesteps that bug.
 
-  const sortClause =
-    sort === 'top'
-      ? [
-          desc(schema.comments.pinnedAt),
-          desc(reactionsCol),
-          desc(schema.comments.createdAt),
-          asc(schema.comments.id)
-        ]
-      : sort === 'best'
-        ? [
-            desc(schema.comments.pinnedAt),
-            desc(bestCol),
-            desc(schema.comments.createdAt),
-            asc(schema.comments.id)
-          ]
-        : [
-            desc(schema.comments.pinnedAt),
-            desc(schema.comments.createdAt),
-            asc(schema.comments.id)
-          ];
+  const baseLimit = sort === 'new' ? limit : Math.max(limit * 3, 60);
+  const baseOffset = sort === 'new' ? offset : 0;
 
-  const topLevel = await db.query.comments.findMany({
+  const baseRows = await db.query.comments.findMany({
     where: topLevelWhere,
-    orderBy: sortClause,
-    limit,
-    offset,
+    orderBy: [
+      desc(schema.comments.pinnedAt),
+      desc(schema.comments.createdAt),
+      asc(schema.comments.id)
+    ],
+    limit: baseLimit,
+    offset: baseOffset,
     with: {
       user: {
         columns: {
@@ -354,6 +329,35 @@ export async function getCommentsForPost(
       reactions: true
     }
   });
+
+  let topLevel = baseRows;
+  if (sort !== 'new' && baseRows.length > 0) {
+    const score = (likes: number, dislikes: number): number => {
+      if (sort === 'top') return likes - dislikes;
+      const n = likes + dislikes;
+      if (n === 0) return 0;
+      // Wilson lower bound (95% confidence) approximation.
+      const p = likes / n;
+      return p - 1.96 * Math.sqrt((p * (1 - p)) / n);
+    };
+    const scored = baseRows.map((c) => {
+      const likes = (c.reactions || []).filter((r) => r.type === 'like').length;
+      const dislikes = (c.reactions || []).filter(
+        (r) => r.type === 'dislike'
+      ).length;
+      return { c, s: score(likes, dislikes) };
+    });
+    // Stable sort: pinned first, then by score desc, then by id asc for
+    // deterministic tiebreak (matches the asc(id) clause for 'new').
+    scored.sort((a, b) => {
+      const pa = a.c.pinnedAt ? 1 : 0;
+      const pb = b.c.pinnedAt ? 1 : 0;
+      if (pa !== pb) return pb - pa;
+      if (a.s !== b.s) return b.s - a.s;
+      return a.c.id < b.c.id ? -1 : 1;
+    });
+    topLevel = scored.slice(offset, offset + limit).map((x) => x.c);
+  }
 
   const total = await db
     .select({ count: sql<number>`count(*)` })
