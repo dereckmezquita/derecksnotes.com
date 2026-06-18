@@ -22,7 +22,7 @@ I have been writing into this site as a lab notebook for years. The [Knowledge G
 
 <KnowledgeGraphEmbed />
 
-It seems best to describe what the pipeline actually does, rather than reflect upon it. The corpus is a tree of MDX files: blog posts, references, course chapters, and dictionary entries split across biology, chemistry, and mathematics. The builder walks the tree, parses frontmatter with grey-matter, converts MDX bodies to plain text, and decomposes each file into a small hierarchy.
+The corpus is a tree of MDX files: blog posts, references, course chapters, and dictionary entries split across biology, chemistry, and mathematics. The builder walks the tree, parses frontmatter with grey-matter, converts MDX bodies to plain text, and decomposes each file into a small hierarchy.
 
 ## What is a node
 
@@ -68,7 +68,7 @@ The threshold `0.15` is the single most consequential parameter in the pipeline;
 
 ## Communities by union-find
 
-Most reach for Louvain or Leiden when they hear "community detection". It seems to me that union-find serves better here, for the following reason. The pipeline runs a **union-find** over the edge list and assigns each connected component a community ID.
+Most reach for Louvain or Leiden when they hear "community detection". It seems to me that union find serves better here, for the following reason. The pipeline runs a **union-find** over the edge list and assigns each connected component a community ID.
 
 - Start with every node in its own set
 - For each edge `(u, v)`, merge `find(u)` with `find(v)` using path compression and union by rank
@@ -92,9 +92,9 @@ A JSON blob is useful but inert; it seems one only sees the structure once it is
 
 ## What jumped out of the data
 
-I built the pipeline expecting it to confirm what I already knew about my own writing. Instead it embarrassed me, repeatedly. The embarrassment was useful; it showed me where TF-IDF stops being able to help.
+This is a v1 of the NLP pipeline; the analysis is intentionally simple. The edges that follow are real lexical overlaps; the question is whether the overlaps are meaningful, and a token-level pipeline has no way to decide that. The cost of treating language as a bag of tokens is on full display.
 
-The recurring failure mode is the **homonym**. A token-level pipeline cannot tell that two pages using the same string mean different things. A small portfolio of the most egregious cases:
+The recurring pattern is the **homonym**. A token-level pipeline cannot tell that two pages using the same string mean different things. A few clear cases:
 
 - **Marsupial** (biology) and **Young Tableau** (mathematics), weight 57. Shared term: *young*. The offspring noun and the surname of Alfred Young, the British mathematician, collapsed into the same token by a tokeniser that has no concept of either, and no casing left to disambiguate them.
 - **Anagenesis** (biology) and the **Chain Rule** (calculus), weight 56. Shared term: *change*. Both pages talk about change. They are talking about completely different changes.
@@ -102,9 +102,9 @@ The recurring failure mode is the **homonym**. A token-level pipeline cannot tel
 - **Balmer Series** (chemistry) and **Taylor Series** (mathematics), weight 43. Shared term: *series*. Hydrogen spectral lines on one side, the polynomial expansion of analytic functions on the other; one shared word, and the edge appears.
 - **Gibbs Free Energy** (chemistry) and the **Sharpe Ratio** (finance), weight 18. Shared term: *free*. Thermodynamic free energy on one side, the risk-*free* rate on the other; the shared token is the only thing they have in common.
 
-The most spectacular case is *partial*. **Dalton's Law**, a chemistry entry on partial pressures, pulled in the entire vector-calculus dictionary: **Gradient**, **Laplacian**, **Divergence**, **Jacobian**, and **Curl**, with edge weights between 47 and 50. *Partial pressure* against *partial derivative*; one shared token dragged a whole false neighbourhood into existence. Note that this is exactly the case where bigram extraction *should* have rescued the pipeline; both *partial pressure* and *partial derivative* are bigrams. But Dalton's Law also uses the bare word *partial* in surrounding prose, so the unigram signal leaked through and outvoted the bigrams. Moreover, the un-wired stemmer would not have helped here either; the failure is not morphological, it is semantic.
+The most striking case is *partial*. **Dalton's Law**, a chemistry entry on partial pressures, pulled in the entire vector-calculus dictionary: **Gradient**, **Laplacian**, **Divergence**, **Jacobian**, and **Curl**, with edge weights between 47 and 50. *Partial pressure* against *partial derivative*; one shared token dragged a whole neighbourhood into existence. Note that this is exactly the case where bigram extraction *should* have helped; both *partial pressure* and *partial derivative* are bigrams. But Dalton's Law also uses the bare word *partial* in surrounding prose, so the unigram signal leaked through and outvoted the bigrams. Moreover, the un-wired stemmer would not have helped here either; the mismatch is not morphological, it is semantic.
 
-These are not bugs. It seems the algorithm is doing exactly what it was designed to do; the edges are real lexical overlaps. They are the cost of treating language as a bag of tokens. In general, meaning does not appear reducible to vocabulary; perhaps that is the most interesting thing the failures reveal.
+These are not bugs. The algorithm is doing exactly what it was designed to do; the edges are real lexical overlaps. In general, meaning does not appear reducible to vocabulary; perhaps that is the most interesting thing the data shows.
 
 ## The almost-right edge
 
@@ -124,4 +124,6 @@ There is a quieter use I want to name. When I write a new post now, I run it thr
 
 It seems the graph is positional, not evaluative. It cannot tell me whether an argument is good. It can tell me where in my own corpus a new piece lands; in general that has been more useful than I expected.
 
-I built this from scratch, tokeniser and n-gram extractor and TF-IDF and cosine similarity and union-find and a half-wired stemmer, because I wanted to know what every stage of an NLP pipeline does on my own writing rather than in the abstract. A transformer sentence-embedding model would not confuse *young marsupial* with *Alfred Young*, and the graph would be the better for it. I will probably swap one in. Having built the lexical version first means I will know exactly what the embedding model is improving on, and exactly which new failure modes it is introducing in place of the old ones.
+## Where a v2 might go
+
+This is a v1 pipeline; the point of building it from scratch was to know what each stage of an NLP pipeline actually does on my own writing rather than in the abstract. The improvements I would reach for first are classical, not large-language-model based. Wiring up the imported Porter stemmer would collapse *photosynthesis* and *photosynthetic* into a single token. Part-of-speech tagging would separate *young* the adjective from *Young* the proper noun by syntactic role, and would dissolve the *Marsupial* / *Young Tableau* edge without any semantic understanding required. Named-entity recognition would catch *Alfred Young* and *Sharpe ratio* as proper nouns and demote their components in the term vector. Word-sense disambiguation against WordNet senses would, with effort, separate *partial pressure* from *partial derivative* at the unigram level. Sentence embeddings (sBERT-style) are also a reasonable candidate and would likely do well on the *young marsupial* / *Alfred Young* case; I am wary, however, of reaching for them as a default. A great deal of recent work substitutes embeddings or an LLM for any analysis that would otherwise require thought, and the result is a black box that is expensive to introspect and that trades one set of failure modes for another. I would rather understand the failure first. A v2 of this post will come once some of these are implemented and the two pipelines can be compared side by side.
