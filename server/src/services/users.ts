@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { db, schema } from '@db/index';
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, inArray } from 'drizzle-orm';
 import { hashPassword, ensureAdminUser } from './auth';
 
 export async function createUser(data: {
@@ -157,25 +157,24 @@ export async function bulkDeleteComments(
   userId: string,
   commentIds: string[]
 ): Promise<number> {
-  let deleted = 0;
+  // Single-statement IN-list with the userId + deletedAt guard scopes the
+  // soft-delete to the caller's own undeleted comments, atomically, in one
+  // round trip. The prior version executed N statements in a loop and
+  // mis-reported `deleted` as the input length.
+  if (commentIds.length === 0) return 0;
   const now = new Date().toISOString();
-
-  for (const id of commentIds) {
-    const result = await db
-      .update(schema.comments)
-      .set({ deletedAt: now })
-      .where(
-        and(
-          eq(schema.comments.id, id),
-          eq(schema.comments.userId, userId),
-          isNull(schema.comments.deletedAt)
-        )
-      );
-
-    deleted++;
-  }
-
-  return deleted;
+  const ids = await db
+    .update(schema.comments)
+    .set({ deletedAt: now })
+    .where(
+      and(
+        inArray(schema.comments.id, commentIds),
+        eq(schema.comments.userId, userId),
+        isNull(schema.comments.deletedAt)
+      )
+    )
+    .returning({ id: schema.comments.id });
+  return ids.length;
 }
 
 export async function getReadHistory(

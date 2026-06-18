@@ -63,3 +63,42 @@ export const profileLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many profile changes, please try again later' }
 });
+
+// Password-change is bcrypt cost 12 = ~100 ms CPU per attempt. Without a
+// limiter, the route is a soft CPU-pin DoS vector for any authenticated user.
+export const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password change attempts, try again later' }
+});
+
+// Account deletion is irreversible at the API level (soft-delete + revoke
+// sessions). Low ceiling to bound abuse via stolen cookies.
+export const accountDeleteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many account-deletion attempts' }
+});
+
+// Bulk operations are O(n) DB writes; cap concurrent bursts.
+export const bulkLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many bulk operations, please slow down' }
+});
+
+// Admin writes are by definition rare. Keep generous but bounded so a
+// runaway script can't flatten the moderation queue.
+export const adminWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many admin requests, please slow down' }
+});

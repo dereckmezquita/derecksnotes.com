@@ -6,6 +6,7 @@ import { authenticate } from '@middleware/auth';
 import { authLimiter } from '@middleware/rateLimit';
 import * as authService from '@services/auth';
 import * as userService from '@services/users';
+import * as auditService from '@services/audit';
 import { config } from '@lib/env';
 import { db, schema } from '@db/index';
 import { eq, desc } from 'drizzle-orm';
@@ -71,12 +72,9 @@ router.post(
           where: eq(schema.users.email, email)
         });
         if (existingEmail) {
-          res
-            .status(409)
-            .json({
-              error:
-                'Registration cannot be completed with the provided details.'
-            });
+          res.status(409).json({
+            error: 'Registration cannot be completed with the provided details.'
+          });
           return;
         }
       }
@@ -99,6 +97,17 @@ router.post(
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
+
+      // I4: forensic trail for auth events. adminId on the audit row is
+      // overloaded to mean "actor" — column rename is out of scope here.
+      await auditService.logAuditAction(
+        user.id,
+        'auth.register',
+        'user',
+        user.id,
+        { username: user.username, hadEmail: !!email },
+        req.ip
+      );
 
       res.status(201).json({
         user: { id: user.id, username: user.username }
@@ -148,6 +157,15 @@ router.post('/login', authLimiter, async (req: AuthenticatedRequest, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+    await auditService.logAuditAction(
+      user.id,
+      'auth.login',
+      'session',
+      session.id,
+      undefined,
+      req.ip
+    );
+
     res.json({ user: { id: user.id, username: user.username } });
   } catch (error) {
     console.error('Login error:', error);
@@ -155,22 +173,38 @@ router.post('/login', authLimiter, async (req: AuthenticatedRequest, res) => {
   }
 });
 
-router.post(
-  '/logout',
-  authenticate(),
-  async (req: AuthenticatedRequest, res) => {
-    try {
-      if (req.sessionId) {
-        await authService.revokeSession(req.sessionId);
+// I12: logout MUST be idempotent from the client's perspective. Don't gate
+// on a live session — an already-expired cookie should still clear cleanly
+// (otherwise a perfectly reasonable client action surfaces an error).
+router.post('/logout', async (req: AuthenticatedRequest, res) => {
+  try {
+    const token = req.cookies?.sessionId;
+    if (token) {
+      const tokenHash = authService.hashSessionToken(token);
+      const session = await db.query.sessions.findFirst({
+        where: eq(schema.sessions.tokenHash, tokenHash)
+      });
+      if (session) {
+        await authService.revokeSession(session.id);
+        await auditService.logAuditAction(
+          session.userId,
+          'auth.logout',
+          'session',
+          session.id,
+          undefined,
+          req.ip
+        );
       }
-      res.clearCookie('sessionId');
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Logout error:', error);
-      res.status(500).json({ error: 'Internal server error' });
     }
+    res.clearCookie('sessionId');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Even on internal error, the cookie still gets cleared client-side.
+    res.clearCookie('sessionId');
+    res.json({ success: true });
   }
-);
+});
 
 router.get('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
   try {

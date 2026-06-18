@@ -3,7 +3,12 @@ set -euo pipefail
 
 # ============================================================
 # SQLite Database Backup Script
-# Safe hot backup using sqlite3 .backup command
+# Safe hot backup using sqlite3 .backup command.
+# Verifies the backup with PRAGMA integrity_check + PRAGMA foreign_key_check
+# before gzipping, and verifies gzip integrity after compression. A backup
+# that silently corrupts can rotate out the last known-good copy before
+# anyone notices the live DB is bad — these checks make the failure loud
+# and synchronous.
 #
 # Usage:
 #   ./backup-db.sh <database-path> <backup-dir> [max-backups]
@@ -66,6 +71,28 @@ fi
 BACKUP_SIZE=$(du -h "$BACKUP_PATH" | cut -f1)
 echo "Backup created: ${BACKUP_SIZE}"
 
+# ---- Verify ----
+
+echo "Verifying backup integrity (PRAGMA integrity_check)..."
+INTEGRITY_RESULT=$(sqlite3 "$BACKUP_PATH" "PRAGMA integrity_check;")
+if [ "$INTEGRITY_RESULT" != "ok" ]; then
+    echo "Error: integrity_check failed:"
+    echo "$INTEGRITY_RESULT"
+    rm -f "$BACKUP_PATH"
+    exit 1
+fi
+echo "  integrity_check: ok"
+
+echo "Verifying foreign keys (PRAGMA foreign_key_check)..."
+FK_RESULT=$(sqlite3 "$BACKUP_PATH" "PRAGMA foreign_key_check;")
+if [ -n "$FK_RESULT" ]; then
+    echo "Error: foreign_key_check failed:"
+    echo "$FK_RESULT"
+    rm -f "$BACKUP_PATH"
+    exit 1
+fi
+echo "  foreign_key_check: ok"
+
 # ---- Compress ----
 
 echo "Compressing..."
@@ -76,8 +103,15 @@ if [ ! -f "$COMPRESSED_PATH" ]; then
     exit 1
 fi
 
+echo "Verifying gzip integrity (gunzip -t)..."
+if ! gunzip -t "$COMPRESSED_PATH"; then
+    echo "Error: gzip test failed:"
+    rm -f "$COMPRESSED_PATH"
+    exit 1
+fi
+
 COMPRESSED_SIZE=$(du -h "$COMPRESSED_PATH" | cut -f1)
-echo "Compressed: ${COMPRESSED_SIZE}"
+echo "Compressed: ${COMPRESSED_SIZE} (verified)"
 
 # ---- Rotate old backups ----
 

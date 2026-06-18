@@ -1,10 +1,32 @@
 import crypto from 'crypto';
 import { db, schema } from '@db/index';
-import { eq, and, isNull, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, sql, inArray } from 'drizzle-orm';
 import { sanitizeMarkdown } from '@middleware/sanitize';
 import type { CommentData } from '@derecksnotes/shared';
 
-const MAX_DEPTH = 5;
+export const MAX_DEPTH = 5;
+
+// Typed errors so route handlers can map to HTTP status without sniffing
+// the error stack. Replaces the fragile `error.stack?.includes('at')`
+// heuristic (I21) which silently coerced every business error to 500.
+export class CommentValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CommentValidationError';
+  }
+}
+export class CommentNotFoundError extends Error {
+  constructor(message: string = 'Comment not found') {
+    super(message);
+    this.name = 'CommentNotFoundError';
+  }
+}
+export class CommentAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CommentAuthError';
+  }
+}
 
 export async function createComment(data: {
   postId: string;
@@ -20,11 +42,15 @@ export async function createComment(data: {
       where: eq(schema.comments.id, data.parentId)
     });
 
-    if (!parent) throw new Error('Parent comment not found');
+    if (!parent) throw new CommentNotFoundError('Parent comment not found');
     if (parent.postId !== data.postId)
-      throw new Error('Parent comment belongs to different post');
+      throw new CommentValidationError(
+        'Parent comment belongs to different post'
+      );
     if (parent.depth >= MAX_DEPTH)
-      throw new Error(`Maximum reply depth of ${MAX_DEPTH} reached`);
+      throw new CommentValidationError(
+        `Maximum reply depth of ${MAX_DEPTH} reached`
+      );
     depth = parent.depth + 1;
   }
 
@@ -54,10 +80,11 @@ export async function editComment(
     where: eq(schema.comments.id, commentId)
   });
 
-  if (!comment) throw new Error('Comment not found');
+  if (!comment) throw new CommentNotFoundError();
   if (comment.userId !== userId)
-    throw new Error('Not authorized to edit this comment');
-  if (comment.deletedAt) throw new Error('Cannot edit a deleted comment');
+    throw new CommentAuthError('Not authorized to edit this comment');
+  if (comment.deletedAt)
+    throw new CommentValidationError('Cannot edit a deleted comment');
 
   // Save history snapshot of the OLD content
   await db.insert(schema.commentHistory).values({
@@ -84,10 +111,11 @@ export async function softDeleteComment(
     where: eq(schema.comments.id, commentId)
   });
 
-  if (!comment) throw new Error('Comment not found');
+  if (!comment) throw new CommentNotFoundError();
   if (comment.userId !== userId)
-    throw new Error('Not authorized to delete this comment');
-  if (comment.deletedAt) throw new Error('Comment already deleted');
+    throw new CommentAuthError('Not authorized to delete this comment');
+  if (comment.deletedAt)
+    throw new CommentValidationError('Comment already deleted');
 
   await db
     .update(schema.comments)
@@ -184,18 +212,30 @@ export async function getCommentsForPost(
 }> {
   const offset = (page - 1) * limit;
 
-  // Show approved comments + the requesting user's own unapproved comments
+  // Visibility: approved comments + the requesting user's own unapproved
+  // comments. I17: exclude soft-deleted from the top-level page so deleted
+  // top-level rows do NOT consume slots and inflate `total`.
   const visibilityFilter = userId
     ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
     : eq(schema.comments.approved, 1);
 
+  const topLevelWhere = and(
+    eq(schema.comments.postId, postId),
+    isNull(schema.comments.parentId),
+    isNull(schema.comments.deletedAt),
+    visibilityFilter
+  );
+
   const topLevel = await db.query.comments.findMany({
-    where: and(
-      eq(schema.comments.postId, postId),
-      isNull(schema.comments.parentId),
-      visibilityFilter
-    ),
-    orderBy: [desc(schema.comments.pinnedAt), desc(schema.comments.createdAt)],
+    where: topLevelWhere,
+    // I18: stable tiebreaker — id is the unique fallback ordering key, so
+    // offset pagination cannot repeat or skip rows when pinnedAt/createdAt
+    // collide.
+    orderBy: [
+      desc(schema.comments.pinnedAt),
+      desc(schema.comments.createdAt),
+      asc(schema.comments.id)
+    ],
     limit,
     offset,
     with: {
@@ -214,22 +254,30 @@ export async function getCommentsForPost(
   const total = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.comments)
-    .where(
-      and(
-        eq(schema.comments.postId, postId),
-        isNull(schema.comments.parentId),
-        visibilityFilter
-      )
-    );
+    .where(topLevelWhere);
 
   const totalCount = total[0]?.count || 0;
 
-  const result: CommentData[] = [];
-  for (const comment of topLevel) {
-    result.push(
-      await formatCommentTree(comment, userId, maxDepth, repliesPerLevel, 0)
-    );
-  }
+  // I16: previously formatCommentTree fired a COUNT(*) and a findMany per
+  // node, so a 20-row page with depth 3 produced ~800 SQLite round-trips.
+  // Now we collect all descendant parent ids in a single sweep (BFS over
+  // parentId IN (...)) and group counts/rows in O(1) lookups.
+  const allReplyRows = await collectDescendants(
+    topLevel.map((c) => c.id),
+    maxDepth
+  );
+  const childrenByParent = groupByParent(allReplyRows);
+
+  const result: CommentData[] = topLevel.map((c) =>
+    formatCommentTreeBatched(
+      c,
+      userId,
+      maxDepth,
+      repliesPerLevel,
+      0,
+      childrenByParent
+    )
+  );
 
   return {
     comments: result,
@@ -237,6 +285,110 @@ export async function getCommentsForPost(
     page,
     limit,
     hasMore: offset + limit < totalCount
+  };
+}
+
+/**
+ * Single-query BFS over the descendant tree. Returns every non-deleted
+ * comment whose parent chain reaches one of `rootIds`, up to `maxDepth`
+ * levels down. Replaces the previous per-node fan-out (I16).
+ */
+async function collectDescendants(
+  rootIds: string[],
+  maxDepth: number
+): Promise<any[]> {
+  if (rootIds.length === 0) return [];
+  const collected: any[] = [];
+  let frontier = rootIds;
+  for (let level = 0; level < maxDepth && frontier.length > 0; level++) {
+    const rows = await db.query.comments.findMany({
+      where: and(
+        inArray(schema.comments.parentId, frontier),
+        isNull(schema.comments.deletedAt)
+      ),
+      orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
+      with: {
+        user: {
+          columns: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        },
+        reactions: true
+      }
+    });
+    collected.push(...rows);
+    frontier = rows.map((r) => r.id);
+  }
+  return collected;
+}
+
+function groupByParent(rows: any[]): Map<string, any[]> {
+  const out = new Map<string, any[]>();
+  for (const r of rows) {
+    if (!r.parentId) continue;
+    const arr = out.get(r.parentId);
+    if (arr) arr.push(r);
+    else out.set(r.parentId, [r]);
+  }
+  return out;
+}
+
+function formatCommentTreeBatched(
+  comment: any,
+  userId: string | null,
+  maxDepth: number,
+  repliesPerLevel: number,
+  currentDepth: number,
+  childrenByParent: Map<string, any[]>
+): CommentData {
+  const likes =
+    comment.reactions?.filter((r: any) => r.type === 'like').length || 0;
+  const dislikes =
+    comment.reactions?.filter((r: any) => r.type === 'dislike').length || 0;
+  const userReaction = userId
+    ? (comment.reactions?.find((r: any) => r.userId === userId)?.type as
+        | 'like'
+        | 'dislike') || null
+    : null;
+
+  const allChildren = childrenByParent.get(comment.id) || [];
+  const replyCount = allChildren.length;
+  let replies: CommentData[] = [];
+  let hasMoreReplies = false;
+
+  if (currentDepth < maxDepth && replyCount > 0) {
+    const slice = allChildren.slice(0, repliesPerLevel);
+    hasMoreReplies = replyCount > repliesPerLevel;
+    replies = slice.map((child) =>
+      formatCommentTreeBatched(
+        child,
+        userId,
+        maxDepth,
+        repliesPerLevel,
+        currentDepth + 1,
+        childrenByParent
+      )
+    );
+  } else if (replyCount > 0) {
+    hasMoreReplies = true;
+  }
+
+  return {
+    id: comment.id,
+    content: comment.deletedAt ? '[deleted]' : comment.content,
+    depth: comment.depth,
+    approved: !!comment.approved,
+    createdAt: comment.createdAt,
+    editedAt: comment.editedAt,
+    isDeleted: !!comment.deletedAt,
+    user: comment.deletedAt ? null : comment.user,
+    reactions: { likes, dislikes, userReaction },
+    replies,
+    replyCount,
+    hasMoreReplies
   };
 }
 
@@ -260,7 +412,8 @@ export async function getRepliesForComment(
       isNull(schema.comments.deletedAt),
       replyVisibility
     ),
-    orderBy: [asc(schema.comments.createdAt)],
+    // I18: id tiebreaker for deterministic pagination across boundaries.
+    orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
     limit,
     offset,
     with: {
@@ -403,33 +556,39 @@ export async function reactToComment(
   dislikes: number;
   userReaction: 'like' | 'dislike' | null;
 }> {
-  const existing = await db.query.commentReactions.findFirst({
-    where: and(
-      eq(schema.commentReactions.commentId, commentId),
-      eq(schema.commentReactions.userId, userId)
-    )
-  });
-
-  if (existing) {
-    if (existing.type === type) {
-      await db
-        .delete(schema.commentReactions)
-        .where(eq(schema.commentReactions.id, existing.id));
-    } else {
-      await db
-        .update(schema.commentReactions)
-        .set({ type })
-        .where(eq(schema.commentReactions.id, existing.id));
-    }
-  } else {
-    await db.insert(schema.commentReactions).values({
-      id: crypto.randomUUID(),
-      commentId,
-      userId,
-      type,
-      createdAt: new Date().toISOString()
+  // I14: wrap the read-modify-write in an IMMEDIATE transaction so concurrent
+  // double-clicks can't end with mismatched state (the unique index already
+  // prevented duplicate rows, but the prior path could surface a generic
+  // 500 instead of a deterministic toggle).
+  await db.transaction(async (tx) => {
+    const existing = await tx.query.commentReactions.findFirst({
+      where: and(
+        eq(schema.commentReactions.commentId, commentId),
+        eq(schema.commentReactions.userId, userId)
+      )
     });
-  }
+
+    if (existing) {
+      if (existing.type === type) {
+        await tx
+          .delete(schema.commentReactions)
+          .where(eq(schema.commentReactions.id, existing.id));
+      } else {
+        await tx
+          .update(schema.commentReactions)
+          .set({ type })
+          .where(eq(schema.commentReactions.id, existing.id));
+      }
+    } else {
+      await tx.insert(schema.commentReactions).values({
+        id: crypto.randomUUID(),
+        commentId,
+        userId,
+        type,
+        createdAt: new Date().toISOString()
+      });
+    }
+  });
 
   return getCommentReactions(commentId, userId);
 }

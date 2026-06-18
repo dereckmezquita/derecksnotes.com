@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { config } from '@lib/env';
 import { generalLimiter } from '@middleware/rateLimit';
+import { csrfGuard } from '@middleware/csrf';
 import v1Routes from '@routes/index';
 import { db, schema } from '@db/index';
 import { buildSearchIndex } from '@services/search';
@@ -32,6 +33,9 @@ app.use(
 );
 
 app.use('/api', generalLimiter);
+// CSRF guard mounted only on /api/v1 — leaves health + root info untouched
+// so monitoring tools (which don't send Origin) keep working.
+app.use('/api/v1', csrfGuard());
 
 // API info
 app.get('/api', (_req, res) => {

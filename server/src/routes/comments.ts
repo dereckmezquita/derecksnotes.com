@@ -9,8 +9,36 @@ import {
   editLimiter
 } from '@middleware/rateLimit';
 import * as commentService from '@services/comments';
+import {
+  CommentValidationError,
+  CommentNotFoundError,
+  CommentAuthError
+} from '@services/comments';
 import * as postService from '@services/posts';
 import * as authService from '@services/auth';
+
+// Map typed service-layer errors to HTTP status codes. Replaces the
+// fragile stack-string heuristic (I21).
+function mapCommentError(
+  error: unknown,
+  res: import('express').Response,
+  context: string
+): void {
+  if (error instanceof CommentValidationError) {
+    res.status(400).json({ error: error.message });
+    return;
+  }
+  if (error instanceof CommentNotFoundError) {
+    res.status(404).json({ error: error.message });
+    return;
+  }
+  if (error instanceof CommentAuthError) {
+    res.status(403).json({ error: error.message });
+    return;
+  }
+  console.error(`${context} error:`, error);
+  res.status(500).json({ error: 'Internal server error' });
+}
 
 const router = Router();
 
@@ -118,13 +146,8 @@ router.post(
         type: 'comment',
         data: { commentId, postId, approved: autoApprove }
       });
-    } catch (error: any) {
-      if (error.message && !error.stack?.includes('at')) {
-        res.status(400).json({ error: error.message });
-      } else {
-        console.error('Create comment error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    } catch (error) {
+      mapCommentError(error, res, 'Create comment');
     }
   }
 );
@@ -160,13 +183,8 @@ router.patch(
         parsed.data.content
       );
       res.json({ success: true });
-    } catch (error: any) {
-      if (error.message && !error.stack?.includes('at')) {
-        res.status(400).json({ error: error.message });
-      } else {
-        console.error('Edit comment error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    } catch (error) {
+      mapCommentError(error, res, 'Edit comment');
     }
   }
 );
@@ -186,13 +204,8 @@ router.delete(
 
       await commentService.softDeleteComment(idParsed.data, req.user!.id);
       res.json({ success: true });
-    } catch (error: any) {
-      if (error.message && !error.stack?.includes('at')) {
-        res.status(400).json({ error: error.message });
-      } else {
-        console.error('Delete comment error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    } catch (error) {
+      mapCommentError(error, res, 'Delete comment');
     }
   }
 );

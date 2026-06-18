@@ -39,7 +39,26 @@ jobs:
           echo "env=$ENV" >> $GITHUB_OUTPUT
           echo "max_backups=$MAX" >> $GITHUB_OUTPUT
 
+      - name: Checkout backup script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/backup-db.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Copy backup script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USERNAME }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          source: scripts/backup-db.sh
+          target: /tmp/derecksnotes-backup/
+
       - name: Run backup
+        # Invoke the canonical scripts/backup-db.sh (single source of truth).
+        # I10: the previous inline duplicate of the script silently diverged
+        # from scripts/backup-db.sh; fixes had to be remembered in two places.
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.REMOTE_HOST }}
@@ -48,33 +67,14 @@ jobs:
           port: ${{ secrets.REMOTE_PORT }}
           command_timeout: 10m
           script: |
+            set -euo pipefail
             DOMAIN="${{ steps.vars.outputs.domain }}"
             DB_PATH="/var/www/${DOMAIN}/data/database.sqlite"
             BACKUP_DIR="/var/www/${DOMAIN}/backups"
             MAX_BACKUPS="${{ steps.vars.outputs.max_backups }}"
 
-            if [ ! -f "$DB_PATH" ]; then
-              echo "Database not found: $DB_PATH"
-              exit 1
-            fi
+            chmod +x /tmp/derecksnotes-backup/scripts/backup-db.sh
+            /tmp/derecksnotes-backup/scripts/backup-db.sh "$DB_PATH" "$BACKUP_DIR" "$MAX_BACKUPS"
 
-            mkdir -p "$BACKUP_DIR"
-            TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
-            BACKUP="${BACKUP_DIR}/db-${TIMESTAMP}.sqlite"
-
-            echo "Backing up: $DB_PATH"
-            sqlite3 "$DB_PATH" ".backup '${BACKUP}'"
-            gzip "$BACKUP"
-            echo "Created: db-${TIMESTAMP}.sqlite.gz"
-
-            # Rotate — keep last N backups
-            BACKUP_COUNT=$(find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f | wc -l)
-            if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
-              DELETE_COUNT=$((BACKUP_COUNT - MAX_BACKUPS))
-              echo "Rotating: removing ${DELETE_COUNT} old backup(s)..."
-              find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f -printf '%T@ %p\n' \
-                | sort -n | head -n "$DELETE_COUNT" | cut -d' ' -f2- | xargs rm -f
-            fi
-
-            REMAINING=$(find "$BACKUP_DIR" -name "db-*.sqlite.gz" -type f | wc -l)
-            echo "Done. ${REMAINING} backup(s) in ${BACKUP_DIR}"
+            # Cleanup
+            rm -rf /tmp/derecksnotes-backup

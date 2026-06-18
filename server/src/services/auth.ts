@@ -8,6 +8,22 @@ const SALT_ROUNDS = 12;
 const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_SESSIONS_PER_USER = 5;
 
+/**
+ * I22: bcrypt silently truncates the input at 72 bytes, so a 200-char
+ * passphrase from a security-conscious user is in reality just its first 72
+ * bytes. Pre-hash with SHA-256 + base64 (44 chars, under 72 bytes) so the
+ * full passphrase contributes entropy, and apply NFC normalisation so
+ * combining-character forms compare equal (NIST 800-63B §5.1.1.2).
+ *
+ * This is the Dropbox-published pattern, used widely (cal.com, etc.). It
+ * works for both fresh hashes (hashPassword) and verification
+ * (verifyPassword) — the same transformation is applied on both sides.
+ */
+function prehashForBcrypt(password: string): string {
+  const normalised = password.normalize('NFC');
+  return createHash('sha256').update(normalised, 'utf8').digest('base64');
+}
+
 // Optional pepper for the session-token hash. If set, the DB stores
 // HMAC-SHA256(pepper, token) instead of plain SHA-256(token). Rotation
 // invalidates every session — that is the intended operational cost.
@@ -28,14 +44,14 @@ export function hashSessionToken(token: string): string {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, SALT_ROUNDS);
+  return bcrypt.hash(prehashForBcrypt(password), SALT_ROUNDS);
 }
 
 export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+  return bcrypt.compare(prehashForBcrypt(password), hash);
 }
 
 export async function createSession(

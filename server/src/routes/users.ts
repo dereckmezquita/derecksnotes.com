@@ -2,9 +2,15 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate } from '@middleware/auth';
-import { profileLimiter } from '@middleware/rateLimit';
+import {
+  profileLimiter,
+  passwordChangeLimiter,
+  accountDeleteLimiter,
+  bulkLimiter
+} from '@middleware/rateLimit';
 import * as userService from '@services/users';
 import * as authService from '@services/auth';
+import * as auditService from '@services/audit';
 import { config } from '@lib/env';
 
 const router = Router();
@@ -116,6 +122,7 @@ router.patch(
 router.post(
   '/me/password',
   authenticate(),
+  passwordChangeLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = z
@@ -174,6 +181,15 @@ router.post(
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
 
+      await auditService.logAuditAction(
+        req.user!.id,
+        'auth.password-change',
+        'user',
+        req.user!.id,
+        undefined,
+        req.ip
+      );
+
       res.json({ success: true });
     } catch (error) {
       console.error('Change password error:', error);
@@ -182,17 +198,30 @@ router.post(
   }
 );
 
-router.delete('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
-  try {
-    await userService.softDeleteUser(req.user!.id);
-    await authService.revokeAllSessions(req.user!.id);
-    res.clearCookie('sessionId');
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+router.delete(
+  '/me',
+  authenticate(),
+  accountDeleteLimiter,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      await userService.softDeleteUser(req.user!.id);
+      await authService.revokeAllSessions(req.user!.id);
+      await auditService.logAuditAction(
+        req.user!.id,
+        'auth.account-delete',
+        'user',
+        req.user!.id,
+        undefined,
+        req.ip
+      );
+      res.clearCookie('sessionId');
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete user error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
-});
+);
 
 router.get(
   '/me/comments',
@@ -227,6 +256,7 @@ router.get(
 router.post(
   '/me/comments/bulk-delete',
   authenticate(),
+  bulkLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = z

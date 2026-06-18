@@ -2,18 +2,34 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, requirePermission } from '@middleware/auth';
+import { adminWriteLimiter } from '@middleware/rateLimit';
 import * as commentService from '@services/comments';
 import * as auditService from '@services/audit';
 import { db, schema } from '@db/index';
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
-import crypto from 'crypto';
+import { eq, and, isNull, desc, sql, inArray } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 
 const router = Router();
 
 const uuidParamSchema = z.string().uuid();
 
-// All admin routes require authentication
+// All admin routes require authentication, plus a tighter rate limit than
+// the public surface (the population is small; the limiter mainly bounds
+// runaway scripts).
 router.use(authenticate());
+router.use(adminWriteLimiter);
+
+/**
+ * Resolve the groups assigned to a user — used to enforce the
+ * "moderators cannot act on admins" boundary (I6).
+ */
+async function getUserGroupNames(userId: string): Promise<string[]> {
+  const rows = await db.query.userGroups.findMany({
+    where: eq(schema.userGroups.userId, userId),
+    with: { group: true }
+  });
+  return rows.map((ug) => ug.group.name);
+}
 
 // Dashboard
 router.get(
@@ -44,20 +60,31 @@ router.get(
         .select({ count: sql<number>`count(*)` })
         .from(schema.posts);
 
-      const recentAudit = await db.query.auditLog.findMany({
-        orderBy: [desc(schema.auditLog.createdAt)],
-        limit: 10,
-        with: {
-          admin: {
-            columns: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true
-            }
-          }
-        }
-      });
+      // Only callers who can already view the audit log get the recent-audit
+      // slice; moderators with only `admin.dashboard` see stats but not the
+      // audit feed (I7).
+      const canSeeAudit = req.permissions?.has('admin.audit.view') ?? false;
+      const recentAudit = canSeeAudit
+        ? (
+            await db.query.auditLog.findMany({
+              orderBy: [desc(schema.auditLog.createdAt)],
+              limit: 10,
+              with: {
+                admin: {
+                  columns: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true
+                  }
+                }
+              }
+            })
+          ).map((a) => ({
+            ...a,
+            details: a.details ? JSON.parse(a.details) : null
+          }))
+        : [];
 
       res.json({
         stats: {
@@ -66,10 +93,7 @@ router.get(
           totalComments: totalComments[0]?.count || 0,
           totalPosts: totalPosts[0]?.count || 0
         },
-        recentAudit: recentAudit.map((a) => ({
-          ...a,
-          details: a.details ? JSON.parse(a.details) : null
-        }))
+        recentAudit
       });
     } catch (error) {
       console.error('Dashboard error:', error);
@@ -183,9 +207,17 @@ router.post(
         return;
       }
 
-      for (const id of parsed.data.commentIds) {
-        await commentService.approveComment(id);
-      }
+      // I36: wrap the bulk mutation in a single transaction so a mid-list
+      // failure does not leave the set half-applied. The audit row is logged
+      // outside the transaction because audit_log entries are append-only
+      // and a partial audit + rolled-back mutation is preferable to a
+      // mutation with no audit.
+      await db.transaction(async (tx) => {
+        await tx
+          .update(schema.comments)
+          .set({ approved: 1 })
+          .where(inArray(schema.comments.id, parsed.data.commentIds));
+      });
 
       await auditService.logAuditAction(
         req.user!.id,
@@ -225,9 +257,13 @@ router.post(
         return;
       }
 
-      for (const id of parsed.data.commentIds) {
-        await commentService.rejectComment(id);
-      }
+      // I36: see note above on bulk-approve.
+      await db.transaction(async (tx) => {
+        await tx
+          .update(schema.comments)
+          .set({ deletedAt: new Date().toISOString() })
+          .where(inArray(schema.comments.id, parsed.data.commentIds));
+      });
 
       await auditService.logAuditAction(
         req.user!.id,
@@ -345,9 +381,57 @@ router.post(
         return;
       }
 
+      const targetId = idParsed.data;
+
+      // Boundary checks (I6) — without these, any user with the user.ban
+      // permission (moderators included) can ban admins, themselves, or
+      // stack a second ban on someone already banned.
+      if (targetId === req.user!.id) {
+        res.status(400).json({ error: 'Cannot ban yourself' });
+        return;
+      }
+      const targetGroups = await getUserGroupNames(targetId);
+      const targetIsAdmin = targetGroups.includes('admin');
+      const actorIsAdmin = req.permissions?.has('admin.dashboard') ?? false;
+      if (targetIsAdmin && !actorIsAdmin) {
+        res.status(403).json({ error: 'Moderators cannot ban administrators' });
+        return;
+      }
+      if (targetIsAdmin) {
+        // Refuse to leave the system without at least one admin.
+        const adminGroup = await db.query.groups.findFirst({
+          where: eq(schema.groups.name, 'admin')
+        });
+        if (adminGroup) {
+          const allAdmins = await db.query.userGroups.findMany({
+            where: eq(schema.userGroups.groupId, adminGroup.id)
+          });
+          if (allAdmins.length <= 1) {
+            res
+              .status(400)
+              .json({ error: 'Cannot ban the last remaining administrator' });
+            return;
+          }
+        }
+      }
+      const existingActiveBan = await db.query.userBans.findFirst({
+        where: and(
+          eq(schema.userBans.userId, targetId),
+          isNull(schema.userBans.liftedAt)
+        )
+      });
+      if (
+        existingActiveBan &&
+        (!existingActiveBan.expiresAt ||
+          new Date(existingActiveBan.expiresAt) > new Date())
+      ) {
+        res.status(409).json({ error: 'User is already banned' });
+        return;
+      }
+
       await db.insert(schema.userBans).values({
-        id: crypto.randomUUID(),
-        userId: idParsed.data,
+        id: randomUUID(),
+        userId: targetId,
         bannedBy: req.user!.id,
         reason: parsed.data?.reason || null,
         expiresAt: parsed.data?.expiresAt || null,
@@ -357,13 +441,13 @@ router.post(
       // Revoke all sessions
       await db
         .delete(schema.sessions)
-        .where(eq(schema.sessions.userId, idParsed.data));
+        .where(eq(schema.sessions.userId, targetId));
 
       await auditService.logAuditAction(
         req.user!.id,
         'user.ban',
         'user',
-        idParsed.data,
+        targetId,
         { reason: parsed.data?.reason },
         req.ip
       );
