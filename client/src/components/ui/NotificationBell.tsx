@@ -159,6 +159,20 @@ export function NotificationBell() {
   const [items, setItems] = useState<NotificationEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Ids we've already surfaced via toast so the same notification doesn't
+  // re-toast across polls. The list is bounded — we trim to the last 200
+  // seen ids to keep the set from growing without bound for long sessions.
+  const seenIds = useRef<Set<string>>(new Set());
+  // Suppress toasts on the first poll after mount (would surface every
+  // pre-existing unread item as if it were brand new).
+  const primed = useRef(false);
+
+  const fetchLatest = useCallback(async () => {
+    return api.get<PaginatedResponse<NotificationEntry>>(
+      '/notifications?page=1&limit=20',
+      { silent: true }
+    );
+  }, []);
 
   const refreshUnread = useCallback(async () => {
     if (!isAuthenticated()) return;
@@ -167,26 +181,70 @@ export function NotificationBell() {
         '/notifications/unread-count',
         { silent: true }
       );
-      setUnread(data.count);
+      const nextCount = data.count;
+      setUnread(nextCount);
+
+      // Toast on new unread arrivals. We always re-fetch the list when the
+      // unread count goes UP so the toast can name the actor + type; on the
+      // first prime we still record seen ids but skip the toast.
+      if (nextCount > 0) {
+        const latest = await fetchLatest().catch(() => null);
+        if (latest) {
+          if (!primed.current) {
+            for (const n of latest.data) seenIds.current.add(n.id);
+            primed.current = true;
+          } else {
+            for (const n of latest.data) {
+              if (seenIds.current.has(n.id)) continue;
+              if (n.readAt) {
+                seenIds.current.add(n.id);
+                continue;
+              }
+              seenIds.current.add(n.id);
+              toast.message(describeType(n), {
+                description:
+                  (n.payload?.preview as string | undefined) ||
+                  (n.payload?.message as string | undefined) ||
+                  undefined,
+                action: (() => {
+                  const href = hrefFor(n);
+                  return href
+                    ? {
+                        label: 'Open',
+                        onClick: () => {
+                          window.location.href = href;
+                        }
+                      }
+                    : undefined;
+                })()
+              });
+            }
+          }
+          // Bound the seen set so the very-long-session case stays small.
+          if (seenIds.current.size > 200) {
+            const arr = Array.from(seenIds.current);
+            seenIds.current = new Set(arr.slice(arr.length - 200));
+          }
+        }
+      } else if (!primed.current) {
+        primed.current = true;
+      }
     } catch {
       // silent — bell shouldn't toast on poll failure
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchLatest]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.get<PaginatedResponse<NotificationEntry>>(
-        '/notifications?page=1&limit=20',
-        { silent: true }
-      );
+      const data = await fetchLatest();
       setItems(data.data);
     } catch {
       // silent
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchLatest]);
 
   // Initial fetch + interval poll.
   useEffect(() => {
