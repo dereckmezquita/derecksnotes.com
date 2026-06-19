@@ -1,0 +1,193 @@
+---
+title: Three rewrites, one corpus
+blurb: Same notes, different skins.
+coverImage: 257
+author: Dereck Mezquita
+date: 2026-06-19T00:00:00.000Z
+tags:
+  - blog
+  - website
+  - php
+  - next-js
+  - retrospective
+  - reflection
+published: true
+comments: true
+category: personal
+---
+
+I cloned the two oldest public versions of this site onto my laptop the other day to see what carried across. The site has lived through three distinct skins. The first is private; the second I tracked under `derecksnotes-0`, from early 2020; the third, `derecksnotes.com-archive`, ran until mid 2022; and the present site is a Next.js application.
+
+This post is a status report on what survived each transition, and what each step taught me about how the site should be structured.
+
+## The original site
+
+The first version started in 2016, on shared Apache hosting, behind an `.htaccess` file. There was no framework. Each blog post was a hand-coded HTML file dropped into the right folder; the styling was hand-written CSS that I rewrote often. Photo galleries were a folder of images with an `index.html` that listed them. The earliest posts that survive on the present site are from December 2016: photo dumps from Angers, Paris, Dublin, London, Nantes, the cities I was passing through during my Bachelor's. By 2018 the content had widened: the DigiByte and DigiShield posts on cryptocurrency, the first philosophy essays (*On the Meaning of Life*, *On Authority*), a handful of science and art notes.
+
+The repository for that first version is private and will stay private; the code is not strong enough to be useful as a reference. The content from that era is the part worth keeping, and it is already in the present site under its original dates. The site itself was, in effect, a folder I uploaded by FTP whenever I wrote something.
+
+## The PHP era
+
+`derecksnotes-0` is where the architecture was at its simplest. The repo's top level was a flat list of section folders and a corresponding PHP entry-point per section:
+
+```text title="derecksnotes-0/"
+$ tree -L 2 -I 'siteImages|libraries|siteBackEnd|siteTools|temp|misc|.git|comment-test|galleries|in-progress|sharing|imagesDictionaries|articlesBooks|error_log|favicon.ico'
+.
+├── 404page.html
+├── allArticles.php
+├── blog
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── courses
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── courses.php
+├── dictionaries
+│   ├── dicBiology.php
+│   ├── dicChemistry.php
+│   ├── dicEtymology.php
+│   ├── dicFormulas.php
+│   ├── dicMethods.php
+│   ├── dicMisc.php
+│   └── emptyDic.php
+├── dictionaries.php
+├── exercises
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── exercises.php
+├── includes
+│   ├── dicDirectory.php
+│   ├── footer.php
+│   ├── header.php
+│   ├── nav.php
+│   └── sidebar.php
+├── index.php
+├── js
+│   ├── clock.js
+│   ├── priceTickers.js
+│   ├── pwaPrompt.js
+│   ├── revealContent.js
+│   ├── script.js
+│   └── test.js
+├── manifest.json
+├── raw-notes
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── raw-notes.php
+├── README.md
+├── references
+│   ├── cheatSheets
+│   ├── methods
+│   ├── scientists
+│   └── tables
+├── serviceWorker.js
+├── styles
+│   ├── css
+│   └── sass
+├── tools
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── tools.php
+├── work
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+└── work.php
+```
+
+Blog entries lived as `.html` files in `blog/entries/`, each one written by hand or knitted from R Markdown. The cards on the home page were generated from a single `entries.json` by a small JavaScript loop. A `displayEntry.php` did the templating. jQuery 3.3.1 sat in a `libraries/` folder, alongside `syntaxhighlighter`. There was no compiler step worth speaking of. A `.scss` file was edited, pushed, served as `.css`.
+
+The `displayEntry.php` template gives the flavour of the era; the whole renderer was twenty-odd lines of PHP includes:
+
+```php showLineNumbers title="blog/displayEntry.php"
+<html lang="en-uk">
+    <head>
+        <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/header.php"; ?>
+        <script type="text/javascript" src="/blog/getEntries.js"></script>
+    </head>
+    <body>
+        <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/nav.php"; ?>
+        <div class="contentWrapper">
+            <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/sidebar.php"; ?>
+            <article>
+                <?php
+                    $entry = $_GET["entry"];
+                    $docRoot = $_SERVER['DOCUMENT_ROOT'];
+                    $entryHTML = file_get_contents($docRoot . "/blog/entries/" . $entry . ".html", FILE_USE_INCLUDE_PATH);
+                    echo($entryHTML);
+                ?>
+            </article>
+        </div>
+    </body>
+    <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/footer.php"; ?>
+</html>
+```
+
+The interesting bit is that the *content* model was already roughly right. Each entry in `entries.json` had a `displayName`, a `slogan`, a `summary`, a `primaryTag` and a list of `tags`:
+
+```json title="blog/entries.json, one entry"
+{
+    "name": "20200411_rlang-chat-analysis",
+    "author": "Dereck de Mézquita",
+    "displayName": "R-lang: chat history analysis",
+    "date": { "year": "2020", "month": "04", "day": "11" },
+    "slogan": "Stop large spoon",
+    "summary": "Rmd script for analysing chat history data...",
+    "primaryTag": "Programming",
+    "tags": ["Programming", "Computer", "Web-tech", "JavaScript", "R-lang", "R", "GitHub"]
+}
+```
+
+That is roughly the same set of fields the present Drizzle schema uses today, only stored in SQLite columns instead of a single fat JSON:
+
+```ts title="server/src/db/schema.ts"
+export const posts = sqliteTable('posts', {
+    id: text('id').primaryKey(),
+    slug: text('slug').notNull().unique(),
+    title: text('title').notNull(),
+    createdAt: text('created_at').notNull()
+});
+```
+
+The frontmatter on each MDX file then carries the rest (`blurb`, `tags`, `author`, etc.) and the post-card builder reads that at build time. Same shape, different storage.
+
+`derecksnotes.com-archive` was the next iteration, running from late 2020 to mid 2022. The folder structure is the same shape but tidier. SASS replaces the hand-written CSS. A SQL database is mentioned in the README. Progressive web app technologies were on; the site installed to my phone for offline reading. The README of that era contains a line worth quoting: *"A lot of the meat of the content which was previously available on my site was removed; a book is in progress!"* The book has not arrived. The content has not entirely returned either.
+
+## The Next.js era
+
+The present site is a Next.js 15 application written in TypeScript, with MDX for posts, styled-components for theming, Drizzle and SQLite for everything stateful, and an Express + Bun service for the API. Blog posts are MDX with React components embedded inline. Dictionaries and references are first-class content with their own renderers. A WebGL knowledge graph at `/explore` walks the corpus by similarity. There is an authentication system, a comment thread on every post, a moderator queue, in-app notifications, bookmarks, follow, reports, and an account page with seven tabs.
+
+The blog posts from 2016 and 2017 are still there. The philosophy essays from 2018 and 2019 are still there. The bioinformatics curriculum from 2019 is still there. The post-card frontmatter is still `title`, `blurb`, `tags`, `author`, `date`. The set of dictionaries (biology, chemistry, mathematics) is the same set that was started in the PHP era. The content has been carried across three rewrites; the rendering layer keeps getting replaced.
+
+What this implies is that the *content* part of a personal site is the part to treat as a database from the start. The shell around it can be PHP, jQuery, or React; whichever happens to fit the year. The shell gets thrown away. The dictionaries written today will be readable when I am tired of TypeScript too.
+
+## What got cut, and what came back
+
+Some content did not survive the transitions. The DigiByte and DigiShield posts from 2018, written when I was interested in cryptocurrency, are still on the site but no longer surfaced anywhere. The photo dumps from my university years in Angers and Nantes survived. The raw-notes section is gone. The galleries are gone. The exercises page is gone. None of these were missed.
+
+The dictionaries have grown. The mathematics dictionary in particular has expanded from a handful of definitions in the archive era to several hundred today, many with worked R examples and figures. The references section, which used to be a thin list of "online resources" pages, is now a proper biographies / encyclopedic surface with its own MDX pipeline.
+
+The other thing the present site has that none of the previous ones had is *people*. The PHP versions had no comments thread, no account, no following. I put off building any of that for years because I knew it would be the load-bearing piece of the site once it existed. It has been live for a few months and a moderation queue has been enough.
+
+## What each rewrite taught me
+
+Each rewrite took longer than the previous and gave me less new to learn. The first PHP version taught me that a website is a folder of files. The SASS / SQL version taught me that a website is a renderer over a database. The Next.js version is teaching me, slowly, that a website is mostly an editorial decision dressed in a framework.
+
+It seems that the editorial decision is the one worth keeping in mind through every rewrite; the framework will be replaced anyway. The content survived all three; that is the only test that matters.
