@@ -13,13 +13,15 @@
  */
 import { describe, expect, test, beforeAll } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-// IMPORTANT: set DATABASE_PATH BEFORE importing @db/index. The module reads
-// it at import time and caches the Database handle.
-process.env.DATABASE_PATH = ':memory:';
-process.env.APP_ENV = 'local';
+// DATABASE_PATH is set by `bun run test` (see server/package.json) to point
+// at an in-memory SQLite shared across all test files in the bun:test
+// process. We belt-and-brace it here so a developer running this file
+// directly via `bun test src/services/comments.permissions.test.ts` still
+// gets isolation from the dev DB. Usernames are suffixed below to avoid
+// colliding with other test files in the shared process.
+if (!process.env.DATABASE_PATH) process.env.DATABASE_PATH = ':memory:';
+if (!process.env.APP_ENV) process.env.APP_ENV = 'local';
 
 const { db, schema } = await import('@db/index');
 const commentService = await import('./comments');
@@ -40,27 +42,30 @@ beforeAll(async () => {
     id: POST_ID,
     slug: POST_SLUG,
     title: POST_TITLE,
-    createdAt: now,
-    updatedAt: now
+    createdAt: now
   });
+  // Usernames must be unique across the whole bun:test process — multiple
+  // test files share the imported @db/index, so prefix with a random suffix
+  // to avoid colliding with other test files that also seed an 'alice'.
+  const suffix = randomUUID().slice(0, 8);
   await db.insert(schema.users).values([
     {
       id: USER_ALICE,
-      username: 'alice',
+      username: `perm-alice-${suffix}`,
       passwordHash: 'x',
       createdAt: now,
       updatedAt: now
     },
     {
       id: USER_BOB,
-      username: 'bob',
+      username: `perm-bob-${suffix}`,
       passwordHash: 'x',
       createdAt: now,
       updatedAt: now
     },
     {
       id: USER_MALLORY,
-      username: 'mallory',
+      username: `perm-mallory-${suffix}`,
       passwordHash: 'x',
       createdAt: now,
       updatedAt: now
