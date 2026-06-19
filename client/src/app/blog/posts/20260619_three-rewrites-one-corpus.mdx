@@ -28,9 +28,90 @@ The repository for that first version is private and will stay private; the code
 
 ## The PHP era
 
-`derecksnotes-0` is where the architecture was at its simplest. Blog entries lived as `.html` files in a folder, each one written by hand or knitted from R Markdown. The cards on the home page were generated from a single `entries.json` by a small JavaScript loop. A `displayEntry.php` did the templating. jQuery 3.3.1 sat in a `libraries/` folder, alongside `syntaxhighlighter`. Every section had its own root-level PHP file: `courses.php`, `tools.php`, `exercises.php`, `raw-notes.php`. There was no compiler step worth speaking of. A `.scss` file was edited, pushed, served as `.css`.
+`derecksnotes-0` is where the architecture was at its simplest. The repo's top level was a flat list of section folders and a corresponding PHP entry-point per section:
 
-The interesting bit is that the *content* model was already roughly right. Each entry had a `displayName`, a `slogan`, a `summary`, a `primaryTag` and a list of `tags`. That is the same set of fields the Drizzle schema uses today, only stored in SQLite columns instead of a single fat JSON.
+```text title="derecksnotes-0/, top level"
+404page.html
+allArticles.php
+courses.php          courses/
+dictionaries.php     dictionaries/
+exercises.php        exercises/
+index.php
+manifest.json
+raw-notes.php        raw-notes/
+README.md
+                     blog/
+                     comment-test/
+                     galleries/
+                     in-progress/
+                     includes/
+                     js/
+                     libraries/
+                     misc/
+                     references/
+                     siteBackEnd/
+                     siteImages/
+                     siteTools/
+                     styles/
+                     tools/
+                     work/
+```
+
+Blog entries lived as `.html` files in `blog/entries/`, each one written by hand or knitted from R Markdown. The cards on the home page were generated from a single `entries.json` by a small JavaScript loop. A `displayEntry.php` did the templating. jQuery 3.3.1 sat in a `libraries/` folder, alongside `syntaxhighlighter`. There was no compiler step worth speaking of. A `.scss` file was edited, pushed, served as `.css`.
+
+The `displayEntry.php` template gives the flavour of the era; the whole renderer was twenty-odd lines of PHP includes:
+
+```php showLineNumbers title="blog/displayEntry.php"
+<html lang="en-uk">
+    <head>
+        <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/header.php"; ?>
+        <script type="text/javascript" src="/blog/getEntries.js"></script>
+    </head>
+    <body>
+        <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/nav.php"; ?>
+        <div class="contentWrapper">
+            <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/sidebar.php"; ?>
+            <article>
+                <?php
+                    $entry = $_GET["entry"];
+                    $docRoot = $_SERVER['DOCUMENT_ROOT'];
+                    $entryHTML = file_get_contents($docRoot . "/blog/entries/" . $entry . ".html", FILE_USE_INCLUDE_PATH);
+                    echo($entryHTML);
+                ?>
+            </article>
+        </div>
+    </body>
+    <?php include $_SERVER['DOCUMENT_ROOT'] . "/includes/footer.php"; ?>
+</html>
+```
+
+The interesting bit is that the *content* model was already roughly right. Each entry in `entries.json` had a `displayName`, a `slogan`, a `summary`, a `primaryTag` and a list of `tags`:
+
+```json title="blog/entries.json, one entry"
+{
+    "name": "20200411_rlang-chat-analysis",
+    "author": "Dereck de Mézquita",
+    "displayName": "R-lang: chat history analysis",
+    "date": { "year": "2020", "month": "04", "day": "11" },
+    "slogan": "Stop large spoon",
+    "summary": "Rmd script for analysing chat history data...",
+    "primaryTag": "Programming",
+    "tags": ["Programming", "Computer", "Web-tech", "JavaScript", "R-lang", "R", "GitHub"]
+}
+```
+
+That is roughly the same set of fields the present Drizzle schema uses today, only stored in SQLite columns instead of a single fat JSON:
+
+```ts title="server/src/db/schema.ts"
+export const posts = sqliteTable('posts', {
+    id: text('id').primaryKey(),
+    slug: text('slug').notNull().unique(),
+    title: text('title').notNull(),
+    createdAt: text('created_at').notNull()
+});
+```
+
+The frontmatter on each MDX file then carries the rest (`blurb`, `tags`, `author`, etc.) and the post-card builder reads that at build time. Same shape, different storage.
 
 `derecksnotes.com-archive` was the next iteration, running from late 2020 to mid 2022. The folder structure is the same shape but tidier. SASS replaces the hand-written CSS. A SQL database is mentioned in the README. Progressive web app technologies were on; the site installed to my phone for offline reading. The README of that era contains a line worth quoting: *"A lot of the meat of the content which was previously available on my site was removed; a book is in progress!"* The book has not arrived. The content has not entirely returned either.
 
