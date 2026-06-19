@@ -8,7 +8,8 @@ import {
   SeriesMetadata,
   ContentNode,
   ContentCardMetadata,
-  SIDEBAR_DEFAULT_LIMIT
+  SIDEBAR_DEFAULT_LIMIT,
+  SIDEBAR_DEFAULT_DEPTH
 } from '@/utils/mdx/contentTypes';
 import {
   SideBarContainer,
@@ -43,6 +44,25 @@ const ChapterTitle = styled.div<{ $isActive?: boolean }>`
       : props.theme.text.colour.primary()};
   margin-top: ${(props) => props.theme.container.spacing.small};
   margin-bottom: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+// Clickable variant: used when a container node has its own page (recursive tree).
+const ChapterLink = styled(Link)<{ $isActive?: boolean }>`
+  display: block;
+  font-size: ${(props) => props.theme.text.size.small};
+  font-weight: ${(props) => props.theme.text.weight.bold};
+  text-decoration: none;
+  color: ${(props) =>
+    props.$isActive
+      ? props.theme.text.colour.anchor()
+      : props.theme.text.colour.primary()};
+  margin-top: ${(props) => props.theme.container.spacing.small};
+  margin-bottom: ${(props) => props.theme.container.spacing.xsmall};
+
+  &:hover {
+    color: ${(props) => props.theme.text.colour.anchor()};
+    text-decoration: underline;
+  }
 `;
 
 const PartsList = styled.ul`
@@ -112,43 +132,59 @@ interface ContentSideBarProps {
   series?: SeriesMetadata;
   otherContent?: ContentCardMetadata[];
   sidebarLimit?: number;
+  maxDepth?: number;
 }
 
 export function ContentSideBar({
   section,
   series,
   otherContent = [],
-  sidebarLimit = SIDEBAR_DEFAULT_LIMIT
+  sidebarLimit = SIDEBAR_DEFAULT_LIMIT,
+  maxDepth = SIDEBAR_DEFAULT_DEPTH
 }: ContentSideBarProps) {
   const pathname = usePathname();
 
-  // Render a node in the series hierarchy
-  const renderNode = (node: ContentNode, baseUrl: string): React.ReactNode => {
+  // Render a node in the series hierarchy. `depth` starts at 1 for top-level
+  // nodes; children beyond `maxDepth` are hidden unless they sit on the active
+  // branch (so the current page is always reachable). Container nodes that have
+  // their own page render as links; otherwise they are plain headings.
+  const renderNode = (
+    node: ContentNode,
+    baseUrl: string,
+    depth: number
+  ): React.ReactNode => {
     if (!node.published) return null;
 
     const nodeUrl = `${baseUrl}/${node.path}`;
     const isActive = pathname === nodeUrl || pathname === `${nodeUrl}/`;
 
     if (node.isDirectory) {
-      const hasActiveChild = node.children.some((child) => {
-        const childUrl = `${baseUrl}/${child.path}`;
-        return pathname.startsWith(childUrl);
-      });
+      const onActivePath =
+        pathname === nodeUrl || pathname.startsWith(`${nodeUrl}/`);
+      const publishedChildren = node.children.filter(
+        (child) => child.published
+      );
+      const showChildren =
+        publishedChildren.length > 0 && (depth < maxDepth || onActivePath);
 
       return (
         <div key={node.path}>
-          <ChapterTitle $isActive={hasActiveChild}>
-            {node.displayTitle}
-          </ChapterTitle>
-          {node.children.length > 0 && (
+          {node.hasPage ? (
+            <ChapterLink href={nodeUrl} $isActive={isActive || onActivePath}>
+              {node.displayTitle}
+            </ChapterLink>
+          ) : (
+            <ChapterTitle $isActive={onActivePath}>
+              {node.displayTitle}
+            </ChapterTitle>
+          )}
+          {showChildren && (
             <PartsList>
-              {node.children
-                .filter((child) => child.published)
-                .map((child) => (
-                  <PartItem key={child.path}>
-                    {renderNode(child, baseUrl)}
-                  </PartItem>
-                ))}
+              {publishedChildren.map((child) => (
+                <PartItem key={child.path}>
+                  {renderNode(child, baseUrl, depth + 1)}
+                </PartItem>
+              ))}
             </PartsList>
           )}
         </div>
@@ -204,7 +240,7 @@ export function ContentSideBar({
           </SideEntryLink>
           {series.hierarchy
             .filter((node) => node.published)
-            .map((node) => renderNode(node, seriesBaseUrl))}
+            .map((node) => renderNode(node, seriesBaseUrl, 1))}
         </SideBarEntriesContainer>
         {renderOtherContent()}
         <SideBarAbout />

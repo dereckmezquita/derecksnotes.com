@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import fs from 'fs';
 import path from 'path';
 import { ROOT_DIR_APP } from '@/lib/constants.server';
+import { getAllTreePaths } from '@/utils/mdx/fetchTreeContent';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://derecksnotes.com';
 
@@ -51,19 +52,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     });
   }
 
-  // Add course posts
-  const coursesDir = path.join(ROOT_DIR_APP, 'courses', 'posts');
-  if (fs.existsSync(coursesDir)) {
-    const coursePosts = getAllMdxFiles(coursesDir);
-    coursePosts.forEach((post) => {
-      sitemap.push({
-        url: `${baseUrl}/courses/${post}`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.7
-      });
+  // Add course pages (recursive content tree: overviews, chapters, parts)
+  getAllTreePaths('courses').forEach((segments) => {
+    sitemap.push({
+      url: `${baseUrl}/courses/${segments.join('/')}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7
     });
-  }
+  });
 
   // Add reference posts
   const referencesDir = path.join(ROOT_DIR_APP, 'references', 'posts');

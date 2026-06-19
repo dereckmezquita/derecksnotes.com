@@ -39,6 +39,31 @@ const SeriesTitle = styled(Link)`
   }
 `;
 
+const Breadcrumb = styled.nav`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  font-size: ${(p) => p.theme.text.size.small};
+  color: ${(p) => p.theme.text.colour.light_grey()};
+  margin-bottom: ${(p) => p.theme.container.spacing.small};
+`;
+
+const Crumb = styled(Link)`
+  color: ${(p) => p.theme.text.colour.light_grey()};
+  text-decoration: none;
+  &:hover {
+    color: ${(p) => p.theme.text.colour.anchor()};
+    text-decoration: underline;
+  }
+`;
+
+const CrumbSep = styled.span`
+  &::before {
+    content: '›';
+  }
+`;
+
 /**
  * Meta line under the H1: date · author. Rendered for every post that
  * has a frontmatter date; falls back gracefully on either piece. Date is
@@ -131,10 +156,18 @@ const PostEngagement = styled.div`
 // Component Props
 // ============================================================================
 
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
 interface BaseContentPostProps {
   source: React.ReactNode;
   section: string;
   otherContent: ContentCardMetadata[];
+  // Optional container ancestors (e.g. the chapter a part lives in), rendered
+  // above the title. Used by the recursive tree (courses); omitted elsewhere.
+  breadcrumb?: BreadcrumbItem[];
 }
 
 interface StandaloneContentPostProps extends BaseContentPostProps {
@@ -287,6 +320,22 @@ export function ContentPost(props: ContentPostProps) {
           <SeriesTitle href={`/${section}/${props.series.slug}`}>
             {props.series.title}
           </SeriesTitle>
+        )}
+
+        {/* Container ancestors (e.g. the chapter this part belongs to) */}
+        {props.breadcrumb && props.breadcrumb.length > 0 && (
+          <Breadcrumb>
+            {props.breadcrumb.map((item, i) => (
+              <React.Fragment key={`${item.label}-${i}`}>
+                {i > 0 && <CrumbSep />}
+                {item.href ? (
+                  <Crumb href={item.href}>{item.label}</Crumb>
+                ) : (
+                  <span>{item.label}</span>
+                )}
+              </React.Fragment>
+            ))}
+          </Breadcrumb>
         )}
 
         <h1>{displayTitle}</h1>

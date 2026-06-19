@@ -4,6 +4,11 @@
 
 export const SIDEBAR_DEFAULT_LIMIT = 20;
 
+// How many levels of a content tree the sidebar shows before deeper nodes must
+// be reached by drilling into a container page. The branch containing the active
+// page is always expanded past this, so the current node is always navigable.
+export const SIDEBAR_DEFAULT_DEPTH = 3;
+
 export interface ContentLabels {
   [depth: number]: string;
 }
@@ -56,6 +61,12 @@ export interface ContentNode {
   published: boolean;
   date?: string;
   tags?: string[];
+  // Recursive-tree engine (courses) additions:
+  hasPage?: boolean; // node renders its own page (containers with an index, and all leaves)
+  transparent?: boolean; // container contributes no URL segment; its children promote up
+  author?: string;
+  coverImage?: string;
+  comments?: boolean;
 }
 
 // Standalone content metadata

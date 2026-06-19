@@ -1,5 +1,33 @@
 # derecksnotes.com Change Log
 
+## v6.4.0 - Recursive course content: source/output split, index pages (2026-06)
+
+Long-form courses move from a co-mingled, level-coded layout to a uniform, arbitrarily-deep tree with a clean source/output split. First PR of a larger content rework.
+
+### Content model
+
+- **One recursive node.** A folder is a container, a file is a leaf, and a folder describes itself with an optional `index.mdx` whose frontmatter is the same shape as a leaf's. This single convention replaces the three old special files: `_series.mdx` (now a folder's `index.mdx`), `_meta.yaml` (now a chapter's `index.mdx`), and the `_passthrough` marker (now `transparent: true` in an index, which works at *any* depth, not just the top level). Nesting has no fixed ceiling.
+- **Source vs output split.** Hand-edited source lives in `client/content/<section>/…`; the built, served tree is generated into `client/content-dist/<section>/…`. The output is fully disposable — delete it and rebuild from source with no loss, because every title / summary / preface now lives in source, not output (the old `_meta.yaml`-in-output pain).
+
+### URLs
+
+- Order prefixes (`01-`) are a sort key only and are **stripped from the URL**; output-folder names never appear. Part filenames drop their redundant series/chapter qualifiers. Example: the old `…/01-describing-data/01-1_mathematical-statistics-1-foundations_describing-data_types-and-central-tendency` is now `…/describing-data/types-and-central-tendency`. The volume (series) overview URL is unchanged. Containers (chapters) are now their own pages.
+
+### Navigation
+
+- Each node's title is its **own** title; the sidebar/TOC number is positional (`1`, `1.2`) and never concatenates an ancestor title — killing the old "every part shows the series title" bug. The mechanical "Chapter N: / Part N:" labels are gone.
+- The sidebar is depth-limited (default 3) with the active branch always expanded; chapter pages and the overview list their children, so deeper nodes are always reachable. Content pages gain an ancestor breadcrumb.
+
+### Build
+
+- **`build-content.R`** replaces the courses use of `build-rmd.R` for the new layout: it walks the source tree recursively, knits `.Rmd` and copies `.mdx` / `index.mdx` into the parallel `content-dist` tree, with `--clean` wiping a work's entire output. `build-rmd.R` remains for not-yet-migrated sections (blog, dictionaries).
+
+### Migration & cleanup
+
+- `mathematical-statistics-with-R` is migrated to the new layout (per-part titles fixed at the data level from the old `part:` field) via `client/scripts/migrate-courses-tree.mjs`.
+- The orphaned legacy `fetchCourseMetadata.ts` is deleted. Blog, references, and dictionaries are unchanged (still served by the existing `fetchContentMetadata`).
+- **Deferred to follow-ups:** folding blog/references/dictionaries into the same engine, per-part figure namespacing, and an `old→new` URL redirect map.
+
 ## v6.3.1 - Post meta + evolution retrospective (2026-06)
 
 A patch release. The post renderer (`ContentPost`) now displays a `date · author` meta line under the `<h1>` on every blog / course / reference page that has frontmatter to draw from. Series chapters prefer their own chapter date when present and fall back to the series date; the author is always taken from the series for chapters. Renders as a semantic `<time dateTime>` so the date is machine-readable.
