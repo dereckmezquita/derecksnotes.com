@@ -1,0 +1,53 @@
+---
+title: Three rewrites, one corpus
+blurb: Same notes, different skins.
+coverImage: 200
+author: Dereck Mezquita
+date: 2026-06-19T00:00:00.000Z
+tags:
+  - blog
+  - website
+  - history
+  - php
+  - next-js
+  - retrospective
+published: true
+comments: true
+category: personal
+---
+
+I cloned the two oldest versions of this site onto my laptop the other day. I had not looked at either repository in years, and I thought it would be interesting to see what survived, what was quietly removed, and what I clearly thought was a good idea at the time. It seems that revisiting old code is one of those exercises that costs nothing and pays in small embarrassments.
+
+The site has lived through three distinct skins so far. The first I do not have a public repository for; that version is gone, save for the blog posts that I dragged forward into the later incarnations. The second was a PHP site I tracked under `derecksnotes-0`, from early 2020. The third was a cleaner PHP site, `derecksnotes.com-archive`, that ran until 2022. And the present site is a Next.js application; rather a lot has accrued on top of it.
+
+## The PHP era
+
+`derecksnotes-0` is, in retrospect, the version where I was learning how a real website works. The blog entries lived as `.html` files in a folder, each one written out by hand or knitted from R Markdown; the cards on the home page were generated from a single `entries.json` by a small JavaScript loop. There was a `displayEntry.php` that did the templating. There was jQuery 3.3.1 sitting in a `libraries/` folder. There was a `syntaxhighlighter`. Every page was a separate PHP file at the root: `courses.php`, `tools.php`, `exercises.php`, `raw-notes.php`. The whole architecture amounted to a directory listing with a coat of paint, and I am being generous.
+
+The interesting bit is that the *content* model was already roughly right. Each entry had a `displayName`, a `slogan`, a `summary`, a `primaryTag` and a list of `tags`. Looking at it now I see a content database that I did not yet realise was a content database; the same fields are in the Drizzle schema today, just in SQLite columns instead of a single fat JSON.
+
+`derecksnotes.com-archive` was the next pass, running from late 2020 to mid 2022. The folder structure is the same shape but tidier. SASS replaces the hand-written CSS; a SQL database is mentioned in the README. Progressive web app technologies were on; I had installed my own site on my phone and felt rather pleased with myself. The README of that era contains a sentence I find rather telling: *"A lot of the meat of the content which was previously available on my site was removed; a book is in progress!"* That book has not arrived. The content has not entirely returned either.
+
+Note that there was no compiler step worth speaking of in either of these eras. I edited a `.scss` file, pushed it, and the server served the compiled `.css`. Pages reloaded; jQuery animated things; iframes embedded YouTube videos directly above the post text. It worked, in the way that a flat-pack chair works.
+
+## The Next.js era
+
+The present site is the one I cannot really blame on a younger me. It is a Next.js 15 application written in TypeScript, with MDX for posts, styled-components for theming, Drizzle and SQLite for everything stateful, and an Express + Bun service for the API. The blog posts have become MDX with React components embedded inline; the dictionaries and references are first-class content with their own renderers. There is a WebGL knowledge graph at `/explore` that walks the corpus by similarity. There is an authentication system, a comment thread on every post, a moderator queue, in-app notifications, bookmarks, follow, reports, an account page with seven tabs.
+
+This is, in a real sense, the same site. The blog posts from 2016 and 2017 are still there; the philosophy essays from 2018 and 2019 are still there; the bioinformatics curriculum from 2019 is still there. The fields on the post cards are still `title`, `blurb`, `tags`, `author`, `date`. The set of dictionaries (biology, chemistry, mathematics) is the same set I started building in the PHP era. The content has been carried across three rewrites; only the rendering layer keeps getting replaced.
+
+What I take from this, looking at the three repositories side by side, is that the *content* part of a personal site is the part one should treat as a database from the very beginning. The shell around it can be PHP or jQuery or React; whichever skin happens to fit the year. The skin gets thrown away. Whatever I write into the dictionaries today will be readable when I am tired of TypeScript too.
+
+## What got cut, and what came back
+
+Some content did not survive the transitions. The DigiByte and DigiShield posts from 2018, written when I was rather interested in cryptocurrency, are still on the site but are no longer surfaced anywhere; I cannot quite bring myself to delete them. The "photo dumps" from my university years in Angers and Nantes survived; I find them charming in a way I did not at the time. The raw-notes section is gone. The galleries are gone. The exercises page is gone. None of these were missed.
+
+The dictionaries, by contrast, have grown. The mathematics dictionary in particular has expanded from a handful of definitions in the archive era to several hundred today, many of them with worked R examples and figures. The references section, which used to be a thin list of "online resources" pages, is now a proper biographies / encyclopedic surface with its own MDX pipeline.
+
+The other thing the present site has that none of the previous ones had is *people*. There was no comments thread on the PHP versions; there was no account; there was no following. I put off building any of that for years because I knew it would be the load-bearing piece of the site once it existed. It has been live for a few months now and it has not, in fact, eaten my evenings. It seems that a moderation queue is enough.
+
+## On rewriting
+
+I am not sure I would do another full rewrite voluntarily. Each one took longer than the previous, gave me less new to learn, and left me with more content to migrate. The first PHP version taught me that a website is a folder of files; the SASS / SQL version taught me that a website is a renderer over a database; the Next.js version is teaching me, slowly, that a website is mostly an editorial decision dressed in a framework. I think the editorial decision is the one I will keep reaching for; the framework will keep being replaced.
+
+But I would not undo any of the rewrites either. The content survived all three; that, I think, is the only test that matters.
