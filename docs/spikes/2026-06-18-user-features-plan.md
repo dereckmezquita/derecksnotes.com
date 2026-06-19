@@ -97,3 +97,18 @@ These were considered and declined; do not reintroduce them under a different na
 10. **Reading progress** (small but new schema and a background write path).
 
 Each item lands as its own commit on the PR branch so progress is visible incrementally.
+
+## Implementation notes (v6.3.0 — what actually shipped vs. this plan)
+
+The branch as merged diverges from the spike in a few user-visible ways. These are tracked here so the spike remains a useful historical artefact rather than a misleading one.
+
+- **Notifications: bell removed.** Feature #1 originally proposed a navbar bell + dropdown. That prototype shipped first (`6c7efbcd`) but was reverted in `fb109fe4`. The durable list now lives on the `/account` Notifications tab and an always-on `NotificationToastWatcher` (mounted in the root layout) surfaces fresh arrivals via Sonner toasts. The watcher re-polls on `visibilitychange` so a returning user catches up without waiting out the interval.
+- **Shared `RecordList`.** Not in the plan: the five list tabs on `/account` (Comments, History, Bookmarks, Following, Notifications) were collapsed onto one `RecordList` primitive — shift-click range select + bulk-action toolbar + per-row action are all driven from one source of truth.
+- **Soft-delete UX.** Comments that are soft-deleted now stay in the public thread as a `[DELETED]` placeholder; the author name is suppressed but the timestamp and reply chain remain. The earlier `isNull(deletedAt)` filters on the public-thread + reply queries were dropped — the formatter already scrubs the content/user, so deleted rows render as placeholders without leaking the original body or author.
+- **Public-profile expansion.** Beyond the plan's profile-customisation item: an always-rendered bio (with a muted placeholder when empty), a paginated **Top Comments** card (server-side `GROUP BY` + `HAVING` + `LIMIT/OFFSET` rather than a JS rank-and-slice), and chip-style social-link buttons with an `↗` external affordance.
+- **Read-history clear.** New `DELETE /users/me/read-history` endpoint (no body clears all, `{ slug }` removes one) backs a "Clear all" header button + per-row bulk-remove on the History tab.
+- **Comment-permission tests.** New `comments.permissions.test.ts` pins author-only authorisation on `softDeleteComment`, `editComment`, and `bulkDeleteComments`. Thread-visibility tests pin the soft-delete render pipeline so a future filter regression can't break reply chains.
+- **Next 15 build fix.** Adding `useSearchParams()` to `/account` (for `?tab=` deep-linking) tripped the SSG prerender; the page body is now wrapped in `<Suspense>` so the build still emits a static shell.
+- **`/account?tab=`** deep-linkable URLs. Not in the plan; needed to land alongside the bell-removal so the toast watcher's "Open" action can target a specific tab.
+
+These items are documented here, in [`NEWS.md`](../../NEWS.md) under v6.3.0, and in the PR description.

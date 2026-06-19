@@ -1,5 +1,68 @@
 # derecksnotes.com Change Log
 
+## v6.3.0 - User Features & Account/Admin Refactor (2026-06)
+
+Ten user-facing features land together with an admin/moderation counterpart for each, plus a structural refactor of the two largest pages on the site (`/account` and `/admin`) and the largest server route file.
+
+### User features
+
+- **In-app notifications**: a durable list lives on the `/account` Notifications tab and an always-on toast watcher fires on new arrivals, re-polling on tab focus. Producers are wired to comment replies, likes, approvals, mentions, follows, and moderator-inbox events.
+- **@mentions in comments**: username autocomplete in the comment form, notification fan-out to mentioned users, and an admin per-user mention-mute lever for abusive cases.
+- **Bookmarks**: a toggle on every content post plus an `/account` Bookmarks tab listing saved posts.
+- **Follow users + Following feed**: follow other accounts, see follower/following counts on profiles, and read a Following feed of recent comments from people you follow.
+- **Reports**: users can report a comment or user with a reason and details; the queue surfaces in a new admin Reports tab with bulk resolve/dismiss.
+- **Profile customisation**: bio placeholder, location, and chip-style external social links on the public profile, plus a new **Top Comments** card driven by a dedicated endpoint.
+- **Comment sort**: new / top / best, rendered through the shared `TabBar`.
+- **Markdown preview** tab on the comment form, sharing the renderer with the rendered output so the two cannot drift.
+- **Public activity feed** surfacing a user's recent comments and reactions.
+- **Reading progress**: per-post tracking with a `/users/me/read-history` clear/remove endpoint.
+
+### Admin / moderation
+
+Every user feature ships with an admin counterpart — the planning doc was updated to require it:
+
+- **Notifications**: a moderator inbox covers pending comments and reports, with bell-style toast batching so a burst of activity doesn't spam.
+- **Comment-approved** producer notifies authors when their queued comment clears the queue.
+- **Mention-mute** toggle per user.
+- **Top Bookmarked Posts** panel in admin analytics.
+- **Reports** tab with bulk resolve/dismiss for the new report queue.
+- **Bulk approve / reject** helpers wired up alongside the existing per-row actions.
+
+### UI polish
+
+- **Soft-deleted comments stay in the thread** as a `[DELETED]` placeholder so reply chains are preserved; the author name and the empty Unknown link are suppressed, leaving only the timestamp and placeholder body.
+- **Shared `RecordList`** primitive backs the new `/account` list tabs (Comments, History, Bookmarks, Following, Notifications).
+- **Borderless `TabBar`** unifies Write / Preview on the comment form with the new comment-sort control.
+- **`PostEngagement` spacing** tightened; `/account` tab labels shortened so all seven tabs fit on a laptop without horizontal scroll.
+- **`/account?tab=...`**: the page reads and writes the active tab in the URL so deep links and reloads land on the right pane.
+- **View public profile** shortcut added to the Profile tab.
+
+### Structural refactor
+
+- **Shared contracts**: duplicated client/server types and constants promoted into a single `@derecksnotes/shared` package.
+- **`admin/page.tsx`**: 1,335 lines → a 70-line tab router with each tab extracted into its own component.
+- **`account/page.tsx`**: 854 lines → a 110-line tab router with `ProfileTab`, `SecurityTab`, `CommentsTab`, `HistoryTab`, `BookmarksTab`, `FollowingFeedTab`, and `NotificationsTab` extracted.
+- **`routes/admin.ts`**: 881 lines → `routes/admin/` with seven per-domain sub-routers and no URL-surface change.
+- **Comment markdown renderer unified** so the preview matches the rendered output exactly.
+- **Reply tree builder collapsed**: the duplicate async `formatCommentTree` used by reply expansion now shares the batched `formatCommentTreeBatched` path, killing the N+1 fan-out at `Show more replies`.
+- **Top-comments endpoint paginated** at the SQL layer (GROUP BY + HAVING + LIMIT/OFFSET) so the public-profile card is constant-cost regardless of how prolific the user is.
+
+### Security
+
+- **Permission tests** pinned on comment soft-delete, edit, and bulk-delete so author-only authorization cannot regress.
+- **Thread visibility tests** pinned on the deleted-comment placeholder pipeline: deleted parents stay reachable for their children, pending+deleted comments never leak to anonymous viewers, and `[DELETED]` rows never expose the original body or author.
+
+### Bug fixes
+
+- **SSR prerender crash** on the comment form fixed by gating the preview render on `window` and the active mode.
+- **Top / best comment sort** was broken because Drizzle's `findMany` aliasing breaks the reactions subquery; ranking now happens in JS.
+- **`@mentions` silently dropped** by a Drizzle IN-list binding bug — fixed, plus two `CommentItem` foot-guns around `isOwner` and negative remaining-replies counts.
+- **Next 15 production build** failed because `useSearchParams` was bailing the static prerender on `/account`; fixed by wrapping the page body in `Suspense`.
+
+### Docs
+
+- Planning document added for the post-PR-50 user-features track, sequencing the work and listing explicit non-goals; an implementation-notes section records the divergences shipped against it.
+
 ## v6.2.0 - Account & Content Hardening (2026-06)
 
 A research-backed pass over the account, comment, and moderation surface plus a usable admin moderation queue.

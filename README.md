@@ -1,16 +1,17 @@
 # [derecksnotes.com](https://www.derecksnotes.com) <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
-Welcome to version `v6.1.0` of [Dereck's Notes](https://www.derecksnotes.com). This release adds a Knowledge Graph view of the whole corpus, cleans up the dictionary UI, and ships a number of MDX and content-rendering fixes.
+Welcome to version `v6.3.0` of [Dereck's Notes](https://www.derecksnotes.com). This release reshapes the user surface: a unified `/account` hub for comments / history / bookmarks / following / notifications, soft-deleted comments with a `[DELETED]` placeholder that keeps reply chains intact, public-profile bios and a Top Comments card, and toast-driven notifications in place of the navbar bell.
 
 <p align="center">
     <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
 </p>
 
-## What's New in v6.1
+## What's New in v6.3
 
-- **Knowledge Graph**: a WebGL force-directed view of every post, definition, and reference on the site. Drag a node, search across the corpus, watch the unexpected connections bloom. Visit [/explore](https://www.derecksnotes.com/explore).
-- **Inline graph embed**: the same canvas drops into any blog post as `<KnowledgeGraphEmbed />`, with its own collapsible controls and a click-to-fullscreen link.
-- **New essay**: *A Corpus as a Constellation* — a long-form post on how the graph is built and what twelve thousand nodes revealed.
+- **Unified `/account` hub**: a single `RecordList` powers the Comments / History / Bookmarks / Following / Notifications tabs, deep-linkable via `?tab=`.
+- **Notifications go inline**: the navbar bell is gone — new arrivals surface as toasts and live in `/account?tab=notifications`.
+- **Soft-deleted comments**: deletions leave a `[DELETED]` placeholder that keeps thread structure intact instead of vanishing the row, so replies aren't orphaned.
+- **Public profiles**: bio placeholder + Top Comments card on `/profile/[username]`, plus chip-style social-link buttons.
 
 For the full changelog (including the rendering fixes, build-tooling migration, and other under-the-hood work), see [NEWS.md](NEWS.md).
 
@@ -76,7 +77,7 @@ derecksnotes.com/
 
 - **Knowledge Graph**: visit [/explore](https://www.derecksnotes.com/explore) and drag a node, click one, search across the whole corpus.
 - **Dictionaries**: biology, chemistry, mathematics — wikilinked entries with KaTeX/MathJax-rendered formulae.
-- **Comments**: nested Reddit-style threads on every blog post.
+- **Comments & social**: nested threads with Markdown Write / Preview tabs and new / top / best sort, plus @mentions, bookmarks, follow, reports, and toast notifications surfaced in `/account`. Deletions leave a `[DELETED]` placeholder so thread structure survives.
 - **Admin dashboard**: user management, comment moderation, audit log.
 - **Interactive blog filter**: by category, date, and search.
 
