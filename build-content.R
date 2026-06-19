@@ -1,40 +1,35 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# Build Script: compile a recursive content tree (source -> output)
+# Build Script: compile a course work's src/ -> dist/
 # =============================================================================
 #
-# The successor to build-rmd.R for the new recursive content layout. Source
-# lives under client/content/<section>/...; built output is written to the
-# parallel client/content-dist/<section>/... tree. The output tree is fully
-# disposable: delete it and rebuild from source with no loss, because every
-# hand-edited file (titles, summaries, index pages) lives in source.
+# The successor to build-rmd.R for the recursive course layout. A "work" (a
+# book/volume) lives under client/src/app/courses/posts/<family>/<work>/ and
+# holds:
+#   src/    authored sources (.Rmd + index.mdx)   <- you edit this
+#   dist/   built output (.mdx + index.mdx)        <- generated, served, disposable
 #
 # Per file, by extension:
-#   *.Rmd        -> knit through R (runs code, emits figures)  -> .mdx in dist
-#   *.mdx        -> copied through verbatim (the R step is skipped) -> dist
-#   index.Rmd/.mdx are handled exactly like any other leaf (a folder's own page).
+#   *.Rmd        -> knit through R (runs code, emits figures)  -> .mdx in dist/
+#   *.mdx        -> copied through verbatim (the R step is skipped) -> dist/
+#   index.Rmd / index.mdx are handled like any other file (a folder's own page).
 # Folders named data/ or assets/, and dotfiles, are ignored.
 #
 # USAGE:
-#   Rscript build-content.R <source-path> [OPTIONS]
+#   Rscript build-content.R <work-path> [OPTIONS]
 #
-#   <source-path>  A directory under client/content/ (usually one "work", e.g. a
-#                  volume). Built recursively.
+#   <work-path>  A work directory containing a src/ folder, e.g.
+#                client/src/app/courses/posts/<family>/<work>
 #
 # OPTIONS:
-#   --clean        Remove this work's output (dist subtree + figures) first
-#   --dry-run      Show what would be done without doing it
-#   --force        Rebuild even if output is newer than source
-#   --quiet        Suppress detailed knitr output
-#   --help, -h     Show this help message
+#   --clean      Remove this work's dist/ and its figures first
+#   --dry-run    Show what would be done without doing it
+#   --force      Rebuild even if dist output is newer than src
+#   --quiet      Suppress detailed knitr output
+#   --help, -h   Show this help message
 #
-# EXAMPLE:
-#   Rscript build-content.R \
-#     client/content/courses/mathematical-statistics-with-R/mathematical-statistics-1-foundations
-#
-# Figures are written to client/public/<section>/<basename(source-path)>/ and
-# served from /<section>/<basename(source-path)>/ — matching the figure web
-# paths already baked into the built .mdx.
+# Figures are written to client/public/<section>/<basename(work)>/ and served
+# from /<section>/<basename(work)>/ — matching the paths baked into the .mdx.
 # =============================================================================
 
 FIGURE_DPI <- 250
@@ -50,20 +45,20 @@ IGNORED_DIR_NAMES <- c("data", "assets", "node_modules")
 show_help <- function() {
   cat(
     "
-Usage: Rscript build-content.R <source-path> [OPTIONS]
+Usage: Rscript build-content.R <work-path> [OPTIONS]
 
-  <source-path>  A directory under client/content/ (built recursively)
+  <work-path>  A work directory containing a src/ folder
 
 OPTIONS:
-  --clean        Remove this work's output (dist subtree + figures) first
-  --dry-run      Show what would be done without doing it
-  --force        Rebuild even if output is newer than source
-  --quiet        Suppress detailed knitr output
-  --help, -h     Show this help message
+  --clean      Remove this work's dist/ and its figures first
+  --dry-run    Show what would be done without doing it
+  --force      Rebuild even if dist output is newer than src
+  --quiet      Suppress detailed knitr output
+  --help, -h   Show this help message
 
 EXAMPLE:
   Rscript build-content.R \\
-    client/content/courses/mathematical-statistics-with-R/mathematical-statistics-1-foundations
+    client/src/app/courses/posts/mathematical-statistics-with-R/mathematical-statistics-1-foundations
 
 "
   )
@@ -71,13 +66,7 @@ EXAMPLE:
 
 parse_args <- function() {
   args <- commandArgs(trailingOnly = TRUE)
-  opts <- list(
-    content_path = NULL,
-    clean = FALSE,
-    dry_run = FALSE,
-    verbose = TRUE,
-    force = FALSE
-  )
+  opts <- list(work = NULL, clean = FALSE, dry_run = FALSE, verbose = TRUE, force = FALSE)
 
   if (length(args) == 0 || any(args %in% c("--help", "-h"))) {
     show_help()
@@ -96,16 +85,16 @@ parse_args <- function() {
     } else if (startsWith(arg, "--")) {
       cat("Unknown option:", arg, "\n")
       quit(status = 1)
-    } else if (is.null(opts$content_path)) {
-      opts$content_path <- arg
+    } else if (is.null(opts$work)) {
+      opts$work <- arg
     } else {
-      cat("Error: only one source path is allowed.\n")
+      cat("Error: only one work path is allowed.\n")
       quit(status = 1)
     }
   }
 
-  if (is.null(opts$content_path)) {
-    cat("Error: source path is required.\n\n")
+  if (is.null(opts$work)) {
+    cat("Error: work path is required.\n\n")
     show_help()
     quit(status = 1)
   }
@@ -138,7 +127,7 @@ log_warn <- function(...) log_msg(..., level = "WARN")
 log_success <- function(...) log_msg(..., level = "OK")
 
 # -----------------------------------------------------------------------------
-# Roots
+# Roots / figures
 # -----------------------------------------------------------------------------
 
 find_project_root <- function(start_dir) {
@@ -152,40 +141,28 @@ find_project_root <- function(start_dir) {
   NULL
 }
 
-# Path of `child` relative to `base` (both absolute, normalized).
-rel_path <- function(child, base) {
-  base <- paste0(sub("/+$", "", base), "/")
-  sub(paste0("^", gsub("([.|()\\^{}+$*?]|\\[|\\])", "\\\\\\1", base)), "", child)
-}
-
-# -----------------------------------------------------------------------------
-# Figure config: /<section>/<basename(source-path)>/ (flat, matches built mdx)
-# -----------------------------------------------------------------------------
-
-get_figure_config <- function(content_dir, content_root, project_root) {
-  rel <- rel_path(content_dir, content_root) # e.g. courses/<family>/<volume>
-  section <- strsplit(rel, "/")[[1]][1]
-  work <- basename(content_dir)
+# Figures land in public/<section>/<basename(work)>/, where <section> is the path
+# component before "posts" (e.g. "courses").
+get_figure_config <- function(work_dir, project_root) {
+  parts <- strsplit(work_dir, .Platform$file.sep)[[1]]
+  posts_idx <- which(parts == "posts")
+  section <- if (length(posts_idx) > 0) parts[posts_idx[1] - 1] else "courses"
+  work <- basename(work_dir)
   fig_dir <- file.path(project_root, "client", "public", section, work)
   web_path <- paste0("/", section, "/", work, "/")
   dir.create(fig_dir, showWarnings = FALSE, recursive = TRUE)
   list(fig_dir = fig_dir, web_path = web_path)
 }
 
-# -----------------------------------------------------------------------------
-# Discover source files (.Rmd + .mdx), skipping data/, assets/, dotfiles
-# -----------------------------------------------------------------------------
+rel_path <- function(child, base) {
+  base <- paste0(sub("/+$", "", base), "/")
+  sub(paste0("^", gsub("([.|()\\^{}+$*?]|\\[|\\])", "\\\\\\1", base)), "", child)
+}
 
-discover_sources <- function(content_dir) {
-  all <- list.files(
-    content_dir,
-    pattern = "\\.(Rmd|mdx)$",
-    full.names = TRUE,
-    recursive = TRUE
-  )
+discover_sources <- function(src_dir) {
+  all <- list.files(src_dir, pattern = "\\.(Rmd|mdx)$", full.names = TRUE, recursive = TRUE)
   keep <- vapply(all, function(f) {
-    rel <- rel_path(f, content_dir)
-    segs <- strsplit(rel, "/")[[1]]
+    segs <- strsplit(rel_path(f, src_dir), "/")[[1]]
     dirs <- segs[-length(segs)]
     if (any(dirs %in% IGNORED_DIR_NAMES)) return(FALSE)
     if (any(startsWith(segs, "."))) return(FALSE)
@@ -194,10 +171,9 @@ discover_sources <- function(content_dir) {
   all[keep]
 }
 
-output_path <- function(src, content_root, dist_root) {
-  rel <- rel_path(src, content_root)
-  rel <- sub("\\.Rmd$", ".mdx", rel)
-  out <- file.path(dist_root, rel)
+output_path <- function(src, src_dir, dist_dir) {
+  rel <- sub("\\.Rmd$", ".mdx", rel_path(src, src_dir))
+  out <- file.path(dist_dir, rel)
   dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
   out
 }
@@ -227,22 +203,19 @@ fix_figure_paths <- function(mdx_path, web_fig_path) {
 # Build one source file
 # -----------------------------------------------------------------------------
 
-build_one <- function(src, content_root, dist_root, fig_config, opts) {
-  out <- output_path(src, content_root, dist_root)
-  name <- rel_path(src, content_root)
+build_one <- function(src, src_dir, dist_dir, fig_config, opts) {
+  out <- output_path(src, src_dir, dist_dir)
+  name <- rel_path(src, src_dir)
 
   if (!needs_rebuild(src, out, opts$force)) {
     return(list(status = "skipped", file = name))
   }
   if (opts$dry_run) {
-    log_msg("  Would write:", rel_path(out, dist_root))
+    log_msg("  Would write:", rel_path(out, dist_dir))
     return(list(status = "dry-run", file = name))
   }
 
-  is_rmd <- grepl("\\.Rmd$", src)
-
-  if (!is_rmd) {
-    # Plain MDX: copy through, no R.
+  if (!grepl("\\.Rmd$", src)) {
     file.copy(src, out, overwrite = TRUE)
     log_success("  Copied:", name)
     return(list(status = "copied", file = name))
@@ -289,40 +262,21 @@ build_one <- function(src, content_root, dist_root, fig_config, opts) {
 }
 
 # -----------------------------------------------------------------------------
-# Clean this work's output
-# -----------------------------------------------------------------------------
-
-clean_output <- function(content_dir, content_root, dist_root, fig_config, dry_run = FALSE) {
-  log_msg("Cleaning output...")
-  dist_subtree <- file.path(dist_root, rel_path(content_dir, content_root))
-  if (dir.exists(dist_subtree)) {
-    if (dry_run) {
-      log_msg("  Would remove dist subtree:", dist_subtree)
-    } else {
-      unlink(dist_subtree, recursive = TRUE)
-      log_msg("  Removed dist subtree:", dist_subtree)
-    }
-  }
-  if (dir.exists(fig_config$fig_dir)) {
-    if (dry_run) {
-      log_msg("  Would remove figures:", fig_config$fig_dir)
-    } else {
-      unlink(fig_config$fig_dir, recursive = TRUE)
-      log_msg("  Removed figures:", fig_config$fig_dir)
-    }
-  }
-}
-
-# -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
 main <- function() {
   opts <- parse_args()
-  content_dir <- normalizePath(opts$content_path, mustWork = FALSE)
+  work_dir <- normalizePath(opts$work, mustWork = FALSE)
 
-  if (!dir.exists(content_dir)) {
-    cat("Error: directory does not exist:", opts$content_path, "\n")
+  if (!dir.exists(work_dir)) {
+    cat("Error: directory does not exist:", opts$work, "\n")
+    quit(status = 1)
+  }
+  src_dir <- file.path(work_dir, "src")
+  if (!dir.exists(src_dir)) {
+    cat("Error: no src/ directory found in:", opts$work, "\n")
+    cat("Expected structure: <work>/src/*.Rmd\n")
     quit(status = 1)
   }
   if (!requireNamespace("knitr", quietly = TRUE)) {
@@ -330,45 +284,45 @@ main <- function() {
     quit(status = 1)
   }
 
-  project_root <- find_project_root(content_dir)
+  project_root <- find_project_root(work_dir)
   if (is.null(project_root)) {
     cat("Error: could not find project root (a directory containing client/).\n")
     quit(status = 1)
   }
 
-  content_root <- normalizePath(file.path(project_root, "client", "content"), mustWork = TRUE)
-  dist_root <- file.path(project_root, "client", "content-dist")
-
-  if (!startsWith(content_dir, content_root)) {
-    cat("Error: source path must live under client/content/.\n")
-    cat("  source:", content_dir, "\n  content root:", content_root, "\n")
-    quit(status = 1)
-  }
-
-  fig_config <- get_figure_config(content_dir, content_root, project_root)
+  dist_dir <- file.path(work_dir, "dist")
+  fig_config <- get_figure_config(work_dir, project_root)
 
   cat("\n", strrep("=", 60), "\n  Content Build\n", strrep("=", 60), "\n\n", sep = "")
-  log_init(file.path(dist_root, rel_path(content_dir, content_root), ".build.log"))
-  log_msg("Source:    ", content_dir)
-  log_msg("Output:    ", file.path(dist_root, rel_path(content_dir, content_root)))
-  log_msg("Figures:   ", fig_config$fig_dir, paste0("(", fig_config$web_path, ")"))
+  log_init(file.path(dist_dir, ".build.log"))
+  log_msg("Work:    ", work_dir)
+  log_msg("Source:  ", src_dir)
+  log_msg("Output:  ", dist_dir)
+  log_msg("Figures: ", fig_config$fig_dir, paste0("(", fig_config$web_path, ")"))
 
   if (opts$clean) {
-    clean_output(content_dir, content_root, dist_root, fig_config, opts$dry_run)
-    # re-create the build log dir destroyed by clean
-    if (!opts$dry_run) log_init(file.path(dist_root, rel_path(content_dir, content_root), ".build.log"))
+    log_msg("Cleaning output...")
+    if (opts$dry_run) {
+      log_msg("  Would remove:", dist_dir, "and", fig_config$fig_dir)
+    } else {
+      unlink(dist_dir, recursive = TRUE)
+      unlink(fig_config$fig_dir, recursive = TRUE)
+      dir.create(fig_config$fig_dir, showWarnings = FALSE, recursive = TRUE)
+      log_init(file.path(dist_dir, ".build.log"))
+      log_msg("  Removed dist/ and figures")
+    }
     cat("\n")
   }
 
-  sources <- discover_sources(content_dir)
+  sources <- discover_sources(src_dir)
   if (length(sources) == 0) {
-    log_warn("No .Rmd or .mdx sources found under:", content_dir)
+    log_warn("No .Rmd or .mdx sources found under:", src_dir)
     quit(status = 0)
   }
   log_msg("Found", length(sources), "source file(s)\n")
 
-  results <- lapply(sources, build_one, content_root = content_root,
-    dist_root = dist_root, fig_config = fig_config, opts = opts)
+  results <- lapply(sources, build_one, src_dir = src_dir, dist_dir = dist_dir,
+    fig_config = fig_config, opts = opts)
 
   statuses <- vapply(results, function(r) r$status, character(1))
   cat("\n", strrep("=", 60), "\n  Summary\n", strrep("=", 60), "\n\n", sep = "")

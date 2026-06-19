@@ -7,7 +7,7 @@ Long-form courses move from a co-mingled, level-coded layout to a uniform, arbit
 ### Content model
 
 - **One recursive node.** A folder is a container, a file is a leaf, and a folder describes itself with an optional `index.mdx` whose frontmatter is the same shape as a leaf's. This single convention replaces the three old special files: `_series.mdx` (now a folder's `index.mdx`), `_meta.yaml` (now a chapter's `index.mdx`), and the `_passthrough` marker (now `transparent: true` in an index, which works at *any* depth, not just the top level). Nesting has no fixed ceiling.
-- **Source vs output split.** Hand-edited source lives in `client/content/<section>/…`; the built, served tree is generated into `client/content-dist/<section>/…`. The output is fully disposable — delete it and rebuild from source with no loss, because every title / summary / preface now lives in source, not output (the old `_meta.yaml`-in-output pain).
+- **Source vs output split (uniform with blog/dictionaries).** Content stays under `client/src/app/courses/posts/`. Each work (volume) gets a `src/` of authored sources (`.Rmd` + `index.mdx`) and a sibling `dist/` of built output (`.mdx` + `index.mdx`) — the same "`src/` + served output" shape blog and dictionaries already use. `dist/` is fully disposable: delete it and rebuild from `src/` with no loss, because every title / summary / preface now lives in `src/`, not the output (the old `_meta.yaml`-in-output pain). The fetcher serves `dist/` and hides both `src/` and `dist/` from the URL.
 
 ### URLs
 
@@ -20,11 +20,11 @@ Long-form courses move from a co-mingled, level-coded layout to a uniform, arbit
 
 ### Build
 
-- **`build-content.R`** replaces the courses use of `build-rmd.R` for the new layout: it walks the source tree recursively, knits `.Rmd` and copies `.mdx` / `index.mdx` into the parallel `content-dist` tree, with `--clean` wiping a work's entire output. `build-rmd.R` remains for not-yet-migrated sections (blog, dictionaries).
+- **`build-content.R`** replaces the courses use of `build-rmd.R` for the new layout: given a work directory, it knits `.Rmd` and copies `.mdx` / `index.mdx` from `<work>/src/` into `<work>/dist/`, with `--clean` wiping the work's `dist/` and figures. `build-rmd.R` remains for not-yet-migrated sections (blog, dictionaries).
 
 ### Migration & cleanup
 
-- `mathematical-statistics-with-R` is migrated to the new layout (per-part titles fixed at the data level from the old `part:` field) via `client/scripts/migrate-courses-tree.mjs`.
+- `mathematical-statistics-with-R` is migrated to the new layout (per-part titles fixed at the data level from the old `part:` field; the `mathematical-statistics-with-R` family folder stays out of the URL via `transparent: true` in its `index.mdx`).
 - The orphaned legacy `fetchCourseMetadata.ts` is deleted. Blog, references, and dictionaries are unchanged (still served by the existing `fetchContentMetadata`).
 - **Deferred to follow-ups:** folding blog/references/dictionaries into the same engine, per-part figure namespacing, and an `old→new` URL redirect map.
 

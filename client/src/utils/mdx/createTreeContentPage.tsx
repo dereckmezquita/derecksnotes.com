@@ -26,7 +26,7 @@ import {
 /**
  * Page factory for the recursive content tree (courses). Mirrors
  * createContentPage's surface (Page / generateStaticParams / generateMetadata)
- * but resolves URLs against the built tree at ROOT_DIR_CONTENT_DIST and renders:
+ * but resolves URLs against each work's built dist/ tree under posts/ and renders:
  *   - work overview  (segments = [workSlug])           -> ContentContainer
  *   - container page (a chapter, etc.)                 -> ContentContainer
  *   - leaf page      (a part)                          -> ContentPost

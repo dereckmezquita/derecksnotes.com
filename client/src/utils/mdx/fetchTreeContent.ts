@@ -2,26 +2,38 @@
 // Recursive tree content engine (courses)
 // ============================================================================
 //
-// Reads the built output tree at ROOT_DIR_CONTENT_DIST/<section> and exposes it
+// Reads the served course tree under ROOT_DIR_APP/<section>/posts and exposes it
 // as a forest of uniform nodes. There is ONE concept: a node. A folder is a
 // container; a file is a leaf. A folder describes itself with an optional
 // `index.mdx` whose frontmatter is the same shape as a leaf's. This single
 // recursion replaces the old series / chapter / part special-casing.
 //
-// Design notes:
-//   - Order prefixes ("01-") are a sort key only; they are stripped to form the
-//     slug, so they never appear in a URL.
-//   - `transparent: true` on a container's index removes it from the URL at ANY
-//     depth (its children promote up) — replaces the old _passthrough marker.
-//   - displayTitle = a positional dotted number + the node's OWN title. No node
+// Layout (uniform with blog/dictionaries — a `src/` of authored sources, with
+// the built output served alongside):
+//
+//   posts/<family>/                 # organisational grouping
+//     index.mdx                     # `transparent: true` -> kept out of the URL
+//     data/                         # datasets (ignored)
+//     <work>/
+//       src/                        # AUTHORED sources (.Rmd + index.mdx) — ignored here
+//       dist/                       # BUILT output (.mdx + index.mdx) — what we serve
+//         index.mdx
+//         01-chapter/ index.mdx + 01-part.mdx ...
+//
+// Rules:
+//   - `src`, `data`, `assets`, drafts/deprecated/ignore, dotfiles -> ignored.
+//   - A folder that contains a `dist/` is a built work: its content is the
+//     `dist/` subtree, and `dist/` itself adds NO URL segment (transparent).
+//   - `transparent: true` in a folder's index removes it from the URL at any
+//     depth (its children promote up) — replaces the old `_passthrough` marker.
+//   - Order prefixes ("01-") are a sort key only; stripped to form the slug.
+//   - displayTitle = a positional dotted number + the node's OWN title; no node
 //     stores an ancestor's title, so the "every part shows the series title" bug
 //     cannot recur.
-//   - The output tree never appears in a URL: it is the base path that is
-//     stripped before slugs are computed.
 //
-// Produces the existing SeriesMetadata / ContentNode shapes so ContentPost,
-// ContentSideBar, and the content components can be reused. A "work" (the top
-// routable unit — a book/volume) maps onto SeriesMetadata.
+// Produces the existing SeriesMetadata / ContentNode shapes so the content
+// components can be reused. A "work" (top routable unit — a book/volume) maps
+// onto SeriesMetadata.
 // ============================================================================
 
 import fs from 'fs';
@@ -29,7 +41,7 @@ import path from 'path';
 import matter from 'gray-matter';
 
 import { DATE_YYYY_MM_DD } from '@/lib/dates';
-import { ROOT_DIR_CONTENT_DIST } from '@/lib/constants.server';
+import { ROOT_DIR_APP } from '@/lib/constants.server';
 import { extractSummaryFromMdx } from './extractMdxSummary';
 import {
   ContentNode,
@@ -42,14 +54,29 @@ import {
 export * from './contentTypes';
 
 export const INDEX_FILENAME = 'index.mdx';
-const IGNORED_DIR_NAMES = new Set(['data', 'assets', 'node_modules']);
+export const BUILD_DIR = 'dist';
+
+const IGNORED_DIR_NAMES = new Set([
+  'src',
+  'dist',
+  'data',
+  'assets',
+  'node_modules',
+  'drafts',
+  'deprecated',
+  'ignore'
+]);
 
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
 
 function isIgnored(name: string): boolean {
-  return IGNORED_DIR_NAMES.has(name) || name.startsWith('.');
+  return (
+    IGNORED_DIR_NAMES.has(name) ||
+    name.startsWith('.') ||
+    name.endsWith('.ignore')
+  );
 }
 
 // "01-describing-data" -> "describing-data"; "mathematical-statistics-1-foundations"
@@ -90,7 +117,19 @@ function readDoc(filePath: string): { data: any; content: string } | null {
 }
 
 function sectionRoot(section: string): string {
-  return path.join(ROOT_DIR_CONTENT_DIST, section);
+  return path.join(ROOT_DIR_APP, section, 'posts');
+}
+
+// The directory that actually holds a folder's served content: its `dist/` if it
+// has one (a built work), otherwise the folder itself (a grouping / chapter).
+function contentDirOf(dir: string): string {
+  const built = path.join(dir, BUILD_DIR);
+  try {
+    if (fs.statSync(built).isDirectory()) return built;
+  } catch {
+    /* no dist/ */
+  }
+  return dir;
 }
 
 interface Inherited {
@@ -102,47 +141,55 @@ interface Inherited {
   comments?: boolean;
 }
 
+function inheritFrom(
+  fm: any,
+  parent: Inherited,
+  published: boolean
+): Inherited {
+  return {
+    published,
+    author: fm.author ?? parent.author,
+    date: fm.date ?? parent.date,
+    tags: fm.tags ?? parent.tags,
+    coverImage: fm.coverImage ?? parent.coverImage,
+    comments: fm.comments ?? parent.comments
+  };
+}
+
 // ----------------------------------------------------------------------------
 // Tree construction
 // ----------------------------------------------------------------------------
 
 /**
- * Build the children of `dir` as ContentNodes. `parentPath` is the URL path
+ * Build the child nodes found in `contentDir`. `parentPath` is the URL path
  * (slugs joined) of the containing node, relative to its work root.
  */
 function buildChildren(
-  dir: string,
+  contentDir: string,
   parentPath: string,
   inherited: Inherited,
   depth: number
 ): ContentNode[] {
   const entries = fs
-    .readdirSync(dir)
+    .readdirSync(contentDir)
     .filter((name) => !isIgnored(name) && name !== INDEX_FILENAME);
   const nodes: ContentNode[] = [];
 
   for (const name of sortByPrefix(entries)) {
-    const abs = path.join(dir, name);
+    const abs = path.join(contentDir, name);
     const stat = fs.statSync(abs);
 
     if (stat.isDirectory()) {
-      const idx = readDoc(path.join(abs, INDEX_FILENAME));
+      const cdir = contentDirOf(abs);
+      const idx = readDoc(path.join(cdir, INDEX_FILENAME));
       const fm = idx?.data ?? {};
       const slug = stripOrderPrefix(name);
       const published = fm.published ?? inherited.published;
-      const childInherited: Inherited = {
-        published,
-        author: fm.author ?? inherited.author,
-        date: fm.date ?? inherited.date,
-        tags: fm.tags ?? inherited.tags,
-        coverImage: fm.coverImage ?? inherited.coverImage,
-        comments: fm.comments ?? inherited.comments
-      };
+      const childInherited = inheritFrom(fm, inherited, published);
 
-      // Transparent container: contributes no URL segment; promote its children
-      // to this level (their paths skip this folder entirely).
+      // Transparent container: contributes no URL segment; promote its children.
       if (fm.transparent) {
-        nodes.push(...buildChildren(abs, parentPath, childInherited, depth));
+        nodes.push(...buildChildren(cdir, parentPath, childInherited, depth));
         continue;
       }
 
@@ -151,14 +198,14 @@ function buildChildren(
       nodes.push({
         slug,
         path: nodePath,
-        absolutePath: abs,
+        absolutePath: cdir,
         title,
         displayTitle: title,
         summary: fm.summary,
         depth,
         isDirectory: true,
         hasPage: true,
-        children: buildChildren(abs, nodePath, childInherited, depth + 1),
+        children: buildChildren(cdir, nodePath, childInherited, depth + 1),
         published,
         date: fm.date ?? inherited.date,
         tags: fm.tags ?? inherited.tags,
@@ -237,76 +284,39 @@ function flattenAll(nodes: ContentNode[]): ContentNode[] {
   return out;
 }
 
-// ----------------------------------------------------------------------------
-// Works (top routable units): descend through transparent containers
-// ----------------------------------------------------------------------------
-
-interface WorkEntry {
+interface WorkDescriptor {
   dir: string;
+  contentDir: string; // dir/dist if built, else dir
   slug: string;
-  doc: { data: any; content: string } | null;
-  isLeaf: boolean;
+  index: { data: any; content: string } | null;
 }
 
-function collectWorks(dir: string, acc: WorkEntry[]): void {
+/** Find the top-level works in a section, descending through transparent groupings. */
+function collectWorks(dir: string, acc: WorkDescriptor[]): void {
   if (!fs.existsSync(dir)) return;
   for (const name of fs.readdirSync(dir)) {
     if (isIgnored(name) || name === INDEX_FILENAME) continue;
     const abs = path.join(dir, name);
-    const stat = fs.statSync(abs);
-    if (stat.isDirectory()) {
-      const idx = readDoc(path.join(abs, INDEX_FILENAME));
-      if (idx?.data?.transparent) {
-        collectWorks(abs, acc); // promote through organisational folders
-        continue;
-      }
-      acc.push({
-        dir: abs,
-        slug: stripOrderPrefix(name),
-        doc: idx,
-        isLeaf: false
-      });
-    } else if (name.endsWith('.mdx')) {
-      acc.push({
-        dir: abs,
-        slug: stripOrderPrefix(path.basename(name, '.mdx')),
-        doc: readDoc(abs),
-        isLeaf: true
-      });
+    if (!fs.statSync(abs).isDirectory()) continue;
+    const contentDir = contentDirOf(abs);
+    const index = readDoc(path.join(contentDir, INDEX_FILENAME));
+    if (index?.data?.transparent) {
+      collectWorks(contentDir, acc); // organisational grouping: descend, no URL segment
+    } else {
+      acc.push({ dir: abs, contentDir, slug: stripOrderPrefix(name), index });
     }
   }
 }
 
-function getWorks(section: string): WorkEntry[] {
-  const acc: WorkEntry[] = [];
+function getWorks(section: string): WorkDescriptor[] {
+  const acc: WorkDescriptor[] = [];
   collectWorks(sectionRoot(section), acc);
   return acc;
 }
 
-function leafNodeForWork(entry: WorkEntry, work: SeriesMetadata): ContentNode {
-  return {
-    slug: entry.slug,
-    path: '',
-    absolutePath: entry.dir,
-    title: work.title,
-    displayTitle: work.title,
-    depth: 0,
-    isDirectory: false,
-    hasPage: true,
-    children: [],
-    published: work.published,
-    date: work.date,
-    tags: work.tags,
-    author: work.author,
-    comments: work.comments
-  };
-}
-
-function loadTreeWork(
-  entry: WorkEntry,
-  section: string
-): SeriesMetadata | null {
-  const fm = entry.doc?.data ?? {};
+/** Build full SeriesMetadata for a work. Hierarchy paths are relative to the work. */
+function loadWork(work: WorkDescriptor, section: string): SeriesMetadata {
+  const fm = work.index?.data ?? {};
   const inherited: Inherited = {
     published: fm.published ?? true,
     author: fm.author,
@@ -315,22 +325,17 @@ function loadTreeWork(
     coverImage: fm.coverImage,
     comments: fm.comments
   };
-
-  let hierarchy: ContentNode[] = [];
-  if (!entry.isLeaf) {
-    hierarchy = buildChildren(entry.dir, '', inherited, 1);
-    assignNumbers(hierarchy, '');
-  }
+  const hierarchy = buildChildren(work.contentDir, '', inherited, 1);
+  assignNumbers(hierarchy, '');
   const allParts = flattenLeaves(hierarchy);
-
-  const summaryText = entry.doc
-    ? extractSummaryFromMdx(entry.doc.content)
+  const summaryText = work.index
+    ? extractSummaryFromMdx(work.index.content)
     : undefined;
   const date = fm.date ?? allParts.find((p) => p.date)?.date;
 
   return {
-    slug: entry.slug,
-    title: fm.title || humanize(entry.slug),
+    slug: work.slug,
+    title: fm.title || humanize(work.slug),
     blurb: fm.blurb || '',
     summary: summaryText ? summaryText.substring(0, 300) + '...' : undefined,
     coverImage: formatCoverImage(fm.coverImage),
@@ -342,10 +347,10 @@ function loadTreeWork(
     published: fm.published ?? true,
     comments: fm.comments ?? true,
     section,
-    path: `${section}/${entry.slug}`,
-    absolutePath: entry.dir,
+    path: `${section}/${work.slug}`,
+    absolutePath: work.contentDir,
     labels: {},
-    prefaceContent: entry.doc?.content,
+    prefaceContent: work.index?.content,
     hierarchy,
     allParts
   };
@@ -359,22 +364,22 @@ function loadTreeWork(
 export function getTreeSectionContent(section: string): ContentCardMetadata[] {
   const cards: ContentCardMetadata[] = [];
   try {
-    for (const entry of getWorks(section)) {
-      const work = loadTreeWork(entry, section);
-      if (!work || !work.published) continue;
+    for (const work of getWorks(section)) {
+      const series = loadWork(work, section);
+      if (!series.published) continue;
       cards.push({
-        slug: work.slug,
-        title: work.title,
-        blurb: work.blurb,
-        summary: work.summary || work.blurb,
-        coverImage: work.coverImage,
-        author: work.author,
-        date: work.date,
-        tags: work.tags,
-        published: work.published,
+        slug: series.slug,
+        title: series.title,
+        blurb: series.blurb,
+        summary: series.summary || series.blurb,
+        coverImage: series.coverImage,
+        author: series.author,
+        date: series.date,
+        tags: series.tags,
+        published: series.published,
         section,
-        path: work.path,
-        isSeries: !entry.isLeaf
+        path: series.path,
+        isSeries: series.hierarchy.length > 0
       });
     }
   } catch (error) {
@@ -403,33 +408,30 @@ export function resolveTreePath(
 ): { work: SeriesMetadata; node: ContentNode | null } | null {
   if (segments.length === 0) return null;
   const [workSlug, ...rest] = segments;
-  const entry = getWorks(section).find((w) => w.slug === workSlug);
-  if (!entry) return null;
-  const work = loadTreeWork(entry, section);
+  const work = getWorks(section).find((w) => w.slug === workSlug);
   if (!work) return null;
 
-  if (rest.length === 0) {
-    return { work, node: entry.isLeaf ? leafNodeForWork(entry, work) : null };
-  }
+  const series = loadWork(work, section);
+  if (!series.published) return null;
+  if (rest.length === 0) return { work: series, node: null };
 
   const nodePath = rest.join('/');
   const node =
-    flattenAll(work.hierarchy).find((n) => n.path === nodePath) ?? null;
+    flattenAll(series.hierarchy).find((n) => n.path === nodePath) ?? null;
   if (!node) return null;
-  return { work, node };
+  return { work: series, node };
 }
 
 /** All static-generation paths for a section: overviews, containers, and leaves. */
 export function getAllTreePaths(section: string): string[][] {
   const paths: string[][] = [];
   try {
-    for (const entry of getWorks(section)) {
-      const work = loadTreeWork(entry, section);
-      if (!work || !work.published) continue;
-      paths.push([work.slug]);
-      if (entry.isLeaf) continue;
-      for (const node of flattenAll(work.hierarchy)) {
-        if (node.published) paths.push([work.slug, ...node.path.split('/')]);
+    for (const work of getWorks(section)) {
+      const series = loadWork(work, section);
+      if (!series.published) continue;
+      paths.push([series.slug]);
+      for (const node of flattenAll(series.hierarchy)) {
+        if (node.published) paths.push([series.slug, ...node.path.split('/')]);
       }
     }
   } catch (error) {

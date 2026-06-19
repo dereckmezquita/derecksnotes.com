@@ -156,34 +156,40 @@ Reordering is a rename; there is no separate order field.
 
 ## Directory Structure
 
-Source is hand-edited; the built output is generated and disposable. They are two
-parallel trees (one recursive node model — a folder is a container, a file is a leaf):
+Content lives under `client/src/app/courses/posts/` (same place as before, and
+uniform with `blog`/`dictionaries`). Each **work** (a volume) holds a `src/` you
+edit and a generated, disposable `dist/` that the site serves. One recursive node
+model: a folder is a container, a file is a leaf.
 
 ```
-client/content/courses/<family>/            # SOURCE (you edit only this)
-├── index.mdx                               # the family's page; `transparent: true` hides it from the URL
-├── data/                                    # shared datasets (ignored by the site; never served)
-├── mathematical-statistics-1-foundations/   # a volume = container node (the routable "work")
-│   ├── index.mdx                            # volume page + metadata  (was _series.mdx)
-│   ├── 01-describing-data/                  # a chapter = container node
-│   │   ├── index.mdx                        # chapter title + summary  (was _meta.yaml)
-│   │   ├── 01-types-and-central-tendency.Rmd   # a part = leaf (R Markdown)
-│   │   ├── 02-spread-and-shape.Rmd
-│   │   └── 03-visualisation/                # a part with sub-parts → just make it a folder (recursion)
-│   │       ├── index.mdx
-│   │       └── 01-histograms.mdx            # plain MDX leaf → copied through, no R
-│   └── 02-probability/ …
-└── …
-
-client/content-dist/courses/<family>/        # OUTPUT (generated; committed but disposable)
-└── … same tree, every page built to .mdx …
+client/src/app/courses/posts/
+└── mathematical-statistics-with-R/          # organisational family
+    ├── index.mdx                            # `transparent: true` -> kept out of the URL
+    ├── data/                                # shared datasets (ignored by the site)
+    ├── TOC.md  DATA.md  COURSE-GUIDE.md      # author notes
+    └── mathematical-statistics-1-foundations/   # a volume = the routable "work"
+        ├── src/                             # ← SOURCE you edit (.Rmd + index.mdx)
+        │   ├── index.mdx                    # volume page + metadata  (was _series.mdx)
+        │   ├── 01-describing-data/          # a chapter
+        │   │   ├── index.mdx                # chapter title + summary  (was _meta.yaml)
+        │   │   ├── 01-types-and-central-tendency.Rmd   # a part (R Markdown)
+        │   │   ├── 02-spread-and-shape.Rmd
+        │   │   └── 03-visualisation/        # a part with sub-parts → just make it a folder
+        │   │       ├── index.mdx
+        │   │       └── 01-histograms.mdx    # plain MDX leaf → copied through, no R
+        │   └── 02-probability/ …
+        └── dist/                            # ← BUILT OUTPUT (generated, served, disposable)
+            └── … same tree, every page as .mdx …
 ```
 
-Build a work with:
+Build (or rebuild) a work — reads `src/`, writes `dist/`:
 
 ```
-Rscript build-content.R client/content/courses/<family>/<volume>
+Rscript build-content.R client/src/app/courses/posts/mathematical-statistics-with-R/mathematical-statistics-1-foundations
 ```
+
+`src/` and `dist/` are both hidden from the URL, so the page above is served at
+`/courses/mathematical-statistics-1-foundations/describing-data/types-and-central-tendency`.
 
 ### Key conventions
 - **`index.mdx`**: a folder's own page. Its frontmatter (`title`, `summary`,

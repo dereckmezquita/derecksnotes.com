@@ -2,8 +2,10 @@
 
 > **Status — shipped in this PR (v6.4.0).** The core of this proposal is
 > implemented for courses: the one-recursive-node model with optional `index.*`,
-> the `client/content/` → `client/content-dist/` source/output split,
-> `transparent: true` in place of `_passthrough`, order prefixes stripped from
+> a per-work `src/` → `dist/` source/output split kept under
+> `client/src/app/courses/posts/` (uniform with blog/dictionaries, not a separate
+> top-level `content/` tree), `transparent: true` in place of `_passthrough`,
+> order prefixes stripped from
 > URLs, positional numbering that fixes the title bug, a depth-limited sidebar
 > with breadcrumbs, routable container (chapter) pages, the new `build-content.R`,
 > and the `mathematical-statistics-with-R` migration. **Deferred** (called out in
