@@ -1,17 +1,17 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# Build Script: compile a course work's src/ -> dist/
+# Build Script: compile a course work's src/ -> built/
 # =============================================================================
 #
 # The successor to build-rmd.R for the recursive course layout. A "work" (a
 # book/volume) lives under client/src/app/courses/posts/<family>/<work>/ and
 # holds:
 #   src/    authored sources (.Rmd + index.mdx)   <- you edit this
-#   dist/   built output (.mdx + index.mdx)        <- generated, served, disposable
+#   built/   built output (.mdx + index.mdx)        <- generated, served, disposable
 #
 # Per file, by extension:
-#   *.Rmd        -> knit through R (runs code, emits figures)  -> .mdx in dist/
-#   *.mdx        -> copied through verbatim (the R step is skipped) -> dist/
+#   *.Rmd        -> knit through R (runs code, emits figures)  -> .mdx in built/
+#   *.mdx        -> copied through verbatim (the R step is skipped) -> built/
 #   index.Rmd / index.mdx are handled like any other file (a folder's own page).
 # Folders named data/ or assets/, and dotfiles, are ignored.
 #
@@ -22,9 +22,9 @@
 #                client/src/app/courses/posts/<family>/<work>
 #
 # OPTIONS:
-#   --clean      Remove this work's dist/ and its figures first
+#   --clean      Remove this work's built/ and its figures first
 #   --dry-run    Show what would be done without doing it
-#   --force      Rebuild even if dist output is newer than src
+#   --force      Rebuild even if built output is newer than src
 #   --quiet      Suppress detailed knitr output
 #   --help, -h   Show this help message
 #
@@ -50,9 +50,9 @@ Usage: Rscript build-content.R <work-path> [OPTIONS]
   <work-path>  A work directory containing a src/ folder
 
 OPTIONS:
-  --clean      Remove this work's dist/ and its figures first
+  --clean      Remove this work's built/ and its figures first
   --dry-run    Show what would be done without doing it
-  --force      Rebuild even if dist output is newer than src
+  --force      Rebuild even if built output is newer than src
   --quiet      Suppress detailed knitr output
   --help, -h   Show this help message
 
@@ -171,9 +171,9 @@ discover_sources <- function(src_dir) {
   all[keep]
 }
 
-output_path <- function(src, src_dir, dist_dir) {
+output_path <- function(src, src_dir, built_dir) {
   rel <- sub("\\.Rmd$", ".mdx", rel_path(src, src_dir))
-  out <- file.path(dist_dir, rel)
+  out <- file.path(built_dir, rel)
   dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
   out
 }
@@ -203,15 +203,15 @@ fix_figure_paths <- function(mdx_path, web_fig_path) {
 # Build one source file
 # -----------------------------------------------------------------------------
 
-build_one <- function(src, src_dir, dist_dir, fig_config, opts) {
-  out <- output_path(src, src_dir, dist_dir)
+build_one <- function(src, src_dir, built_dir, fig_config, opts) {
+  out <- output_path(src, src_dir, built_dir)
   name <- rel_path(src, src_dir)
 
   if (!needs_rebuild(src, out, opts$force)) {
     return(list(status = "skipped", file = name))
   }
   if (opts$dry_run) {
-    log_msg("  Would write:", rel_path(out, dist_dir))
+    log_msg("  Would write:", rel_path(out, built_dir))
     return(list(status = "dry-run", file = name))
   }
 
@@ -290,26 +290,26 @@ main <- function() {
     quit(status = 1)
   }
 
-  dist_dir <- file.path(work_dir, "dist")
+  built_dir <- file.path(work_dir, "built")
   fig_config <- get_figure_config(work_dir, project_root)
 
   cat("\n", strrep("=", 60), "\n  Content Build\n", strrep("=", 60), "\n\n", sep = "")
-  log_init(file.path(dist_dir, ".build.log"))
+  log_init(file.path(built_dir, ".build.log"))
   log_msg("Work:    ", work_dir)
   log_msg("Source:  ", src_dir)
-  log_msg("Output:  ", dist_dir)
+  log_msg("Output:  ", built_dir)
   log_msg("Figures: ", fig_config$fig_dir, paste0("(", fig_config$web_path, ")"))
 
   if (opts$clean) {
     log_msg("Cleaning output...")
     if (opts$dry_run) {
-      log_msg("  Would remove:", dist_dir, "and", fig_config$fig_dir)
+      log_msg("  Would remove:", built_dir, "and", fig_config$fig_dir)
     } else {
-      unlink(dist_dir, recursive = TRUE)
+      unlink(built_dir, recursive = TRUE)
       unlink(fig_config$fig_dir, recursive = TRUE)
       dir.create(fig_config$fig_dir, showWarnings = FALSE, recursive = TRUE)
-      log_init(file.path(dist_dir, ".build.log"))
-      log_msg("  Removed dist/ and figures")
+      log_init(file.path(built_dir, ".build.log"))
+      log_msg("  Removed built/ and figures")
     }
     cat("\n")
   }
@@ -321,7 +321,7 @@ main <- function() {
   }
   log_msg("Found", length(sources), "source file(s)\n")
 
-  results <- lapply(sources, build_one, src_dir = src_dir, dist_dir = dist_dir,
+  results <- lapply(sources, build_one, src_dir = src_dir, built_dir = built_dir,
     fig_config = fig_config, opts = opts)
 
   statuses <- vapply(results, function(r) r$status, character(1))

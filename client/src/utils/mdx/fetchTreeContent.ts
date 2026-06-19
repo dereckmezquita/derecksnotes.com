@@ -16,14 +16,14 @@
 //     data/                         # datasets (ignored)
 //     <work>/
 //       src/                        # AUTHORED sources (.Rmd + index.mdx) — ignored here
-//       dist/                       # BUILT output (.mdx + index.mdx) — what we serve
+//       built/                       # BUILT output (.mdx + index.mdx) — what we serve
 //         index.mdx
 //         01-chapter/ index.mdx + 01-part.mdx ...
 //
 // Rules:
 //   - `src`, `data`, `assets`, drafts/deprecated/ignore, dotfiles -> ignored.
-//   - A folder that contains a `dist/` is a built work: its content is the
-//     `dist/` subtree, and `dist/` itself adds NO URL segment (transparent).
+//   - A folder that contains a `built/` is a built work: its content is the
+//     `built/` subtree, and `built/` itself adds NO URL segment (transparent).
 //   - `transparent: true` in a folder's index removes it from the URL at any
 //     depth (its children promote up) — replaces the old `_passthrough` marker.
 //   - Order prefixes ("01-") are a sort key only; stripped to form the slug.
@@ -54,11 +54,11 @@ import {
 export * from './contentTypes';
 
 export const INDEX_FILENAME = 'index.mdx';
-export const BUILD_DIR = 'dist';
+export const BUILD_DIR = 'built';
 
 const IGNORED_DIR_NAMES = new Set([
   'src',
-  'dist',
+  'built',
   'data',
   'assets',
   'node_modules',
@@ -120,14 +120,14 @@ function sectionRoot(section: string): string {
   return path.join(ROOT_DIR_APP, section, 'posts');
 }
 
-// The directory that actually holds a folder's served content: its `dist/` if it
+// The directory that actually holds a folder's served content: its `built/` if it
 // has one (a built work), otherwise the folder itself (a grouping / chapter).
 function contentDirOf(dir: string): string {
   const built = path.join(dir, BUILD_DIR);
   try {
     if (fs.statSync(built).isDirectory()) return built;
   } catch {
-    /* no dist/ */
+    /* no built/ */
   }
   return dir;
 }
@@ -286,7 +286,7 @@ function flattenAll(nodes: ContentNode[]): ContentNode[] {
 
 interface WorkDescriptor {
   dir: string;
-  contentDir: string; // dir/dist if built, else dir
+  contentDir: string; // dir/built if built, else dir
   slug: string;
   index: { data: any; content: string } | null;
 }

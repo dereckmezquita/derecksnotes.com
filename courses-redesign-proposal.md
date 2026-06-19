@@ -2,7 +2,7 @@
 
 > **Status — shipped in this PR (v6.4.0).** The core of this proposal is
 > implemented for courses: the one-recursive-node model with optional `index.*`,
-> a per-work `src/` → `dist/` source/output split kept under
+> a per-work `src/` → `built/` source/output split kept under
 > `client/src/app/courses/posts/` (uniform with blog/dictionaries, not a separate
 > top-level `content/` tree), `transparent: true` in place of `_passthrough`,
 > order prefixes stripped from

@@ -7,7 +7,7 @@ Long-form courses move from a co-mingled, level-coded layout to a uniform, arbit
 ### Content model
 
 - **One recursive node.** A folder is a container, a file is a leaf, and a folder describes itself with an optional `index.mdx` whose frontmatter is the same shape as a leaf's. This single convention replaces the three old special files: `_series.mdx` (now a folder's `index.mdx`), `_meta.yaml` (now a chapter's `index.mdx`), and the `_passthrough` marker (now `transparent: true` in an index, which works at *any* depth, not just the top level). Nesting has no fixed ceiling.
-- **Source vs output split (uniform with blog/dictionaries).** Content stays under `client/src/app/courses/posts/`. Each work (volume) gets a `src/` of authored sources (`.Rmd` + `index.mdx`) and a sibling `dist/` of built output (`.mdx` + `index.mdx`) — the same "`src/` + served output" shape blog and dictionaries already use. `dist/` is fully disposable: delete it and rebuild from `src/` with no loss, because every title / summary / preface now lives in `src/`, not the output (the old `_meta.yaml`-in-output pain). The fetcher serves `dist/` and hides both `src/` and `dist/` from the URL.
+- **Source vs output split (uniform with blog/dictionaries).** Content stays under `client/src/app/courses/posts/`. Each work (volume) gets a `src/` of authored sources (`.Rmd` + `index.mdx`) and a sibling `built/` of built output (`.mdx` + `index.mdx`) — the same "`src/` + served output" shape blog and dictionaries already use. `built/` is fully disposable: delete it and rebuild from `src/` with no loss, because every title / summary / preface now lives in `src/`, not the output (the old `_meta.yaml`-in-output pain). The fetcher serves `built/` and hides both `src/` and `built/` from the URL.
 
 ### URLs
 
@@ -20,7 +20,7 @@ Long-form courses move from a co-mingled, level-coded layout to a uniform, arbit
 
 ### Build
 
-- **`build-content.R`** replaces the courses use of `build-rmd.R` for the new layout: given a work directory, it knits `.Rmd` and copies `.mdx` / `index.mdx` from `<work>/src/` into `<work>/dist/`, with `--clean` wiping the work's `dist/` and figures. `build-rmd.R` remains for not-yet-migrated sections (blog, dictionaries).
+- **`build-content.R`** replaces the courses use of `build-rmd.R` for the new layout: given a work directory, it knits `.Rmd` and copies `.mdx` / `index.mdx` from `<work>/src/` into `<work>/built/`, with `--clean` wiping the work's `built/` and figures. `build-rmd.R` remains for not-yet-migrated sections (blog, dictionaries).
 
 ### Migration & cleanup
 

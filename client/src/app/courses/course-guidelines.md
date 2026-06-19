@@ -158,7 +158,7 @@ Reordering is a rename; there is no separate order field.
 
 Content lives under `client/src/app/courses/posts/` (same place as before, and
 uniform with `blog`/`dictionaries`). Each **work** (a volume) holds a `src/` you
-edit and a generated, disposable `dist/` that the site serves. One recursive node
+edit and a generated, disposable `built/` that the site serves. One recursive node
 model: a folder is a container, a file is a leaf.
 
 ```
@@ -178,17 +178,17 @@ client/src/app/courses/posts/
         │   │       ├── index.mdx
         │   │       └── 01-histograms.mdx    # plain MDX leaf → copied through, no R
         │   └── 02-probability/ …
-        └── dist/                            # ← BUILT OUTPUT (generated, served, disposable)
+        └── built/                            # ← BUILT OUTPUT (generated, served, disposable)
             └── … same tree, every page as .mdx …
 ```
 
-Build (or rebuild) a work — reads `src/`, writes `dist/`:
+Build (or rebuild) a work — reads `src/`, writes `built/`:
 
 ```
 Rscript build-content.R client/src/app/courses/posts/mathematical-statistics-with-R/mathematical-statistics-1-foundations
 ```
 
-`src/` and `dist/` are both hidden from the URL, so the page above is served at
+`src/` and `built/` are both hidden from the URL, so the page above is served at
 `/courses/mathematical-statistics-1-foundations/describing-data/types-and-central-tendency`.
 
 ### Key conventions
