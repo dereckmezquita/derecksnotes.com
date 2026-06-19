@@ -2,7 +2,8 @@ import {
   sqliteTable,
   text,
   integer,
-  uniqueIndex
+  uniqueIndex,
+  index
 } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
@@ -18,6 +19,12 @@ export const users = sqliteTable('users', {
   displayName: text('display_name'),
   bio: text('bio'),
   avatarUrl: text('avatar_url'),
+  // When 1, @mentions targeting this user do NOT fan a notification.
+  // Set by a moderator on the admin Users tab.
+  mentionMuted: integer('mention_muted').notNull().default(0),
+  location: text('location'),
+  // JSON array of {label, url}. Validated server-side as HTTPS-only.
+  socialLinks: text('social_links'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   deletedAt: text('deleted_at')
@@ -137,24 +144,40 @@ export const readHistory = sqliteTable(
 // COMMENTS
 // ============================================================================
 
-export const comments = sqliteTable('comments', {
-  id: text('id').primaryKey(),
-  postId: text('post_id')
-    .notNull()
-    .references(() => posts.id),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id),
-  parentId: text('parent_id'),
-  content: text('content').notNull(),
-  depth: integer('depth').notNull().default(0),
-  approved: integer('approved').notNull().default(0),
-  pinnedAt: text('pinned_at'),
-  pinnedBy: text('pinned_by'),
-  createdAt: text('created_at').notNull(),
-  editedAt: text('edited_at'),
-  deletedAt: text('deleted_at')
-});
+export const comments = sqliteTable(
+  'comments',
+  {
+    id: text('id').primaryKey(),
+    postId: text('post_id')
+      .notNull()
+      .references(() => posts.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    parentId: text('parent_id'),
+    content: text('content').notNull(),
+    depth: integer('depth').notNull().default(0),
+    approved: integer('approved').notNull().default(0),
+    pinnedAt: text('pinned_at'),
+    pinnedBy: text('pinned_by'),
+    createdAt: text('created_at').notNull(),
+    editedAt: text('edited_at'),
+    deletedAt: text('deleted_at')
+  },
+  (t) => ({
+    // Indexes added with v6.3.0. The thread/reply queries (getCommentsForPost,
+    // getRepliesForComment, collectDescendants) all filter by post_id +
+    // parent_id and order by created_at — without these the page-scroll cost
+    // is a full table scan at any meaningful volume.
+    byPostThread: index('comments_post_parent_created_idx').on(
+      t.postId,
+      t.parentId,
+      t.createdAt
+    ),
+    byParent: index('comments_parent_created_idx').on(t.parentId, t.createdAt),
+    byAuthor: index('comments_user_created_idx').on(t.userId, t.createdAt)
+  })
+);
 
 export const commentHistory = sqliteTable('comment_history', {
   id: text('id').primaryKey(),
@@ -207,6 +230,120 @@ export const auditLog = sqliteTable('audit_log', {
 });
 
 // ============================================================================
+// READ PROGRESS
+// ============================================================================
+
+export const readProgress = sqliteTable(
+  'read_progress',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    postId: text('post_id')
+      .notNull()
+      .references(() => posts.id),
+    // 0..100. Capped on update so a misbehaving client can't store garbage.
+    percent: integer('percent').notNull().default(0),
+    updatedAt: text('updated_at').notNull()
+  },
+  (table) => [
+    uniqueIndex('read_progress_user_post').on(table.userId, table.postId)
+  ]
+);
+
+// ============================================================================
+// REPORTS
+// ============================================================================
+
+export const reports = sqliteTable('reports', {
+  id: text('id').primaryKey(),
+  reporterId: text('reporter_id')
+    .notNull()
+    .references(() => users.id),
+  // 'comment' | 'user' for now.
+  targetType: text('target_type').notNull(),
+  targetId: text('target_id').notNull(),
+  // 'spam' | 'harassment' | 'misinformation' | 'other'.
+  reason: text('reason').notNull(),
+  // Free-form caller-supplied note (≤ 1000 chars in route validation).
+  details: text('details'),
+  // 'open' | 'resolved' | 'dismissed'.
+  status: text('status').notNull().default('open'),
+  resolvedAt: text('resolved_at'),
+  resolvedBy: text('resolved_by').references(() => users.id),
+  createdAt: text('created_at').notNull()
+});
+
+// ============================================================================
+// FOLLOWS
+// ============================================================================
+
+export const follows = sqliteTable(
+  'follows',
+  {
+    id: text('id').primaryKey(),
+    followerId: text('follower_id')
+      .notNull()
+      .references(() => users.id),
+    followedId: text('followed_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: text('created_at').notNull()
+  },
+  (table) => [
+    uniqueIndex('follows_follower_followed').on(
+      table.followerId,
+      table.followedId
+    )
+  ]
+);
+
+// ============================================================================
+// BOOKMARKS
+// ============================================================================
+
+export const bookmarks = sqliteTable(
+  'bookmarks',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    postId: text('post_id')
+      .notNull()
+      .references(() => posts.id),
+    createdAt: text('created_at').notNull()
+  },
+  (table) => [uniqueIndex('bookmarks_user_post').on(table.userId, table.postId)]
+);
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+export const notifications = sqliteTable('notifications', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  // Producer key — e.g. 'comment.reply', 'comment.like', 'mention',
+  // 'admin.message', 'admin.broadcast'. Free-form so new producers don't
+  // require a schema migration.
+  type: text('type').notNull(),
+  // Optional source user. Null for system / broadcast notifications.
+  actorUserId: text('actor_user_id').references(() => users.id),
+  // Optional target (comment id, post slug, etc.) — drives the click-through.
+  targetType: text('target_type'),
+  targetId: text('target_id'),
+  // Free-form JSON for per-type payload (preview text, post title, etc).
+  payload: text('payload'),
+  // Null while unread; ISO timestamp once marked read.
+  readAt: text('read_at'),
+  createdAt: text('created_at').notNull()
+});
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
 
@@ -216,7 +353,33 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   postReactions: many(postReactions),
   commentReactions: many(commentReactions),
-  readHistory: many(readHistory)
+  readHistory: many(readHistory),
+  notifications: many(notifications, { relationName: 'recipient' }),
+  bookmarks: many(bookmarks)
+}));
+
+export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
+  user: one(users, { fields: [bookmarks.userId], references: [users.id] }),
+  post: one(posts, { fields: [bookmarks.postId], references: [posts.id] })
+}));
+
+export const reportsRelations = relations(reports, ({ one }) => ({
+  reporter: one(users, {
+    fields: [reports.reporterId],
+    references: [users.id]
+  })
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+    relationName: 'recipient'
+  }),
+  actor: one(users, {
+    fields: [notifications.actorUserId],
+    references: [users.id]
+  })
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({

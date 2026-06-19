@@ -21,6 +21,7 @@ import { AuthProvider } from '@/context/AuthContext';
 
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { NotificationToastWatcher } from '@/components/notifications/NotificationToastWatcher';
 
 export default function RootLayout({
   children
@@ -34,6 +35,7 @@ export default function RootLayout({
           <html lang="en">
             <body>
               <Toaster richColors closeButton theme={'light'} />
+              <NotificationToastWatcher />
               <GlobalStyles />
               <Logo />
               <Navbar />

@@ -2,7 +2,9 @@ import crypto from 'crypto';
 import { db, schema } from '@db/index';
 import { eq, and, isNull, desc, asc, sql, inArray } from 'drizzle-orm';
 import { sanitizeMarkdown } from '@middleware/sanitize';
-import type { CommentData } from '@derecksnotes/shared';
+import * as notificationService from './notifications';
+import * as userService from './users';
+import { parseMentions, type CommentData } from '@derecksnotes/shared';
 
 export const MAX_DEPTH = 5;
 
@@ -30,12 +32,16 @@ export class CommentAuthError extends Error {
 
 export async function createComment(data: {
   postId: string;
+  postSlug: string;
+  postTitle: string;
   userId: string;
   content: string;
   parentId?: string;
   autoApprove: boolean;
 }): Promise<string> {
   let depth = 0;
+
+  let parentForNotify: { userId: string } | null = null;
 
   if (data.parentId) {
     const parent = await db.query.comments.findFirst({
@@ -52,6 +58,7 @@ export async function createComment(data: {
         `Maximum reply depth of ${MAX_DEPTH} reached`
       );
     depth = parent.depth + 1;
+    parentForNotify = { userId: parent.userId };
   }
 
   const id = crypto.randomUUID();
@@ -67,6 +74,93 @@ export async function createComment(data: {
     approved: data.autoApprove ? 1 : 0,
     createdAt: new Date().toISOString()
   });
+
+  // If the comment lands in the pending queue, fan-out to every admin and
+  // moderator so the queue gets a bell + toast instead of needing a
+  // dashboard refresh. The actor is excluded automatically (trusted users
+  // would never hit this branch because their comments auto-approve).
+  if (!data.autoApprove) {
+    try {
+      await notificationService.fanToModerators({
+        type: 'comment.pending-review',
+        actorUserId: data.userId,
+        targetType: 'comment',
+        targetId: id,
+        payload: {
+          postSlug: data.postSlug,
+          postTitle: data.postTitle,
+          preview: sanitized.slice(0, 200)
+        }
+      });
+    } catch (err) {
+      console.error(
+        '[notifications] failed to fan pending-review notification:',
+        err
+      );
+    }
+  }
+
+  // Fan a reply notification. Wrap in its own try so a failure here can't
+  // poison the user-visible create-comment response. createNotification
+  // already drops the self-reply case.
+  if (parentForNotify && data.autoApprove) {
+    try {
+      await notificationService.createNotification({
+        userId: parentForNotify.userId,
+        type: 'comment.reply',
+        actorUserId: data.userId,
+        targetType: 'comment',
+        targetId: id,
+        payload: {
+          postSlug: data.postSlug,
+          postTitle: data.postTitle,
+          preview: sanitized.slice(0, 200)
+        }
+      });
+    } catch (err) {
+      console.error('[notifications] failed to fan reply notification:', err);
+    }
+  }
+
+  // Fan mention notifications. Resolve all mentioned usernames to user ids
+  // in one query; skip muted users (admin-set), the parent author (already
+  // got a reply notification), and the commenter themselves.
+  //
+  // Uses createNotificationsForUsers (batched 200/insert in a transaction)
+  // so the create-comment hot path stays O(1) round-trips regardless of how
+  // many users got mentioned in a single comment. The earlier per-user
+  // sequential await was an N+1 in the request critical path.
+  if (data.autoApprove) {
+    try {
+      const usernames = parseMentions(sanitized);
+      if (usernames.length > 0) {
+        const users = await userService.findUsersByUsernames(usernames);
+        const skipIds = new Set<string>([data.userId]);
+        if (parentForNotify) skipIds.add(parentForNotify.userId);
+        const recipients = users
+          .filter((u) => !skipIds.has(u.id) && !u.mentionMuted)
+          .map((u) => u.id);
+        if (recipients.length > 0) {
+          await notificationService.createNotificationsForUsers(recipients, {
+            type: 'mention',
+            actorUserId: data.userId,
+            targetType: 'comment',
+            targetId: id,
+            payload: {
+              postSlug: data.postSlug,
+              postTitle: data.postTitle,
+              preview: sanitized.slice(0, 200)
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error(
+        '[notifications] failed to fan mention notifications:',
+        err
+      );
+    }
+  }
 
   return id;
 }
@@ -128,6 +222,19 @@ export async function softDeleteComment(
  * version, ordered newest-first. Returns `null` when the caller is neither
  * the comment's author nor a moderator — the caller maps that to a 403.
  * Returns `[]` when the comment does not exist (matches the prior contract).
+ *
+ * Soft-deleted comment handling:
+ *   - Author of a deleted comment: gets an empty history. The author chose
+ *     to delete; surfacing every revision after they hit Delete defeats
+ *     the point.
+ *   - Moderator on any deleted comment: still gets the full history so
+ *     moderation actions can be audited and content reviewed.
+ *   - Non-author non-moderator: 403 (already enforced above).
+ *
+ * This matches the contract the visibility tests pin on the public-thread
+ * formatter: a soft-deleted comment never echoes its original content back
+ * through a user-facing path. Moderator history reads are an admin path
+ * and audit those separately.
  */
 export async function getCommentHistory(
   commentId: string,
@@ -163,6 +270,10 @@ export async function getCommentHistory(
   const isAuthor = comment.userId === callerUserId;
   if (!isAuthor && !isModerator) return null;
 
+  // Soft-deleted: the author no longer has read access to the body or any
+  // prior revision. Moderators still do.
+  if (comment.deletedAt && !isModerator) return [];
+
   const entries = await db.query.commentHistory.findMany({
     where: eq(schema.commentHistory.commentId, commentId),
     orderBy: [desc(schema.commentHistory.editedAt)],
@@ -196,13 +307,16 @@ export async function getCommentHistory(
   ];
 }
 
+export type CommentSort = 'new' | 'top' | 'best';
+
 export async function getCommentsForPost(
   postId: string,
   userId: string | null,
   page: number,
   limit: number,
   maxDepth: number = 3,
-  repliesPerLevel: number = 3
+  repliesPerLevel: number = 3,
+  sort: CommentSort = 'new'
 ): Promise<{
   comments: CommentData[];
   total: number;
@@ -213,8 +327,12 @@ export async function getCommentsForPost(
   const offset = (page - 1) * limit;
 
   // Visibility: approved comments + the requesting user's own unapproved
-  // comments. I17: exclude soft-deleted from the top-level page so deleted
-  // top-level rows do NOT consume slots and inflate `total`.
+  // comments. Soft-deleted comments INTENTIONALLY pass through — the format
+  // function below scrubs their content to `[DELETED]` and nulls the author
+  // so the row becomes a placeholder. This preserves reply thread structure
+  // (a deleted parent must remain visible or its children get orphaned).
+  // The earlier I17 design dropped deleted rows entirely; superseded by the
+  // soft-delete UX work.
   const visibilityFilter = userId
     ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
     : eq(schema.comments.approved, 1);
@@ -222,22 +340,33 @@ export async function getCommentsForPost(
   const topLevelWhere = and(
     eq(schema.comments.postId, postId),
     isNull(schema.comments.parentId),
-    isNull(schema.comments.deletedAt),
     visibilityFilter
   );
 
-  const topLevel = await db.query.comments.findMany({
+  // Sort ordering. Pinned always wins; id is the deterministic tiebreaker.
+  // For 'top' / 'best' we sort in two phases:
+  //  1. fetch the top-level rows by createdAt desc (limit * 3 cap so the
+  //     re-sort has enough candidates to surface high-karma comments that
+  //     would otherwise sit on later pages),
+  //  2. aggregate reactions per row in a single GROUP BY,
+  //  3. sort in JS and slice to (offset, limit).
+  // Drizzle's relational findMany aliases tables in a way that breaks the
+  // sql`(SELECT … FROM comment_reactions WHERE …)` interpolation — its
+  // identifier `commentReactions.type` collapses to `comments.type`. Doing
+  // the score join outside the relational query sidesteps that bug.
+
+  const baseLimit = sort === 'new' ? limit : Math.max(limit * 3, 60);
+  const baseOffset = sort === 'new' ? offset : 0;
+
+  const baseRows = await db.query.comments.findMany({
     where: topLevelWhere,
-    // I18: stable tiebreaker — id is the unique fallback ordering key, so
-    // offset pagination cannot repeat or skip rows when pinnedAt/createdAt
-    // collide.
     orderBy: [
       desc(schema.comments.pinnedAt),
       desc(schema.comments.createdAt),
       asc(schema.comments.id)
     ],
-    limit,
-    offset,
+    limit: baseLimit,
+    offset: baseOffset,
     with: {
       user: {
         columns: {
@@ -250,6 +379,35 @@ export async function getCommentsForPost(
       reactions: true
     }
   });
+
+  let topLevel = baseRows;
+  if (sort !== 'new' && baseRows.length > 0) {
+    const score = (likes: number, dislikes: number): number => {
+      if (sort === 'top') return likes - dislikes;
+      const n = likes + dislikes;
+      if (n === 0) return 0;
+      // Wilson lower bound (95% confidence) approximation.
+      const p = likes / n;
+      return p - 1.96 * Math.sqrt((p * (1 - p)) / n);
+    };
+    const scored = baseRows.map((c) => {
+      const likes = (c.reactions || []).filter((r) => r.type === 'like').length;
+      const dislikes = (c.reactions || []).filter(
+        (r) => r.type === 'dislike'
+      ).length;
+      return { c, s: score(likes, dislikes) };
+    });
+    // Stable sort: pinned first, then by score desc, then by id asc for
+    // deterministic tiebreak (matches the asc(id) clause for 'new').
+    scored.sort((a, b) => {
+      const pa = a.c.pinnedAt ? 1 : 0;
+      const pb = b.c.pinnedAt ? 1 : 0;
+      if (pa !== pb) return pb - pa;
+      if (a.s !== b.s) return b.s - a.s;
+      return a.c.id < b.c.id ? -1 : 1;
+    });
+    topLevel = scored.slice(offset, offset + limit).map((x) => x.c);
+  }
 
   const total = await db
     .select({ count: sql<number>`count(*)` })
@@ -301,11 +459,11 @@ async function collectDescendants(
   const collected: any[] = [];
   let frontier = rootIds;
   for (let level = 0; level < maxDepth && frontier.length > 0; level++) {
+    // Include soft-deleted descendants — the format function scrubs them
+    // to `[DELETED]` placeholders so reply structure stays intact when an
+    // ancestor is deleted between two surviving comments.
     const rows = await db.query.comments.findMany({
-      where: and(
-        inArray(schema.comments.parentId, frontier),
-        isNull(schema.comments.deletedAt)
-      ),
+      where: inArray(schema.comments.parentId, frontier),
       orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
       with: {
         user: {
@@ -378,7 +536,7 @@ function formatCommentTreeBatched(
 
   return {
     id: comment.id,
-    content: comment.deletedAt ? '[deleted]' : comment.content,
+    content: comment.deletedAt ? '[DELETED]' : comment.content,
     depth: comment.depth,
     approved: !!comment.approved,
     createdAt: comment.createdAt,
@@ -392,6 +550,17 @@ function formatCommentTreeBatched(
   };
 }
 
+/**
+ * Replies-paginated view of a single comment's subtree. Used by the
+ * "Show more replies" expand action in the client.
+ *
+ * Previously this function had its own async `formatCommentTree` that ran
+ * one COUNT + one findMany per node — a 3-level deep page of N replies
+ * fired ~ 2*N*depth round-trips. Now it shares the batched format path
+ * with getCommentsForPost: one BFS pulls every descendant of the page
+ * slice in `maxDepth` queries, then formatCommentTreeBatched walks the
+ * cached map. Behaviour is identical; the duplicate function is gone.
+ */
 export async function getRepliesForComment(
   commentId: string,
   userId: string | null,
@@ -406,12 +575,10 @@ export async function getRepliesForComment(
     ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
     : eq(schema.comments.approved, 1);
 
+  // Direct-child page slice (soft-deleted included so reply chains keep
+  // their structure; scrubbed by the batched formatter).
   const childComments = await db.query.comments.findMany({
-    where: and(
-      eq(schema.comments.parentId, commentId),
-      isNull(schema.comments.deletedAt),
-      replyVisibility
-    ),
+    where: and(eq(schema.comments.parentId, commentId), replyVisibility),
     // I18: id tiebreaker for deterministic pagination across boundaries.
     orderBy: [asc(schema.comments.createdAt), asc(schema.comments.id)],
     limit,
@@ -429,122 +596,35 @@ export async function getRepliesForComment(
     }
   });
 
-  const total = await db
+  const totalRow = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.comments)
-    .where(
-      and(
-        eq(schema.comments.parentId, commentId),
-        isNull(schema.comments.deletedAt)
-      )
-    );
+    .where(eq(schema.comments.parentId, commentId));
+  const totalCount = totalRow[0]?.count || 0;
 
-  const totalCount = total[0]?.count || 0;
   const parent = await db.query.comments.findFirst({
     where: eq(schema.comments.id, commentId)
   });
   const parentDepth = parent?.depth || 0;
 
-  const replies: CommentData[] = [];
-  for (const child of childComments) {
-    replies.push(
-      await formatCommentTree(
-        child,
-        userId,
-        maxDepth,
-        repliesPerLevel,
-        parentDepth + 1
-      )
-    );
-  }
+  // BFS descendants of THIS page's children only, so a partial scroll
+  // doesn't pay the cost of every sibling's subtree.
+  const childIds = childComments.map((c) => c.id);
+  const descendants = await collectDescendants(childIds, maxDepth);
+  const childrenByParent = groupByParent([...childComments, ...descendants]);
+
+  const replies = childComments.map((child) =>
+    formatCommentTreeBatched(
+      child,
+      userId,
+      maxDepth,
+      repliesPerLevel,
+      parentDepth + 1,
+      childrenByParent
+    )
+  );
 
   return { replies, total: totalCount, hasMore: offset + limit < totalCount };
-}
-
-async function formatCommentTree(
-  comment: any,
-  userId: string | null,
-  maxDepth: number,
-  repliesPerLevel: number,
-  currentDepth: number = 0
-): Promise<CommentData> {
-  const likes =
-    comment.reactions?.filter((r: any) => r.type === 'like').length || 0;
-  const dislikes =
-    comment.reactions?.filter((r: any) => r.type === 'dislike').length || 0;
-  const userReaction = userId
-    ? (comment.reactions?.find((r: any) => r.userId === userId)?.type as
-        | 'like'
-        | 'dislike') || null
-    : null;
-
-  let replies: CommentData[] = [];
-  let replyCount = 0;
-  let hasMoreReplies = false;
-
-  // Always get the total count of replies
-  const countResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(schema.comments)
-    .where(
-      and(
-        eq(schema.comments.parentId, comment.id),
-        isNull(schema.comments.deletedAt)
-      )
-    );
-  replyCount = countResult[0]?.count || 0;
-
-  if (currentDepth < maxDepth && replyCount > 0) {
-    const childComments = await db.query.comments.findMany({
-      where: and(
-        eq(schema.comments.parentId, comment.id),
-        isNull(schema.comments.deletedAt)
-      ),
-      orderBy: [asc(schema.comments.createdAt)],
-      limit: repliesPerLevel,
-      with: {
-        user: {
-          columns: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
-        },
-        reactions: true
-      }
-    });
-
-    hasMoreReplies = replyCount > repliesPerLevel;
-    for (const child of childComments) {
-      replies.push(
-        await formatCommentTree(
-          child,
-          userId,
-          maxDepth,
-          repliesPerLevel,
-          currentDepth + 1
-        )
-      );
-    }
-  } else if (replyCount > 0) {
-    hasMoreReplies = true;
-  }
-
-  return {
-    id: comment.id,
-    content: comment.deletedAt ? '[deleted]' : comment.content,
-    depth: comment.depth,
-    approved: !!comment.approved,
-    createdAt: comment.createdAt,
-    editedAt: comment.editedAt,
-    isDeleted: !!comment.deletedAt,
-    user: comment.deletedAt ? null : comment.user,
-    reactions: { likes, dislikes, userReaction },
-    replies,
-    replyCount,
-    hasMoreReplies
-  };
 }
 
 export async function reactToComment(
@@ -557,9 +637,8 @@ export async function reactToComment(
   userReaction: 'like' | 'dislike' | null;
 }> {
   // I14: wrap the read-modify-write in an IMMEDIATE transaction so concurrent
-  // double-clicks can't end with mismatched state (the unique index already
-  // prevented duplicate rows, but the prior path could surface a generic
-  // 500 instead of a deterministic toggle).
+  // double-clicks can't end with mismatched state.
+  let becameNewLike = false;
   await db.transaction(async (tx) => {
     const existing = await tx.query.commentReactions.findFirst({
       where: and(
@@ -578,6 +657,7 @@ export async function reactToComment(
           .update(schema.commentReactions)
           .set({ type })
           .where(eq(schema.commentReactions.id, existing.id));
+        if (type === 'like') becameNewLike = true;
       }
     } else {
       await tx.insert(schema.commentReactions).values({
@@ -587,8 +667,37 @@ export async function reactToComment(
         type,
         createdAt: new Date().toISOString()
       });
+      if (type === 'like') becameNewLike = true;
     }
   });
+
+  // Fan a like notification when the reaction transitions to like
+  // (initial insert or dislike → like). Skip on dislikes — those are noise.
+  if (becameNewLike) {
+    try {
+      const comment = await db.query.comments.findFirst({
+        where: eq(schema.comments.id, commentId),
+        columns: { userId: true, content: true },
+        with: { post: true }
+      });
+      if (comment) {
+        await notificationService.createNotification({
+          userId: comment.userId,
+          type: 'comment.like',
+          actorUserId: userId,
+          targetType: 'comment',
+          targetId: commentId,
+          payload: {
+            postSlug: comment.post?.slug || '',
+            postTitle: comment.post?.title || '',
+            preview: (comment.content || '').slice(0, 200)
+          }
+        });
+      }
+    } catch (err) {
+      console.error('[notifications] failed to fan like notification:', err);
+    }
+  }
 
   return getCommentReactions(commentId, userId);
 }
@@ -645,11 +754,89 @@ async function getCommentReactions(commentId: string, userId: string | null) {
   };
 }
 
-export async function approveComment(commentId: string): Promise<void> {
+/**
+ * Approve a single comment and notify the author. `approvedBy` is the
+ * moderator's id and becomes the notification's actor so the author sees
+ * "X approved your comment". Passing `null` is allowed for system-driven
+ * approvals (none today) and just suppresses the actor.
+ */
+export async function approveComment(
+  commentId: string,
+  approvedBy: string | null = null
+): Promise<void> {
   await db
     .update(schema.comments)
     .set({ approved: 1 })
     .where(eq(schema.comments.id, commentId));
+  try {
+    const comment = await db.query.comments.findFirst({
+      where: eq(schema.comments.id, commentId),
+      columns: { userId: true, content: true },
+      with: { post: true }
+    });
+    if (comment) {
+      await notificationService.createNotification({
+        userId: comment.userId,
+        type: 'comment.approved',
+        actorUserId: approvedBy,
+        targetType: 'comment',
+        targetId: commentId,
+        payload: {
+          postSlug: comment.post?.slug || '',
+          postTitle: comment.post?.title || '',
+          preview: (comment.content || '').slice(0, 200)
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[notifications] failed to fan comment.approved:', err);
+  }
+}
+
+/**
+ * Bulk-approve variant — emits one notification per author for the rows
+ * matched. Used by /admin/comments/bulk-approve.
+ */
+export async function approveCommentsBulk(
+  commentIds: string[],
+  approvedBy: string
+): Promise<void> {
+  if (commentIds.length === 0) return;
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.comments)
+      .set({ approved: 1 })
+      .where(inArray(schema.comments.id, commentIds));
+  });
+  try {
+    const rows = await db.query.comments.findMany({
+      where: inArray(schema.comments.id, commentIds),
+      columns: { id: true, userId: true, content: true },
+      with: { post: true }
+    });
+    // Per-row payloads differ (slug + content vary), so we can't reuse
+    // createNotificationsForUsers's single-template path. Build the rows
+    // in JS and hand them off as a batched insert via the service helper.
+    const items = rows
+      .filter((r) => r.userId !== approvedBy)
+      .map((r) => ({
+        userId: r.userId,
+        type: 'comment.approved' as const,
+        actorUserId: approvedBy,
+        targetType: 'comment' as const,
+        targetId: r.id,
+        payload: {
+          postSlug: r.post?.slug || '',
+          postTitle: r.post?.title || '',
+          preview: (r.content || '').slice(0, 200)
+        }
+      }));
+    if (items.length > 0) {
+      await notificationService.createNotificationsBatch(items);
+    }
+  } catch (err) {
+    console.error('[notifications] failed to fan bulk comment.approved:', err);
+  }
 }
 
 export async function rejectComment(commentId: string): Promise<void> {
@@ -657,6 +844,16 @@ export async function rejectComment(commentId: string): Promise<void> {
     .update(schema.comments)
     .set({ deletedAt: new Date().toISOString() })
     .where(eq(schema.comments.id, commentId));
+}
+
+export async function rejectCommentsBulk(commentIds: string[]): Promise<void> {
+  if (commentIds.length === 0) return;
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.comments)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(inArray(schema.comments.id, commentIds));
+  });
 }
 
 export async function getPendingComments(page: number, limit: number) {

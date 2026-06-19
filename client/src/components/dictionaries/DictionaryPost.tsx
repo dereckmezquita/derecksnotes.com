@@ -19,6 +19,7 @@ const PostEngagement = styled.div`
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  gap: ${(props) => props.theme.container.spacing.medium};
   margin-top: ${(props) => props.theme.container.spacing.large};
   margin-bottom: ${(props) => props.theme.container.spacing.large};
   padding-top: ${(props) => props.theme.container.spacing.medium};

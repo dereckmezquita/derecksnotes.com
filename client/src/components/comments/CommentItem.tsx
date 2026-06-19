@@ -1,7 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -11,6 +9,7 @@ import type {
   RepliesResponse
 } from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
+import { renderCommentMarkdown } from './markdown';
 import {
   CommentCard,
   CommentHeader,
@@ -18,6 +17,7 @@ import {
   CommentTimestamp,
   EditedBadge,
   PendingBadge,
+  DeletedAuthor,
   DeletedMessage,
   CommentBody,
   CommentActions,
@@ -49,47 +49,7 @@ function formatDate(iso: string): string {
   });
 }
 
-function renderMarkdown(content: string): string {
-  try {
-    const raw = marked.parse(content);
-    const html = typeof raw === 'string' ? raw : content;
-    return DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: [
-        'p',
-        'br',
-        'strong',
-        'em',
-        'code',
-        'pre',
-        'blockquote',
-        'ul',
-        'ol',
-        'li',
-        'a',
-        'h1',
-        'h2',
-        'h3',
-        'h4',
-        'h5',
-        'h6',
-        'hr',
-        'del',
-        'sup',
-        'sub',
-        'table',
-        'thead',
-        'tbody',
-        'tr',
-        'th',
-        'td'
-      ],
-      ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
-      ALLOW_DATA_ATTR: false
-    });
-  } catch {
-    return DOMPurify.sanitize(content, { ALLOWED_TAGS: [] });
-  }
-}
+const renderMarkdown = renderCommentMarkdown;
 
 export function CommentItem({
   comment,
@@ -111,7 +71,12 @@ export function CommentItem({
   const [replyPage, setReplyPage] = useState(1);
   const [loadingReplies, setLoadingReplies] = useState(false);
 
-  const isOwner = user?.id === comment.user?.id;
+  // Both sides can be undefined (anonymous viewer + tombstoned comment) —
+  // the loose `===` would treat that as ownership and surface Edit/Delete
+  // to a logged-out viewer if either action ever became un-gated. Anchor
+  // on `!!user` so the predicate can never go truthy on the undefined
+  // path.
+  const isOwner = !!user && !!comment.user && user.id === comment.user.id;
 
   const handleReaction = async (type: 'like' | 'dislike') => {
     if (!user) return;
@@ -153,6 +118,37 @@ export function CommentItem({
     }
   };
 
+  const handleReport = async () => {
+    const reason = prompt(
+      'Why are you reporting this comment? (spam / harassment / misinformation / other)',
+      'spam'
+    );
+    if (!reason) return;
+    const normalised = [
+      'spam',
+      'harassment',
+      'misinformation',
+      'other'
+    ].includes(reason)
+      ? reason
+      : 'other';
+    const details = prompt(
+      'Optional: add a brief note for the moderators.',
+      ''
+    );
+    try {
+      await api.post('/reports', {
+        targetType: 'comment',
+        targetId: comment.id,
+        reason: normalised,
+        details: details || undefined
+      });
+      toast.success('Reported — thanks. A moderator will take a look.');
+    } catch {
+      toast.error('Failed to submit report');
+    }
+  };
+
   const handleShowHistory = async () => {
     setHistoryLoading(true);
     try {
@@ -188,35 +184,36 @@ export function CommentItem({
   return (
     <>
       <CommentCard $depth={comment.depth}>
+        {/*
+          Soft-deleted comments keep the timestamp visible so the reply
+          thread structure stays coherent. Both the author slot and the
+          body show `[DELETED]` in the same gray as the rest of the meta
+          — no italic, no special font, just dimmed — so the row reads
+          as "this comment was here" rather than a styled aside.
+        */}
         <CommentHeader>
           {comment.isDeleted ? (
-            <CommentTimestamp>[deleted]</CommentTimestamp>
+            <DeletedAuthor>[DELETED]</DeletedAuthor>
           ) : (
-            <>
-              <CommentAuthor href={`/profile/${comment.user?.username}`}>
-                {comment.user?.displayName ||
-                  comment.user?.username ||
-                  'Unknown'}
-              </CommentAuthor>
-              <CommentTimestamp>
-                {formatDate(comment.createdAt)}
-              </CommentTimestamp>
-              {comment.editedAt && (
-                <EditedBadge onClick={handleShowHistory}>
-                  {historyLoading ? '(loading...)' : '(edited)'}
-                </EditedBadge>
-              )}
-              {!comment.approved && (
-                <PendingBadge title="Only you can see this comment until a moderator approves it. New accounts are queued by default; trusted users post directly.">
-                  pending review — only visible to you
-                </PendingBadge>
-              )}
-            </>
+            <CommentAuthor href={`/profile/${comment.user?.username}`}>
+              {comment.user?.displayName || comment.user?.username || 'Unknown'}
+            </CommentAuthor>
+          )}
+          <CommentTimestamp>{formatDate(comment.createdAt)}</CommentTimestamp>
+          {!comment.isDeleted && comment.editedAt && (
+            <EditedBadge onClick={handleShowHistory}>
+              {historyLoading ? '(loading...)' : '(edited)'}
+            </EditedBadge>
+          )}
+          {!comment.isDeleted && !comment.approved && (
+            <PendingBadge title="Only you can see this comment until a moderator approves it. New accounts are queued by default; trusted users post directly.">
+              pending review — only visible to you
+            </PendingBadge>
           )}
         </CommentHeader>
 
         {comment.isDeleted ? (
-          <DeletedMessage>[This comment has been deleted]</DeletedMessage>
+          <DeletedMessage>[DELETED]</DeletedMessage>
         ) : editing ? (
           <div>
             <CommentTextarea
@@ -311,6 +308,9 @@ export function CommentItem({
                 <ReplyLink onClick={handleDelete}>Delete</ReplyLink>
               </>
             )}
+            {user && !isOwner && (
+              <ReplyLink onClick={handleReport}>Report</ReplyLink>
+            )}
           </CommentActions>
         )}
 
@@ -347,7 +347,7 @@ export function CommentItem({
           >
             {loadingReplies
               ? 'Loading...'
-              : `Show more replies (${comment.replyCount - replies.length} remaining)`}
+              : `Show more replies (${Math.max(0, comment.replyCount - replies.length)} remaining)`}
           </LoadMoreReplies>
         )}
       </CommentCard>
