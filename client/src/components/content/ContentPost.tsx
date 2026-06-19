@@ -39,6 +39,29 @@ const SeriesTitle = styled(Link)`
   }
 `;
 
+/**
+ * Meta line under the H1: date · author. Rendered for every post that
+ * has a frontmatter date; falls back gracefully on either piece. Date is
+ * formatted en-GB (day-first long form). Read time + word count are not
+ * surfaced here because the source is already a React tree at this point;
+ * the build step would need to thread them through if we ever want them.
+ */
+const PostMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: ${(p) => p.theme.text.size.small};
+  color: ${(p) => p.theme.text.colour.light_grey()};
+  margin: 0 0 ${(p) => p.theme.container.spacing.small};
+`;
+
+const MetaDot = styled.span`
+  &::before {
+    content: '·';
+  }
+`;
+
 const TagsList = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -164,6 +187,23 @@ export function ContentPost(props: ContentPostProps) {
     ? props.currentPart.tags || props.series.tags
     : props.content.tags;
 
+  // Date prefers the most specific source: the current chapter for a series,
+  // the standalone post otherwise. Author comes from the series for chapters
+  // (a series carries one author across its parts).
+  const isoDate = isSeriesPost(props)
+    ? props.currentPart.date || props.series.date
+    : props.content.date;
+  const author = isSeriesPost(props)
+    ? props.series.author
+    : props.content.author;
+  const formattedDate = isoDate
+    ? new Date(isoDate).toLocaleDateString('en-GB', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    : null;
+
   usePageView({
     slug,
     title,
@@ -250,6 +290,15 @@ export function ContentPost(props: ContentPostProps) {
         )}
 
         <h1>{displayTitle}</h1>
+
+        {/* Meta: date · author */}
+        {(formattedDate || author) && (
+          <PostMeta>
+            {formattedDate && <time dateTime={isoDate}>{formattedDate}</time>}
+            {formattedDate && author && <MetaDot />}
+            {author && <span>{author}</span>}
+          </PostMeta>
+        )}
 
         {/* Tags */}
         {tags && tags.length > 0 && (
