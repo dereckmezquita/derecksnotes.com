@@ -17,6 +17,7 @@ import {
   CommentTimestamp,
   EditedBadge,
   PendingBadge,
+  DeletedAuthor,
   DeletedMessage,
   CommentBody,
   CommentActions,
@@ -185,12 +186,15 @@ export function CommentItem({
       <CommentCard $depth={comment.depth}>
         {/*
           Soft-deleted comments keep the timestamp visible so the reply
-          thread structure stays coherent. Author name + profile link are
-          omitted entirely (server already nulls `comment.user` for deleted
-          rows); the body is replaced with a `[DELETED]` placeholder.
+          thread structure stays coherent. Both the author slot and the
+          body show `[DELETED]` in the same gray as the rest of the meta
+          — no italic, no special font, just dimmed — so the row reads
+          as "this comment was here" rather than a styled aside.
         */}
         <CommentHeader>
-          {!comment.isDeleted && (
+          {comment.isDeleted ? (
+            <DeletedAuthor>[DELETED]</DeletedAuthor>
+          ) : (
             <CommentAuthor href={`/profile/${comment.user?.username}`}>
               {comment.user?.displayName || comment.user?.username || 'Unknown'}
             </CommentAuthor>

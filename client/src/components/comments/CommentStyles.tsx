@@ -115,7 +115,25 @@ export const PendingBadge = styled.span`
   font-style: italic;
 `;
 
-export const DeletedMessage = styled.em`
+/**
+ * Inline-grey placeholder used in place of the author name on a
+ * soft-deleted comment. Same font as a regular author, just dimmed —
+ * no bold, no link affordance.
+ */
+export const DeletedAuthor = styled.span`
+  color: ${(p) => p.theme.text.colour.light_grey()};
+`;
+
+/**
+ * Body placeholder for a soft-deleted comment. Renders like a regular
+ * comment body (same font, same size, same line-height) so it reads as
+ * "this slot is still here, just empty" rather than a styled aside.
+ * Only the colour is dimmed.
+ */
+export const DeletedMessage = styled.div`
+  font-family: ${(p) => p.theme.text.font.roboto};
+  font-size: ${(p) => p.theme.text.size.normal};
+  line-height: 1.6;
   color: ${(p) => p.theme.text.colour.light_grey()};
 `;
 
