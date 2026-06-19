@@ -528,6 +528,17 @@ function formatCommentTreeBatched(
   };
 }
 
+/**
+ * Replies-paginated view of a single comment's subtree. Used by the
+ * "Show more replies" expand action in the client.
+ *
+ * Previously this function had its own async `formatCommentTree` that ran
+ * one COUNT + one findMany per node — a 3-level deep page of N replies
+ * fired ~ 2*N*depth round-trips. Now it shares the batched format path
+ * with getCommentsForPost: one BFS pulls every descendant of the page
+ * slice in `maxDepth` queries, then formatCommentTreeBatched walks the
+ * cached map. Behaviour is identical; the duplicate function is gone.
+ */
 export async function getRepliesForComment(
   commentId: string,
   userId: string | null,
@@ -542,8 +553,8 @@ export async function getRepliesForComment(
     ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
     : eq(schema.comments.approved, 1);
 
-  // Soft-deleted children remain in the result (scrubbed by formatter)
-  // so reply chains aren't broken by an intermediate delete.
+  // Direct-child page slice (soft-deleted included so reply chains keep
+  // their structure; scrubbed by the batched formatter).
   const childComments = await db.query.comments.findMany({
     where: and(eq(schema.comments.parentId, commentId), replyVisibility),
     // I18: id tiebreaker for deterministic pagination across boundaries.
@@ -563,110 +574,35 @@ export async function getRepliesForComment(
     }
   });
 
-  const total = await db
+  const totalRow = await db
     .select({ count: sql<number>`count(*)` })
     .from(schema.comments)
     .where(eq(schema.comments.parentId, commentId));
+  const totalCount = totalRow[0]?.count || 0;
 
-  const totalCount = total[0]?.count || 0;
   const parent = await db.query.comments.findFirst({
     where: eq(schema.comments.id, commentId)
   });
   const parentDepth = parent?.depth || 0;
 
-  const replies: CommentData[] = [];
-  for (const child of childComments) {
-    replies.push(
-      await formatCommentTree(
-        child,
-        userId,
-        maxDepth,
-        repliesPerLevel,
-        parentDepth + 1
-      )
-    );
-  }
+  // BFS descendants of THIS page's children only, so a partial scroll
+  // doesn't pay the cost of every sibling's subtree.
+  const childIds = childComments.map((c) => c.id);
+  const descendants = await collectDescendants(childIds, maxDepth);
+  const childrenByParent = groupByParent([...childComments, ...descendants]);
+
+  const replies = childComments.map((child) =>
+    formatCommentTreeBatched(
+      child,
+      userId,
+      maxDepth,
+      repliesPerLevel,
+      parentDepth + 1,
+      childrenByParent
+    )
+  );
 
   return { replies, total: totalCount, hasMore: offset + limit < totalCount };
-}
-
-async function formatCommentTree(
-  comment: any,
-  userId: string | null,
-  maxDepth: number,
-  repliesPerLevel: number,
-  currentDepth: number = 0
-): Promise<CommentData> {
-  const likes =
-    comment.reactions?.filter((r: any) => r.type === 'like').length || 0;
-  const dislikes =
-    comment.reactions?.filter((r: any) => r.type === 'dislike').length || 0;
-  const userReaction = userId
-    ? (comment.reactions?.find((r: any) => r.userId === userId)?.type as
-        | 'like'
-        | 'dislike') || null
-    : null;
-
-  let replies: CommentData[] = [];
-  let replyCount = 0;
-  let hasMoreReplies = false;
-
-  // Always get the total count of replies — deleted ones count toward the
-  // visible slot total since they render as `[DELETED]` placeholders.
-  const countResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(schema.comments)
-    .where(eq(schema.comments.parentId, comment.id));
-  replyCount = countResult[0]?.count || 0;
-
-  if (currentDepth < maxDepth && replyCount > 0) {
-    const childComments = await db.query.comments.findMany({
-      where: eq(schema.comments.parentId, comment.id),
-      orderBy: [asc(schema.comments.createdAt)],
-      limit: repliesPerLevel,
-      with: {
-        user: {
-          columns: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
-        },
-        reactions: true
-      }
-    });
-
-    hasMoreReplies = replyCount > repliesPerLevel;
-    for (const child of childComments) {
-      replies.push(
-        await formatCommentTree(
-          child,
-          userId,
-          maxDepth,
-          repliesPerLevel,
-          currentDepth + 1
-        )
-      );
-    }
-  } else if (replyCount > 0) {
-    hasMoreReplies = true;
-  }
-
-  return {
-    id: comment.id,
-    content: comment.deletedAt ? '[DELETED]' : comment.content,
-    depth: comment.depth,
-    approved: !!comment.approved,
-    createdAt: comment.createdAt,
-    editedAt: comment.editedAt,
-    isDeleted: !!comment.deletedAt,
-    user: comment.deletedAt ? null : comment.user,
-    reactions: { likes, dislikes, userReaction },
-    replies,
-    replyCount,
-    hasMoreReplies
-  };
 }
 
 export async function reactToComment(

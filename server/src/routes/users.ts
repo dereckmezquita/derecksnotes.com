@@ -117,12 +117,19 @@ router.get(
         res.status(404).json({ error: 'User not found' });
         return;
       }
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(
         20,
         Math.max(1, parseInt(req.query.limit as string) || 5)
       );
-      const items = await userService.getTopComments(target.id, limit);
-      res.json({ data: items });
+      const result = await userService.getTopComments(target.id, page, limit);
+      res.json({
+        data: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        hasMore: result.hasMore
+      });
     } catch (error) {
       console.error('User top-comments error:', error);
       res.status(500).json({ error: 'Internal server error' });

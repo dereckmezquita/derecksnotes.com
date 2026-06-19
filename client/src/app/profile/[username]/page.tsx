@@ -184,9 +184,10 @@ export default function PublicProfilePage() {
       .then((d) => setActivity(d.data))
       .catch(() => {});
     api
-      .get<{ data: TopComment[] }>(`/users/${username}/top-comments?limit=5`, {
-        silent: true
-      })
+      .get<{ data: TopComment[]; hasMore: boolean; total: number }>(
+        `/users/${username}/top-comments?page=1&limit=5`,
+        { silent: true }
+      )
       .then((d) => setTopComments(d.data))
       .catch(() => {});
   }, [username, refreshFollow]);

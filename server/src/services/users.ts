@@ -318,49 +318,124 @@ export async function getUserActivity(userId: string, limit: number = 30) {
 /**
  * Public-profile "top comments" — the user's highest-scored undeleted
  * approved comments, ranked by net (likes − dislikes) desc, ties broken
- * by recency. Ranking happens in JS because Drizzle's findMany aliases
- * the reactions subquery awkwardly and we already learned that lesson
- * with the comment sort feature.
+ * by recency then by id. Pagination is honoured at the SQL layer so the
+ * service is constant-cost regardless of how many comments the user has
+ * written; the earlier JS-rank-and-slice implementation was bounded to
+ * 50 candidates and would silently miss high-karma comments outside that
+ * window for prolific users.
+ *
+ * Drizzle's relational findMany still aliases the reactions sub-query in
+ * a way that breaks `commentReactions.type` (see the comment-sort fix), so
+ * we keep this as a select() with an explicit LEFT JOIN + GROUP BY which
+ * SQLite handles cleanly.
+ *
+ * Pure-neutral comments (score 0, no likes) are filtered with HAVING so
+ * they don't consume page slots; comments with engagement always pass.
  */
-export async function getTopComments(userId: string, limit: number = 5) {
-  const rows = await db.query.comments.findMany({
-    where: and(
-      eq(schema.comments.userId, userId),
-      eq(schema.comments.approved, 1),
-      isNull(schema.comments.deletedAt)
-    ),
-    // Wider candidate window so a user with a few high-scored comments
-    // buried under recent low-scored ones still surfaces.
-    limit: Math.max(50, limit * 10),
-    orderBy: [desc(schema.comments.createdAt)],
-    with: { post: true, reactions: true }
-  });
-  const scored = rows.map((c) => {
-    let likes = 0;
-    let dislikes = 0;
-    for (const r of c.reactions) {
-      if (r.type === 'like') likes++;
-      else if (r.type === 'dislike') dislikes++;
-    }
-    return {
-      id: c.id,
-      slug: c.post?.slug || '',
-      postTitle: c.post?.title || '',
-      content: c.content,
-      createdAt: c.createdAt,
-      likes,
-      dislikes,
-      score: likes - dislikes
-    };
-  });
-  scored.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return b.createdAt < a.createdAt ? -1 : 1;
-  });
-  // Drop true-neutral comments (score 0, no engagement) — they're not
-  // "top" of anything, just noise. Comments with positive engagement
-  // always make the cut.
-  return scored.filter((c) => c.likes > 0 || c.score > 0).slice(0, limit);
+export async function getTopComments(
+  userId: string,
+  page: number = 1,
+  limit: number = 5
+): Promise<{
+  items: Array<{
+    id: string;
+    slug: string;
+    postTitle: string;
+    content: string;
+    createdAt: string;
+    likes: number;
+    dislikes: number;
+    score: number;
+  }>;
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}> {
+  const offset = Math.max(0, (page - 1) * limit);
+  const likesExpr = sql<number>`COALESCE(SUM(CASE WHEN ${schema.commentReactions.type} = 'like' THEN 1 ELSE 0 END), 0)`;
+  const dislikesExpr = sql<number>`COALESCE(SUM(CASE WHEN ${schema.commentReactions.type} = 'dislike' THEN 1 ELSE 0 END), 0)`;
+  const scoreExpr = sql<number>`(${likesExpr} - ${dislikesExpr})`;
+  const havingExpr = sql`${likesExpr} > 0 OR ${scoreExpr} > 0`;
+
+  const rows = await db
+    .select({
+      id: schema.comments.id,
+      content: schema.comments.content,
+      createdAt: schema.comments.createdAt,
+      postId: schema.comments.postId,
+      likes: likesExpr,
+      dislikes: dislikesExpr,
+      score: scoreExpr
+    })
+    .from(schema.comments)
+    .leftJoin(
+      schema.commentReactions,
+      eq(schema.commentReactions.commentId, schema.comments.id)
+    )
+    .where(
+      and(
+        eq(schema.comments.userId, userId),
+        eq(schema.comments.approved, 1),
+        isNull(schema.comments.deletedAt)
+      )
+    )
+    .groupBy(schema.comments.id)
+    .having(havingExpr)
+    .orderBy(
+      desc(scoreExpr),
+      desc(schema.comments.createdAt),
+      desc(schema.comments.id)
+    )
+    .limit(limit)
+    .offset(offset);
+
+  // Resolve post slug + title for the page slice only. Doing this in a
+  // second query keeps the GROUP BY shape simple and matches the pattern
+  // used elsewhere in this file.
+  const postIds = Array.from(new Set(rows.map((r) => r.postId)));
+  const postMap = new Map<string, { slug: string; title: string }>();
+  if (postIds.length > 0) {
+    const posts = await db.query.posts.findMany({
+      where: inArray(schema.posts.id, postIds),
+      columns: { id: true, slug: true, title: true }
+    });
+    for (const p of posts) postMap.set(p.id, { slug: p.slug, title: p.title });
+  }
+
+  // Aggregate count uses the same HAVING so total reflects only what's
+  // actually returnable. A nested SELECT keeps it as one round-trip.
+  const totalRow = await db.all<{ total: number }>(sql`
+    SELECT COUNT(*) AS total FROM (
+      SELECT 1 FROM ${schema.comments} c
+      LEFT JOIN ${schema.commentReactions} r ON r.${sql.raw('comment_id')} = c.${sql.raw('id')}
+      WHERE c.${sql.raw('user_id')} = ${userId}
+        AND c.${sql.raw('approved')} = 1
+        AND c.${sql.raw('deleted_at')} IS NULL
+      GROUP BY c.${sql.raw('id')}
+      HAVING COALESCE(SUM(CASE WHEN r.${sql.raw('type')} = 'like' THEN 1 ELSE 0 END), 0) > 0
+        OR (COALESCE(SUM(CASE WHEN r.${sql.raw('type')} = 'like' THEN 1 ELSE 0 END), 0)
+            - COALESCE(SUM(CASE WHEN r.${sql.raw('type')} = 'dislike' THEN 1 ELSE 0 END), 0)) > 0
+    )
+  `);
+  const total = Number(totalRow[0]?.total || 0);
+
+  return {
+    items: rows.map((r) => ({
+      id: r.id,
+      slug: postMap.get(r.postId)?.slug || '',
+      postTitle: postMap.get(r.postId)?.title || '',
+      content: r.content,
+      createdAt: r.createdAt,
+      likes: Number(r.likes),
+      dislikes: Number(r.dislikes),
+      score: Number(r.score)
+    })),
+    total,
+    page,
+    limit,
+    hasMore: offset + rows.length < total
+  };
 }
 
 export async function getReadHistory(
