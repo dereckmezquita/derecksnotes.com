@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -90,23 +90,16 @@ function AccountPageInner() {
   } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<ActiveTab>(() =>
-    parseTab(searchParams.get('tab'))
-  );
 
-  // Keep the URL in sync when the user clicks a tab so deep links + back/
-  // forward work. The notification toast's "Open" action navigates to
-  // /account?tab=notifications so we honour it on mount too.
-  useEffect(() => {
-    const fromUrl = parseTab(searchParams.get('tab'));
-    if (fromUrl !== tab) setTab(fromUrl);
-    // searchParams change is the trigger; we intentionally don't list `tab`
-    // to avoid a re-entrant loop with the click handler below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  // Drive `tab` purely from the URL — no local useState/useEffect pair, so
+  // there's no re-entrant loop between a click handler and an effect that
+  // syncs back from search params. The click handler only ever calls
+  // router.replace; the next render reads the new value out of
+  // searchParams. Invalid `?tab=` values fall back to 'profile'.
+  const tab: ActiveTab = parseTab(searchParams.get('tab'));
 
   const handleTabClick = (key: ActiveTab) => {
-    setTab(key);
+    if (key === tab) return;
     const next = new URLSearchParams(searchParams.toString());
     if (key === 'profile') next.delete('tab');
     else next.set('tab', key);

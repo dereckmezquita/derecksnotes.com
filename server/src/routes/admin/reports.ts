@@ -11,7 +11,7 @@ const STATUS_VALUES = ['all', 'open', 'resolved', 'dismissed'] as const;
 
 router.get(
   '/reports',
-  requirePermission('comment.approve'),
+  requirePermission('report.view'),
   async (req: AuthenticatedRequest, res) => {
     try {
       const status = (req.query.status as string) || 'open';
@@ -40,7 +40,7 @@ router.get(
 
 router.post(
   '/reports/bulk-status',
-  requirePermission('comment.approve'),
+  requirePermission('report.resolve'),
   async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = z

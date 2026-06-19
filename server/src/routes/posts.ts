@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, optionalAuth } from '@middleware/auth';
-import { reactionLimiter } from '@middleware/rateLimit';
+import { reactionLimiter, readProgressLimiter } from '@middleware/rateLimit';
 import { notifyGraphClients } from '@routes/graph';
 import * as postService from '@services/posts';
 import * as bookmarkService from '@services/bookmarks';
@@ -118,6 +118,7 @@ router.get('/stats', optionalAuth(), async (req: AuthenticatedRequest, res) => {
 router.post(
   '/read-progress',
   authenticate(),
+  readProgressLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const parsed = z

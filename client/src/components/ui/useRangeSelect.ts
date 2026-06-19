@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Multi-select hook with email/file-manager-style shift-click range
@@ -30,6 +30,27 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 export function useRangeSelect<T extends { id: string }>(items: T[]) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const anchorRef = useRef<number | null>(null);
+
+  // The anchor is an *index* into the items array, so any time the items
+  // reorder underneath (refetch, re-sort, filter, etc.) it points at the
+  // wrong row. Watch the id-sequence and reset the anchor whenever it
+  // changes. Also drop selected ids that no longer exist so stale rows
+  // don't sit in the bulk-action set after a delete.
+  const idSignature = useMemo(() => items.map((i) => i.id).join('|'), [items]);
+  useEffect(() => {
+    anchorRef.current = null;
+    setSelected((prev) => {
+      const present = new Set(items.map((i) => i.id));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (present.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idSignature]);
 
   const isSelected = useCallback((id: string) => selected.has(id), [selected]);
 

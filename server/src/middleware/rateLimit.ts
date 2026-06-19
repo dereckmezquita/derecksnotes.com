@@ -102,3 +102,24 @@ export const adminWriteLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many admin requests, please slow down' }
 });
+
+// Reports fan a notification to every admin + moderator on every call —
+// a tight cap protects the moderator inbox from spam. Honest users report
+// a comment maybe a few times an hour at most.
+export const reportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many reports submitted recently, please slow down' }
+});
+
+// Read-history writes fire on every post-scroll throttle tick; this limit
+// is a backstop, not the primary defence (the client throttles to 4s).
+export const readProgressLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many reading-progress updates, please slow down' }
+});

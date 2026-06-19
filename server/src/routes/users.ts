@@ -6,7 +6,8 @@ import {
   profileLimiter,
   passwordChangeLimiter,
   accountDeleteLimiter,
-  bulkLimiter
+  bulkLimiter,
+  searchLimiter
 } from '@middleware/rateLimit';
 import * as userService from '@services/users';
 import * as authService from '@services/auth';
@@ -25,9 +26,12 @@ const usernameParamSchema = z
 
 // Prefix search for mention autocomplete. Placed BEFORE the `/:username` route
 // so the literal "search" segment doesn't get captured as a username.
+// searchLimiter caps per-IP request rate — the client debounces keystrokes
+// but a misbehaving consumer could still hammer this endpoint.
 router.get(
   '/search',
   authenticate(),
+  searchLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const q = z.string().min(1).max(50).safeParse(req.query.q);
@@ -556,6 +560,7 @@ router.get(
 router.delete(
   '/me/read-history',
   authenticate(),
+  bulkLimiter,
   async (req: AuthenticatedRequest, res) => {
     try {
       const body = req.body ?? {};

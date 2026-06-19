@@ -51,6 +51,42 @@ export async function createNotification(
 }
 
 /**
+ * Heterogeneous batch insert — each item can have its own recipient,
+ * actor, target, and payload. Used when producers fan one notification
+ * per matched row with row-specific payloads (e.g. bulk-approve, which
+ * emits one comment.approved per author with that author's slug + body
+ * preview). Same chunking discipline as createNotificationsForUsers.
+ *
+ * Self-notifications (recipient === actor) are silently dropped per item
+ * to match the single-create contract.
+ */
+export async function createNotificationsBatch(
+  items: CreateNotificationInput[]
+): Promise<number> {
+  const now = new Date().toISOString();
+  const rows = items
+    .filter((i) => !i.actorUserId || i.actorUserId !== i.userId)
+    .map((i) => ({
+      id: randomUUID(),
+      userId: i.userId,
+      type: i.type,
+      actorUserId: i.actorUserId || null,
+      targetType: i.targetType || null,
+      targetId: i.targetId || null,
+      payload: i.payload ? JSON.stringify(i.payload) : null,
+      createdAt: now
+    }));
+  if (rows.length === 0) return 0;
+  await db.transaction(async (tx) => {
+    const BATCH = 200;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      await tx.insert(schema.notifications).values(rows.slice(i, i + BATCH));
+    }
+  });
+  return rows.length;
+}
+
+/**
  * Fan a notification to many users at once. Used by admin broadcast.
  * Batched in a single transaction. Self-notifications skipped.
  */

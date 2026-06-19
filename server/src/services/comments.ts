@@ -125,6 +125,11 @@ export async function createComment(data: {
   // Fan mention notifications. Resolve all mentioned usernames to user ids
   // in one query; skip muted users (admin-set), the parent author (already
   // got a reply notification), and the commenter themselves.
+  //
+  // Uses createNotificationsForUsers (batched 200/insert in a transaction)
+  // so the create-comment hot path stays O(1) round-trips regardless of how
+  // many users got mentioned in a single comment. The earlier per-user
+  // sequential await was an N+1 in the request critical path.
   if (data.autoApprove) {
     try {
       const usernames = parseMentions(sanitized);
@@ -132,11 +137,11 @@ export async function createComment(data: {
         const users = await userService.findUsersByUsernames(usernames);
         const skipIds = new Set<string>([data.userId]);
         if (parentForNotify) skipIds.add(parentForNotify.userId);
-        for (const u of users) {
-          if (skipIds.has(u.id)) continue;
-          if (u.mentionMuted) continue;
-          await notificationService.createNotification({
-            userId: u.id,
+        const recipients = users
+          .filter((u) => !skipIds.has(u.id) && !u.mentionMuted)
+          .map((u) => u.id);
+        if (recipients.length > 0) {
+          await notificationService.createNotificationsForUsers(recipients, {
             type: 'mention',
             actorUserId: data.userId,
             targetType: 'comment',
@@ -217,6 +222,19 @@ export async function softDeleteComment(
  * version, ordered newest-first. Returns `null` when the caller is neither
  * the comment's author nor a moderator — the caller maps that to a 403.
  * Returns `[]` when the comment does not exist (matches the prior contract).
+ *
+ * Soft-deleted comment handling:
+ *   - Author of a deleted comment: gets an empty history. The author chose
+ *     to delete; surfacing every revision after they hit Delete defeats
+ *     the point.
+ *   - Moderator on any deleted comment: still gets the full history so
+ *     moderation actions can be audited and content reviewed.
+ *   - Non-author non-moderator: 403 (already enforced above).
+ *
+ * This matches the contract the visibility tests pin on the public-thread
+ * formatter: a soft-deleted comment never echoes its original content back
+ * through a user-facing path. Moderator history reads are an admin path
+ * and audit those separately.
  */
 export async function getCommentHistory(
   commentId: string,
@@ -251,6 +269,10 @@ export async function getCommentHistory(
 
   const isAuthor = comment.userId === callerUserId;
   if (!isAuthor && !isModerator) return null;
+
+  // Soft-deleted: the author no longer has read access to the body or any
+  // prior revision. Moderators still do.
+  if (comment.deletedAt && !isModerator) return [];
 
   const entries = await db.query.commentHistory.findMany({
     where: eq(schema.commentHistory.commentId, commentId),
@@ -792,19 +814,25 @@ export async function approveCommentsBulk(
       columns: { id: true, userId: true, content: true },
       with: { post: true }
     });
-    for (const r of rows) {
-      await notificationService.createNotification({
+    // Per-row payloads differ (slug + content vary), so we can't reuse
+    // createNotificationsForUsers's single-template path. Build the rows
+    // in JS and hand them off as a batched insert via the service helper.
+    const items = rows
+      .filter((r) => r.userId !== approvedBy)
+      .map((r) => ({
         userId: r.userId,
-        type: 'comment.approved',
+        type: 'comment.approved' as const,
         actorUserId: approvedBy,
-        targetType: 'comment',
+        targetType: 'comment' as const,
         targetId: r.id,
         payload: {
           postSlug: r.post?.slug || '',
           postTitle: r.post?.title || '',
           preview: (r.content || '').slice(0, 200)
         }
-      });
+      }));
+    if (items.length > 0) {
+      await notificationService.createNotificationsBatch(items);
     }
   } catch (err) {
     console.error('[notifications] failed to fan bulk comment.approved:', err);

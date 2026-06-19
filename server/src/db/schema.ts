@@ -2,7 +2,8 @@ import {
   sqliteTable,
   text,
   integer,
-  uniqueIndex
+  uniqueIndex,
+  index
 } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
@@ -143,24 +144,40 @@ export const readHistory = sqliteTable(
 // COMMENTS
 // ============================================================================
 
-export const comments = sqliteTable('comments', {
-  id: text('id').primaryKey(),
-  postId: text('post_id')
-    .notNull()
-    .references(() => posts.id),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id),
-  parentId: text('parent_id'),
-  content: text('content').notNull(),
-  depth: integer('depth').notNull().default(0),
-  approved: integer('approved').notNull().default(0),
-  pinnedAt: text('pinned_at'),
-  pinnedBy: text('pinned_by'),
-  createdAt: text('created_at').notNull(),
-  editedAt: text('edited_at'),
-  deletedAt: text('deleted_at')
-});
+export const comments = sqliteTable(
+  'comments',
+  {
+    id: text('id').primaryKey(),
+    postId: text('post_id')
+      .notNull()
+      .references(() => posts.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    parentId: text('parent_id'),
+    content: text('content').notNull(),
+    depth: integer('depth').notNull().default(0),
+    approved: integer('approved').notNull().default(0),
+    pinnedAt: text('pinned_at'),
+    pinnedBy: text('pinned_by'),
+    createdAt: text('created_at').notNull(),
+    editedAt: text('edited_at'),
+    deletedAt: text('deleted_at')
+  },
+  (t) => ({
+    // Indexes added with v6.3.0. The thread/reply queries (getCommentsForPost,
+    // getRepliesForComment, collectDescendants) all filter by post_id +
+    // parent_id and order by created_at — without these the page-scroll cost
+    // is a full table scan at any meaningful volume.
+    byPostThread: index('comments_post_parent_created_idx').on(
+      t.postId,
+      t.parentId,
+      t.createdAt
+    ),
+    byParent: index('comments_parent_created_idx').on(t.parentId, t.createdAt),
+    byAuthor: index('comments_user_created_idx').on(t.userId, t.createdAt)
+  })
+);
 
 export const commentHistory = sqliteTable('comment_history', {
   id: text('id').primaryKey(),
