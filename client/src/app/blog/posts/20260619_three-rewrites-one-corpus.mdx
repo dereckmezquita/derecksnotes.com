@@ -30,51 +30,86 @@ The repository for that first version is private and will stay private; the code
 
 `derecksnotes-0` is where the architecture was at its simplest. The repo's top level was a flat list of section folders and a corresponding PHP entry-point per section:
 
-```text title="$ tree -L 2 derecksnotes-0/"
+```text title="$
+tree -L 2 -I 'siteImages|libraries|siteBackEnd|siteTools|temp|misc|.git|comment-test|galleries|in-progress|sharing|imagesDictionaries|articlesBooks|error_log|favicon.ico'"
 .
 ├── 404page.html
 ├── allArticles.php
-├── index.php
-├── manifest.json
-├── README.md
-├── courses.php
-├── dictionaries.php
-├── exercises.php
-├── raw-notes.php
-├── blog/
+├── blog
 │   ├── displayEntry.php
-│   ├── entries/
+│   ├── entries
 │   ├── entries.json
 │   ├── getEntries.js
 │   └── getEntries.php
-├── courses/
+├── courses
 │   ├── displayEntry.php
-│   ├── entries/
+│   ├── entries
 │   ├── entries.json
-│   └── getEntries.js
-├── dictionaries/
+│   ├── getEntries.js
+│   └── getEntries.php
+├── courses.php
+├── dictionaries
 │   ├── dicBiology.php
 │   ├── dicChemistry.php
 │   ├── dicEtymology.php
 │   ├── dicFormulas.php
 │   ├── dicMethods.php
-│   └── dicMisc.php
-├── exercises/
+│   ├── dicMisc.php
+│   └── emptyDic.php
+├── dictionaries.php
+├── exercises
 │   ├── displayEntry.php
-│   └── entries/
-├── includes/
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── exercises.php
+├── includes
+│   ├── dicDirectory.php
 │   ├── footer.php
 │   ├── header.php
 │   ├── nav.php
 │   └── sidebar.php
-├── js/
+├── index.php
+├── js
 │   ├── clock.js
+│   ├── priceTickers.js
 │   ├── pwaPrompt.js
-│   └── script.js
-├── raw-notes/
-├── references/
-├── styles/
-└── work/
+│   ├── revealContent.js
+│   ├── script.js
+│   └── test.js
+├── manifest.json
+├── raw-notes
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── raw-notes.php
+├── README.md
+├── references
+│   ├── cheatSheets
+│   ├── methods
+│   ├── scientists
+│   └── tables
+├── serviceWorker.js
+├── styles
+│   ├── css
+│   └── sass
+├── tools
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+├── tools.php
+├── work
+│   ├── displayEntry.php
+│   ├── entries
+│   ├── entries.json
+│   ├── getEntries.js
+│   └── getEntries.php
+└── work.php
 ```
 
 Blog entries lived as `.html` files in `blog/entries/`, each one written by hand or knitted from R Markdown. The cards on the home page were generated from a single `entries.json` by a small JavaScript loop. A `displayEntry.php` did the templating. jQuery 3.3.1 sat in a `libraries/` folder, alongside `syntaxhighlighter`. There was no compiler step worth speaking of. A `.scss` file was edited, pushed, served as `.css`.
