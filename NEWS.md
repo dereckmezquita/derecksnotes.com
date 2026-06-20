@@ -1,5 +1,11 @@
 # derecksnotes.com Change Log
 
+## v6.3.1 - Post meta + evolution retrospective (2026-06)
+
+A patch release. The post renderer (`ContentPost`) now displays a `date · author` meta line under the `<h1>` on every blog / course / reference page that has frontmatter to draw from. Series chapters prefer their own chapter date when present and fall back to the series date; the author is always taken from the series for chapters. Renders as a semantic `<time dateTime>` so the date is machine-readable.
+
+Also: a new blog post, *Three rewrites, one corpus*, tracing the site across three repos (the private 2016 hand-coded original, `derecksnotes-0`'s PHP era, the cleaner `derecksnotes.com-archive`, and the present Next.js incarnation) with directory tree + PHP / JSON / Drizzle code excerpts for each.
+
 ## v6.3.0 - User Features & Account/Admin Refactor (2026-06)
 
 Ten user-facing features land together with an admin/moderation counterpart for each, plus a structural refactor of the two largest pages on the site (`/account` and `/admin`) and the largest server route file.
