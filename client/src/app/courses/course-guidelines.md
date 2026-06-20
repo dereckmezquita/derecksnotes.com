@@ -222,25 +222,15 @@ Useful flags: `--force` rebuilds even when `built/` is newer than `src/`, `--cle
 ### Key conventions
 
 - **`index.mdx`**: a folder's own page. Its frontmatter (`title`, `summary`, `published`, `transparent`, `coverImage`, …) describes the folder. Optional — a folder with no `index.mdx` still works (its title defaults to the slug).
-- **`transparent: true`** (in an `index.mdx`): the folder contributes no URL segment; its children promote up. For organisational groupings (e.g. a
-  multi-volume family). Replaces the old `_passthrough` marker; works at any depth.
-- **`.Rmd` vs `.mdx`**: `.Rmd` is knit through R (runs code, emits figures);
-  `.mdx` is copied through verbatim (no R). Per-file choice, uniform output.
-- **`data/` and `assets/`**: build-time ingredients, ignored by the site. The
-  site also skips `drafts/`, `deprecated/`, `ignore/`, any `*.ignore` name, and
-  dotfiles — handy for parking work-in-progress without deleting it.
-- **Hiding a page**: `published: false` in a leaf's frontmatter (or a container's
-  `index.mdx`) removes it — and, for a container, its whole subtree — from the URL
-  map, sidebar, and overview lists.
-- Figures are written to `client/public/courses/<volume>/` and served from
-  `/courses/<volume>/`.
+- **`transparent: true`** (in an `index.mdx`): the folder contributes no URL segment; its children promote up. For organisational groupings (e.g. a multi-volume family). Replaces the old `_passthrough` marker; works at any depth.
+- **`.Rmd` vs `.mdx`**: `.Rmd` is knit through R (runs code, emits figures); `.mdx` is copied through verbatim (no R). Per-file choice, uniform output.
+- **`data/` and `assets/`**: build-time ingredients, ignored by the site. The site also skips `drafts/`, `deprecated/`, `ignore/`, any `*.ignore` name, and dotfiles — handy for parking work-in-progress without deleting it.
+- **Hiding a page**: `published: false` in a leaf's frontmatter (or a container's `index.mdx`) removes it — and, for a container, its whole subtree — from the URL map, sidebar, and overview lists.
+- Figures are written to `client/public/courses/<volume>/` and served from `/courses/<volume>/`.
 
 ### Data and file paths
 
-Every chunk is knit with its **working directory set to the `.Rmd`'s own folder**
-— the build runs `knitr::opts_knit$set(root.dir = dirname(src))`. So a relative
-path in a chunk resolves from *that file's* location, never from `src/`, the work
-root, or the repo root.
+Every chunk is knit with its **working directory set to the `.Rmd`'s own folder** — the build runs `knitr::opts_knit$set(root.dir = dirname(src))`. So a relative path in a chunk resolves from *that file's* location, never from `src/`, the work root, or the repo root.
 
 Shared datasets live in a `data/` folder kept at the **family** level, so every
 volume draws from the same place. The CSVs are **git-ignored** and fetched by the
