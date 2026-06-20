@@ -50,6 +50,8 @@ Teach how to explain the concept to specialists as well.
 
 Depending on the subject if it calls for it we can then implement from scratch and demonstrate to users in a separate section.
 
+If the course is teaching statistics for example we implement the function from scratch before using a base function.
+
 ## Language and Style
 
 ### Spelling
@@ -67,9 +69,11 @@ Depending on the subject if it calls for it we can then implement from scratch a
 
 ## Code Style
 
-These are Rmd 
+These are Rmd documents as such you can write code fences inside using "```{r}". Always include a title for the code block. Only override echo and other such items if absolutely necessary, we already set defaults in the setup chunk by default.
 
-### Package Management
+We use renv for managing packages a lock file should be created in the course folder. Every course should have it's own renv setup.
+
+### Imports
 
 ```r
 # ALWAYS use box::use() — NEVER use library()
@@ -88,29 +92,30 @@ box::use(
 )
 ```
 
-### Core Packages
-| Package | Purpose |
-|---------|---------|
-| `data.table` | Data manipulation (NEVER tidyverse) |
-| `ggplot2` | Visualisation |
-| `box` | Package imports |
+### Common heavy use packages
 
-### Coding Paradigms
+- `data.table`: Data manipulation (NEVER tidyverse)
+- `ggplot2`: Visualisation
+- `box`: Package imports
+- `renv`: install packages
+- `rlang`: for better errors `rlang::abort` etc.
+- parallisation if necessary with `future`/`mirai`
+
+### Coding Style
+
 - Use 2 spaces for indents
 - Old-school C-style coding preferred
 - Base R for simple operations
 - Heavy use of `data.table` for data manipulation
-- Implement functions from scratch BEFORE showing built-in versions
 - Use `Rscript` to run scripts — never use `source()`
-- Create variables with defaults then conditionally update if necessary do not use `varname <- if (...) ...`
+- NEVER RETURN FROM CONTROL FLOW; create variables with defaults then conditionally update if necessary do not use `varname <- if (...) ...`
 
 ### Reproducibility
+
 - Include `set.seed()` for all random examples
 - Use consistent seeds across related examples
-- Heavy commenting explaining logic
+- Medium amount of commenting explaining logic
 - Show intermediate outputs where instructive
-
----
 
 ## File Format
 
@@ -201,6 +206,7 @@ Rscript build-content.R client/src/app/courses/posts/mathematical-statistics-wit
 `/courses/mathematical-statistics-1-foundations/describing-data/types-and-central-tendency`.
 
 ### Key conventions
+
 - **`index.mdx`**: a folder's own page. Its frontmatter (`title`, `summary`,
   `published`, `transparent`, `coverImage`, …) describes the folder. Optional — a
   folder with no `index.mdx` still works (its title defaults to the slug).
@@ -212,29 +218,3 @@ Rscript build-content.R client/src/app/courses/posts/mathematical-statistics-wit
 - **`data/` and `assets/`**: build-time ingredients, ignored by the site.
 - Figures are written to `client/public/courses/<volume>/` and served from
   `/courses/<volume>/`.
-
----
-
-## Quality Checklist
-
-Before submitting any chapter:
-
-- [ ] British Oxford English spelling verified
-- [ ] Four-part method used for each concept
-- [ ] Mathematical derivations shown, not just formulae stated
-- [ ] Code implemented from scratch before built-in functions shown
-- [ ] `set.seed()` used for all random examples
-- [ ] Visualisations have clear titles, labels, and captions
-- [ ] "Communicating to Stakeholders" section included
-- [ ] "Quick Reference" section included
-- [ ] Rmd file knits without errors
-- [ ] All code chunks run and produce expected output
-
----
-
-## Workflow
-
-1. Write one chapter at a time
-2. Follow the four-part pedagogical approach for each concept
-3. Submit for review
-4. Proceed to next chapter only after explicit approval
