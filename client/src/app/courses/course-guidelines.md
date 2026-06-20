@@ -1,55 +1,63 @@
-# Course Development Guidelines
+# Course Development Guidelines using R
 
-Universal guidelines for creating courses on Dereck's Notes.
-
----
+Universal guidelines for creating courses on derecksnotes.com.
 
 ## Pedagogical Approach
 
-Every concept MUST be presented using the **four-part teaching method**:
+We present concepts in multiple ways. Depending on the subject matter we might choose to do:
 
-### 1. Prose and Intuition
-Explain the concept in plain language with analogies and context:
-- What is this?
-- Why does it matter?
-- When would you use it?
+1. Prose
+2. Visualisations
+3. Demonstrations
+4. Communication
 
-Build intuition before formalism. Make complex topics accessible.
+Different learners have different approaches and ways of retaining information. I find I personally benefit from visualisations and demonstrations. Especially deriving equations from first principles. I will never forget working with formulas for PH and then asking a question to myself, if pH s the measure of potential hydrogen and thus I asked does the inverse exist pOH? I played with formulas and out dropped a demonstration that allowed me to more intuitively understand pH/pOH.
 
-### 2. Visualisation
-Demonstrate concepts visually using `ggplot2`. Graphs and diagrams bridge intuition and mathematics.
+### 1. Prose
+
+I would opt to use simpler more direct language. People have short attention spans, I don't want to waste anyones time. Although, I typically heavily rely on analogies.
+
+### 2. Visualisations
+
+Demonstrate concepts visually using `ggplot2`. Graphs and diagrams to bridge intuition and mathematics.
+
+I also enjoy visualisations using JavaScript since we build from Rmd to MDX we can include components that are processed by the MDX system such as the following:
+
+TODO RESEARCH OUR CODEBASE AND FILL IN SMALL DEMOS HERE.
 
 ### 3. Mathematical Derivation
+
 Present formal mathematics following the French educational tradition — *derive* formulae - do mathematical demonstrations, don't just state them:
-- How the formula was discovered
-- Why it takes the form it does
+
+- Add some prose 1-2 sentences who and how the formula was discovered.
+- Why it takes the form it does explain the topology or groups of terms of the formula. Sometimes a formula can be explained by groups of terms, some terms are about X or Y or the denominator/numerator etc represent Z or A etc.
 - What each component means
 
+Make use of formulas using the fence "$$" for displayed maths and "$" for inline.
+
 ### 4. Communicating to Stakeholders
-Teach how to explain the concept to non-specialists:
+
+I typcailly not only teach the concept but also how to communicate the idea to others. This is often important in science, business, and teaching.
+
+Teach how to explain the concept to non specialists:
+
 - Plain language reporting
 - Common misunderstandings to avoid
-- How to answer questions from collaborators
 
-After the four-part introduction, implement methods **from scratch**, then show built-in functions.
+Teach how to explain the concept to specialists as well.
 
----
+## Exercise and code
 
-## Chapter Structure
-
-1. **Opening** — Brief introduction (1-2 paragraphs)
-2. **Sections** — Each follows the four-part pedagogical approach
-3. **Communication** — End-of-chapter guidance for non-specialists
-4. **Quick Reference** — Compact summary of formulae and code
-
----
+Depending on the subject if it calls for it we can then implement from scratch and demonstrate to users in a separate section.
 
 ## Language and Style
 
 ### Spelling
+
 **British Oxford English** throughout.
 
 ### Tone
+
 - Professional, academic, but accessible; think Richard Feynman
 - Build intuition before formalism
 - Avoid unnecessarily complex language
@@ -57,11 +65,12 @@ After the four-part introduction, implement methods **from scratch**, then show 
 - Define terms when first introduced
 - Use concrete examples before abstract definitions
 
----
-
 ## Code Style
 
+These are Rmd 
+
 ### Package Management
+
 ```r
 # ALWAYS use box::use() — NEVER use library()
 box::use(
