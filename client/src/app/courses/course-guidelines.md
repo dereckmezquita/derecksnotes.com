@@ -221,7 +221,7 @@ Useful flags: `--force` rebuilds even when `built/` is newer than `src/`, `--cle
 
 ### Key conventions
 
-- **`index.mdx`**: a folder's own page. Its frontmatter (`title`, `summary`, `published`, `transparent`, `coverImage`, …) describes the folder. Optional — a folder with no `index.mdx` still works (its title defaults to the slug).
+- **`index.mdx`** (or **`index.Rmd`**): a folder's own page. Its frontmatter (`title`, `summary`, `published`, `transparent`, `coverImage`, …) describes the folder. Use `index.Rmd` when a chapter/section intro needs to run R (e.g. a plot) — it is knit like any other part. Optional — a folder with no index still works (its title defaults to the slug).
 - **`transparent: true`** (in an `index.mdx`): the folder contributes no URL segment; its children promote up. For organisational groupings (e.g. a multi-volume family). Replaces the old `_passthrough` marker; works at any depth.
 - **`.Rmd` vs `.mdx`**: `.Rmd` is knit through R (runs code, emits figures); `.mdx` is copied through verbatim (no R). Per-file choice, uniform output.
 - **`data/` and `assets/`**: build-time ingredients, ignored by the site. The site also skips `drafts/`, `deprecated/`, `ignore/`, any `*.ignore` name, and dotfiles — handy for parking work-in-progress without deleting it.
@@ -232,10 +232,7 @@ Useful flags: `--force` rebuilds even when `built/` is newer than `src/`, `--cle
 
 Every chunk is knit with its **working directory set to the `.Rmd`'s own folder** — the build runs `knitr::opts_knit$set(root.dir = dirname(src))`. So a relative path in a chunk resolves from *that file's* location, never from `src/`, the work root, or the repo root.
 
-Shared datasets live in a `data/` folder kept at the **family** level, so every
-volume draws from the same place. The CSVs are **git-ignored** and fetched by the
-`download_*.R` scripts beside them (e.g. `Rscript data/download_primary.R`) — a
-fresh clone populates `data/` by running those, rather than committing the data:
+Shared datasets live in a `data/` folder kept at the **family** level, so every volume draws from the same place. The CSVs are **git-ignored** and fetched by the `download_*.R` scripts beside them (e.g. `Rscript data/download_primary.R`) — a fresh clone populates `data/` by running those, rather than committing the data:
 
 ```
 mathematical-statistics-with-R/
@@ -247,11 +244,7 @@ mathematical-statistics-with-R/
     └── src/01-describing-data/01-types-and-central-tendency.Rmd
 ```
 
-`data/` (like `assets/`) is a **build-time ingredient**: the build ignores it
-(`discover_sources` skips `data`, `assets`, `node_modules`) and so does the site,
-so nothing in `data/` ever lands in `built/` or reaches the browser. A chunk reads
-a CSV at knit time to produce a figure or table — the **figure** is emitted (to
-`public/courses/<volume>/`), the raw CSV is not.
+`data/` (like `assets/`) is a **build-time ingredient**: the build ignores it (`discover_sources` skips `data`, `assets`, `node_modules`) and so does the site, so nothing in `data/` ever lands in `built/` or reaches the browser. A chunk reads a CSV at knit time to produce a figure or table — the **figure** is emitted (to `public/courses/<volume>/`), the raw CSV is not.
 
 Read a dataset with a path relative to the `.Rmd`, defined once at the top:
 
@@ -263,8 +256,4 @@ data_dir <- "../../../data"
 penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
 ```
 
-The number of `../` tracks the file's depth: a part one chapter deep uses
-`../../../data`; promote that part into its own sub-folder (one level deeper) and
-it becomes `../../../../data`. Keep the path in a single `data_dir` variable so a
-move is a one-line fix, and never use an absolute or repo-rooted path — the build
-sets the working directory to the file's own folder, so those won't resolve.
+The number of `../` tracks the file's depth: a part one chapter deep uses `../../../data`; promote that part into its own sub-folder (one level deeper) and it becomes `../../../../data`. Keep the path in a single `data_dir` variable so a move is a one-line fix, and never use an absolute or repo-rooted path — the build sets the working directory to the file's own folder, so those won't resolve.
