@@ -21,9 +21,7 @@ I would opt to use simpler more direct language. People have short attention spa
 
 Demonstrate concepts visually using `ggplot2`. Graphs and diagrams to bridge intuition and mathematics.
 
-I also enjoy visualisations using JavaScript since we build from Rmd to MDX we can include components that are processed by the MDX system such as the following:
-
-TODO RESEARCH OUR CODEBASE AND FILL IN SMALL DEMOS HERE.
+I also enjoy visualisations using JavaScript since we build from Rmd to MDX we can include components that are processed by the MDX system — interactive plots, animations, callouts, carousels, and more. See the [MDX Components](#mdx-components) section below for the full set and how to use them.
 
 ### 3. Mathematical Derivation
 
@@ -56,7 +54,7 @@ If the course is teaching statistics for example we implement the function from 
 
 ### Spelling
 
-**British Oxford English** throughout.
+**British Oxford English** throughout — and in code where the library allows it. `ggplot2` ships both spellings of every function and argument (`scale_colour_manual` / `scale_color_manual`, `colour =` / `color =`), so use the British form to match the prose. Where a function only exists in American spelling, use it as-is.
 
 ### Tone
 
@@ -92,6 +90,28 @@ box::use(
 )
 ```
 
+### `box::use` gotchas — NSE in ggplot2 and data.table
+
+Two cases need the `::` form (not `$`) or a small shim, because they rely on non-standard evaluation:
+
+- **ggplot2 functions inside `aes()`** (`after_stat()`, `vars()`, …) are evaluated in ggplot2's NSE context, so `$` won't resolve — use `::`:
+
+```r
+ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)))  # correct
+ggplot2$geom_histogram(ggplot2$aes(y = ggplot2$after_stat(density)))   # wrong: $ fails here
+```
+
+- **data.table special symbols** (`.N`, `.SD`, `.GRP`) must exist in the calling environment. Bind the ones you use in a hidden chunk right after `setup`:
+
+````r
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
+.SD <- data.table::.SD
+```
+````
+
+then `dt[, .N, by = group]` works naturally in visible code.
+
 ### Common heavy use packages
 
 - `data.table`: Data manipulation (NEVER tidyverse)
@@ -109,6 +129,11 @@ box::use(
 - Heavy use of `data.table` for data manipulation
 - Use `Rscript` to run scripts — never use `source()`
 - NEVER RETURN FROM CONTROL FLOW; create variables with defaults then conditionally update if necessary do not use `varname <- if (...) ...`
+
+### Printing and output
+
+- **Don't overuse `cat()`.** For simple inspection, print the object directly and explain it in prose below the chunk — let the object speak for itself. Reserve `cat()` / `sprintf()` for genuinely formatted output (a comparison table, a step-by-step calculation).
+- Use inline R (`` `r some_var` ``) for dynamic values woven into prose; verify the rendered value matches the surrounding text.
 
 ### Reproducibility
 
@@ -169,9 +194,7 @@ knitr::opts_chunk$set(
 
 ### File & Folder Naming
 
-Name a file or folder only for *itself* — the tree provides the rest. A leading
-numeric prefix (`01-`, `02-`) sets the order; it is **stripped to form the URL
-slug**, so it never appears in a link.
+Name a file or folder only for *itself* — the tree provides the rest. A leading numeric prefix (`01-`, `02-`) sets the order; it is **stripped to form the URL slug**, so it never appears in a link.
 
 - Leaf page: `01-types-and-central-tendency.Rmd` → slug `types-and-central-tendency`
 - Chapter:   `01-describing-data/` → slug `describing-data`
@@ -189,7 +212,7 @@ client/src/app/courses/posts/
 └── mathematical-statistics-with-R/          # organisational family
     ├── index.mdx                            # `transparent: true` -> kept out of the URL
     ├── data/                                # shared datasets (ignored by the site)
-    ├── TOC.md  DATA.md  COURSE-GUIDE.md      # author notes
+    ├── TOC.md  DATA.md                       # author notes
     └── mathematical-statistics-1-foundations/   # a volume = the routable "work"
         ├── src/                             # ← SOURCE you edit (.Rmd + index.mdx)
         │   ├── index.mdx                    # volume page + metadata  (was _series.mdx)
@@ -204,10 +227,7 @@ client/src/app/courses/posts/
             └── … same tree, every page as .mdx …
 ```
 
-The tree is **recursive with no depth limit**: a leaf can be promoted to a
-container (give it a folder + an `index.*` + numbered children), and a part may be
-a plain `.mdx` leaf (copied through, no R) instead of `.Rmd`. No chapter uses
-either yet — every part above is currently a flat `.Rmd`.
+The tree is **recursive with no depth limit**: a leaf can be promoted to a container (give it a folder + an `index.*` + numbered children), and a part may be a plain `.mdx` leaf (copied through, no R) instead of `.Rmd`. No chapter uses either yet — every part above is currently a flat `.Rmd`.
 
 Build (or rebuild) a work — reads `src/`, writes `built/`:
 
@@ -257,3 +277,112 @@ penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
 ```
 
 The number of `../` tracks the file's depth: a part one chapter deep uses `../../../data`; promote that part into its own sub-folder (one level deeper) and it becomes `../../../../data`. Keep the path in a single `data_dir` variable so a move is a one-line fix, and never use an absolute or repo-rooted path — the build sets the working directory to the file's own folder, so those won't resolve.
+
+## MDX Components
+
+Because every page compiles from `.Rmd`/`.mdx` through MDX, you can drop React components straight into the prose. The available set is registered in `client/src/components/mdx/index.tsx`. Use them sparingly — only where they earn their place. **This set is not fixed:** if a course needs something new, you can add your own component backed by JavaScript or anything else (see *Building a new component* at the end).
+
+### `<Figure>` — captioned image with zoom
+
+A captioned image with a click-to-zoom lightbox (Esc closes); handles PDFs too. The children are the caption (markdown/links allowed) and `alt` is derived from them.
+
+```mdx
+<Figure src="/courses/<volume>/diagram.png">A labelled sampling distribution.</Figure>
+```
+
+You rarely write this by hand for R plots — the build's plot hook wraps every R figure as `<Figure src=… alt=…/>` automatically, taking the caption from the chunk's `fig.cap`. Reach for it directly only for static images you've placed under `public/`.
+
+### `<Alert>` — callout box
+
+GitHub-style callout with an icon and a coloured rule. `type` is `note`, `important`, or `warning` (it is the most-used rich element on the site).
+
+```mdx
+<Alert type="warning">
+The sample variance divides by `n - 1`, not `n` — see the derivation above.
+</Alert>
+```
+
+### `<Blockquote>` — pull quote
+
+A styled quotation with an optional `src` attribution (markdown links allowed, opened in a new tab).
+
+```mdx
+<Blockquote src="[R. A. Fisher](https://en.wikipedia.org/wiki/Ronald_Fisher)">
+To consult the statistician after an experiment is finished is often merely to ask him to conduct a post mortem examination.
+</Blockquote>
+```
+
+### `<InteractivePlot>` — canvas with live controls
+
+Sliders / checkboxes / selects above a `<canvas>`, redrawn on every change — use it when the reader benefits from turning a parameter (distribution shape, sample size, …). The `draw` string is **JavaScript** (canvas 2D, not R), run in a sandboxed iframe; it receives `canvas`, `ctx`, and `params` (current control values keyed by `id`).
+
+```mdx
+<InteractivePlot
+  controls={[
+    { id: "lambda", type: "range", label: "λ", min: 0.5, max: 25, step: 0.5, default: 5 },
+    { id: "showApprox", type: "checkbox", label: "Normal approx", default: false },
+    { id: "dist", type: "select", label: "Distribution", options: ["poisson", "binomial"], default: "poisson" }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const lam = params.lambda;
+    // ... draw using params ...
+  `}
+  width={600}
+  height={400}
+/>
+```
+
+Control types: `range` (`min`/`max`/`step?`/`default`), `checkbox` (`default` boolean), `select` (`options`/`default`).
+
+### `<CanvasWithJs>` — simple animation
+
+A bare sandboxed `<canvas>` for an auto-playing animation with **no** controls — when you don't need `InteractivePlot`'s parameter UI. The `code` string (JavaScript) receives `canvas` and `ctx`; use `requestAnimationFrame` for motion.
+
+```mdx
+<CanvasWithJs code={`
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ... draw one frame ...
+    requestAnimationFrame(frame);
+  }
+  frame();
+`} width={600} height={400} />
+```
+
+Don't use a canvas for a *static* image (ggplot2 makes better static output), and don't duplicate one visualisation in both R and canvas.
+
+### `<Carousel>` — image carousel
+
+An auto-advancing carousel with prev/next. `items` is an array of `{ src, caption? }`; `interval` is milliseconds (default 5000). Registered as `<Carousel>` (the file is `FigureCarrousel.tsx`).
+
+```mdx
+<Carousel
+  items={[
+    { src: "/courses/<volume>/step-1.png", caption: "Step 1" },
+    { src: "/courses/<volume>/step-2.png", caption: "Step 2" }
+  ]}
+/>
+```
+
+### `<KnowledgeGraphEmbed>` — embed the site graph
+
+Drops the site-wide knowledge graph (force-directed, with a control panel and a "View full screen" link to `/explore`) inline. Takes no props; niche, but handy for meta/overview pages.
+
+```mdx
+<KnowledgeGraphEmbed />
+```
+
+### Choosing a visualisation
+
+| Need | Use |
+|------|-----|
+| Static plot or diagram | `ggplot2` in an R chunk (auto-wrapped as `<Figure>`) |
+| A static image you placed yourself | `<Figure>` |
+| Reader adjusts parameters | `<InteractivePlot>` |
+| Auto-playing animation, no controls | `<CanvasWithJs>` |
+| A callout / aside | `<Alert>` |
+
+### Building a new component
+
+The set above is just React — the MDX pipeline is open, so when nothing fits you can build your own. Add `client/src/components/mdx/<Name>.tsx`, register it in the map in `index.tsx`, and it becomes usable as `<Name … />` in any `.Rmd`/`.mdx`. For anything that runs client-side JavaScript (canvas, animation, interactivity), follow `CanvasWithJs` / `InteractivePlot`: they execute author-supplied JS inside a sandboxed iframe (`sandbox="allow-scripts"`), which is the safe pattern for arbitrary drawing code. Keep new components general (reusable across courses), not one-offs.
