@@ -9,7 +9,13 @@
 - **Friction is the moat:** prioritise barriers that are legal-but-hard (crypto's institutional/regulatory friction; capital controls, custody, illiquidity in frontier equities) — the wall that keeps competitors out is the alpha source.
 - **Transfer the mechanism, not the label:** a strategy only ports if its structural cause (no arbitrageurs, slow info diffusion, retail dominance) is present in the target market.
 - **Markets in scope:** crypto (primary — we own the data infra and it is the purest frontier) and accessible African / frontier equities.
-- *Constraint — Russia parked:* the inefficiency is real but the barrier is a legal prohibition (sanctions), not a tradeable friction.
+- *Constraint — Russia parked (for trading):* the inefficiency is real but the barrier is a legal prohibition (sanctions), not a tradeable friction.
+- **Russia as a natural experiment (data-only, legal):** study Russian market data — not to transplant its inefficiencies into the (efficient) US, but to learn which edges re-emerge when arbitrage capital abruptly leaves, then apply that lesson to tradeable frontier markets (crypto, Africa).
+- **Market phenotyping → strategy transfer ("market atlas"):** profile every asset by *behavioural* statistics (efficiency, tails, volatility persistence, liquidity), cluster bottom-up so market "personalities" emerge on their own, map each profile to the strategies that paid there, and deploy them when a tradeable market (crypto/Africa) shows the same profile.
+  - *Bottom-up, not hand-labelled:* download as many symbols as possible and let the clusters form themselves — recovering geography validates the features, and *not* recovering it is itself a finding.
+  - *The crux:* a supervised meta-model `profile → which strategy paid`, proven by **leave-one-market-out** (predict the right strategy on a held-out market) — that test is the whole falsifiable claim.
+  - *Methods (bioinformatics ports ~1:1):* UMAP / diffusion maps (manifold), hierarchical clustering ("market phylogeny"), mixture models / HMM (regimes), and batch-effect correction to strip currency/liquidity nuisance — plus entropy/complexity (information theory) and random-matrix denoising (physics).
+  - *Reality check:* the strategy × market × era grid is a multiple-testing minefield → deflated Sharpe + leave-one-market-out mandatory; building blocks exist (QuantNet, Mantegna trees, stylized-fact clustering) but the profile→strategy-transfer-to-frontier synthesis is under-explored.
 
 ## 2. Cross-disciplinary method transfers (methods barely/never used in finance)
 - **Branching-ratio criticality** (neuroscience): measure the market's distance to a self-exciting tipping point from your own fills to flag fragile, crash-prone regimes — *best single bet.*
