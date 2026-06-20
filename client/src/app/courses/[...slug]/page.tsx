@@ -1,7 +1,7 @@
-import { createContentPage } from '@/utils/mdx/createContentPage';
+import { createTreeContentPage } from '@/utils/mdx/createTreeContentPage';
 
 const { Page, generateStaticParams, generateMetadata } =
-  createContentPage('courses');
+  createTreeContentPage('courses');
 
 export { generateStaticParams, generateMetadata };
 export default Page;

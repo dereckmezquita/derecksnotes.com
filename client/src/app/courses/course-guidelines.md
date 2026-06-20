@@ -105,17 +105,19 @@ box::use(
 
 ## File Format
 
-### Rmd Header Template
+### Page Header Template (a leaf `.Rmd` or `.mdx`)
+
+Each page's `title` is **its own title** — never the book or chapter title; the
+tree supplies that context. There is no `chapter:` / `part:` field.
+
 ```yaml
 ---
-title: "Course Title"
-chapter: "Chapter N: Chapter Name"
-coverImage: 13
-author: "Dereck Mezquita"
-date: YYYY-MM-DD
-tags: [relevant, tags, here]
+title: "Types of Data and Central Tendency"
 published: true
-comments: true
+tags: [statistics, data]    # optional; inherited from the volume if omitted
+coverImage: 13              # optional; inherited if omitted
+author: "Dereck Mezquita"   # optional; inherited if omitted
+date: YYYY-MM-DD            # optional
 output:
   html_document:
     keep_md: true
@@ -139,35 +141,68 @@ knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
 ```
 ````
 
-### File Naming Convention
-Pattern: `{number}-{part}_{course-name}_{chapter-name}_{section-name}.Rmd`
+### File & Folder Naming
 
-Example: `01-1_course-name_introduction_getting-started.Rmd`
+Name a file or folder only for *itself* — the tree provides the rest. A leading
+numeric prefix (`01-`, `02-`) sets the order; it is **stripped to form the URL
+slug**, so it never appears in a link.
+
+- Leaf page: `01-types-and-central-tendency.Rmd` → slug `types-and-central-tendency`
+- Chapter:   `01-describing-data/` → slug `describing-data`
+
+Reordering is a rename; there is no separate order field.
 
 ---
 
 ## Directory Structure
 
+Content lives under `client/src/app/courses/posts/` (same place as before, and
+uniform with `blog`/`dictionaries`). Each **work** (a volume) holds a `src/` you
+edit and a generated, disposable `built/` that the site serves. One recursive node
+model: a folder is a container, a file is a leaf.
+
 ```
-Course-Name/                        # Organisational folder
-├── _passthrough                    # Marker file (content system skips, promotes children)
-├── TOC.md                          # Master table of contents
-├── COURSE-GUIDE.md                 # Course-specific development guide
-├── course-1-part-name/
-│   ├── _series.mdx                 # Course manifest
-│   ├── src/                        # Source files (ignored by content system)
-│   │   ├── data/                   # Datasets
-│   │   └── *.Rmd                   # R Markdown source files
-│   └── 01-chapter-name/            # Chapter folders (compiled content)
-│       └── 01-1_....mdx
-└── course-2-part-name/
-    └── _series.mdx
+client/src/app/courses/posts/
+└── mathematical-statistics-with-R/          # organisational family
+    ├── index.mdx                            # `transparent: true` -> kept out of the URL
+    ├── data/                                # shared datasets (ignored by the site)
+    ├── TOC.md  DATA.md  COURSE-GUIDE.md      # author notes
+    └── mathematical-statistics-1-foundations/   # a volume = the routable "work"
+        ├── src/                             # ← SOURCE you edit (.Rmd + index.mdx)
+        │   ├── index.mdx                    # volume page + metadata  (was _series.mdx)
+        │   ├── 01-describing-data/          # a chapter
+        │   │   ├── index.mdx                # chapter title + summary  (was _meta.yaml)
+        │   │   ├── 01-types-and-central-tendency.Rmd   # a part (R Markdown)
+        │   │   ├── 02-spread-and-shape.Rmd
+        │   │   └── 03-visualisation/        # a part with sub-parts → just make it a folder
+        │   │       ├── index.mdx
+        │   │       └── 01-histograms.mdx    # plain MDX leaf → copied through, no R
+        │   └── 02-probability/ …
+        └── built/                            # ← BUILT OUTPUT (generated, served, disposable)
+            └── … same tree, every page as .mdx …
 ```
 
-### Key Files
-- **`_passthrough`**: Empty marker file. Folders containing this are skipped; their subdirectories are promoted to the top level.
-- **`_series.mdx`**: Required manifest for each course/part.
-- **`src/`**: Source files, ignored by the content system.
+Build (or rebuild) a work — reads `src/`, writes `built/`:
+
+```
+Rscript build-content.R client/src/app/courses/posts/mathematical-statistics-with-R/mathematical-statistics-1-foundations
+```
+
+`src/` and `built/` are both hidden from the URL, so the page above is served at
+`/courses/mathematical-statistics-1-foundations/describing-data/types-and-central-tendency`.
+
+### Key conventions
+- **`index.mdx`**: a folder's own page. Its frontmatter (`title`, `summary`,
+  `published`, `transparent`, `coverImage`, …) describes the folder. Optional — a
+  folder with no `index.mdx` still works (its title defaults to the slug).
+- **`transparent: true`** (in an `index.mdx`): the folder contributes no URL
+  segment; its children promote up. For organisational groupings (e.g. a
+  multi-volume family). Replaces the old `_passthrough` marker; works at any depth.
+- **`.Rmd` vs `.mdx`**: `.Rmd` is knit through R (runs code, emits figures);
+  `.mdx` is copied through verbatim (no R). Per-file choice, uniform output.
+- **`data/` and `assets/`**: build-time ingredients, ignored by the site.
+- Figures are written to `client/public/courses/<volume>/` and served from
+  `/courses/<volume>/`.
 
 ---
 
