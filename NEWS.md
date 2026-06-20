@@ -1,5 +1,14 @@
 # derecksnotes.com Change Log
 
+## v6.4.1 - Unified content build script (2026-06)
+
+A build-tooling follow-up to v6.4.0: the two parallel R build scripts are merged into one.
+
+- **`build-content.R` now builds both courses and dictionaries**, selecting the output shape from the content type (auto-detected from the path). Courses knit `.Rmd` / copy `.mdx` from `src/` into a sibling `built/` tree; dictionaries knit `src/*.Rmd` flat beside `src/`, with figures namespaced per subject (`/dictionaries/<subject>/`) and a `<basename>-` figure prefix so the one shared per-subject figure directory stays collision-free.
+- **`build-rmd.R` is deleted.** Its dictionary behaviour now lives in `build-content.R` behind the content-type switch; nothing else referenced it (no `package.json` script, Docker, or CI).
+- **Behaviour-preserving, verified.** Re-running the merged script reproduces the old per-script output byte-for-byte for courses, and identically for dictionaries (modulo pre-existing locale-encoding and `igraph` nondeterminism that any rebuild surfaces) — no served `.mdx` changed.
+- **Docs.** `courses/course-guidelines.md` refreshed so the page-header and setup-chunk templates match what the build actually does (it injects the `<Figure>` hook and chunk defaults), plus content-hiding conventions (`published: false`, `drafts/`).
+
 ## v6.4.0 - Recursive course content: source/output split, index pages (2026-06)
 
 Long-form courses move from a co-mingled, level-coded layout to a uniform, arbitrarily-deep tree with a clean source/output split. First PR of a larger content rework.
