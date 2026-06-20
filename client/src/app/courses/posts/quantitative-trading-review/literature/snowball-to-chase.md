@@ -1,0 +1,491 @@
+# Snowball — 487 referenced works to chase next
+
+> Cited by gathered papers; candidates for the next gathering round.
+
+- Abi Jaber, El Euch, 'Multifactor approximation of rough volatility models' (SIAM J. Fin. Math. 2019) — `10.1137/18M1170236` — General Markovian approximation theory underlying the lifted model.
+- Acerbi & Szekely (2014), Backtesting expected shortfall — Practitioner backtests for ES that motivated the elicitability question.
+- Acerbi & Szekely, 'Backtesting Expected Shortfall', Risk Magazine, 2014 — Source of the ES backtests used to evaluate the methods; key for the backtesting comparison.
+- Acerbi & Tasche, 'On the coherence of expected shortfall', J. Banking & Finance 26(7):1487-1503, 2002 — `10.1016/S0378-4266(02)00283-2` — Establishes coherence of expected shortfall, the regulator-chosen measure under Basel III.
+- Admati & Pfleiderer (1988), A theory of intraday patterns: volume and price variability, RFS — `10.1093/rfs/1.1.3` — Extends Kyle to intraday clustering of informed and liquidity trading.
+- Aharoni, Grundy, Zeng (2013), 'Stock returns and the Miller Modigliani valuation formula', JFE — `10.1016/j.jfineco.2013.04.005` — Valuation-equation logic motivating the five factors.
+- Aït-Sahalia, Mykland, Zhang, 'How often to sample a continuous-time process in the presence of market microstructure noise' (RFS 2005) — `10.1093/rfs/hhi016` — Companion paper on optimal sampling under noise.
+- Alfonsi, Fruth, Schied (2010), Optimal execution strategies in limit order books with general shape functions, Quantitative Finance — `0708.1756` — Generalises to nonlinear LOB shape functions.
+- Almgren & Chriss (2001), Optimal execution of portfolio transactions, Journal of Risk — `10.21314/JOR.2001.041` — The canonical mean-variance execution model that defines the whole field; baseline the review builds on.
+- Almgren, R. & Chriss, N. (2001). Optimal execution of portfolio transactions. — Single-trade execution counterpart of this multi-period framework (already gathered).
+- Andersen & Bollerslev (1998), Answering the skeptics: yes, standard volatility models do provide accurate forecasts — `10.2307/2527343` — Establishes realized volatility as the proper forecast-evaluation benchmark.
+- Andersen, Bollerslev, Diebold & Ebens (2001) The distribution of realized stock return volatility, Journal of Financial Economics — `10.1016/S0304-405X(01)00055-1` — Companion equity-market study confirming the same realized-volatility stylised facts for stocks.
+- Andersen, Bollerslev, Diebold & Labys, 'Modeling and Forecasting Realized Volatility', Econometrica 71(2):579-625, 2003 — `10.1111/1468-0262.00418` — Foundational realised-volatility framework; defines the targets/measures used by ML forecasters.
+- Andersen, Bollerslev, Meddahi, 'Realized volatility forecasting and market microstructure noise' (JoE 2011) — `10.1016/j.jeconom.2010.03.029` — Quantifies the measurement-error problem HARQ exploits.
+- Ang & Bekaert, International Asset Allocation with Regime Shifts (2002) — `10.1093/rfs/15.4.1137` — Canonical finance application of regime switching to correlations and allocation.
+- Ang, Hodrick, Xing, Zhang, 'The Cross-Section of Volatility and Expected Returns' (2006) — `10.1111/j.1540-6261.2006.00836.x` — Documents the IVOL puzzle this paper explains.
+- Ansari et al. - Chronos: Learning the Language of Time Series (2024) — `arXiv:2403.07815` — Tokenisation-based TSFM contrasted with the decoder-only design
+- Araci — FinBERT: Financial Sentiment Analysis with Pre-trained Language Models — `arXiv:1908.10063` — Origin of domain-specific financial transformers; foundational for the sentiment-analysis branch.
+- Araci — FinBERT: Financial Sentiment Analysis with Pre-trained Language Models (2019) — `1908.10063` — Predecessor domain language model for finance.
+- Arlot & Celisse (2010), A Survey of Cross-Validation Procedures for Model Selection, Statistics Surveys — `10.1214/09-SS054` — Background on the cross-validation theory PBO/CSCV builds upon.
+- Artzner, Delbaen, Eber & Heath, 'Coherent measures of risk', Mathematical Finance 9(3):203-228, 1999 — `10.1111/1467-9965.00068` — Defines coherence/subadditivity, motivating EVT-based tail risk measures over plain VaR.
+- Asness, Moskowitz & Pedersen, Value and Momentum Everywhere (2013) — `10.1111/jofi.12021` — Companion paper establishing momentum across asset classes.
+- Avellaneda & Lee, Statistical Arbitrage in the US Equities Market (2010) — `10.1080/14697680903124632` — The PCA/residual statistical-arbitrage representative covered in the survey.
+- Avellaneda & Stoikov — High-frequency trading in a limit order book (2008) — `10.1080/14697680701381228` — Stochastic-control market-making model the RL agent is benchmarked against.
+- Back (1992), Insider trading in continuous time, RFS — `10.1093/rfs/5.3.387` — Continuous-time generalisation of Kyle's strategic-trading equilibrium.
+- Bacry, Delattre, Hoffmann, Muzy (2013), Modelling microstructure noise with mutually exciting point processes, Quantitative Finance — `10.1080/14697688.2011.647054` — Bivariate Hawkes model of up/down ticks capturing microstructure noise.
+- Bacry, Iuga, Lasnier, Lehalle (2015), Market impacts and the life cycle of investors' orders, Market Microstructure and Liquidity — `arXiv:1412.0217` — Large-scale empirical metaorder impact and decay measurements central to the reviewed stylized facts.
+- Bacry, Mastromatteo & Muzy (2015), Hawkes processes in finance — `1502.04592` — Survey of the Hawkes-process microstructure machinery used.
+- Bai & Ng (2002), Determining the Number of Factors in Approximate Factor Models — `10.1111/1468-0262.00273` — Factor-number selection used in approximate factor covariance estimation.
+- Bai & Silverstein (2010), Spectral Analysis of Large Dimensional Random Matrices — `10.1007/978-1-4419-0661-8` — Reference text for the large-dimensional asymptotic tools used.
+- Bai & Silverstein, No eigenvalues outside the support of the limiting spectral distribution (1998) — `10.1214/aop/1022855421` — Key RMT support result used in the consistency proof.
+- Bailey & Lopez de Prado (2012), Balanced Baskets: A New Approach to Trading and Hedging Risks — `10.3905/jot.2013.8.4.108` — Precursor exploring tree/cluster-based risk balancing.
+- Bailey & López de Prado (2012), The Sharpe Ratio Efficient Frontier, J. Risk — `10.21314/JOR.2012.255` — Develops the Probabilistic Sharpe Ratio that DSR generalizes to the multiple-testing case.
+- Bailey & López de Prado (2014), The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality, Journal of Portfolio Management — `10.3905/jpm.2014.40.5.094` — The companion correction adjusting Sharpe ratios for the number of trials — the operational fix for the overfitting they expose.
+- Bailey, Borwein, López de Prado & Zhu (2014), Pseudo-Mathematics and Financial Charlatanism, Notices of the AMS — `10.1090/noti1105` — The overfitting evidence the protocol is designed to guard against.
+- Bailey, Borwein, López de Prado & Zhu (2017), The Probability of Backtest Overfitting, Journal of Computational Finance — `10.21314/JCF.2016.322` — Formalizes PBO via combinatorially symmetric cross-validation — the methodological extension of this paper.
+- Bailey, Borwein, López de Prado, Zhu — The Probability of Backtest Overfitting (2017) — `10.2139/ssrn.2326253` — Source of the CSCV method the book uses to quantify overfitting.
+- Baker & Wurgler (2006), 'Investor sentiment and the cross-section of stock returns', Journal of Finance — `10.1111/j.1540-6261.2006.00885.x` — Sentiment index used to time the mispricing factors.
+- Bakshi, Cao, Chen, 'Empirical performance of alternative option pricing models' (JF 1997) — `10.1111/j.1540-6261.1997.tb02749.x` — Horse-race establishing SV+jumps as the empirically preferred specification.
+- Bandi & Russell, 'Separating microstructure noise from volatility' (JFE 2006) — `10.1016/j.jfineco.2005.10.002` — Alternative MSE-optimal sampling/bias-correction approach to noise.
+- Banz, R. W. (1981), 'The relationship between return and market value of common stocks', JFE — `10.1016/0304-405X(81)90018-0` — Original size effect that FF92 systematizes.
+- Barber, Lee, Liu & Odean (2014), The Cross-Section of Speculator Skill: Evidence from Day Trading, Journal of Financial Markets — `10.1016/j.finmar.2013.05.006` — Related evidence on persistence and survival of trader skill.
+- Barillas & Shanken, 'Comparing Asset Pricing Models' (2018) — `10.1111/jofi.12607` — Provides the Sharpe-ratio test used to declare q5 superior.
+- Barndorff-Nielsen (1977), Exponentially decreasing distributions for the logarithm of particle size — `10.1098/rspa.1977.0041` — Origin of the generalised hyperbolic / hyperbolic distribution family.
+- Barndorff-Nielsen (1997), Normal inverse Gaussian distributions and stochastic volatility modelling — `10.1111/1467-9469.00045` — Companion NIG subclass widely used for returns.
+- Barndorff-Nielsen & Shephard (2002) Econometric analysis of realized volatility, JRSS-B — `10.1111/1467-9868.00336` — Provides the formal asymptotic theory (realized variance to integrated variance) underlying these estimators.
+- Barndorff-Nielsen & Shephard (2004), Power and bipower variation with stochastic volatility and jumps — `10.1093/jjfinec/nbh001` — Theoretical basis for the bipower jump decomposition.
+- Barndorff-Nielsen & Shephard, 'Econometrics of testing for jumps in financial economics using bipower variation' (JFE 2006) — `10.1093/jjfinec/nbi022` — The formal nonparametric jump test built on bipower variation.
+- Barndorff-Nielsen, Hansen, Lunde, Shephard, 'Designing realised kernels...' (Econometrica 2008) — `10.3982/ECTA6495` — The competing/complementary kernel-based noise-robust estimator.
+- Barndorff-Nielsen, Hansen, Lunde, Shephard, 'Multivariate realised kernels...' (JoE 2011) — `10.1016/j.jeconom.2010.07.009` — PSD covariance estimation with noise and non-synchronous (Epps-effect) trading.
+- Barras, Scaillet & Wermers (2010), False Discoveries in Mutual Fund Performance, Journal of Finance — `10.1111/j.1540-6261.2009.01527.x` — Introduced FDR estimation of luck vs skill in fund alphas — the method Harvey-Liu critique for low power.
+- Bauwens, Laurent & Rombouts (2006), Multivariate GARCH models: a survey — `10.1002/jae.1037` — Comprehensive survey situating DCC among MGARCH alternatives.
+- Bayer, Friz & Gatheral (2016), Pricing under rough volatility — `10.1080/14697688.2015.1099717` — Companion paper building the option-pricing RFSV model.
+- Bayer, Stemper, 'Deep calibration of rough stochastic volatility models' (arXiv 2018) — `1810.03399` — Parallel/contemporaneous deep-calibration approach for rough models.
+- Bayraktar, E. & Ludkovski, M. (2014). Liquidation in limit order books with controlled intensity. — `10.1111/j.1467-9965.2012.00529.x` — Parallel controlled-intensity liquidation analysis.
+- Belkin, Hsu, Ma, Mandal (2019), 'Reconciling modern machine-learning practice and the classical bias-variance trade-off', PNAS — `10.1073/pnas.1903070116` — Origin of the double-descent phenomenon invoked here.
+- Belloni, Chernozhukov, Hansen (2014) Inference on Treatment Effects after Selection among High-Dimensional Controls — `10.1093/restud/rdt044` — The double-selection LASSO inference machinery FGX adapt to factors.
+- Benjamini & Hochberg (1995), Controlling the False Discovery Rate, JRSS-B — `10.1111/j.2517-6161.1995.tb02031.x` — The FDR control procedure Harvey-Liu-Zhu adapt to factor testing.
+- Bertram, Analytic Solutions for Optimal Statistical Arbitrage Trading (2010) — `10.1016/j.physa.2010.02.014` — Closed-form optimal OU trading thresholds maximizing return per unit time.
+- Bertsimas & Lo (1998), Optimal control of execution costs, J. Financial Markets — `10.1016/S1386-4181(97)00012-8` — Dynamic-programming predecessor minimising expected execution cost.
+- Best & Grauer (1991), On the Sensitivity of Mean-Variance-Efficient Portfolios — `10.1093/rfs/4.2.315` — Quantifies how tiny changes in estimated means produce large swings in optimal weights.
+- Biais, Foucault, Moinas (2015), Equilibrium fast trading, J. Financial Economics — `10.1016/j.jfineco.2014.11.008` — Theory of fast-trading externalities and adverse selection.
+- Bickel & Levina (2008), Covariance regularization by thresholding — `10.1214/08-AOS600` — The thresholding theory POET builds on for the idiosyncratic block.
+- Black (1976) Studies of stock price volatility changes — The original conjecture linking falling prices to rising volatility (the 'leverage' interpretation).
+- Black (1976), Studies of stock price volatility changes — Original identification of the leverage effect.
+- Black (1986), Noise, Journal of Finance — `10.1111/j.1540-6261.1986.tb04513.x` — Argues noise trading is what keeps markets liquid and prevents full revelation.
+- Black, Jensen, Scholes (1972), 'The capital asset pricing model: Some empirical tests' — Companion CAPM test using portfolio betas; the empirical complement.
+- Black, Litterman — Global Portfolio Optimization (1992) — `10.2469/faj.v48.n5.28` — Canonical Bayesian remedy for estimation error in expected returns, a central reviewed method.
+- Blanchet, Chen & Zhou (2022), Distributionally Robust Mean-Variance Portfolio Selection with Wasserstein Distances — `10.1287/mnsc.2021.4155` — Closely related Wasserstein-DRO portfolio framework reducing to regularized Markowitz.
+- Bodnar, Okhrin, Parolya, Optimal shrinkage-based portfolio selection in high dimensions (2021) — `1611.01958` — The weight-shrinkage component, the second ingredient of the double-shrinkage scheme.
+- Bodnar, Parolya, Schmid, Estimation of the global minimum variance portfolio in high dimensions (2018) — `10.1016/j.ejor.2017.09.028` — Companion GMV-weight shrinkage result used as a building block.
+- Bollerslev (1990), Modelling the coherence in short-run nominal exchange rates (CCC-GARCH) — `10.2307/2109358` — Constant-correlation predecessor DCC generalizes.
+- Bollerslev, 'Generalized autoregressive conditional heteroskedasticity', J. Econometrics 31(3):307-327, 1986 — `10.1016/0304-4076(86)90063-1` — Defines the GARCH model — the econometric baseline against which neural models are compared.
+- Bollerslev, Chou & Kroner (1992) ARCH modeling in finance: a review, Journal of Econometrics — `10.1016/0304-4076(92)90064-X` — Authoritative survey of the ARCH family's empirical record on financial returns.
+- Bollerslev, Patton & Quaedvlieg (2018), Modeling and forecasting (un)reliable realized covariances — `10.1016/j.jeconom.2018.07.004` — Realized-covariance / commonality structure exploited in the panel.
+- Bollerslev, Tauchen & Zhou (2009), Expected stock returns and variance risk premia — `10.1093/rfs/hhp008` — Shows the VRP predicts the equity premium.
+- Bondarenko, Statistical Arbitrage and Securities Prices (2003) — `10.1093/rfs/hhg028` — Defines the conditional/statistical-arbitrage concept the robust version generalizes.
+- Bongiorno & Challet (2021), Covariance matrix filtering with bootstrapped hierarchies — `2108.07905` — Companion work proposing hierarchy/bootstrap-based filtering alternatives.
+- Bouchaud & Potters (2003) Theory of Financial Risk and Derivative Pricing — `10.1017/CBO9780511753893` — Standard reference for tempered/truncated heavy-tailed return models and aggregational tail-thinning.
+- Bouchaud, Gefen, Potters, Wyart (2004), Fluctuations and response in financial markets, Quantitative Finance — `arXiv:cond-mat/0307332` — Propagator/transient-impact model linking order flow to price changes, foundational to the book.
+- Bouchaud, Gefen, Potters, Wyart (2004), Fluctuations and response in financial markets: the subtle nature of random price changes, Quantitative Finance — `cond-mat/0307332` — Origin of the propagator model of permanent vs transient impact.
+- Bouchaud, J-P., Farmer, J.D. & Lillo, F. (2009). How markets slowly digest changes in supply and demand. Handbook of Financial Markets. — `10.1016/B978-012374258-2.50006-3` — Canonical review chapter; the prose precursor to this monograph, worth gathering separately.
+- Bouchaud, J-P., Gefen, Y., Potters, M. & Wyart, M. (2004). Fluctuations and response in financial markets: the subtle nature of 'random' price changes. — `10.1088/1469-7688/4/2/B01` — Original propagator/transient-impact model expounded in the book.
+- Boyd, Busseti, Diamond, Kahn, Koh, Nystrup, Speth — Multi-period trading via convex optimization (2017) — `1705.00109` — The convex-optimization machinery (with transaction/holding costs) that this review modernizes Markowitz with.
+- Britten-Jones & Neuberger (2000), Option prices, implied price processes, and stochastic volatility — `10.1111/0022-1082.00228` — Model-free replication of variance from option prices underlying variance swaps.
+- Brock, Lakonishok & LeBaron (1992), Simple Technical Trading Rules and the Stochastic Properties of Stock Returns, JF — `10.1111/j.1540-6261.1992.tb04681.x` — The original 26-rule study whose snooping-uncorrected results STW re-examine.
+- Brodie, Daubechies, De Mol, Giannone & Loris (2009), Sparse and Stable Markowitz Portfolios — `10.1073/pnas.0904287106` — L1-regularized (sparse) Markowitz, a direct instance of the norm-constraint idea.
+- Brunnermeier & Pedersen (2009), Market liquidity and funding liquidity — `10.1093/rfs/hhn098` — Funding-constraint mechanism central to the survey.
+- Bucci et al. (2019), Co-impact: crowding effects in institutional trading activity, Quantitative Finance — `1804.09565` — Companion empirical work on cross-impact and crowding in metaorders.
+- Bucci et al. (2019), Crossover from linear to square-root market impact, PRL — `10.1103/PhysRevLett.122.108302` — Empirical small-to-large-order crossover refining the square-root law.
+- Bucci, Mastromatteo, Eisler, Lillo, Bouchaud, Lehalle (2019), Co-impact: crowding effects in institutional trading activity, Quantitative Finance — `arXiv:1804.09565` — Modern empirical impact measurement on institutional metaorders, methodological precursor.
+- Buehler, Gonon, Teichmann, Wood, 'Deep hedging' (Quant. Finance 2019) — `10.1080/14697688.2019.1571683` — Companion deep-learning approach to model-free hedging in the same surface setting.
+- Buehler, Gonon, Teichmann, Wood, Mohan, Kochems - Deep Hedging: Hedging Derivatives Under Generic Market Frictions Using Reinforcement Learning (2019) — `10.2139/ssrn.3355706` — Extension generalising the friction model and risk objectives
+- Bun, Allez, Bouchaud, Potters — Rotational invariant estimator for general noisy matrices (2016) — `10.1109/TIT.2016.2616132` — Derives the optimal RIE / oracle estimator that is the central practical result of the review.
+- Byrd, Hybinette, Balch - ABIDES: Towards High-Fidelity Market Simulation (2020) — `arXiv:1904.12066` — The agent-based LOB simulator used as the RL environment
+- Calvet & Fisher (2004) How to forecast long-run volatility: regime switching and the estimation of multifractal processes, Journal of Financial Econometrics — `10.1093/jjfinec/nbh003` — The maximum-likelihood MSM estimator, the close alternative to Lux's GMM approach.
+- Campbell & Kyle (1993), Smart money, noise trading and stock price behaviour — `10.2307/2298113` — Equilibrium pricing extension with rational and noise traders.
+- Campbell & Shiller (1988), Stock Prices, Earnings, and Expected Dividends, Journal of Finance — `10.1111/j.1540-6261.1988.tb04598.x` — The log-linear present-value identity Cochrane exploits.
+- Campbell & Shiller (1988), The Dividend-Price Ratio and Expectations of Future Dividends, RFS — `10.1093/rfs/1.3.195` — Source of the dividend-yield predictor used in the trading rules.
+- Campbell & Thompson (2008), Predicting Excess Stock Returns Out of Sample, RFS — `10.1093/rfs/hhm055` — Companion paper showing weak predictability survives with economic constraints.
+- Carhart, On Persistence in Mutual Fund Performance (1997) — `10.1111/j.1540-6261.1997.tb03808.x` — Introduces the momentum (UMD/WML) factor used to risk-adjust momentum strategies.
+- Carr & Madan, 'Option valuation using the fast Fourier transform' (J. Comp. Finance 1999) — FFT pricing made the transform approach computationally practical.
+- Carr & Wu (2009), Variance risk premiums — `10.1093/rfs/hhn038` — Companion paper measuring the VRP this paper uses as a predictor.
+- Carrion (2013), Very fast money: high-frequency trading on the NASDAQ, J. Financial Markets — `10.1016/j.finmar.2013.06.005` — Complementary HFT-flagged evidence on HFT profitability and timing.
+- Cartea & Jaimungal (2016), Incorporating order-flow into optimal execution, Mathematics and Financial Economics — `10.1007/s11579-016-0162-z` — Signal-/order-flow-aware execution, a major recent strand the review surveys.
+- Cartea, A., Jaimungal, S. & Ricci, J. (2014). Buy Low, Sell High: A High Frequency Trading Perspective. — `10.1137/130911196` — Authors' own market-making/execution model expanded in the book.
+- Cartea, Jaimungal, Penalva (2015), Algorithmic and High-Frequency Trading, Cambridge University Press — Standard stochastic-control textbook for execution/market-making the RL methods are benchmarked against.
+- Chakraborti et al. (2011), Econophysics review I: empirical facts, Quantitative Finance — `10.1080/14697688.2010.539248` — Comprehensive review of empirical stylised facts they build on.
+- Chan, Chen, Hsieh (1985), 'An exploratory investigation of the firm size effect', JFE — `10.1016/0304-405X(85)90050-1` — Risk-based interpretation of the size effect.
+- Charles, Darné & Kim (2012), Exchange-Rate Return Predictability and the AMH, JIMF — `10.1016/j.jimonfin.2012.03.003` — Representative time-varying AMH application extending the survey.
+- Chen (2021) The Limits of p-Hacking: Some Thought Experiments — `10.1111/jofi.13036` — Companion argument against the p-hacking explanation.
+- Chen (2022), Most Claimed Statistical Findings in Cross-Sectional Return Predictability Are Likely True, arXiv — `2206.15365` — Companion FDR-bounds argument behind the optimistic interpretation.
+- Chen & Velikov, 'Zeroing In on the Expected Returns of Anomalies' (2023) — `10.1017/s0022109022000874` — Net-of-cost extension quantifying surviving anomaly returns.
+- Chen & Zimmermann (2020), Publication Bias and the Cross-Section of Stock Returns, Review of Asset Pricing Studies — `10.1093/rapstu/raz011` — Companion work estimating publication bias is modest, underpinning the low-FDR claim.
+- Chen & Zimmermann (2022), Open Source Cross-Sectional Asset Pricing, Critical Finance Review — `10.1561/104.00000112` — Open replication dataset and complementary evidence that anomalies largely replicate.
+- Chen & Zimmermann, 'Open Source Cross-Sectional Asset Pricing' (2022) — Competing open dataset/replication effort (already gathered).
+- Chen, Zimmermann (2020) Open Source Cross-Sectional Asset Pricing — `10.1093/rapstu/raab017` — The replication dataset underlying the calibration (already gathered).
+- Choi (1999), Testing the random walk hypothesis for real exchange rates — `10.1002/(SICI)1099-1255(199905/06)14:3<293::AID-JAE503>3.0.CO;2-5` — Source of the automatic horizon-selection rule Kim adopts.
+- Chopra & Ziemba (1993), The Effect of Errors in Means, Variances, and Covariances on Optimal Portfolio Choice — `10.3905/jpm.1993.409440` — Classic decomposition showing errors in means dominate errors in covariances.
+- Chordia, Goyal & Saretto (2020), Anomalies and False Rejections, RFS — `10.1093/rfs/hhaa018` — Large-scale data-mining simulation estimating the false-discovery rate among anomalies.
+- Choueifaty, Coignard — Toward maximum diversification (2008) — `10.3905/JPM.2008.35.1.40` — Maximum-diversification portfolio, a key competing risk-based allocation method.
+- Choueifaty, Froidure, Reynier, Properties of the most diversified portfolio (2013) — `10.21314/JOIS.2013.033` — Formal follow-up proving MDP properties (core/duality, invariance).
+- Chow & Denning (1993), A simple multiple variance ratio test — `10.1016/0304-4076(93)90051-6` — The multiple-horizon framework into which rank/sign tests are embedded.
+- Clark & West (2007), Approximately Normal Tests for Equal Predictive Accuracy, Journal of Econometrics — `10.1016/j.jeconom.2006.05.023` — Out-of-sample forecast-comparison test used to benchmark predictors.
+- Clarke, de Silva, Thorley, Minimum-variance portfolios in the US equity market (2006) — `10.3905/jpm.2006.661366` — The min-variance benchmark MDP is contrasted with.
+- Clauset, Shalizi & Newman (2009), Power-law distributions in empirical data, SIAM Review — `0706.1062` — Maximum-likelihood power-law fitting / goodness-of-fit methodology used.
+- Cochrane (2008), The Dog That Did Not Bark: A Defense of Return Predictability, RFS — `10.1093/rfs/hhm046` — Reframes the predictability evidence via the present-value identity.
+- Cochrane, J. (1991), 'Production-based asset pricing and the link between stock returns and economic fluctuations' — `10.1111/j.1540-6261.1991.tb02674.x` — Theoretical q-theory foundation for the investment factor.
+- Cochrane, J. (2011), 'Presidential Address: Discount Rates', Journal of Finance — `10.1111/j.1540-6261.2011.01671.x` — Multidimensional-cross-section agenda this paper addresses.
+- Comte & Renault (1998), Long memory in continuous-time stochastic volatility models — `10.1111/1467-9965.00057` — Original fractional stochastic-volatility framework reinterpreted by roughness.
+- Cont (2001), Empirical properties of asset returns, Quantitative Finance — `10.1080/713665670` — Lists the leverage effect among the canonical stylised facts.
+- Cont & de Larrard (2013), Price dynamics in a Markovian limit order market, SIAM J. Financial Mathematics — `10.1137/110856605` — Diffusion limit of the queueing LOB linking microstructure to volatility.
+- Cont, Stoikov, Talreja - A stochastic model for order book dynamics (2010) — `10.1287/opre.1090.0780` — Classical stochastic LOB model the ML approach is benchmarked against
+- Copeland & Galai (1983), Information effects on the bid-ask spread, J. Finance — `10.1111/j.1540-6261.1983.tb02508.x` — Early option-theoretic decomposition of the spread.
+- Corsi, 'A Simple Approximate Long-Memory Model of Realized Volatility' (HAR), J. Financial Econometrics 7(2):174-196, 2009 — `10.1093/jjfinec/nbp001` — The HAR benchmark that ML volatility models must beat; standard realised-volatility forecasting baseline.
+- Couillet & McKay (2014), Large dimensional analysis and optimization of robust shrinkage covariance matrix estimators — `10.1016/j.jmva.2014.06.001` — The RMT analysis of robust-shrinkage estimators underpinning this method.
+- Daniel & Titman (1997), 'Evidence on the characteristics of cross sectional variation in stock returns', Journal of Finance — `10.1111/j.1540-6261.1997.tb01700.x` — Classic 'characteristics not covariances' challenge IPCA revisits.
+- Daniel & Titman, 'Evidence on the Characteristics...' (1997) — `10.1111/j.1540-6261.1997.tb03806.x` — Characteristics-vs-covariances test-design debate that motivates the appraisal.
+- Daniel, Hirshleifer & Subrahmanyam, Investor Psychology and Security Market Under- and Overreactions (1998) — `10.1111/0022-1082.00077` — Behavioral model of overconfidence generating momentum then reversal.
+- Das, Kong, Sen, Zhou - A decoder-only foundation model for time-series forecasting (TimesFM, 2024) — `arXiv:2310.10688` — Competing decoder-only TSFM in the same benchmark space
+- Davis, Fama, French, 'Characteristics, Covariances, and Average Returns: 1929 to 1997' (2000) — `10.1111/0022-1082.00209` — FF rebuttal extending the sample to dispute Daniel-Titman.
+- De Bondt & Thaler (1985), Does the Stock Market Overreact?, Journal of Finance — `10.1111/j.1540-6261.1985.tb05004.x` — The overreaction hypothesis this paper qualifies.
+- De Long, Shleifer, Summers & Waldmann (1990), Noise Trader Risk in Financial Markets, JPE — `10.1086/261703` — Foundational model of how noise-trader risk deters arbitrage.
+- Delbaen (2002), Coherent risk measures on general probability spaces — `10.1007/978-3-662-04790-3_1` — Extends the coherence theory to general (infinite) probability spaces.
+- DeMiguel, Garlappi, Nogales & Uppal (2009), A Generalized Approach to Portfolio Optimization — `10.1287/mnsc.1080.0986` — Generalizes the constraint-equals-shrinkage insight to arbitrary norm constraints.
+- DeMiguel, Garlappi, Uppal — Optimal versus naive diversification (2009) — `10.1093/rfs/hhm075` — The 1/N benchmark critique motivating estimation-robust allocation methods like HRP and risk parity.
+- Deng, Bao, Kong, Ren & Dai — Deep Direct Reinforcement Learning for Financial Signal Representation and Trading — `10.1109/TNNLS.2016.2522401` — Seminal fuzzy deep-RL trading paper combining representation learning with direct RL.
+- Dickey & Fuller (1979), Distribution of estimators for autoregressive time series with a unit root — `10.2307/2286348` — The competing unit-root test benchmarked against VR.
+- Diebold & Mariano (1995), Comparing Predictive Accuracy, JBES — `10.1080/07350015.1995.10524599` — Underlying pairwise predictive-accuracy test that the Reality Check generalizes to many models.
+- Ding, Granger & Engle (1993), A long memory property of stock market returns and a new model, Journal of Empirical Finance — `10.1016/0927-5398(93)90006-D` — Foundational evidence for slow decay of absolute-return autocorrelation.
+- Do & Faff, Are Pairs Trading Profits Robust to Trading Costs? (2012) — `10.1111/j.1475-6803.2012.01317.x` — Companion paper quantifying how transaction costs eliminate most of the profit.
+- Do & Faff, Does Simple Pairs Trading Still Work? (2010) — `10.2469/faj.v66.n4.1` — Replicates GGR and documents the post-2002 decline in profitability.
+- Donier, Bonart (2015), A million metaorder analysis of market impact on the Bitcoin, Market Microstructure and Liquidity — `arXiv:1412.4503` — Cross-market empirical confirmation of the square-root law that the theory must reproduce.
+- Donier, Bonart, Mastromatteo, Bouchaud (2015), A fully consistent, minimal model for non-linear market impact, Quantitative Finance — `arXiv:1412.0141` — Latent-order-book reaction-diffusion model underpinning the book's impact theory.
+- Drechsler & Yaron (2011), What's vol got to do with it — `10.1093/rfs/hhq085` — Long-run-risk equilibrium explanation of the VRP predictability.
+- Duarte & Young (2009), Why is PIN priced?, J. Financial Economics — `10.1016/j.jfineco.2008.06.002` — Critique decomposing PIN into information and liquidity components.
+- Duffie, Pan, Singleton, 'Transform analysis and asset pricing for affine jump-diffusions' (Econometrica 2000) — `10.1111/1468-0262.00164` — General affine-jump-diffusion transform framework that nests Bates/Heston.
+- Easley & O'Hara (1987), Price, trade size, and information in securities markets, J. Financial Economics — `10.1016/0304-405X(87)90029-8` — Adds trade size as an information signal, foundational for PIN.
+- Easley, Hvidkjaer, O'Hara (2002), Is information risk a determinant of asset returns?, J. Finance — `10.1111/1540-6261.00493` — The clock-time PIN predecessor of VPIN.
+- Easley, Kiefer, O'Hara, Paperman (1996), Liquidity, information, and infrequently traded stocks, J. Finance — `10.1111/j.1540-6261.1996.tb04074.x` — Introduces the structural PIN estimation procedure.
+- Eberlein & Keller (1995), Hyperbolic distributions in finance, Bernoulli — `10.2307/3318481` — Sister generalised-hyperbolic model for returns.
+- El Euch & Rosenbaum (2019), The characteristic function of rough Heston models — `10.1111/mafi.12173` — Rough-volatility generalization of the Heston characteristic function.
+- El Euch, Fukasawa & Rosenbaum, 'The microstructural foundations of leverage effect and rough volatility', Finance and Stochastics 22:241-280, 2018 — `10.1007/s00780-018-0360-z` — Derives rough volatility and leverage effect from high-frequency market microstructure (Hawkes processes).
+- El Euch, Gatheral, Rosenbaum, 'Roughening Heston' (Risk 2019) — Applies rough Heston to joint SPX/VIX smile calibration.
+- El Karoui, High-dimensionality effects in the Markowitz problem (2010) — `10.1214/10-AOS795` — The risk-underestimation theory PBR is built to correct.
+- Elliott, van der Hoek & Malcolm, Pairs Trading (2005) — `10.1080/14697680500149370` — The state-space/OU mean-reversion modeling of the spread.
+- Embrechts, Klüppelberg & Mikosch, 'Modelling Extremal Events for Insurance and Finance', Springer, 1997 — `10.1007/978-3-642-33483-2` — The standard reference monograph for EVT in finance/insurance underpinning the whole survey.
+- Engle — Dynamic conditional correlation (2002) — `10.1198/073500102288618487` — The DCC model underpinning the review's time-varying covariance section.
+- Engle & Gallo (2006), A multiple indicators model for volatility using intra-daily data — `10.1016/j.jeconom.2005.01.018` — Earlier model combining multiple realized volatility indicators.
+- Engle & Granger, Co-Integration and Error Correction (1987) — `10.2307/1913236` — The single-equation method this paper generalizes to a system.
+- Engle & Kroner, 'Multivariate simultaneous generalized ARCH' (Econometric Theory 1995) — `10.1017/S0266466600009063` — The canonical BEKK specification the survey classifies.
+- Engle & Ng (1993), Measuring and testing the impact of news on volatility — `10.1111/j.1540-6261.1993.tb05127.x` — News-impact-curve framework for comparing asymmetric GARCH models.
+- Engle, 'Autoregressive Conditional Heteroscedasticity with Estimates of the Variance of UK Inflation', Econometrica 50(4):987-1007, 1982 — `10.2307/1912773` — Origin of ARCH; foundational to all GARCH-based VaR/ES models reviewed.
+- Engle, Ledoit, Wolf — Large dynamic covariance matrices (2019) — `10.1080/07350015.2017.1345683` — Combines nonlinear shrinkage with DCC for time-varying covariance, the 'stylized facts overlay' the review highlights.
+- Engle, Lilien & Robins (1987) ARCH-M, Econometrica — `10.2307/1913242` — Introduces the risk-premium-in-mean extension, linking volatility to expected returns.
+- Escanciano & Lobato (2009), An automatic portmanteau test for serial correlation — `10.1016/j.jeconom.2009.03.001` — Companion automatic serial-correlation test applied.
+- Fama (1965), The Behavior of Stock-Market Prices, Journal of Business — `10.1086/294743` — Extends Mandelbrot's stable-Paretian hypothesis to equities with extensive empirical tests.
+- Fama (1970), Efficient Capital Markets — `10.1111/j.1540-6261.1970.tb00518.x` — Embeds Samuelson's martingale into the operational EMH framework.
+- Fama (1991), Efficient Capital Markets: II, Journal of Finance — `10.2307/2328565` — Fama's own 21-year update reorganising the efficiency evidence and tests.
+- Fama (1998), Market Efficiency, Long-Term Returns, and Behavioral Finance, JFE — `10.1016/S0304-405X(98)00026-9` — Fama's rebuttal that anomalies split randomly between over- and under-reaction.
+- Fama & French (1992), 'The Cross-Section of Expected Stock Returns', Journal of Finance — `10.1111/j.1540-6261.1992.tb04398.x` — Origin point of the modern cross-sectional factor literature being audited.
+- Fama & French (1993), 'Common risk factors...' — `10.1016/0304-405X(93)90023-5` — The three-factor base augmented here.
+- Fama & French (2008), Dissecting Anomalies, Journal of Finance — `10.1111/j.1540-6261.2008.01371.x` — Showed microcaps dominate anomaly returns — the methodological insight central to their replication.
+- Fama & French (2010), Luck versus Skill in the Cross-Section of Mutual Fund Returns, Journal of Finance — `10.1111/j.1540-6261.2010.01598.x` — Bootstrap luck-vs-skill methodology for distinguishing real performance from multiple-testing noise.
+- Fama & French (2015), 'A Five-Factor Asset Pricing Model', Journal of Financial Economics — `10.1016/j.jfineco.2014.10.010` — Benchmark incumbent factor model against which new factors are tested.
+- Fama & French, Multifactor Explanations of Asset Pricing Anomalies (1996) — `10.1111/j.1540-6261.1996.tb05202.x` — Shows momentum is the one anomaly the 3-factor model cannot explain, motivating Carhart's factor.
+- Fama & MacBeth (1973), 'Risk, Return, and Equilibrium: Empirical Tests' — `10.1086/260061` — Two-pass procedure whose omitted-factor bias this paper corrects.
+- Fama, Fisher, Jensen & Roll (1969), The Adjustment of Stock Prices to New Information, International Economic Review — `10.2139/ssrn.321524` — The original event-study test of semi-strong efficiency cited as key empirical support.
+- Fan, Fan & Lv (2008), High dimensional covariance matrix estimation using a factor model — `10.1016/j.jeconom.2008.09.017` — Earlier strict-factor-model covariance estimator by the same group.
+- Fan, Liao & Mincheva (2013), Large Covariance Estimation by Thresholding Principal Orthogonal Complements — `10.1111/rssb.12016` — Companion factor-based high-dimensional covariance estimator (POET) by the same group.
+- Farmer & Lillo (2004), On the origin of power-law tails in price fluctuations, Quantitative Finance — `cond-mat/0309416` — Influential critique challenging the square-root market-impact assumption.
+- Farmer & Lo (1999), Frontiers of Finance: Evolution and Efficient Markets, PNAS — `10.1073/pnas.96.18.9991` — Earlier ecology-of-markets framing that seeds the AMH.
+- Farmer, Gerig, Lillo, Waelbroeck (2013), How efficiency shapes market impact, Quantitative Finance — `10.1080/14697688.2013.848464` — The second nonuniversality model rejected; key competing fair-pricing impact theory.
+- Feng, Giglio & Xiu (2020), 'Taming the Factor Zoo: A Test of New Factors', Journal of Finance — `10.1111/jofi.12883` — Model-selection test for incremental factor value; central to the factor-discovery part of the review.
+- Fernholz (2002), Stochastic Portfolio Theory — `10.1007/978-1-4757-3699-1` — Theoretical basis for analyzing markets in capitalization-rank space.
+- Fischer & Krauss — Deep learning with LSTM networks for financial market predictions — `10.1016/j.ejor.2017.11.054` — Seminal empirical LSTM trading study repeatedly cited as the DL-prediction benchmark.
+- Fissler & Ziegel, 'Higher order elicitability and Osband's principle', Annals of Statistics 44(4):1680-1707, 2016 — `10.1214/16-AOS1439` — Proves VaR and ES are jointly elicitable, enabling rigorous ES backtesting; key technical reference.
+- Föllmer & Schied (2016), Stochastic Finance (textbook) — Canonical synthesis of convex/coherent risk-measure theory.
+- Föllmer & Schied, Stochastic Finance: Convex risk measures (entropic risk, CVaR) underpinning the objective — Provides the convex-risk-measure theory the deep-hedging objective minimises
+- Freyberger, Neuhierl, Weber (2020), 'Dissecting characteristics nonparametrically', RFS — `10.1093/rfs/hhz123` — Nonparametric selection of which characteristics matter.
+- Frittelli & Rosazza Gianin (2002), Putting order in risk measures — `10.1016/S0378-4266(02)00272-8` — Independent contemporaneous development of convex risk measures.
+- Frost & Savarino (1988), For better performance: Constrain portfolio weights — `10.3905/jpm.1988.409181` — Early empirical evidence that weight constraints improve out-of-sample performance.
+- Fukasawa, Takabatake & Westphal, 'Is volatility rough?', 2019/2022 — `arXiv:1905.04852` — Quasi-likelihood/Whittle estimation of the Hurst exponent confirming roughness; key empirical pillar and methodological reference.
+- Gabaix et al. (2006), Institutional investors and stock market volatility, QJE — `10.1162/qjec.2006.121.2.461` — Fuller development of the institutional-trading mechanism.
+- Gabaix, Gopikrishnan, Plerou, Stanley (2003), A theory of power-law distributions in financial market fluctuations, Nature — `10.1038/nature01624` — One of the two nonuniversality theories the survey explicitly rejects.
+- Garlappi, Uppal, Wang, Portfolio selection with parameter and model uncertainty (2007) — `10.1093/rfs/hhl003` — Ambiguity-averse (max-min) portfolio choice the result builds on.
+- Garleanu, N. & Pedersen, L. (2016). Dynamic portfolio choice with frictions. J. Econ. Theory. — `10.1016/j.jet.2016.06.001` — Generalisation to general transaction-cost and constraint structures.
+- Garza & Mergenthaler-Canseco - TimeGPT-1 (2023) — `arXiv:2310.03589` — Contemporary commercial TSFM in the same emerging class
+- Gatev, Goetzmann & Rouwenhorst, Pairs Trading (2006) — `10.1093/rfs/hhj020` — The distance-approach benchmark the review centers on.
+- Gatheral (2010), No-dynamic-arbitrage and market impact, Quantitative Finance — `10.1080/14697680903373692` — Transient-impact / no-arbitrage constraints on impact decay kernels — central to modern execution theory.
+- Gatheral, J. (2010). No-dynamic-arbitrage and market impact. — `10.1080/14697688.2010.481632` — Companion no-arbitrage constraint on transient-impact decay kernels (already gathered).
+- Gatheral, Jaisson & Rosenbaum (2018), Volatility is rough — `1410.3394` — The empirical evidence motivating the pricing model.
+- Gatheral, Jaisson & Rosenbaum, 'Volatility is rough', Quantitative Finance 18(6):933-949, 2018 (orig. 2014) — `arXiv:1410.3394 (DOI:10.1080/14697688.2017.1393551)` — Foundational paper that launched the rough-volatility literature; H≈0.1 log-volatility as fractional Brownian motion.
+- Gatheral, Jaisson, Rosenbaum, 'Volatility is rough' (Quant. Finance 2018) — `10.1080/14697688.2017.1393551` — The empirical motivation for the rough Heston dynamics (already gathered).
+- Gatheral, Jusselin & Rosenbaum, 'The quadratic rough Heston model and the joint S&P 500/VIX smile calibration problem', 2020 — `arXiv:2001.01789` — Resolves the hard SPX–VIX joint calibration puzzle within a rough framework; central to the survey's VIX section.
+- Gatheral, Schied, Slynko (2012), Transient linear price impact and Fredholm integral equations, Mathematical Finance — `10.1111/j.1467-9965.2011.00478.x` — Propagator-model formalisation of transient impact.
+- Gelman & Loken (2013), The Garden of Forking Paths — The original multiverse / forking-paths argument Coqueret adapts to finance.
+- Gibbons, Ross, Shanken, 'A Test of the Efficiency of a Given Portfolio' (1989) — `10.2307/1913625` — The GRS Sharpe-ratio test underlying the comparison statistic.
+- Giglio & Xiu (2021), Asset Pricing with Omitted Factors, JPE — `10.1086/714090` — Companion methodology making the alpha tests robust to omitted factors.
+- Glosten & Milgrom (1985), Bid, ask and transaction prices in a specialist market with heterogeneously informed traders, J. Financial Economics — `10.1016/0304-405X(85)90044-3` — Companion sequential-trade model of the spread under adverse selection.
+- Glosten, Jagannathan & Runkle (1993) GJR-GARCH, Journal of Finance — `10.2307/2329067` — Alternative threshold-GARCH parametrisation of the leverage effect, widely used alongside EGARCH.
+- Gneiting, 'Making and evaluating point forecasts', J. American Statistical Association 106(494):746-762, 2011 — `10.1198/jasa.2011.r10138` — Introduced elicitability to risk; showed expected shortfall is not elicitable — the survey's pivotal result.
+- Goldfarb, Iyengar — Robust portfolio selection problems (2003) — `10.1287/moor.28.1.1.14260` — Foundational robust-optimization treatment of forecast uncertainty central to the enhanced formulation.
+- Gopikrishnan et al. (1999), Scaling of the distribution of fluctuations of financial market indices, Phys Rev E — `10.1103/PhysRevE.60.5305` — Companion index-level inverse-cubic-law paper.
+- Gould et al., Limit order books (2013) — `10.1080/14697688.2013.803148` — Survey of LOB stylized facts the universality claim is set against
+- Gould, Porter, Williams, McDonald, Fenn, Howison (2013), Limit order books, Quantitative Finance — `arXiv:1012.0349` — Companion survey of LOB empirical/theoretical literature by overlapping authors; canonical LOB reference.
+- Goyal & Welch (2008), A comprehensive look at the empirical performance of equity premium prediction — `10.1093/rfs/hhm014` — The pessimistic OOS result this paper rebuts (already gathered).
+- Granger, Some Properties of Time Series Data and Their Use in Econometric Model Specification (1981) — `10.1016/0304-4076(81)90079-8` — Granger's earlier work introducing the integration/cointegration concept.
+- Green, Hand & Zhang (2017), The Characteristics that Provide Independent Information about Average US Monthly Stock Returns, RFS — `10.1093/rfs/hhx019` — Comprehensive characteristic-zoo catalogue feeding their data library.
+- Gromb & Vayanos (2002), Equilibrium and welfare in markets with financially constrained arbitrageurs — `10.1016/S0304-405X(02)00228-3` — The authors' own general-equilibrium arbitrage model the survey builds on.
+- Gromb & Vayanos (2010), Limits of Arbitrage, Annual Review of Financial Economics — `10.1146/annurev-financial-073009-104107` — Survey consolidating the limits-to-arbitrage literature.
+- Grossman (1976), On the Efficiency of Competitive Stock Markets Where Traders Have Diverse Information, Journal of Finance — `10.1111/j.1540-6261.1976.tb01907.x` — Grossman's earlier rational-expectations model the paradox extends.
+- Gruver, Finzi, Qiu, Wilson — Large Language Models Are Zero-Shot Time Series Forecasters (2023) — `2310.07820` — The LLMTime claim this paper rebuts.
+- Gu, Kelly & Xiu (2020), 'Empirical Asset Pricing via Machine Learning', Review of Financial Studies — `10.1093/rfs/hhaa009` — Canonical empirical benchmark showing neural nets/trees beat linear models for the cross-section; the paper this review is built around.
+- Gu, Kelly, Xiu (2021), 'Autoencoder asset pricing models', J. Econometrics — `10.1016/j.jeconom.2020.07.009` — Companion neural latent-factor model.
+- Gueant, Lehalle, Fernandez-Tapia (2012), Optimal portfolio liquidation with limit orders, SIAM J. Financial Mathematics — `arXiv:1106.3279` — Control-theoretic liquidation-with-limit-orders model that RL execution approaches generalize.
+- Gueant, Lehalle, Fernandez-Tapia (2013), Dealing with the inventory risk: a solution to the market making problem, Mathematics and Financial Economics — `10.1007/s11579-012-0087-0` — Closed-form inventory-risk market-making solution to benchmark against.
+- Gueant, O. (2016). The Financial Mathematics of Market Liquidity. CRC Press. — `10.1201/b21350` — Companion monograph on execution and market making with complementary methods.
+- Guidolin & Timmermann (2007), Asset allocation under multivariate regime switching — `10.1016/j.jedc.2006.12.004` — Key application of regime switching to portfolio/asset-allocation decisions.
+- Guijarro-Ordonez, Pelger & Zanotti (2021), Deep Learning Statistical Arbitrage — `arXiv:2106.04028` — Direct predecessor from the same group (already gathered).
+- Guijarro-Ordonez, Pelger & Zanotti, Deep Learning Statistical Arbitrage (2021) — `2106.04028` — Directly modernizes the factor-residual statarb pipeline with deep learning.
+- Halperin, QLBS: Q-Learner in the Black-Scholes(-Merton) Worlds (2017) — `arXiv:1712.04609` — Contemporary RL-for-option-replication approach to contrast with deep hedging
+- Hamilton (1989), A New Approach to the Economic Analysis of Nonstationary Time Series — `10.2307/1912559` — Regime-switching/state-space modelling foundation (already gathered) underlying the Markov-chain spread model.
+- Hamilton (1990), Analysis of time series subject to changes in regime — `10.1016/0304-4076(90)90093-9` — EM-algorithm estimation of Markov-switching models, the methodological backbone.
+- Hamilton, Time Series Analysis (1994) — The textbook treatment that standardized the filter and state-space methods for finance.
+- Hansen (2005) A Test for Superior Predictive Ability — `10.1198/073500105000000063` — The SPA benchmark FDR is compared against (already gathered).
+- Hansen & Lunde (2005), Does anything beat a GARCH(1,1)? — `10.1002/jae.800` — Influential forecast comparison establishing GARCH(1,1) as a hard-to-beat baseline.
+- Hansen & Lunde, 'Realized variance and market microstructure noise' (JBES 2006) — `10.1198/073500106000000071` — Diagnostic study characterising the noise that kernels correct for.
+- Hansen, Lunde & Nason (2011), The Model Confidence Set, Econometrica — `10.3982/ECTA5771` — Follow-up that returns a set of statistically indistinguishable best models rather than a single test.
+- Hardiman, Bercot, Bouchaud (2013), Critical reflexivity in financial markets: a Hawkes process analysis, European Physical Journal B — `10.1140/epjb/e2013-40107-3` — Evidence that markets operate near the Hawkes criticality (reflexivity) limit.
+- Harvey (2017), Presidential Address: The Scientific Outlook in Financial Economics, Journal of Finance — `10.1111/jofi.12530` — Harvey's manifesto on p-hacking and research credibility that frames the protocol's motivation.
+- Harvey & Liu (2015), Backtesting, Journal of Portfolio Management — `10.3905/jpm.2015.42.1.013` — Multiple-testing haircut to Sharpe ratios; parallel practitioner treatment of the same overfitting problem.
+- Harvey & Liu (2020), False (and Missed) Discoveries in Financial Economics, JF — `10.1111/jofi.12951` — Their double-counting / multiple-testing extension addressing both false positives and false negatives.
+- Harvey & Liu (2020), Lucky Factors, Journal of Financial Economics — `10.1016/j.jfineco.2021.04.014` — Companion orthogonalized-bootstrap procedure for selecting factors under multiple testing.
+- Harvey, Liu & Zhu (2016), '…and the Cross-Section of Expected Returns', Review of Financial Studies — `10.1093/rfs/hhv059` — Motivates the multiple-testing / overfitting problem that ML regularization addresses.
+- Harvey, Liu, Zhu (2016) ...and the Cross-Section of Expected Returns — `10.1093/rfs/hh15089` — The multiple-testing benchmark (t>3) the protocol operationalizes (already gathered).
+- Hasbrouck (1991), Measuring the information content of stock trades, J. Finance — `10.1111/j.1540-6261.1991.tb02666.x` — Classic VAR approach to trade-driven price impact.
+- Hasbrouck, J. & Saar, G. (2013). Low-latency trading. J. Financial Markets. — `10.1016/j.finmar.2013.05.003` — Complementary low-latency-trading liquidity evidence.
+- Haugen & Baker (1996), 'Commonality in the determinants of expected stock returns', JFE — `10.1016/0304-405X(96)00875-1` — Early multivariate characteristic-based return prediction.
+- Hawkes (1971), Spectra of some self-exciting and mutually exciting point processes, Biometrika — `10.1093/biomet/58.1.83` — Original definition of the self-exciting point process.
+- He & Litterman (1999), The Intuition Behind Black-Litterman Model Portfolios — `10.2139/ssrn.334304` — Widely-cited exposition clarifying the BL mechanics and parameters.
+- Heaton, Polson & Witte — Deep learning for finance: deep portfolios — `10.1002/asmb.2209` — Early canonical paper introducing deep portfolios / autoencoder approaches to asset selection.
+- Hendershott, Jones, Menkveld (2011), Does algorithmic trading improve liquidity?, J. Finance — `10.1111/j.1540-6261.2010.01624.x` — Earlier evidence on the liquidity effects of automated trading.
+- Hendershott, T. & Riordan, R. (2013). Algorithmic Trading and the Market for Liquidity. JFQA. — `10.1017/S0022109013000471` — Follow-up on whether algorithms supply or demand liquidity.
+- Heston, 'A closed-form solution for options with stochastic volatility' (RFS 1993) — `10.1093/rfs/6.2.327` — The affine SV special case the transform generalises (already gathered).
+- Hill (1975), A simple general approach to inference about the tail of a distribution, Annals of Statistics — `10.1214/aos/1176343247` — The Hill estimator used to estimate the tail index.
+- Hiremath & Kumari (2014), Stock returns predictability and the AMH in emerging markets: India — `10.1186/2193-1801-3-428` — Parallel emerging-market AMH evidence.
+- Ho & Stoll (1981), Optimal dealer pricing under transactions and return uncertainty, J. Financial Economics — `10.1016/0304-405X(81)90020-9` — Foundational inventory model of market making.
+- Hochreiter & Schmidhuber, 'Long Short-Term Memory', Neural Computation 9(8):1735-1780, 1997 — `10.1162/neco.1997.9.8.1735` — The LSTM architecture underlying most of the reviewed deep volatility-forecasting models.
+- Holm (1979), A Simple Sequentially Rejective Multiple Test Procedure, Scand. J. Statistics — One of the three core FWE adjustments the paper applies to factor t-stats.
+- Hou, Xue & Zhang (2015), 'Digesting Anomalies: An Investment Approach' (q-factor model), Review of Financial Studies — `10.1093/rfs/hhu068` — The authors' own q-factor model used as the asset-pricing lens for the replication.
+- Hou, Xue & Zhang (2020), 'Replicating Anomalies', Review of Financial Studies — `10.1093/rfs/hhy131` — Complementary large-scale replication showing many anomalies fail out of sample.
+- Hsu & Taylor (2013), Forty Years, Thirty Currencies and 21,000 Trading Rules, SSRN — `10.2139/ssrn.2517125` — Large-scale FX extension applying the same data-snooping-robust framework.
+- Huang & Tauchen, 'The relative contribution of jumps to total price variance' (JFE 2005) — `10.1093/jjfinec/nbi004` — Empirical assessment of the bipower jump statistic.
+- Huang, Lehalle, Rosenbaum — Simulating and analyzing order book data: the queue-reactive model (2015) — `10.1080/01621459.2014.982278` — The queue-reactive LOB model the RL agent is trained in.
+- Huang, Li, Wang & Zhou (2019), Time series momentum: Is it there? — `10.1016/j.jfineco.2019.09.012` — The robustness critique this paper engages with (already gathered).
+- Huberman & Stanzl (2004), Price manipulation and quasi-arbitrage, Econometrica — `10.1111/j.1468-0262.2004.00531.x` — Earlier no-price-manipulation conditions on impact functions.
+- Hull & White (1987), The pricing of options on assets with stochastic volatilities — `10.1111/j.1540-6261.1987.tb02568.x` — Earlier stochastic-volatility option-pricing model.
+- Hutchinson & O'Brien (2014), Is This Time Different? Trend Following and Financial Crises — `10.2139/ssrn.2375733` — Companion paper documenting trend-following crisis behaviour.
+- Ioannidis (2005), Why Most Published Research Findings Are False, PLoS Medicine — `10.1371/journal.pmed.0020124` — The cross-disciplinary template for the false-discovery argument Harvey imports into finance.
+- Ito, Noda & Wada (2014), International Stock Market Efficiency: A Non-Bayesian Time-Varying Model Approach, Applied Economics — `1203.5176` — Companion multi-country extension of the same methodology.
+- Ito, Noda & Wada (2016), The Evolution of Stock Market Efficiency in the US, Applied Economics — `1202.0100` — Source of the time-varying degree-of-efficiency framework adapted to crypto.
+- Jagannathan & Ma (2003), Risk Reduction in Large Portfolios — `10.1111/1540-6261.00580` — Constraint-based fix evaluated as a competitor in this study.
+- Jaisson & Rosenbaum (2015), Limit theorems for nearly unstable Hawkes processes — `10.1214/14-AAP1005` — The Hawkes-process scaling limits underlying the derivation.
+- Jansen & de Vries (1991), On the Frequency of Large Stock Returns, REStat — `10.2307/2109682` — Companion empirical tail-index study of stock returns.
+- Jegadeesh & Titman (1993), Returns to Buying Winners and Selling Losers, Journal of Finance — `10.1111/j.1540-6261.1993.tb04702.x` — Archetypal anomaly used as a replication benchmark throughout the literature.
+- Jensen, Kelly & Pedersen (2023), Is There a Replication Crisis in Finance?, JF — `10.1111/jofi.13249` — Related hierarchical-Bayes case that factors broadly replicate.
+- Jiang, Xu & Liang — A Deep Reinforcement Learning Framework for the Financial Portfolio Management Problem — `arXiv:1706.10059` — Widely-cited deep-RL portfolio-management framework benchmarked throughout the RL-trading literature.
+- Jin et al. — Time-LLM: Reprogramming LLMs for Forecasting (2024) — `2310.01728` — One of the reprogramming methods ablated.
+- Johansen & Juselius, Maximum Likelihood Estimation and Inference on Cointegration (1990) — `10.1111/j.1468-0084.1990.mp52002003.x` — Applied companion with the money-demand worked example widely used to teach the method.
+- Johansen, Estimation and Hypothesis Testing of Cointegration Vectors (1991) — `10.2307/2938278` — The multivariate VAR/MLE generalization of single-equation Engle-Granger.
+- Jorion, Bayes-Stein estimation for portfolio analysis (1986) — `10.2307/2331042` — The Bayes-Stein shrinkage-of-means benchmark compared against.
+- Jusselin & Rosenbaum (2020), No-arbitrage implies power-law market impact and rough volatility, Mathematical Finance — `1801.07729` — Links impact concavity to rough volatility via no-arbitrage.
+- Kan & Zhang, 'Two-Pass Tests of Asset Pricing Models with Useless Factors' (1999) — `10.1111/0022-1082.00102` — Spurious-factor problem in cross-sectional regressions.
+- Kan & Zhou (2007) reference to Tu & Zhou combination strategies — Leads to the optimal-combination-of-rules literature extending the three-fund result.
+- Kan & Zhou (2007), Optimal Portfolio Choice with Parameter Uncertainty — `10.1017/S0022109000004129` — Three-fund rule explicitly accounting for estimation risk, a key optimizing competitor to 1/N.
+- Kelly, Malamud, Zhou, 'The Virtue of Complexity in Return Prediction' (2024) — `10.1111/jofi.13298` — Over-parameterization theme highlighted in the survey (already gathered).
+- Kelly, Pruitt & Su (2019), 'Characteristics Are Covariances: A Unified Model of Risk and Return' (IPCA), Journal of Financial Economics — `10.3386/w24540` — Instrumented PCA conditional factor model linking characteristics to loadings; key method discussed (NBER id given; JFE version 10.1016/j.jfineco.2019.05.001).
+- Kelly, Pruitt, Su (2017), 'Instrumented Principal Component Analysis', SSRN — `10.2139/ssrn.2983919` — Methodological companion detailing the estimator.
+- Kelly, Pruitt, Su (2019), 'Characteristics are covariances', JFE — `10.1016/j.jfineco.2019.05.001` — Linear IPCA that the autoencoder nonlinearly generalizes.
+- Kendall, A new measure of rank correlation (1938) — `10.1093/biomet/30.1-2.81` — The rank statistic the Gerber measure generalizes.
+- Kercheval & Zhang, Modelling high-frequency limit order book dynamics with SVMs (2015) — `10.1080/14697688.2015.1032546` — Pre-benchmark feature engineering for LOB that informed the dataset's features
+- Kim (2006), Wild bootstrapping variance ratio tests — `10.1016/j.econlet.2006.01.007` — The wild-bootstrap VR procedure extended here.
+- Kim (2009), Automatic variance ratio test under conditional heteroskedasticity — `10.1016/j.frl.2009.04.003` — The core test statistic used in the rolling windows.
+- Kim, Shamsuddin & Lim (2011), Stock Return Predictability and the AMH: Evidence from Century-of-Data, JEF — `10.1016/j.jempfin.2011.08.002` — Complementary long-run AMH evidence with time-varying tests.
+- Kingma & Welling — Auto-Encoding Variational Bayes (2013) — `1312.6114` — The VAE method underlying the model.
+- Kirilenko, Kyle, Samadi, Tuzun (2017), The Flash Crash: high-frequency trading in an electronic market, J. Finance — `10.1111/jofi.12498` — Definitive account of the May 2010 Flash Crash with HFT-tagged data.
+- Koenker & Bassett, 'Regression Quantiles', Econometrica 46(1):33-50, 1978 — `10.2307/1913643` — Quantile-regression foundation for the LLQAR method the paper develops for VaR/ES.
+- Koijen, Moskowitz, Pedersen & Vrugt, Carry (2018) — `10.1016/j.jfineco.2017.11.002` — Extends the everywhere-across-asset-classes premium framework to the carry signal.
+- Kolm, Turiel, Westray - Deep order flow imbalance: Extracting alpha at multiple horizons from the LOB (2023) — `10.1111/mafi.12413` — Companion study on whether LOB ML yields tradable alpha
+- Koponen (1995) Analytic approach to the problem of convergence of truncated Levy flights, Phys Rev E — `10.1103/PhysRevE.52.1197` — Physics origin of the truncated/tempered stable distribution underlying CGMY.
+- Kosowski, Timmermann, Wermers & White (2006), Can Mutual Fund 'Stars' Really Pick Stocks?, Journal of Finance — `10.1111/j.1540-6261.2006.00896.x` — Bootstrap performance-evaluation approach contrasted with the FDR/double-bootstrap method.
+- Kozak, Nagel & Santosh (2020), 'Shrinking the Cross-Section', Journal of Financial Economics — `10.1016/j.jfineco.2019.06.008` — Bayesian/shrinkage SDF approach to the factor zoo; core to the review's SDF-estimation section.
+- Kozak, Nagel, Santosh (2018), 'Interpreting factor models', Journal of Finance — `10.1111/jofi.12612` — Shows reduced-form factors and behavioral models are observationally similar via PCs.
+- Krauss (2017), Statistical Arbitrage Pairs Trading: Review and Outlook — `10.1111/joes.12153` — Taxonomy of pairs methods (already gathered) that this paper empirically tests.
+- Kyle (1985), Continuous Auctions and Insider Trading, Econometrica — `10.2307/1913210` — Strategic-trader complement to the competitive-spread framework.
+- Kyle, A. & Obizhaeva, A. (2023). Large Bets and Stock Market Crashes. Review of Finance. — `10.1093/rof/rfad008` — Applies invariance to crash episodes; empirical extension worth gathering.
+- Laloux, Cizeau, Bouchaud & Potters (1999), Noise Dressing of Financial Correlation Matrices — `cond-mat/9810255` — The empirical motivation for RMT cleaning reviewed and extended here.
+- Laloux, Cizeau, Bouchaud, Potters — Noise dressing of financial correlation matrices (1999) — `10.1103/PhysRevLett.83.1467` — Founding empirical paper showing financial correlation matrices are dominated by RMT noise; origin of the eigenvalue-cleaning program.
+- Lam, Nonparametric eigenvalue-regularized integrated covariance matrix estimator (NERCOME) (2016) — `10.1214/16-AOS1393` — The competing sample-splitting estimator benchmarked against.
+- Ledoit & Wolf (2003), Improved Estimation of the Covariance Matrix of Stock Returns — `10.1016/S0927-5398(03)00007-0` — Companion paper applying shrinkage with a single-factor target to portfolio selection.
+- Ledoit & Wolf (2017), Nonlinear Shrinkage of the Covariance Matrix for Portfolio Selection — `10.1093/rfs/hhx052` — The method this paper argues is far from optimal under non-stationarity.
+- Ledoit & Wolf, Spectrum estimation: a unified framework (QuEST) (2015) — `10.1016/j.jmva.2015.04.006` — The numerical method being replaced; details the optimization being short-circuited.
+- Ledoit, Péché — Eigenvectors of some large sample covariance matrix ensembles (2011) — `10.1007/s00440-010-0298-3` — Key analytic result on eigenvector behavior underpinning nonlinear shrinkage and the RIE.
+- Ledoit, Wolf — A well-conditioned estimator for large-dimensional covariance matrices (2004) — `10.1016/S0047-259X(03)00096-4` — The original linear shrinkage estimator that launched the entire program.
+- Ledoit, Wolf — Analytical nonlinear shrinkage of large-dimensional covariance matrices (2020) — `10.1214/19-AOS1921` — Closed-form nonlinear shrinkage via the Hilbert transform — the practical workhorse method reviewed.
+- Ledoit, Wolf — Honey, I shrunk the sample covariance matrix (2004) — `10.3905/jpm.2004.110` — Accessible canonical shrinkage paper the review uses as its workhorse covariance estimator.
+- Ledoit, Wolf — Nonlinear shrinkage estimation of large-dimensional covariance matrices (2012) — `10.1214/12-AOS989` — Introduces the nonlinear (QuEST-based) shrinkage that the review argues is optimal for portfolio selection.
+- Li, Wang, Lin, Hu, Park, Yang - Generating Realistic Stock Market Order Streams (Stock-GAN, 2020) — `10.1609/aaai.v34i01.5415` — Prior GAN-based order-stream generator
+- Liew & Wu (2013), Pairs trading: A copula approach — `10.1057/jdhf.2013.1` — Origin of the copula method benchmarked in the comparison.
+- Lillo, Farmer & Mantegna (2003), Master curve for price-impact function, Nature — `cond-mat/0207428` — Empirical market-impact evidence underlying the critique.
+- Lim, Arik, Loeff & Pfister (2021), Temporal Fusion Transformers — `10.1016/j.ijforecast.2021.03.012` — Interpretable attention forecasting architecture the model is built on.
+- Lim, Zohren & Roberts (2019), Enhancing Time Series Momentum Strategies Using Deep Neural Networks — `arXiv:1904.04912` — Direct predecessor deep-momentum-network model (already gathered).
+- Liu et al. - FinRL-Meta: Market Environments and Benchmarks for Data-Driven Financial RL (2022) — `arXiv:2211.03107` — Companion benchmark suite with hundreds of market environments
+- Liu et al. — FinRL: A Deep Reinforcement Learning Library for Automated Stock Trading — `arXiv:2011.09607` — The de facto open-source RL-trading benchmark library; needed for any reproducibility discussion.
+- Liu, Huang, Bai & Huang — FinBERT: A Pre-trained Financial Language Representation Model for Financial Text Mining (IJCAI 2020) — `10.24963/ijcai.2020/622` — Large-corpus financial BERT; a key pretrained model the survey benchmarks.
+- Liu, Yang, Gao, Wang — FinRL (2021) — Sibling open-source quant-finance framework from the same authors.
+- Lo (2002), The Statistics of Sharpe Ratios, Financial Analysts Journal — `10.2469/faj.v58.n4.2453` — Sampling distribution of the Sharpe ratio, prerequisite for deflating it under multiple trials.
+- Lo (2004), The Adaptive Markets Hypothesis, JPM — `10.3905/jpm.2004.442611` — The theoretical hypothesis this TV-AR degree-of-efficiency measure tests.
+- Lo (2005), Reconciling Efficient Markets with Behavioral Finance: The Adaptive Markets Hypothesis, Journal of Investment Consulting — Companion exposition aimed at practitioners.
+- Lo (2017), Adaptive Markets: Financial Evolution at the Speed of Thought, Princeton University Press — Book-length development of the AMH with extended evidence.
+- Lo & MacKinlay (1988), Stock Market Prices Do Not Follow Random Walks, RFS — `10.1093/rfs/1.1.41` — The variance-ratio method anchoring much of the surveyed evidence.
+- Lo & MacKinlay (1989), Size and power of the variance ratio test — `10.1016/0304-4076(89)90083-3` — Single-horizon predecessor whose joint-size flaw this paper corrects.
+- Lo & MacKinlay (1989), The Size and Power of the Variance Ratio Test, Journal of Econometrics — `10.1016/0304-4076(89)90004-2` — Small-sample properties of the VR test used throughout the literature.
+- Lo & MacKinlay (1990), When Are Contrarian Profits Due to Stock Market Overreaction?, RFS — `10.1093/rfs/3.2.175` — Companion paper interpreting the autocorrelation that drives the VR rejection.
+- Lohre, Rother, Schäfer — Hierarchical risk parity: Accounting for tail dependencies in multi-asset multi-factor allocations (2020) — `10.2139/ssrn.3513399` — Leading extension/empirical test of HRP in a multi-asset multi-factor setting with tail-risk focus.
+- López de Prado - Advances in Financial Machine Learning (Wiley, 2018) — Book-length treatment of every method referenced in this article
+- López de Prado — Advances in Financial Machine Learning (2018) — Operationalises DSR within the backtesting chapters.
+- López de Prado — Causal Factor Investing (2023) — `10.1017/9781009397315` — His later monograph arguing factor models need causal, not associational, ML.
+- Lopez de Prado (2016), Building Diversified Portfolios that Outperform Out of Sample — `10.3905/jpm.2016.42.4.059` — The HRP method shown to be one endpoint of the Schur-complement continuum.
+- López de Prado (2018), Advances in Financial Machine Learning, Wiley — Book-length treatment of ML pitfalls (purged/embargoed CV, feature importance) operationalizing the protocol.
+- Lopez de Prado, Lewis (2019) Detection of False Investment Strategies Using Unsupervised Learning Methods — `10.1080/14697688.2019.1622311` — Companion peer-reviewed method for estimating the effective number of independent trials.
+- Lopez-Lira & Tang — Can ChatGPT Forecast Stock Price Movements? Return Predictability and Large Language Models — `arXiv:2304.07619` — Headline empirical test of LLM return-predictability that frames the survey's predictability debate.
+- Loretan & Phillips (1994), Testing the covariance stationarity of heavy-tailed time series, Journal of Empirical Finance — `10.1016/0927-5398(94)90004-3` — Refines tail-index estimation and adds stationarity testing.
+- Lux (1996), The stable Paretian hypothesis and the frequency of large returns, Applied Financial Economics — `10.1080/096031096334132` — Independent tail-exponent estimates near 3 for German stocks.
+- Lux (2008) The Markov-switching multifractal model of asset returns, JBES — `10.1198/073500107000000403` — The estimable Markov-switching reformulation that made multifractal models practical for volatility forecasting.
+- Madan, Carr & Chang (1998) The variance gamma process and option pricing, European Finance Review — `10.1023/A:1009703431535` — The variance-gamma special case that CGMY generalises; canonical normal-mean-variance-mixture model.
+- Maillard, Roncalli, Teiletche — The properties of equally weighted risk contribution portfolios (2010) — `10.3905/jpm.2010.36.4.060` — Defines the equal-risk-contribution (risk parity) baseline that HRP improves upon; canonical risk-based allocation reference.
+- Mandelbrot (1963), The Variation of Certain Speculative Prices, Journal of Business — `10.1086/294632` — Origin of the fat-tail / stable-Paretian hypothesis Cont revisits.
+- Mandelbrot (1966), Forecasts of Future Prices, Unbiased Markets, and Martingale Models, Journal of Business — `10.1086/295016` — Companion martingale formalisation generalising Samuelson's result.
+- Mandelbrot (1974) Intermittent turbulence in self-similar cascades, Journal of Fluid Mechanics — `10.1017/S0022112074000711` — The multiplicative-cascade origin of multifractality borrowed from turbulence.
+- Mandelbrot & Taylor (1967), On the distribution of stock price differences — Subordination / time-change argument linking trading time to heavy tails.
+- Mandelbrot, Fisher & Calvet (1997) A multifractal model of asset returns, Cowles Foundation DP 1164 — The original MMAR proposal that this paper operationalises and tests.
+- Mankiw & Shapiro (1986), Do we reject too often? — `10.1016/0165-1765(86)90107-6` — Early statement of the endogenous-regressor over-rejection problem.
+- Mantegna (1999), Hierarchical structure in financial markets — `10.1007/s100510050929` — Origin of correlation-based hierarchical clustering / minimum spanning trees of stocks.
+- Mantegna & Stanley (1994), Stochastic process with ultraslow convergence to a Gaussian: the truncated Lévy flight — `10.1103/PhysRevLett.73.2946` — Theoretical introduction of the truncated Lévy flight process.
+- Mantegna & Stanley (1995), Scaling behaviour in the dynamics of an economic index, Nature — `10.1038/376046a0` — Truncated Lévy flight — key to the aggregational-Gaussianity stylised fact.
+- Marchenko & Pastur (1967), Distribution of eigenvalues for some sets of random matrices — `10.1070/SM1967v001n04ABEH001994` — The limiting spectral distribution at the heart of the RMT-based estimator.
+- Marchenko, Pastur — Distribution of eigenvalues for some sets of random matrices (1967) — The foundational spectral distribution result on which all RMT covariance cleaning rests.
+- Markowitz — Portfolio Selection (1952) — `10.1111/j.1540-6261.1952.tb01525.x` — The founding mean-variance framework the entire review commemorates and builds on.
+- Markowitz (1959), Portfolio Selection: Efficient Diversification of Investments — `10.2307/3006625` — Book-length development of the E-V framework and the critical line algorithm.
+- Markowitz, Portfolio Selection (1952) — `10.2307/2975974` — The mean-variance framework the input feeds (already gathered).
+- McCrickerd & Pakkanen (2018), Turbocharging Monte Carlo pricing for the rough Bergomi model — `1708.02563` — Variance-reduction refinements building on the hybrid scheme.
+- McLean & Pontiff (2016), 'Does Academic Research Destroy Stock Return Predictability?', Journal of Finance — `10.1111/jofi.12365` — Evidence that published anomalies decay post-publication, reinforcing the multiple-testing concern.
+- McNeil & Frey, 'Estimation of tail-related risk measures for heteroscedastic financial time series: an extreme value approach', J. Empirical Finance 7:271-300, 2000 — `10.1016/S0927-5398(00)00012-8` — Canonical GARCH+EVT (conditional EVT) method for VaR/ES; the bridge between volatility models and tail estimation.
+- McNeil, Frey & Embrechts, 'Quantitative Risk Management: Concepts, Techniques and Tools', Princeton Univ. Press, 2015 (rev. ed.) — Comprehensive textbook integrating EVT, copulas and risk measures; the field's anchor text.
+- Michaud — The Markowitz optimization enigma: Is 'optimized' optimal? (1989) — `10.2469/faj.v45.n1.31` — Classic statement of error-maximization / instability that motivates robust and shrinkage approaches.
+- Mnih et al. - Human-level control through deep reinforcement learning (2015) — `10.1038/nature14236` — DQN algorithm adapted to the trading setting
+- Moody & Saffell — Learning to trade via direct reinforcement — `10.1109/72.935097` — Origin of direct/recurrent reinforcement trading, the historical root of RL trading agents.
+- Moskowitz & Grinblatt, Do Industries Explain Momentum? (1999) — `10.1111/0022-1082.00146` — Decomposes momentum into industry vs. firm-specific components.
+- Moskowitz, Ooi & Pedersen, Time Series Momentum (2012) — `10.1016/j.jfineco.2011.11.003` — The companion time-series momentum result by overlapping authors.
+- Muller et al. (1997), Volatilities of different time resolutions / HARCH — `10.1016/S0927-5398(97)00007-8` — Heterogeneous-market hypothesis motivating the HAR cascade.
+- Nelson (1991), EGARCH — `10.2307/2938260` — Alternative asymmetric-volatility specification.
+- Nelson & Kim (1993), Predictable stock returns: the role of small-sample bias — `10.1111/j.1540-6261.1993.tb04711.x` — Bootstrap evidence on the same bias in dividend-yield regressions.
+- Nevmyvaka, Feng & Kearns — Reinforcement learning for optimized trade execution (ICML 2006) — `10.1145/1143844.1143929` — Foundational RL-for-execution paper; the canonical starting point for the optimal-execution branch.
+- Nie et al. - A Time Series is Worth 64 Words: Long-term Forecasting with Transformers (PatchTST, 2023) — `arXiv:2211.14730` — Patching idea TimesFM builds on
+- Ning, Lin, Jaimungal — Double Deep Q-Learning for Optimal Execution (2018) — `1812.06600` — Deep-RL successor to Nevmyvaka et al.
+- Novy-Marx (2016), Testing Strategies Based on Multiple Signals, RFS / working paper — `10.3386/w21329` — Shows how combining signals inflates in-sample performance — a specific overfitting trap the protocol addresses.
+- Novy-Marx & Velikov (2016), A Taxonomy of Anomalies and Their Trading Costs, RFS — `10.1093/rfs/hhv063` — Trading-cost-adjusted anomaly survival, complementary to the replication audit.
+- Novy-Marx, R. (2013), 'The other side of value: The gross profitability premium', JFE — `10.1016/j.jfineco.2013.01.003` — Profitability anomaly underlying the RMW factor.
+- Ntakaris et al., Benchmark dataset for mid-price forecasting of limit order book data (FI-2010) — `10.1002/for.2543` — The benchmark dataset DeepLOB is evaluated on
+- Ntakaris, Magris, Kanniainen, Gabbouj, Iosifidis (2018), Benchmark dataset for mid-price forecasting of limit order book data (FI-2010) — `arXiv:1705.03233` — Standard LOB forecasting benchmark dataset the deep-learning literature is evaluated on.
+- Ntakaris, Magris, Kanniainen, Gabbouj, Iosifidis (2018), Benchmark dataset for mid-price forecasting of limit order book data (FI-2010), J. Forecasting — `1705.03233` — The public benchmark dataset DeepLOB is evaluated on.
+- Obizhaeva & Wang (2013), Optimal trading strategy and supply/demand dynamics, Journal of Financial Markets — `10.1016/j.finmar.2012.09.001` — Resilient LOB / transient-impact execution; foundational dynamic-supply-demand model.
+- Officer (1972), The distribution of stock returns, JASA — `10.1080/01621459.1972.10481297` — Early challenge to the infinite-variance stable hypothesis.
+- Olson (2004), Have trading rule profits in the currency markets declined over time? — `10.1016/S0378-4266(03)00080-9` — Prior evidence of decaying FX rule profits the paper builds on.
+- Passalis et al. (2020), Temporal bag-of-features learning for predicting mid-price movements using LOB data, IEEE TETCI — `10.1109/TETCI.2018.2872598` — Representation-learning baseline on FI-2010.
+- Patton & Sheppard, 'Good volatility, bad volatility: signed jumps and the persistence of volatility' (REStat 2015) — `10.1162/REST_a_00503` — Shows signed jumps/semivariances strongly improve volatility forecasts.
+- Pesaran & Timmermann (1995), Predictability of Stock Returns, Journal of Finance — `10.1111/j.1540-6261.1995.tb04055.x` — Empirical real-time predictability evidence the framing builds on.
+- Pflug & Wozabal, Ambiguity in portfolio selection (2007) — `10.1080/14697680701455410` — Introduces the Wasserstein-ball ambiguity model used here.
+- Pickands (1975), Statistical inference using extreme order statistics — `10.1214/aos/1176343003` — Origin of the generalized-Pareto tail approximation used.
+- Plerou et al. (1999), Scaling of the distribution of price fluctuations of individual companies, Phys Rev E — `10.1103/PhysRevE.60.6519` — Companion individual-stock inverse-cubic-law paper.
+- Plerou, Gopikrishnan & Gabaix (2004), On the origin of power-law fluctuations in stock prices, Quantitative Finance — `cond-mat/0403067` — The authors' reply defending the square-root impact and cubic law.
+- Plerou, Gopikrishnan, Gabaix & Stanley (2004) On the origin of power-law fluctuations in stock prices, Quantitative Finance — `10.1088/1469-7688/4/1/001` — Empirical support linking large trades to large price moves, the key mechanism assumed.
+- Plerou, Gopikrishnan, Rosenow, Amaral, Guhr & Stanley (2002), Random matrix approach to cross correlations in financial data — `10.1103/PhysRevE.65.066126` — Parallel RMT analysis confirming and extending the noise-dressing finding.
+- Politis & Romano (1994), The Stationary Bootstrap, JASA — `10.1080/01621459.1994.10476870` — The resampling scheme White uses to build the null distribution under dependence.
+- Poterba & Summers (1988), Mean Reversion in Stock Prices, Journal of Financial Economics — `10.1016/0304-405X(88)90021-9` — Parallel long-horizon evidence against the random walk via mean reversion.
+- Praetz (1972) The distribution of share price changes, Journal of Business — `10.1086/295425` — Origin of the Student-t / scaled-t model for returns as a variance mixture, the basis of the tempered-t here.
+- Prata et al. (2024), LOB-based deep learning models for stock price trend prediction: a benchmark study, arXiv — `2308.01915` — Companion benchmark showing performance collapses on new data.
+- Qian (2005), Risk Parity Portfolios: Efficient Portfolios Through True Diversification — Practitioner origin of the risk-parity concept popularized by PanAgora.
+- Qian, Risk parity portfolios: efficient portfolios through true diversification (2005) — The practitioner origin of the risk-parity concept discussed throughout.
+- Rad, Low & Faff (2016), The profitability of pairs trading strategies — `10.1080/14697688.2016.1164337` — Empirical comparison placing copula against distance/cointegration.
+- Richardson & Stock (1989), Drawing inferences from statistics based on multiyear asset returns — `10.1016/0304-405X(89)90077-9` — Long-horizon inference problem motivating multiple-horizon corrections.
+- Rockafellar & Uryasev (2002), Conditional value-at-risk for general loss distributions — `10.1016/S0378-4266(02)00271-6` — Extends the method to general (non-scenario) loss distributions.
+- Rockafellar, Uryasev — Optimization of conditional value-at-risk (2000) — `10.21314/JOR.2000.038` — Foundational CVaR result for the quantile-based risk measurement portion of the review.
+- Romano & Wolf (2007), Control of Generalized Error Rates in Multiple Testing, Annals of Statistics — `10.1214/009053606000001622` — Extends control from FWE to k-FWE and FDP, more powerful for large strategy sets.
+- Roncalli (2013), Introduction to Risk Parity and Budgeting — `10.1201/b15240` — Book-length treatment generalizing ERC to risk budgeting with constraints.
+- Roncalli & Weisang, Risk parity portfolios with risk factors (2016) — `10.1080/14697688.2015.1046907` — Extends risk budgeting from assets to factor space.
+- Roncalli, Introduction to Risk Parity and Budgeting (2013) — `10.1201/b15151` — Standard textbook treatment of the risk-budgeting framework.
+- Rosenbaum & Zhang (2022), Multidimensional rough volatility / estimation — Follow-up addressing estimation of the roughness parameter.
+- Rosenbaum & Zhang, 'Multiasset rough volatility' / rough-vol estimation rebuttals — Represents the rebuttal side of the fact-or-artefact debate; gather to balance the critique.
+- Rosenberg, Reid, Lanstein (1985), 'Persuasive evidence of market inefficiency', J. Portfolio Management — `10.3905/jpm.1985.409007` — Early book-to-market evidence underlying the value factor.
+- Ross (1976), The Arbitrage Theory of Capital Asset Pricing — `10.1016/0022-0531(76)90046-6` — APT factor structure used to motivate spread/residual mean reversion.
+- Rubio, Mestre, Palomar, Performance analysis and optimal selection of large minimum variance portfolios under estimation risk (2012) — `10.1109/JSTSP.2012.2202634` — RMT-based portfolio performance analysis foundational to the approach.
+- Rydberg (1997), The normal inverse Gaussian Lévy process: simulation and approximation — `10.1080/15326349708807423` — Simulation methods for the NIG Lévy process introduced here.
+- Said, Bel Hadj Ayed, Husson, Abergel (2018), Market impact: a systematic study of limit orders, Market Microstructure and Liquidity — `10.1142/S2382626618500089` — The author's empirical metaorder/limit-order impact study this theory is calibrated against.
+- Samuelson (1965), Proof That Properly Anticipated Prices Fluctuate Randomly, Industrial Management Review 6:41-49 — Provides the martingale theoretical underpinning Fama formalises into the fair-game model.
+- Schwert (2003), Anomalies and Market Efficiency, Handbook of the Economics of Finance — `10.1016/S1574-0102(03)01024-0` — Earlier evidence that anomalies weaken after publication.
+- Schwert, 'Anomalies and Market Efficiency' (2003) — `10.3386/w9277` — Earlier evidence that anomalies attenuate after discovery.
+- Sezer, Gudelek & Ozbayoglu — Financial Time Series Forecasting with Deep Learning: A Systematic Literature Review (2005-2019) — `arXiv:1911.13288` — Companion systematic review focused specifically on DL for financial time-series forecasting; complements the broader survey with quantitative SLR methodology.
+- Shanken, J. (1992), 'On the estimation of beta-pricing models', RFS — `10.1093/rfs/5.1.1` — Corrects standard errors for the errors-in-variables problem in two-pass regressions.
+- Sharpe (1963), A Simplified Model for Portfolio Analysis — `10.1287/mnsc.9.2.277` — Source of the single-index covariance structure used as the shrinkage target.
+- Sharpe (1974), Imputing Expected Security Returns from Portfolio Composition — `10.2307/2329621` — Reverse-optimization / implied-returns idea underlying the BL equilibrium prior.
+- Sharpe, W. F. (1964), 'Capital Asset Prices: A Theory of Market Equilibrium under Conditions of Risk', Journal of Finance — `10.1111/j.1540-6261.1964.tb02865.x` — The CAPM whose empirical failure this paper documents.
+- Shephard & Sheppard (2010), HEAVY models — `10.1002/jae.1158` — Parallel approach using realized measures to drive GARCH-type dynamics.
+- Shiller (1981), Do Stock Prices Move Too Much to Be Justified by Subsequent Changes in Dividends?, AER — `10.3386/w0456` — The excess-volatility test that anchors the case against strict efficiency.
+- Shiller (2003), From Efficient Markets Theory to Behavioral Finance, JEP — `10.1257/089533003321164967` — The companion behavioural-finance counterpoint in the same JEP symposium.
+- Shleifer & Vishny (1997), The limits of arbitrage — `10.1111/j.1540-6261.1997.tb03807.x` — Direct descendant formalising capital constraints on arbitrage (already gathered).
+- Sirignano (2019), Deep learning for limit order books, Quantitative Finance — `1601.01987` — Spatial neural network predecessor for LOB modelling.
+- Sirignano, Cont (2019), Universal features of price formation in financial markets, Quantitative Finance — `arXiv:1803.06917` — Large-scale deep-learning evidence for universal, data-driven price-formation features in LOBs.
+- Sirignano, Deep Learning for Limit Order Books (2019) — `arXiv:1601.01987` — Foundational spatial-NN LOB model and conceptual predecessor
+- Smith, E., Farmer, J.D., Gillemot, L. & Krishnamurthy, S. (2003). Statistical theory of the continuous double auction. — `10.1088/1469-7688/3/6/307` — Zero-intelligence LOB benchmark the queue-reactive model is compared against.
+- Smith, Farmer, Gillemot, Krishnamurthy (2003), Statistical theory of the continuous double auction, Quantitative Finance — `cond-mat/0210475` — Zero-intelligence statistical-mechanics model of the LOB.
+- Spinu, An algorithm for computing risk parity weights (2013) — `10.2139/ssrn.2297383` — The convex-optimization existence/algorithm precursor for the volatility case.
+- Spooner, Fearnley, Savani & Koukorinis — Market Making via Reinforcement Learning — `arXiv:1804.04216` — Canonical RL market-making study cited as the reference design for the market-making subfield.
+- Spooner, T. et al. (2018). Market Making via Reinforcement Learning. — `1804.04216` — RL market-making instance surveyed here (already gathered).
+- Stambaugh (1986) working paper on bias in regressions with lagged stochastic regressors — The unpublished antecedent that introduced the bias result.
+- Stambaugh (1999), Predictive Regressions, Journal of Financial Economics — `10.1016/S0304-405X(99)00041-0` — Small-sample bias in persistent-predictor regressions that motivates the alternative test.
+- Stambaugh & Yuan, 'Mispricing Factors' (2017) — `10.1093/rfs/hhw107` — Builds the MGMT/PERF mispricing factors from this anomaly composite (already gathered).
+- Stambaugh, Yu, Yuan (2012), 'The short of it: Investor sentiment and anomalies', JFE — `10.1016/j.jfineco.2011.12.001` — Sentiment-and-anomalies foundation for the mispricing factors.
+- Stambaugh, Yu, Yuan, 'Arbitrage Asymmetry...' (2015) — `10.1111/jofi.12286` — Limits-to-arbitrage mechanism behind why predictability concentrates in hard-to-arbitrage stocks.
+- Stein (1956), Inadmissibility of the usual estimator for the mean of a multivariate normal distribution — Origin of the shrinkage / James-Stein idea underlying the estimator.
+- Storey (2002), A Direct Approach to False Discovery Rates, JRSS-B — `10.1111/1467-9868.00346` — The q-value / positive-FDR framework underlying their calibration.
+- Sullivan, Timmermann & White (1999), Data-Snooping, Technical Trading Rule Performance, and the Bootstrap, Journal of Finance — `10.1111/0022-1082.00163` — Foundational data-snooping application of White's Reality Check to trading rules — the empirical precursor to factor multiple-testing.
+- Takahashi, Chen & Tanaka-Ishii (2019), Modeling financial time-series with generative adversarial networks, Physica A — `10.1016/j.physa.2019.121261` — Parallel GAN approach to reproducing stylised facts.
+- Takeuchi & Lee, Applying Deep Learning to Enhance Momentum Trading Strategies (2013) — Early deep-learning momentum classifier that this paper builds upon.
+- Timmermann (2006), Forecast combinations (Handbook chapter) — `10.1016/S1574-0706(05)01004-9` — Theory of why combination reduces forecast error.
+- Tobin (1958), Liquidity Preference as Behavior Towards Risk, Review of Economic Studies — `10.2307/2296205` — Separation theorem extending Markowitz with a risk-free asset, foundational to the tangency portfolio.
+- Torre, N. & Ferrari, M. (1997). Market Impact Model Handbook (BARRA). — Early practitioner square-root impact calibration that motivated the invariance scaling.
+- Toth et al. (2011), Anomalous price impact and the critical nature of liquidity, PRX — `1105.1694` — Latent-liquidity theory predicting the crossover.
+- Toth, Lemperiere, Deremble, de Lataillade, Kockelkoren, Bouchaud (2011), Anomalous price impact and the critical nature of liquidity, Physical Review X — `10.1103/PhysRevX.1.021006` — Origin of the square-root impact law and latent-liquidity argument that is the book's climax.
+- Tsantekidis et al., Forecasting Stock Prices from the Limit Order Book Using CNNs (2017) — `10.1109/CBI.2017.23` — Earlier CNN LOB baseline that DeepLOB improves on
+- Tsantekidis et al., Using deep learning to detect price change indications in financial markets (2017) — `10.23919/EUSIPCO.2017.8081663` — Early deep-learning baseline evaluated on the same data
+- Tumminello, Lillo & Mantegna (2010), Correlation, hierarchies, and networks in financial markets — `10.1016/j.jebo.2010.01.004` — Filtering / hierarchical methods compared in the study by the same group.
+- Tyler (1987), A distribution-free M-estimator of multivariate scatter — `10.1214/aos/1176350263` — The robust scatter estimator at the core of the hybrid.
+- Urquhart (2016), The Inefficiency of Bitcoin, Economics Letters — `10.1016/j.econlet.2016.09.019` — The original weak-form (in)efficiency test for Bitcoin this paper builds on.
+- Vaswani et al., Attention Is All You Need (2017) — `arXiv:1706.03762` — Origin of the self-attention mechanism applied here
+- Vidyamurthy (2004), Pairs Trading: Quantitative Methods and Analysis — Companion practitioner reference for cointegration-based spread construction.
+- Vidyamurthy, Pairs Trading: Quantitative Methods and Analysis (2004) — Practitioner text popularizing the cointegration approach to pair selection.
+- White (2000), A Reality Check for Data Snooping, Econometrica — `10.1111/1468-0262.00152` — The core bootstrap test for data snooping across many strategies; statistical backbone of the field.
+- Wiese et al. (2019), Quant GANs: Deep Generation of Financial Time Series — `1907.06673` — The generative model whose LRD reproduction is evaluated.
+- Woo et al. - Unified Training of Universal Time Series Forecasting Transformers (Moirai, 2024) — `arXiv:2402.02592` — Multivariate any-variate TSFM alternative
+- Wu et al. — BloombergGPT (2023) — `2303.17564` — The closed-data financial LLM FinGPT positions itself against.
+- Wu et al. — BloombergGPT: A Large Language Model for Finance — `arXiv:2303.17564` — The seminal from-scratch financial foundation model; the central primary work of this survey.
+- Xie et al. — PIXIU: A Comprehensive Benchmark, Instruction Dataset and LLM for Finance — `arXiv:2306.05443` — Defines the main instruction dataset and evaluation benchmark for financial LLMs.
+- Yan & Zheng (2017), Fundamental Analysis and the Cross-Section of Stock Returns: A Data-Mining Approach, RFS — `10.1093/rfs/hhx001` — Related brute-force generation of accounting-based predictors to study snooping.
+- Yang, Liu & Wang — FinGPT: Open-Source Financial Large Language Models — `arXiv:2306.06031` — Leading open-source financial LLM stack; key counterpoint to closed BloombergGPT.
+- Yang, Liu, Wang — FinGPT: Open-Source Financial LLMs (2023) — `10.2139/ssrn.4489826` — Open-source counterpart contrasting with BloombergGPT's closed approach.
+- Yang, Liu, Zhong, Walid - Deep RL for Automated Stock Trading: An Ensemble Strategy (2020) — `10.1145/3383455.3422540` — Ensemble DRL strategy that seeded the FinRL framework
+- Yang, Uy & Huang — FinBERT: A Pretrained Language Model for Financial Communications — `arXiv:2006.08097` — Alternative widely-used FinBERT variant central to the financial-NLP comparison.
+- Yu et al. — FinMem / FinAgent: LLM trading agents with layered memory — `arXiv:2311.13743` — Representative agentic-LLM trading system exemplifying the survey's agent taxonomy.
+- Zhang, Zhang, Cucuringu & Qian (2022), Volatility forecasting with ML and intraday commonality — `2202.08962` — Companion ML-forecasting methodology for pooled assets.
+- Zhang, Zohren & Roberts, Deep Learning for Portfolio Optimization (2020) — `10.48550/arXiv.2005.13665` — Same group's end-to-end Sharpe-optimized portfolio learning, a natural extension.
+- Zhang, Zohren, Roberts - Deep Reinforcement Learning for Trading (2019) — `arXiv:1911.10107` — Companion RL approach to the same systematic-trading problem
+- Zhang, Zohren, Roberts (2019), DeepLOB: Deep convolutional neural networks for limit order books, IEEE Trans. Signal Processing — `10.1109/TSP.2019.2907260` — The seminal deep-learning LOB forecasting architecture this study benchmarks and extends.
+- Zhang, Zohren, Roberts (2019), DeepLOB: deep convolutional neural networks for limit order books, IEEE TSP — `1808.03668` — The benchmark architecture being scrutinised.
+- Zhang, Zohren, Roberts, DeepLOB (2019) — `arXiv:1808.03668` — State-of-the-art CNN/LSTM baseline that the transformer outperforms
