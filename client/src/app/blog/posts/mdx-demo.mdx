@@ -1,6 +1,6 @@
 ---
-title: "Markdown demo"
-blurb: "Some subtitle"
+title: "MDX & Markdown feature demo"
+blurb: "Every Markdown extension and MDX component the site supports, on one page."
 coverImage: 24
 author: "Dereck Mezquita"
 date: 2030-01-01
@@ -21,11 +21,9 @@ You can directly have a paragraph here and it won't be scraped by `remark-toc`.
     Some caption!
 </Figure>
 
-## mdx limitations
+## MDX limitations
 
-Unfortunately as demonstrated here: https://github.com/hashicorp/next-mdx-remote/issues/48
-
-MDX will never support importing components while being loaded from a remote source.
+You cannot `import` components inside a remotely-loaded MDX file ([next-mdx-remote#48](https://github.com/hashicorp/next-mdx-remote/issues/48)). Instead, the components shown below are provided globally through the registry in `client/src/components/mdx/index.tsx`, so they are available on every page without an import.
 
 ## Here are some maths
 
@@ -98,6 +96,68 @@ Critical content demanding immediate user attention due to potential risks.
 Some block quote here...
 </Blockquote>
 
+### Interactive plot (sliders, checkboxes, selects)
+
+<InteractivePlot
+  controls={[
+    { id: "freq", type: "range", label: "Frequency", min: 1, max: 10, step: 1, default: 3 },
+    { id: "amp", type: "range", label: "Amplitude", min: 10, max: 140, step: 10, default: 80 },
+    { id: "fill", type: "checkbox", label: "Fill area", default: false }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#2f81f7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 0; x <= canvas.width; x++) {
+      const y = canvas.height / 2 - params.amp * Math.sin((x / canvas.width) * params.freq * 2 * Math.PI);
+      if (x === 0) { ctx.moveTo(x, y); } else { ctx.lineTo(x, y); }
+    }
+    ctx.stroke();
+    if (params.fill) {
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.lineTo(0, canvas.height / 2);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(47, 129, 247, 0.2)";
+      ctx.fill();
+    }
+  `}
+  width={600}
+  height={300}
+/>
+
+### Canvas animation (no controls)
+
+<CanvasWithJs code={`
+  let x = 60, y = 60, vx = 3.2, vy = 2.4, r = 20;
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    x += vx; y += vy;
+    if (x < r || x > canvas.width - r) vx = -vx;
+    if (y < r || y > canvas.height - r) vy = -vy;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = "#a371f7";
+    ctx.fill();
+    requestAnimationFrame(frame);
+  }
+  frame();
+`} width={600} height={300} />
+
+### Image carousel
+
+<Carousel
+  items={[
+    { src: "/site-images/card-covers/1.png", caption: "Cover 1" },
+    { src: "/site-images/card-covers/13.png", caption: "Cover 13" },
+    { src: "/site-images/card-covers/24.png", caption: "Cover 24" }
+  ]}
+/>
+
+### Knowledge graph embed
+
+<KnowledgeGraphEmbed />
+
 ### Code syntax highlighting
 
 ```js
@@ -153,4 +213,4 @@ Testing relative links to other sections of the website:
 
 - Dictionary definition: [Alginate](/dictionaries/biology/biology_biochemistry_a_alginate)
 - Reference: [Bacterial Culture](/references/biology-wetlab_bacterial-culture)
-- Course chapter: [Describing Data](/courses/mathematical-statistics-1-foundations/01-describing-data/01-1_mathematical-statistics-1-foundations_describing-data_types-and-central-tendency)
+- Course chapter: [Describing Data](/courses/mathematical-statistics-1-foundations/describing-data/types-and-central-tendency)
